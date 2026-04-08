@@ -11,8 +11,8 @@ import {
 test('navigation helpers split available and upcoming sections correctly', () => {
   assert.equal(getAvailableNavItems(vendorNavItems).length, 2)
   assert.equal(getUpcomingNavItems(vendorNavItems).length, 3)
-  assert.equal(getAvailableNavItems(adminNavItems).length, 1)
-  assert.equal(getUpcomingNavItems(adminNavItems).length, 6)
+  assert.equal(getAvailableNavItems(adminNavItems).length, 7)
+  assert.equal(getUpcomingNavItems(adminNavItems).length, 0)
 })
 
 test('buyer account only exposes implemented links as available', () => {

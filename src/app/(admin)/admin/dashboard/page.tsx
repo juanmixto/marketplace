@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { formatPrice } from '@/lib/utils'
+import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Dashboard Admin' }
@@ -30,10 +31,10 @@ export default async function AdminDashboardPage() {
   })
 
   const stats = [
-    { label: 'Pedidos activos', value: activeOrders, color: 'text-blue-600', available: false },
-    { label: 'Productores pendientes', value: pendingVendors, color: pendingVendors > 0 ? 'text-amber-600' : 'text-gray-900', available: false },
-    { label: 'Productos por revisar', value: pendingProducts, color: pendingProducts > 0 ? 'text-amber-600' : 'text-gray-900', available: false },
-    { label: 'Incidencias abiertas', value: openIncidents, color: openIncidents > 0 ? 'text-red-600' : 'text-gray-900', available: false },
+    { label: 'Pedidos activos', value: activeOrders, color: 'text-blue-600', href: '/admin/pedidos' },
+    { label: 'Productores pendientes', value: pendingVendors, color: pendingVendors > 0 ? 'text-amber-600' : 'text-gray-900', href: '/admin/productores' },
+    { label: 'Productos por revisar', value: pendingProducts, color: pendingProducts > 0 ? 'text-amber-600' : 'text-gray-900', href: '/admin/productos' },
+    { label: 'Incidencias abiertas', value: openIncidents, color: openIncidents > 0 ? 'text-red-600' : 'text-gray-900', href: '/admin/incidencias' },
   ]
 
   return (
@@ -46,19 +47,19 @@ export default async function AdminDashboardPage() {
           <p className="font-semibold text-red-800 mb-2">Requieren atención inmediata</p>
           <div className="flex flex-wrap gap-3">
             {pendingVendors > 0 && (
-              <span className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-700">
+              <Link href="/admin/productores" className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">
                 {pendingVendors} productor{pendingVendors > 1 ? 'es' : ''} pendiente{pendingVendors > 1 ? 's' : ''}
-              </span>
+              </Link>
             )}
             {pendingProducts > 0 && (
-              <span className="rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm font-medium text-amber-700">
+              <Link href="/admin/productos" className="rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50">
                 {pendingProducts} producto{pendingProducts > 1 ? 's' : ''} por revisar
-              </span>
+              </Link>
             )}
             {openIncidents > 0 && (
-              <span className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-700">
+              <Link href="/admin/incidencias" className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">
                 {openIncidents} incidencia{openIncidents > 1 ? 's' : ''} abierta{openIncidents > 1 ? 's' : ''}
-              </span>
+              </Link>
             )}
           </div>
         </div>
@@ -67,19 +68,17 @@ export default async function AdminDashboardPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {stats.map(s => (
-          <div key={s.label} className="rounded-xl border border-gray-200 bg-white p-4">
+          <Link key={s.label} href={s.href} className="rounded-xl border border-gray-200 bg-white p-4 transition hover:border-gray-300 hover:shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
                 <p className="mt-0.5 text-sm text-gray-500">{s.label}</p>
               </div>
-              {!s.available && (
-                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-gray-500">
-                  Proximamente
-                </span>
-              )}
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] uppercase tracking-wide text-emerald-700">
+                Ver
+              </span>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 
@@ -87,7 +86,7 @@ export default async function AdminDashboardPage() {
       <div className="rounded-xl border border-gray-200 bg-white">
         <div className="border-b border-gray-100 px-5 py-3.5 flex items-center justify-between">
           <h2 className="font-semibold text-gray-900">Pedidos recientes</h2>
-          <span className="text-sm text-gray-400">Proximamente</span>
+          <Link href="/admin/pedidos" className="text-sm text-emerald-600 hover:underline">Ver todos</Link>
         </div>
         {recentOrders.length === 0 ? (
           <p className="py-8 text-center text-sm text-gray-400">Sin pedidos</p>

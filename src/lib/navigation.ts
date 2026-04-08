@@ -14,12 +14,12 @@ export const vendorNavItems: AppNavItem[] = [
 
 export const adminNavItems: AppNavItem[] = [
   { href: '/admin/dashboard', label: 'Dashboard', available: true },
-  { href: '/admin/pedidos', label: 'Pedidos', available: false },
-  { href: '/admin/productores', label: 'Productores', available: false },
-  { href: '/admin/productos', label: 'Productos', available: false },
-  { href: '/admin/liquidaciones', label: 'Liquidaciones', available: false },
-  { href: '/admin/incidencias', label: 'Incidencias', available: false },
-  { href: '/admin/informes', label: 'Informes', available: false },
+  { href: '/admin/pedidos', label: 'Pedidos', available: true },
+  { href: '/admin/productores', label: 'Productores', available: true },
+  { href: '/admin/productos', label: 'Productos', available: true },
+  { href: '/admin/liquidaciones', label: 'Liquidaciones', available: true },
+  { href: '/admin/incidencias', label: 'Incidencias', available: true },
+  { href: '/admin/informes', label: 'Informes', available: true },
 ]
 
 export const buyerAccountItems: AppNavItem[] = [
