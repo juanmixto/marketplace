@@ -7,6 +7,7 @@ import { generateOrderNumber } from '@/lib/utils'
 import { createPaymentIntent } from '@/domains/payments/provider'
 import { revalidatePath } from 'next/cache'
 import { calculateOrderTotals, checkoutSchema, type CheckoutFormData } from '@/domains/orders/checkout'
+import { shouldApplyPaymentSucceeded } from '@/domains/payments/webhook'
 
 export interface CartItemInput {
   productId: string
@@ -145,18 +146,43 @@ export async function createOrder(
  * Called from the webhook (Stripe) or directly in mock mode.
  */
 export async function confirmOrder(orderId: string, providerRef: string) {
+  const payment = await db.payment.findFirst({
+    where: { orderId, providerRef },
+    include: { order: true },
+  })
+
+  if (!payment) return
+
+  if (!shouldApplyPaymentSucceeded({
+    paymentStatus: payment.status,
+    orderPaymentStatus: payment.order.paymentStatus,
+    orderStatus: payment.order.status,
+  })) {
+    revalidatePath(`/cuenta/pedidos`)
+    return
+  }
+
   await db.$transaction(async tx => {
-    await tx.payment.updateMany({
-      where: { orderId, providerRef },
+    const paymentUpdate = await tx.payment.updateMany({
+      where: { orderId, providerRef, status: { not: 'SUCCEEDED' } },
       data: { status: 'SUCCEEDED' },
     })
-    await tx.order.update({
-      where: { id: orderId },
+    const orderUpdate = await tx.order.updateMany({
+      where: {
+        id: orderId,
+        OR: [
+          { paymentStatus: { not: 'SUCCEEDED' } },
+          { status: { not: 'PAYMENT_CONFIRMED' } },
+        ],
+      },
       data: { status: 'PAYMENT_CONFIRMED', paymentStatus: 'SUCCEEDED' },
     })
-    await tx.orderEvent.create({
-      data: { orderId, type: 'PAYMENT_CONFIRMED', payload: { providerRef } },
-    })
+
+    if (paymentUpdate.count > 0 || orderUpdate.count > 0) {
+      await tx.orderEvent.create({
+        data: { orderId, type: 'PAYMENT_CONFIRMED', payload: { providerRef, source: 'manual-confirm' } },
+      })
+    }
   })
 
   revalidatePath(`/cuenta/pedidos`)
