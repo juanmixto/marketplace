@@ -11,14 +11,15 @@ import {
   ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
+import { vendorNavItems } from '@/lib/navigation'
 
-const NAV = [
-  { href: '/vendor/dashboard', icon: HomeIcon, label: 'Inicio' },
-  { href: '/vendor/pedidos', icon: ShoppingBagIcon, label: 'Mis pedidos' },
-  { href: '/vendor/productos', icon: ArchiveBoxIcon, label: 'Mi catálogo' },
-  { href: '/vendor/liquidaciones', icon: CurrencyEuroIcon, label: 'Liquidaciones' },
-  { href: '/vendor/perfil', icon: UserCircleIcon, label: 'Mi perfil' },
-]
+const NAV_META = {
+  '/vendor/dashboard': HomeIcon,
+  '/vendor/pedidos': ShoppingBagIcon,
+  '/vendor/productos': ArchiveBoxIcon,
+  '/vendor/liquidaciones': CurrencyEuroIcon,
+  '/vendor/perfil': UserCircleIcon,
+} as const
 
 interface Props {
   vendor?: { displayName: string; status: string; slug: string } | null
@@ -39,21 +40,40 @@ export function VendorSidebar({ vendor }: Props) {
       </div>
 
       <nav className="flex-1 space-y-0.5 p-2">
-        {NAV.map(({ href, icon: Icon, label }) => (
-          <Link
-            key={href}
-            href={href}
-            className={cn(
-              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition',
-              pathname === href || pathname.startsWith(href + '/')
-                ? 'bg-emerald-50 text-emerald-700'
-                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-            )}
-          >
-            <Icon className="h-5 w-5 shrink-0" />
-            {label}
-          </Link>
-        ))}
+        {vendorNavItems.map(({ href, label, available }) => {
+          const Icon = NAV_META[href as keyof typeof NAV_META]
+
+          if (!available) {
+            return (
+              <div
+                key={href}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-400"
+              >
+                <Icon className="h-5 w-5 shrink-0" />
+                <span className="flex-1">{label}</span>
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-gray-500">
+                  Proximamente
+                </span>
+              </div>
+            )
+          }
+
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition',
+                pathname === href || pathname.startsWith(href + '/')
+                  ? 'bg-emerald-50 text-emerald-700'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              )}
+            >
+              <Icon className="h-5 w-5 shrink-0" />
+              {label}
+            </Link>
+          )
+        })}
       </nav>
 
       {vendor?.slug && (

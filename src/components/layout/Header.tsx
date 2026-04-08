@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils'
 import { SITE_NAME } from '@/lib/constants'
 import { getPortalLabel, getPrimaryPortalHref } from '@/lib/portals'
 import type { UserRole } from '@/generated/prisma/enums'
+import { SignOutButton } from '@/components/auth/SignOutButton'
 
 const CATEGORIES = [
   { name: 'Verduras y Hortalizas', slug: 'verduras', icon: '🥦' },
@@ -35,6 +36,7 @@ interface HeaderProps {
 export function Header({ user, cartCount = 0 }: HeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [catOpen, setCatOpen] = useState(false)
+  const [accountOpen, setAccountOpen] = useState(false)
   const pathname = usePathname()
   const portalHref = getPrimaryPortalHref(user?.role)
   const portalLabel = getPortalLabel(user?.role)
@@ -128,13 +130,47 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                 >
                   {portalLabel}
                 </Link>
-                <Link
-                  href="/cuenta"
-                  className="hidden items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 md:flex"
-                >
-                  <UserCircleIcon className="h-5 w-5" />
-                  {user.name?.split(' ')[0]}
-                </Link>
+                <div className="relative hidden md:block">
+                  <button
+                    onClick={() => setAccountOpen(v => !v)}
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                  >
+                    <UserCircleIcon className="h-5 w-5" />
+                    {user.name?.split(' ')[0] ?? 'Cuenta'}
+                    <ChevronDownIcon className={cn('h-4 w-4 text-gray-400 transition', accountOpen && 'rotate-180')} />
+                  </button>
+                  {accountOpen && (
+                    <>
+                      <div className="fixed inset-0" onClick={() => setAccountOpen(false)} />
+                      <div className="absolute right-0 top-full z-20 mt-1 w-56 rounded-xl border border-gray-200 bg-white p-1 shadow-lg">
+                        <Link
+                          href="/cuenta"
+                          onClick={() => setAccountOpen(false)}
+                          className="block rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          Mi cuenta
+                        </Link>
+                        <Link
+                          href="/cuenta/pedidos"
+                          onClick={() => setAccountOpen(false)}
+                          className="block rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          Mis pedidos
+                        </Link>
+                        <Link
+                          href={portalHref}
+                          onClick={() => setAccountOpen(false)}
+                          className="block rounded-lg px-3 py-2 text-sm text-emerald-700 hover:bg-emerald-50"
+                        >
+                          {portalLabel}
+                        </Link>
+                        <div className="border-t border-gray-100 px-1 py-1">
+                          <SignOutButton compact />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
               </>
             ) : (
               <>
@@ -215,6 +251,12 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                   <Link href="/cuenta" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700">
                     <UserCircleIcon className="h-5 w-5" /> Mi cuenta
                   </Link>
+                  <Link href="/cuenta/pedidos" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700">
+                    <ShoppingCartIcon className="h-5 w-5" /> Mis pedidos
+                  </Link>
+                  <div className="pt-1">
+                    <SignOutButton compact />
+                  </div>
                 </>
               ) : (
                 <>

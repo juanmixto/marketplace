@@ -91,9 +91,9 @@ export default async function VendorDashboardPage() {
                     {f.status === 'PENDING' ? 'Pendiente de confirmación' : 'Listo para enviar'}
                   </p>
                 </div>
-                <Link href="/vendor/pedidos"
+                <Link href="/vendor/productos"
                   className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700">
-                  Atender
+                  Ver catalogo
                 </Link>
               </div>
             ))}
@@ -123,13 +123,13 @@ export default async function VendorDashboardPage() {
             className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
             + Nuevo producto
           </Link>
-          <Link href="/vendor/pedidos"
+          <Link href="/vendor/productos"
             className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-            Ver pedidos
+            Gestionar catalogo
           </Link>
-          <Link href="/vendor/perfil"
+          <Link href="/"
             className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-            Editar perfil
+            Ver tienda
           </Link>
         </div>
       </div>
