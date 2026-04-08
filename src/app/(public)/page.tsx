@@ -3,6 +3,7 @@ import Image from 'next/image'
 import { getFeaturedProducts, getCategories, getVendors } from '@/domains/catalog/queries'
 import { ProductCard } from '@/components/catalog/ProductCard'
 import type { ProductWithVendor } from '@/domains/catalog/types'
+import { publicPortalLinks } from '@/lib/portals'
 import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import { CheckBadgeIcon, TruckIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
 
@@ -90,6 +91,35 @@ export default async function HomePage() {
                 <Icon className="h-5 w-5 shrink-0 text-emerald-600" />
                 {text}
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="rounded-3xl border border-emerald-100 bg-gradient-to-r from-white via-emerald-50/70 to-lime-50/80 p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">Accesos rápidos</p>
+              <h2 className="mt-1 text-2xl font-bold text-gray-900">Entrar según tu perfil</h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Si estás probando la plataforma, desde aquí puedes ir directo al área de cliente, productor o admin.
+              </p>
+            </div>
+            <Link href="/login" className="text-sm font-medium text-emerald-700 hover:underline">
+              Ver credenciales de demo →
+            </Link>
+          </div>
+          <div className="mt-6 grid gap-3 md:grid-cols-3">
+            {publicPortalLinks.map(link => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="rounded-2xl border border-white/90 bg-white/90 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+              >
+                <p className="font-semibold text-gray-900">{link.label}</p>
+                <p className="mt-1 text-sm text-gray-600">{link.description}</p>
+              </Link>
             ))}
           </div>
         </div>

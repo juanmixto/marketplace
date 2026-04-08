@@ -13,6 +13,8 @@ import {
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import { SITE_NAME } from '@/lib/constants'
+import { getPrimaryPortalHref } from '@/lib/portals'
+import type { UserRole } from '@/generated/prisma/enums'
 
 const CATEGORIES = [
   { name: 'Verduras y Hortalizas', slug: 'verduras', icon: '🥦' },
@@ -26,7 +28,7 @@ const CATEGORIES = [
 ]
 
 interface HeaderProps {
-  user?: { name?: string | null; email?: string | null } | null
+  user?: { name?: string | null; email?: string | null; role?: UserRole } | null
   cartCount?: number
 }
 
@@ -34,6 +36,13 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [catOpen, setCatOpen] = useState(false)
   const pathname = usePathname()
+  const portalHref = getPrimaryPortalHref(user?.role)
+  const portalLabel =
+    user?.role === 'VENDOR'
+      ? 'Panel productor'
+      : user?.role?.startsWith('ADMIN') || user?.role === 'SUPERADMIN'
+        ? 'Panel admin'
+        : 'Mi cuenta'
 
   return (
     <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
@@ -89,6 +98,15 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
             Productores
           </Link>
 
+          {!user && (
+            <Link
+              href="/login?callbackUrl=%2Fvendor%2Fdashboard"
+              className="hidden text-sm font-medium text-gray-700 hover:text-emerald-600 lg:block"
+            >
+              Portal productor
+            </Link>
+          )}
+
           {/* Search */}
           <form
             action="/productos"
@@ -108,13 +126,21 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
           {/* Right actions */}
           <div className="ml-auto flex items-center gap-2">
             {user ? (
-              <Link
-                href="/cuenta"
-                className="hidden items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 md:flex"
-              >
-                <UserCircleIcon className="h-5 w-5" />
-                {user.name?.split(' ')[0]}
-              </Link>
+              <>
+                <Link
+                  href={portalHref}
+                  className="hidden rounded-lg px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 md:block"
+                >
+                  {portalLabel}
+                </Link>
+                <Link
+                  href="/cuenta"
+                  className="hidden items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 md:flex"
+                >
+                  <UserCircleIcon className="h-5 w-5" />
+                  {user.name?.split(' ')[0]}
+                </Link>
+              </>
             ) : (
               <>
                 <Link
@@ -181,16 +207,33 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                 <span>{cat.icon}</span> {cat.name}
               </Link>
             ))}
-            <div className="border-t border-gray-100 pt-3 mt-3">
+            <div className="border-t border-gray-100 pt-3 mt-3 space-y-2">
               {user ? (
-                <Link href="/cuenta" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700">
-                  <UserCircleIcon className="h-5 w-5" /> Mi cuenta
-                </Link>
+                <>
+                  <Link
+                    href={portalHref}
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-emerald-700"
+                  >
+                    {portalLabel}
+                  </Link>
+                  <Link href="/cuenta" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700">
+                    <UserCircleIcon className="h-5 w-5" /> Mi cuenta
+                  </Link>
+                </>
               ) : (
-                <div className="flex gap-2">
-                  <Link href="/login" className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-center text-sm font-medium">Entrar</Link>
-                  <Link href="/register" className="flex-1 rounded-lg bg-emerald-600 px-4 py-2 text-center text-sm font-semibold text-white">Registrarse</Link>
-                </div>
+                <>
+                  <Link
+                    href="/login?callbackUrl=%2Fvendor%2Fdashboard"
+                    className="block rounded-lg bg-emerald-50 px-4 py-2 text-center text-sm font-medium text-emerald-700"
+                  >
+                    Portal productor
+                  </Link>
+                  <div className="flex gap-2">
+                    <Link href="/login" className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-center text-sm font-medium">Entrar</Link>
+                    <Link href="/register" className="flex-1 rounded-lg bg-emerald-600 px-4 py-2 text-center text-sm font-semibold text-white">Registrarse</Link>
+                  </div>
+                </>
               )}
             </div>
           </div>
