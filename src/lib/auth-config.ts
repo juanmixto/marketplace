@@ -1,6 +1,7 @@
 // Auth config shared between middleware (edge) and server code.
 // Must NOT import Prisma or any Node.js-only module.
 import type { NextAuthConfig } from 'next-auth'
+import type { UserRole } from '@/generated/prisma/enums'
 
 export const authConfig: NextAuthConfig = {
   pages: {
@@ -34,14 +35,14 @@ export const authConfig: NextAuthConfig = {
     jwt({ token, user }) {
       if (user) {
         token.id = user.id ?? ''
-        token.role = (user as any).role
+        token.role = user.role as UserRole
       }
       return token
     },
     session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string
-        session.user.role = token.role as any
+        session.user.role = token.role as UserRole
       }
       return session
     },

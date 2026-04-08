@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { getProducts, getCategories } from '@/domains/catalog/queries'
 import { ProductCard } from '@/components/catalog/ProductCard'
 import { ProductFiltersPanel } from '@/components/catalog/ProductFiltersPanel'
+import { parseProductSort, type ProductWithVendor } from '@/domains/catalog/types'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Productos' }
@@ -26,7 +27,7 @@ export default async function ProductosPage({ searchParams }: Props) {
     q: params.q,
     categorySlug: params.categoria,
     certifications: certs,
-    sort: (params.orden as any) ?? 'newest',
+    sort: parseProductSort(params.orden),
     page: params.pagina ? parseInt(params.pagina) : 1,
   })
 
@@ -65,7 +66,7 @@ export default async function ProductosPage({ searchParams }: Props) {
           ) : (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
               {products.map(p => (
-                <ProductCard key={p.id} product={p as any} />
+                <ProductCard key={p.id} product={p as ProductWithVendor} />
               ))}
             </div>
           )}

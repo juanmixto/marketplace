@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { getProductBySlug, getProducts } from '@/domains/catalog/queries'
 import { Badge } from '@/components/ui/badge'
 import { AddToCartButton } from '@/components/catalog/AddToCartButton'
+import type { ProductWithVendor } from '@/domains/catalog/types'
 import { formatPrice } from '@/lib/utils'
 import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import { ProductCard } from '@/components/catalog/ProductCard'
@@ -203,7 +204,7 @@ export default async function ProductDetailPage({ params }: Props) {
           <h2 className="text-xl font-bold text-gray-900 mb-6">Productos relacionados</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {related.map(p => (
-              <ProductCard key={p.id} product={p as any} />
+              <ProductCard key={p.id} product={p as ProductWithVendor} />
             ))}
           </div>
         </section>

@@ -2,10 +2,10 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Badge } from '@/components/ui/badge'
 import { formatPrice } from '@/lib/utils'
-import type { ProductWithVendor } from '@/domains/catalog/types'
+import type { BadgeVariant, ProductWithVendor } from '@/domains/catalog/types'
 import { MapPinIcon } from '@heroicons/react/24/outline'
 
-const CERT_COLORS: Record<string, string> = {
+const CERT_COLORS: Record<string, BadgeVariant> = {
   'ECO-ES': 'green',
   'DOP': 'blue',
   'KM0': 'purple',
@@ -66,7 +66,7 @@ export function ProductCard({ product }: ProductCardProps) {
             {product.certifications.slice(0, 3).map(cert => (
               <Badge
                 key={cert}
-                variant={(CERT_COLORS[cert] ?? 'default') as any}
+                variant={CERT_COLORS[cert] ?? 'default'}
                 className="text-[10px] px-1.5 py-0"
               >
                 {cert}

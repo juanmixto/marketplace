@@ -1,15 +1,15 @@
 import NextAuth from 'next-auth'
 import { PrismaAdapter } from '@auth/prisma-adapter'
+import type { Adapter } from 'next-auth/adapters'
 import Credentials from 'next-auth/providers/credentials'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 import { authConfig } from './auth-config'
-import type { UserRole } from '@/generated/prisma/enums'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
-  adapter: PrismaAdapter(db) as any,
+  adapter: PrismaAdapter(db) as Adapter,
   session: { strategy: 'jwt' },
   providers: [
     Credentials({

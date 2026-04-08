@@ -1,4 +1,6 @@
+import type { VariantProps } from 'class-variance-authority'
 import type { Product, Vendor, Category, ProductVariant } from '@/generated/prisma/client'
+import type { badgeVariants } from '@/components/ui/badge'
 
 export type ProductWithVendor = Product & {
   vendor: Pick<Vendor, 'slug' | 'displayName' | 'location'>
@@ -17,4 +19,19 @@ export type VendorWithCount = Vendor & {
 
 export type CategoryWithCount = Category & {
   _count: { products: number }
+}
+
+export type ProductSort = 'price_asc' | 'price_desc' | 'newest' | 'popular'
+
+export type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>['variant']>
+
+export function parseProductSort(value?: string): ProductSort {
+  switch (value) {
+    case 'price_asc':
+    case 'price_desc':
+    case 'popular':
+      return value
+    default:
+      return 'newest'
+  }
 }

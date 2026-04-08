@@ -2,6 +2,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { getFeaturedProducts, getCategories, getVendors } from '@/domains/catalog/queries'
 import { ProductCard } from '@/components/catalog/ProductCard'
+import type { ProductWithVendor } from '@/domains/catalog/types'
 import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import { CheckBadgeIcon, TruckIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
 
@@ -125,7 +126,7 @@ export default async function HomePage() {
         {featured.length > 0 ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {featured.map(p => (
-              <ProductCard key={p.id} product={p as any} />
+              <ProductCard key={p.id} product={p as ProductWithVendor} />
             ))}
           </div>
         ) : (

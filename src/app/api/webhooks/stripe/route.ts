@@ -1,6 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { shouldApplyPaymentFailed, shouldApplyPaymentSucceeded } from '@/domains/payments/webhook'
+import type Stripe from 'stripe'
+
+type WebhookPaymentIntent = {
+  id: string
+  amount?: number
+}
+
+type WebhookEvent = {
+  id?: string
+  type: string
+  data: {
+    object: WebhookPaymentIntent
+  }
+}
+
+function getWebhookPaymentIntent(event: Stripe.Event | WebhookEvent): WebhookPaymentIntent | null {
+  const object = event.data.object
+
+  if (
+    object &&
+    typeof object === 'object' &&
+    'id' in object &&
+    typeof object.id === 'string'
+  ) {
+    return {
+      id: object.id,
+      amount: 'amount' in object && typeof object.amount === 'number' ? object.amount : undefined,
+    }
+  }
+
+  return null
+}
 
 /**
  * Stripe webhook handler.
@@ -10,7 +42,7 @@ import { shouldApplyPaymentFailed, shouldApplyPaymentSucceeded } from '@/domains
 export async function POST(req: NextRequest) {
   const body = await req.text()
   const sig = req.headers.get('stripe-signature')
-  let event: any
+  let event: Stripe.Event | WebhookEvent
 
   // Skip signature check in mock mode
   if (process.env.PAYMENT_PROVIDER !== 'mock') {
@@ -32,12 +64,14 @@ export async function POST(req: NextRequest) {
   try {
     switch (event.type) {
       case 'payment_intent.succeeded': {
-        const pi = event.data.object
+        const pi = getWebhookPaymentIntent(event)
+        if (!pi) break
         await handlePaymentSucceeded(pi.id, pi.amount, event.id)
         break
       }
       case 'payment_intent.payment_failed': {
-        const pi = event.data.object
+        const pi = getWebhookPaymentIntent(event)
+        if (!pi) break
         await handlePaymentFailed(pi.id, event.id)
         break
       }
@@ -50,7 +84,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ received: true })
 }
 
-async function handlePaymentSucceeded(providerRef: string, amount: number, eventId?: string) {
+async function handlePaymentSucceeded(providerRef: string, amount?: number, eventId?: string) {
   const payment = await db.payment.findUnique({
     where: { providerRef },
     include: { order: true },

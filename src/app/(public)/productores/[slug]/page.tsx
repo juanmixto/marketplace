@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { getVendorBySlug } from '@/domains/catalog/queries'
 import { ProductCard } from '@/components/catalog/ProductCard'
+import type { ProductWithVendor } from '@/domains/catalog/types'
 import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import type { Metadata } from 'next'
 
@@ -55,7 +56,14 @@ export default async function VendorPublicPage({ params }: Props) {
           {vendor.products.map(p => (
             <ProductCard
               key={p.id}
-              product={{ ...p, vendor: { slug: vendor.slug, displayName: vendor.displayName, location: vendor.location } } as any}
+              product={{
+                ...p,
+                vendor: {
+                  slug: vendor.slug,
+                  displayName: vendor.displayName,
+                  location: vendor.location,
+                },
+              } as ProductWithVendor}
             />
           ))}
         </div>

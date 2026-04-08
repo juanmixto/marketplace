@@ -1,0 +1,272 @@
+'use server'
+
+import { auth } from '@/lib/auth'
+import { db } from '@/lib/db'
+import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
+import { slugify } from '@/lib/utils'
+import type { FulfillmentStatus } from '@/generated/prisma/enums'
+
+// ─── Auth helpers ─────────────────────────────────────────────────────────────
+
+async function requireVendor() {
+  const session = await auth()
+  if (!session || session.user.role !== 'VENDOR') redirect('/login')
+  const vendor = await db.vendor.findUnique({ where: { userId: session.user.id } })
+  if (!vendor) redirect('/login')
+  return { session, vendor }
+}
+
+// ─── Product schemas ──────────────────────────────────────────────────────────
+
+const productSchema = z.object({
+  name: z.string().min(3, 'Mínimo 3 caracteres').max(100),
+  description: z.string().max(2000).optional(),
+  categoryId: z.string().optional(),
+  basePrice: z.coerce.number().positive('Precio debe ser positivo'),
+  compareAtPrice: z.coerce.number().positive().optional().nullable(),
+  taxRate: z.coerce.number().refine(v => [0.04, 0.10, 0.21].includes(v), 'IVA inválido'),
+  unit: z.string().min(1).max(20),
+  stock: z.coerce.number().int().min(0),
+  trackStock: z.coerce.boolean(),
+  certifications: z.array(z.string()).default([]),
+  originRegion: z.string().max(100).optional(),
+  images: z.array(z.string().url()).default([]),
+  status: z.enum(['DRAFT', 'PENDING_REVIEW']).default('DRAFT'),
+})
+
+type ProductInput = z.infer<typeof productSchema>
+
+// ─── CRUD productos ───────────────────────────────────────────────────────────
+
+/**
+ * Creates a new product for the authenticated vendor.
+ * Status defaults to DRAFT. Vendor must submit for review explicitly.
+ */
+export async function createProduct(input: ProductInput) {
+  const { vendor } = await requireVendor()
+  const data = productSchema.parse(input)
+
+  // Generate unique slug
+  let slug = slugify(data.name)
+  const existing = await db.product.findUnique({ where: { slug } })
+  if (existing) slug = `${slug}-${Date.now()}`
+
+  const product = await db.product.create({
+    data: {
+      ...data,
+      slug,
+      vendorId: vendor.id,
+      compareAtPrice: data.compareAtPrice ?? null,
+      description: data.description ?? null,
+      categoryId: data.categoryId ?? null,
+      originRegion: data.originRegion ?? null,
+    },
+  })
+
+  revalidatePath('/vendor/productos')
+  return product
+}
+
+/**
+ * Updates a product. Only the owning vendor can update.
+ * If product is ACTIVE and changes prices/stock, keeps status.
+ * If product was REJECTED, moving to DRAFT resets rejectionNote.
+ */
+export async function updateProduct(productId: string, input: Partial<ProductInput>) {
+  const { vendor } = await requireVendor()
+
+  const product = await db.product.findFirst({
+    where: { id: productId, vendorId: vendor.id },
+  })
+  if (!product) throw new Error('Producto no encontrado')
+
+  const data = productSchema.partial().parse(input)
+
+  const updated = await db.product.update({
+    where: { id: productId },
+    data: {
+      ...data,
+      // Reset rejection note when re-editing a rejected product
+      ...(product.status === 'REJECTED' && { rejectionNote: null }),
+    },
+  })
+
+  revalidatePath('/vendor/productos')
+  revalidatePath(`/productos/${product.slug}`)
+  return updated
+}
+
+/**
+ * Submits a draft product for admin review.
+ */
+export async function submitForReview(productId: string) {
+  const { vendor } = await requireVendor()
+
+  const product = await db.product.findFirst({
+    where: { id: productId, vendorId: vendor.id, status: { in: ['DRAFT', 'REJECTED'] } },
+  })
+  if (!product) throw new Error('Producto no encontrado o no se puede enviar a revisión')
+
+  await db.product.update({
+    where: { id: productId },
+    data: { status: 'PENDING_REVIEW', rejectionNote: null },
+  })
+
+  revalidatePath('/vendor/productos')
+}
+
+/**
+ * Soft-deletes a product. Cannot delete if it has active orders.
+ */
+export async function deleteProduct(productId: string) {
+  const { vendor } = await requireVendor()
+
+  const product = await db.product.findFirst({
+    where: { id: productId, vendorId: vendor.id, deletedAt: null },
+  })
+  if (!product) throw new Error('Producto no encontrado')
+
+  const activeOrderLines = await db.orderLine.count({
+    where: {
+      productId,
+      order: { status: { in: ['PLACED', 'PAYMENT_CONFIRMED', 'PROCESSING', 'SHIPPED'] } },
+    },
+  })
+  if (activeOrderLines > 0) {
+    throw new Error('No puedes eliminar un producto con pedidos activos')
+  }
+
+  await db.product.update({
+    where: { id: productId },
+    data: { deletedAt: new Date(), status: 'SUSPENDED' },
+  })
+
+  revalidatePath('/vendor/productos')
+}
+
+// ─── Queries ──────────────────────────────────────────────────────────────────
+
+export async function getMyProducts() {
+  const { vendor } = await requireVendor()
+  return db.product.findMany({
+    where: { vendorId: vendor.id, deletedAt: null },
+    orderBy: { createdAt: 'desc' },
+    include: { category: { select: { name: true } } },
+  })
+}
+
+export async function getMyProduct(productId: string) {
+  const { vendor } = await requireVendor()
+  return db.product.findFirst({
+    where: { id: productId, vendorId: vendor.id, deletedAt: null },
+    include: { category: true, variants: true },
+  })
+}
+
+// ─── Fulfillment (pedidos) ────────────────────────────────────────────────────
+
+const VALID_TRANSITIONS: Partial<Record<FulfillmentStatus, FulfillmentStatus>> = {
+  PENDING: 'CONFIRMED',
+  CONFIRMED: 'PREPARING',
+  PREPARING: 'READY',
+  READY: 'SHIPPED',
+}
+
+/**
+ * Advances a fulfillment to the next state.
+ * Validates the transition is legal.
+ */
+export async function advanceFulfillment(
+  fulfillmentId: string,
+  trackingNumber?: string,
+  carrier?: string
+) {
+  const { vendor } = await requireVendor()
+
+  const fulfillment = await db.vendorFulfillment.findFirst({
+    where: { id: fulfillmentId, vendorId: vendor.id },
+  })
+  if (!fulfillment) throw new Error('Fulfillment no encontrado')
+
+  const nextStatus = VALID_TRANSITIONS[fulfillment.status]
+  if (!nextStatus) throw new Error(`No se puede avanzar desde el estado ${fulfillment.status}`)
+
+  await db.vendorFulfillment.update({
+    where: { id: fulfillmentId },
+    data: {
+      status: nextStatus,
+      ...(nextStatus === 'SHIPPED' && {
+        trackingNumber: trackingNumber ?? null,
+        carrier: carrier ?? null,
+        shippedAt: new Date(),
+      }),
+    },
+  })
+
+  revalidatePath('/vendor/pedidos')
+}
+
+export async function getMyFulfillments(filter?: 'active' | 'urgent' | 'shipped' | 'all') {
+  const { vendor } = await requireVendor()
+
+  const statusMap: Record<'active' | 'urgent' | 'shipped' | 'all', FulfillmentStatus[] | undefined> = {
+    active: ['PENDING', 'CONFIRMED', 'PREPARING', 'READY'],
+    urgent: ['PENDING', 'READY'],
+    shipped: ['SHIPPED', 'DELIVERED'],
+    all: undefined,
+  }
+
+  const statuses = filter ? statusMap[filter] : undefined
+
+  return db.vendorFulfillment.findMany({
+    where: {
+      vendorId: vendor.id,
+      ...(statuses && { status: { in: statuses } }),
+    },
+    orderBy: { createdAt: 'asc' },
+    include: {
+      order: {
+        include: {
+          lines: {
+            where: { vendorId: vendor.id },
+            include: { product: { select: { name: true, images: true, unit: true } } },
+          },
+          customer: { select: { firstName: true, lastName: true } },
+          address: true,
+        },
+      },
+    },
+  })
+}
+
+// ─── Perfil vendor ────────────────────────────────────────────────────────────
+
+const profileSchema = z.object({
+  displayName: z.string().min(3).max(80),
+  description: z.string().max(2000).optional(),
+  location: z.string().max(100).optional(),
+  orderCutoffTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  preparationDays: z.coerce.number().int().min(0).max(30).optional(),
+  iban: z.string().max(34).optional(),
+  bankAccountName: z.string().max(100).optional(),
+})
+
+export async function updateVendorProfile(input: z.infer<typeof profileSchema>) {
+  const { vendor } = await requireVendor()
+  const data = profileSchema.parse(input)
+
+  const updated = await db.vendor.update({
+    where: { id: vendor.id },
+    data,
+  })
+
+  revalidatePath('/vendor/perfil')
+  return updated
+}
+
+export async function getMyVendorProfile() {
+  const { vendor } = await requireVendor()
+  return vendor
+}
