@@ -6,8 +6,15 @@ import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
-import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import {
+  BuildingStorefrontIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  ShieldCheckIcon,
+  ShoppingBagIcon,
+} from '@heroicons/react/24/outline'
+import {
+  getLoginPortalMode,
   normalizeAuthRedirectUrl,
   publicPortalLinks,
   sanitizeCallbackUrl,
@@ -21,9 +28,43 @@ interface LoginFormProps {
 export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
   const router = useRouter()
   const safeCallbackUrl = sanitizeCallbackUrl(callbackUrl) ?? STOREFRONT_PATH
+  const portalMode = getLoginPortalMode(safeCallbackUrl)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showPass, setShowPass] = useState(false)
+
+  const portalContent = {
+    buyer: {
+      badge: 'Acceso cliente',
+      title: 'Entrar a tu cuenta',
+      description: 'Consulta pedidos, carrito y seguimiento de tus compras.',
+      tint: 'from-slate-50 to-white',
+      border: 'border-slate-200',
+      accent: 'text-slate-700',
+      icon: ShoppingBagIcon,
+    },
+    vendor: {
+      badge: 'Portal productor',
+      title: 'Entrar como productor',
+      description: 'Gestiona catalogo, stock, pedidos y visibilidad de tu tienda.',
+      tint: 'from-emerald-50 to-white',
+      border: 'border-emerald-200',
+      accent: 'text-emerald-700',
+      icon: BuildingStorefrontIcon,
+    },
+    admin: {
+      badge: 'Panel admin',
+      title: 'Entrar como administrador',
+      description: 'Supervisa el marketplace, revisiones y operaciones internas.',
+      tint: 'from-amber-50 to-white',
+      border: 'border-amber-200',
+      accent: 'text-amber-700',
+      icon: ShieldCheckIcon,
+    },
+  } as const
+
+  const currentPortal = portalContent[portalMode]
+  const PortalIcon = currentPortal.icon
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -55,8 +96,20 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900">Bienvenido</h1>
-      <p className="mt-1 text-sm text-gray-500">Inicia sesión en tu cuenta</p>
+      <div className={`rounded-2xl border bg-gradient-to-br p-4 ${currentPortal.border} ${currentPortal.tint}`}>
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-sm">
+            <PortalIcon className={`h-5 w-5 ${currentPortal.accent}`} />
+          </div>
+          <div>
+            <p className={`text-xs font-semibold uppercase tracking-[0.22em] ${currentPortal.accent}`}>
+              {currentPortal.badge}
+            </p>
+            <h1 className="mt-1 text-2xl font-bold text-gray-900">{currentPortal.title}</h1>
+            <p className="mt-1 text-sm text-gray-600">{currentPortal.description}</p>
+          </div>
+        </div>
+      </div>
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-4">
         <Input
@@ -108,9 +161,15 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
           <Link
             key={link.href}
             href={link.href}
-            className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 transition hover:border-emerald-200 hover:bg-emerald-50/40"
+            className={`rounded-xl border px-4 py-3 text-sm transition ${
+              link.href.includes('/vendor') && portalMode === 'vendor'
+                ? 'border-emerald-300 bg-emerald-50 text-emerald-900 shadow-sm'
+                : link.href.includes('/admin') && portalMode === 'admin'
+                  ? 'border-amber-300 bg-amber-50 text-amber-900 shadow-sm'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-emerald-200 hover:bg-emerald-50/40'
+            }`}
           >
-            <span className="block font-medium text-gray-900">{link.label}</span>
+            <span className="block font-medium">{link.label}</span>
             <span className="block text-xs text-gray-500">{link.description}</span>
           </Link>
         ))}

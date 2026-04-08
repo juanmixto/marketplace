@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   getPortalLabel,
   getPrimaryPortalHref,
+  getLoginPortalMode,
   normalizeAuthRedirectUrl,
   publicPortalLinks,
   resolvePostLoginDestination,
@@ -48,4 +49,11 @@ test('normalizeAuthRedirectUrl converts localhost absolute urls into same-origin
   assert.equal(normalizeAuthRedirectUrl('https://localhost:3005/vendor/dashboard'), '/vendor/dashboard')
   assert.equal(normalizeAuthRedirectUrl('http://localhost:3000/admin/dashboard?tab=orders'), '/admin/dashboard?tab=orders')
   assert.equal(normalizeAuthRedirectUrl('/cuenta'), '/cuenta')
+})
+
+test('getLoginPortalMode detects the intended portal from callback urls', () => {
+  assert.equal(getLoginPortalMode('/vendor/dashboard'), 'vendor')
+  assert.equal(getLoginPortalMode('/admin/dashboard'), 'admin')
+  assert.equal(getLoginPortalMode('/cuenta'), 'buyer')
+  assert.equal(getLoginPortalMode(undefined), 'buyer')
 })

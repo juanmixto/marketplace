@@ -6,6 +6,8 @@ export interface PortalLink {
   description: string
 }
 
+export type LoginPortalMode = 'buyer' | 'vendor' | 'admin'
+
 export const STOREFRONT_PATH = '/'
 const DEFAULT_ACCOUNT_PATH = '/cuenta'
 const LOGIN_PATH = '/login'
@@ -65,4 +67,12 @@ export function normalizeAuthRedirectUrl(url?: string | null) {
   } catch {
     return sanitizeCallbackUrl(url)
   }
+}
+
+export function getLoginPortalMode(callbackUrl?: string | null): LoginPortalMode {
+  const safeCallbackUrl = sanitizeCallbackUrl(callbackUrl)
+
+  if (safeCallbackUrl?.startsWith('/vendor')) return 'vendor'
+  if (safeCallbackUrl?.startsWith('/admin')) return 'admin'
+  return 'buyer'
 }
