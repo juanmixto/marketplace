@@ -6,10 +6,22 @@ import { db } from '@/lib/db'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 import { authConfig } from './auth-config'
+import { normalizeAuthHostEnv } from './auth-host'
+
+const normalizedEnv = normalizeAuthHostEnv(process.env)
+
+for (const [key, value] of Object.entries(normalizedEnv)) {
+  if (value === undefined) {
+    delete process.env[key]
+  } else {
+    process.env[key] = value
+  }
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   adapter: PrismaAdapter(db) as Adapter,
+  trustHost: true,
   session: { strategy: 'jwt' },
   providers: [
     Credentials({
