@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { getFeaturedProducts, getCategories, getVendors } from '@/domains/catalog/queries'
+import { getHomeSnapshot } from '@/domains/catalog/queries'
+import { buildHomeStats } from '@/domains/catalog/home'
 import { ProductCard } from '@/components/catalog/ProductCard'
 import type { ProductWithVendor } from '@/domains/catalog/types'
 import { publicPortalLinks } from '@/lib/portals'
@@ -10,16 +11,14 @@ import { CheckBadgeIcon, TruckIcon, ShieldCheckIcon } from '@heroicons/react/24/
 export const revalidate = 60
 
 export default async function HomePage() {
-  const [featured, categories, vendors] = await Promise.all([
-    getFeaturedProducts(8),
-    getCategories(),
-    getVendors(6),
-  ])
+  const { featured, categories, vendors, stats } = await getHomeSnapshot()
+  const heroStats = buildHomeStats(stats)
 
   return (
     <div>
       {/* Hero */}
-      <section className="bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-700 text-white">
+      <section className="relative overflow-hidden bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-700 text-white">
+        <div className="absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.2),transparent_55%)]" />
         <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
           <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
             <div>
@@ -32,8 +31,7 @@ export default async function HomePage() {
                 <span className="text-emerald-300">al productor</span>
               </h1>
               <p className="mt-4 text-lg text-emerald-100 leading-relaxed">
-                Productos frescos, ecológicos y de proximidad. Sin intermediarios.
-                Conoces quién cultiva lo que comes.
+                Un marketplace de proximidad para descubrir alimentos frescos, productores verificados y compra directa sin intermediarios innecesarios.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
@@ -49,12 +47,19 @@ export default async function HomePage() {
                   Conocer productores
                 </Link>
               </div>
+              <div className="mt-8 flex flex-wrap gap-3 text-sm text-emerald-100">
+                <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5">
+                  {categories.length} categorías activas
+                </span>
+                <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5">
+                  Checkout unificado y pagos seguros
+                </span>
+                <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5">
+                  Paneles separados para cliente, productor y admin
+                </span>
+              </div>
               <div className="mt-10 grid grid-cols-3 gap-4">
-                {[
-                  { value: '150+', label: 'Productores' },
-                  { value: '2.400+', label: 'Productos' },
-                  { value: '4.8★', label: 'Valoración media' },
-                ].map(s => (
+                {heroStats.map(s => (
                   <div key={s.label}>
                     <p className="text-2xl font-bold text-white">{s.value}</p>
                     <p className="text-sm text-emerald-300">{s.label}</p>
@@ -127,7 +132,15 @@ export default async function HomePage() {
 
       {/* Categories */}
       <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
-        <h2 className="text-2xl font-bold text-gray-900">Explorar por categoría</h2>
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">Catálogo</p>
+            <h2 className="text-2xl font-bold text-gray-900">Explorar por categoría</h2>
+          </div>
+          <p className="hidden max-w-md text-right text-sm text-gray-500 md:block">
+            Accede rápido a las familias de producto con contenido ya publicado y listo para compra.
+          </p>
+        </div>
         <div className="mt-6 grid grid-cols-4 gap-3 sm:grid-cols-8">
           {categories.map(cat => (
             <Link
@@ -148,7 +161,10 @@ export default async function HomePage() {
       {/* Featured products */}
       <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Productos destacados</h2>
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">Selección</p>
+            <h2 className="text-2xl font-bold text-gray-900">Productos destacados</h2>
+          </div>
           <Link href="/productos" className="text-sm font-medium text-emerald-600 hover:underline">
             Ver todos →
           </Link>
@@ -196,7 +212,10 @@ export default async function HomePage() {
       {vendors.length > 0 && (
         <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Productores destacados</h2>
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">Origen</p>
+              <h2 className="text-2xl font-bold text-gray-900">Productores destacados</h2>
+            </div>
             <Link href="/productores" className="text-sm font-medium text-emerald-600 hover:underline">
               Ver todos →
             </Link>

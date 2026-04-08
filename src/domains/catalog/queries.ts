@@ -131,6 +131,35 @@ export async function getVendors(limit = 12) {
   })
 }
 
+export async function getHomeSnapshot() {
+  const [featured, categories, vendors, activeProducts, activeVendors, averageVendorRating] = await Promise.all([
+    getFeaturedProducts(8),
+    getCategories(),
+    getVendors(6),
+    db.product.count({
+      where: { status: 'ACTIVE', deletedAt: null },
+    }),
+    db.vendor.count({
+      where: { status: 'ACTIVE' },
+    }),
+    db.vendor.aggregate({
+      where: { status: 'ACTIVE', avgRating: { not: null } },
+      _avg: { avgRating: true },
+    }),
+  ])
+
+  return {
+    featured,
+    categories,
+    vendors,
+    stats: {
+      activeProducts,
+      activeVendors,
+      averageRating: averageVendorRating._avg.avgRating ? Number(averageVendorRating._avg.avgRating) : null,
+    },
+  }
+}
+
 export async function getVendorBySlug(slug: string) {
   return db.vendor.findUnique({
     where: { slug, status: 'ACTIVE' },
