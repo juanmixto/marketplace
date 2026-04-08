@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { shouldApplyPaymentFailed, shouldApplyPaymentSucceeded } from '@/domains/payments/webhook'
+import { getServerEnv } from '@/lib/env'
 import type Stripe from 'stripe'
 
 type WebhookPaymentIntent = {
@@ -42,18 +43,19 @@ function getWebhookPaymentIntent(event: Stripe.Event | WebhookEvent): WebhookPay
 export async function POST(req: NextRequest) {
   const body = await req.text()
   const sig = req.headers.get('stripe-signature')
+  const env = getServerEnv()
   let event: Stripe.Event | WebhookEvent
 
   // Skip signature check in mock mode
-  if (process.env.PAYMENT_PROVIDER !== 'mock') {
-    if (!sig || !process.env.STRIPE_WEBHOOK_SECRET) {
+  if (env.paymentProvider !== 'mock') {
+    if (!sig || !env.stripeWebhookSecret) {
       return NextResponse.json({ error: 'Missing signature' }, { status: 400 })
     }
 
     try {
       const Stripe = (await import('stripe')).default
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
-      event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET)
+      const stripe = new Stripe(env.stripeSecretKey!)
+      event = stripe.webhooks.constructEvent(body, sig, env.stripeWebhookSecret)
     } catch {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
     }

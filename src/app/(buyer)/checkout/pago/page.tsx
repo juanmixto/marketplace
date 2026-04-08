@@ -4,6 +4,7 @@ import { getOrderDetail } from '@/domains/orders/actions'
 import { stripeCheckoutParamsSchema, isMockClientSecret } from '@/domains/payments/checkout'
 import { StripeCheckoutForm } from '@/components/checkout/StripeCheckoutForm'
 import { formatPrice } from '@/lib/utils'
+import { getServerEnv } from '@/lib/env'
 import type { Metadata } from 'next'
 
 interface Props {
@@ -16,7 +17,9 @@ export default async function CheckoutPaymentPage({ searchParams }: Props) {
   const session = await auth()
   if (!session) redirect('/login')
 
-  if (process.env.PAYMENT_PROVIDER === 'mock') {
+  const env = getServerEnv()
+
+  if (env.paymentProvider === 'mock') {
     redirect('/checkout')
   }
 
@@ -39,8 +42,6 @@ export default async function CheckoutPaymentPage({ searchParams }: Props) {
   if (payment.status === 'SUCCEEDED') {
     redirect(`/cuenta/pedidos/${order.id}?nuevo=1`)
   }
-
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
@@ -67,7 +68,7 @@ export default async function CheckoutPaymentPage({ searchParams }: Props) {
         orderId={order.id}
         orderNumber={order.orderNumber}
         grandTotal={Number(order.grandTotal)}
-        appUrl={appUrl}
+        appUrl={env.appUrl}
       />
     </div>
   )

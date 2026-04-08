@@ -8,6 +8,7 @@ import { createPaymentIntent } from '@/domains/payments/provider'
 import { revalidatePath } from 'next/cache'
 import { calculateOrderTotals, checkoutSchema, type CheckoutFormData } from '@/domains/orders/checkout'
 import { shouldApplyPaymentSucceeded } from '@/domains/payments/webhook'
+import { getServerEnv } from '@/lib/env'
 
 export interface CartItemInput {
   productId: string
@@ -93,6 +94,7 @@ export async function createOrder(
   const vendorIds = [...new Set(lines.map(l => l.vendorId))]
 
   // Create order in transaction
+  const env = getServerEnv()
   const order = await db.$transaction(async tx => {
     const order = await tx.order.create({
       data: {
@@ -108,7 +110,7 @@ export async function createOrder(
         lines: { create: lines },
         payments: {
           create: {
-            provider: process.env.PAYMENT_PROVIDER === 'mock' ? 'mock' : 'stripe',
+            provider: env.paymentProvider === 'mock' ? 'mock' : 'stripe',
             providerRef: payment.id,
             amount: grandTotal,
             currency: 'EUR',
