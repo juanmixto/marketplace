@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   getPortalLabel,
   getPrimaryPortalHref,
+  normalizeAuthRedirectUrl,
   publicPortalLinks,
   resolvePostLoginDestination,
   sanitizeCallbackUrl,
@@ -41,4 +42,10 @@ test('resolvePostLoginDestination prefers safe callback urls and falls back by r
   assert.equal(resolvePostLoginDestination('VENDOR', '/vendor/productos'), '/vendor/productos')
   assert.equal(resolvePostLoginDestination('SUPERADMIN', '/login'), '/admin/dashboard')
   assert.equal(resolvePostLoginDestination(undefined, '/login'), STOREFRONT_PATH)
+})
+
+test('normalizeAuthRedirectUrl converts localhost absolute urls into same-origin paths', () => {
+  assert.equal(normalizeAuthRedirectUrl('https://localhost:3005/vendor/dashboard'), '/vendor/dashboard')
+  assert.equal(normalizeAuthRedirectUrl('http://localhost:3000/admin/dashboard?tab=orders'), '/admin/dashboard?tab=orders')
+  assert.equal(normalizeAuthRedirectUrl('/cuenta'), '/cuenta')
 })

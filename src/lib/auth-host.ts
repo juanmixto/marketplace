@@ -18,3 +18,23 @@ export function normalizeAuthHostEnv(env: NodeJS.ProcessEnv) {
 
   return nextEnv
 }
+
+export function applyNormalizedAuthHostEnv(env: NodeJS.ProcessEnv) {
+  const normalizedEnv = normalizeAuthHostEnv(env)
+
+  if (!('AUTH_URL' in normalizedEnv)) {
+    delete env.AUTH_URL
+  }
+
+  if (!('NEXTAUTH_URL' in normalizedEnv)) {
+    delete env.NEXTAUTH_URL
+  }
+
+  for (const [key, value] of Object.entries(normalizedEnv)) {
+    if (value === undefined) {
+      delete env[key]
+    } else {
+      env[key] = value
+    }
+  }
+}

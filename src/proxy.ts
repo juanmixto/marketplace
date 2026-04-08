@@ -10,7 +10,12 @@ function isAdmin(role: string) {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
-  const token = await getToken({ req: request, secret })
+  const forwardedProto = request.headers.get('x-forwarded-proto') ?? request.nextUrl.protocol.replace(':', '')
+  const token = await getToken({
+    req: request,
+    secret,
+    secureCookie: forwardedProto === 'https',
+  })
   const role = (token?.role as string) ?? ''
 
   function redirectToLogin() {

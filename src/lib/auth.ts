@@ -6,17 +6,9 @@ import { db } from '@/lib/db'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 import { authConfig } from './auth-config'
-import { normalizeAuthHostEnv } from './auth-host'
+import { applyNormalizedAuthHostEnv } from './auth-host'
 
-const normalizedEnv = normalizeAuthHostEnv(process.env)
-
-for (const [key, value] of Object.entries(normalizedEnv)) {
-  if (value === undefined) {
-    delete process.env[key]
-  } else {
-    process.env[key] = value
-  }
-}
+applyNormalizedAuthHostEnv(process.env)
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,

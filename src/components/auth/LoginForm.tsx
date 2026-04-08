@@ -7,7 +7,12 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
-import { publicPortalLinks, sanitizeCallbackUrl, STOREFRONT_PATH } from '@/lib/portals'
+import {
+  normalizeAuthRedirectUrl,
+  publicPortalLinks,
+  sanitizeCallbackUrl,
+  STOREFRONT_PATH,
+} from '@/lib/portals'
 
 interface LoginFormProps {
   callbackUrl?: string
@@ -38,7 +43,12 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
     if (result?.error) {
       setError('Email o contraseña incorrectos')
     } else {
-      window.location.assign(result?.url ?? safeCallbackUrl)
+      const destination = normalizeAuthRedirectUrl(result?.url) ?? safeCallbackUrl
+      const nextUrl = destination.startsWith('/')
+        ? new URL(destination, window.location.origin).toString()
+        : destination
+
+      window.location.assign(nextUrl)
       router.refresh()
     }
   }

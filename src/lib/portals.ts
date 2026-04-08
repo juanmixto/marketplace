@@ -51,3 +51,18 @@ export function sanitizeCallbackUrl(callbackUrl?: string | null) {
 export function resolvePostLoginDestination(role?: UserRole, callbackUrl?: string | null) {
   return sanitizeCallbackUrl(callbackUrl) ?? (role ? getPrimaryPortalHref(role) : STOREFRONT_PATH)
 }
+
+export function normalizeAuthRedirectUrl(url?: string | null) {
+  if (!url) return undefined
+
+  try {
+    const parsed = new URL(url)
+    if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`
+    }
+
+    return parsed.toString()
+  } catch {
+    return sanitizeCallbackUrl(url)
+  }
+}

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { normalizeAuthHostEnv, shouldUseDynamicAuthUrl } from '@/lib/auth-host'
+import { applyNormalizedAuthHostEnv, normalizeAuthHostEnv, shouldUseDynamicAuthUrl } from '@/lib/auth-host'
 
 test('shouldUseDynamicAuthUrl is true in development when AUTH_URL points to localhost', () => {
   assert.equal(
@@ -50,4 +50,19 @@ test('shouldUseDynamicAuthUrl also honors NEXTAUTH_URL when AUTH_URL is missing'
     }),
     true
   )
+})
+
+test('applyNormalizedAuthHostEnv removes localhost auth urls from process env', () => {
+  const env: NodeJS.ProcessEnv = {
+    NODE_ENV: 'development',
+    AUTH_URL: 'http://localhost:3000',
+    NEXTAUTH_URL: 'http://localhost:3000',
+    AUTH_SECRET: 'secret',
+  }
+
+  applyNormalizedAuthHostEnv(env)
+
+  assert.equal('AUTH_URL' in env, false)
+  assert.equal('NEXTAUTH_URL' in env, false)
+  assert.equal(env.AUTH_SECRET, 'secret')
 })
