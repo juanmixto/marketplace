@@ -6,12 +6,14 @@ import { submitForReview, deleteProduct } from '@/domains/vendors/actions'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { EllipsisVerticalIcon } from '@heroicons/react/24/outline'
+import { isProductExpired } from '@/domains/catalog/availability'
 
 interface Props {
-  product: { id: string; name: string; status: string; slug: string }
+  product: { id: string; name: string; status: string; slug: string; expiresAt?: Date | string | null }
 }
 
 export function ProductActions({ product }: Props) {
+  const isExpired = isProductExpired(product.expiresAt)
   const [menuOpen, setMenuOpen] = useState(false)
   const [deleteModal, setDeleteModal] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -70,7 +72,7 @@ export function ProductActions({ product }: Props) {
                   Enviar a revisión
                 </button>
               )}
-              {product.status === 'ACTIVE' && (
+              {product.status === 'ACTIVE' && !isExpired && (
                 <Link
                   href={`/productos/${product.slug}`}
                   target="_blank"

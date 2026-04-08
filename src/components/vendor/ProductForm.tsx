@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { CERTIFICATIONS, TAX_RATES } from '@/lib/constants'
 import { createProduct, updateProduct } from '@/domains/vendors/actions'
+import { formatExpirationDateInput } from '@/domains/catalog/availability'
 import type { Category, Product, ProductVariant } from '@/generated/prisma/client'
 
 const productFormSchema = z.object({
@@ -26,6 +27,9 @@ const productFormSchema = z.object({
   certifications: z.array(z.string()).default([]),
   originRegion: z.string().max(100).optional(),
   imagesText: z.string().optional(),
+  expiresAt: z
+    .union([z.string().date('Fecha inválida'), z.literal(''), z.null(), z.undefined()])
+    .transform(value => (value === '' || value == null ? undefined : value)),
   status: z.enum(['DRAFT', 'PENDING_REVIEW']).default('DRAFT'),
 })
 
@@ -76,6 +80,7 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
       certifications: initialData?.certifications ?? [],
       originRegion: initialData?.originRegion ?? '',
       imagesText: initialData?.images?.join('\n') ?? '',
+      expiresAt: formatExpirationDateInput(initialData?.expiresAt),
       status:
         initialData?.status === 'PENDING_REVIEW'
           ? 'PENDING_REVIEW'
@@ -96,6 +101,7 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
       originRegion: values.originRegion?.trim() || undefined,
       images: parseImages(values.imagesText),
       compareAtPrice: values.compareAtPrice ?? undefined,
+      expiresAt: values.expiresAt ?? undefined,
     }
 
     try {
@@ -212,6 +218,14 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
           step="1"
           error={errors.stock?.message}
           {...register('stock')}
+        />
+
+        <Input
+          label="Fecha de caducidad"
+          type="date"
+          hint="Si llega esta fecha sin venderse, el producto dejará de aparecer en la tienda."
+          error={errors.expiresAt?.message}
+          {...register('expiresAt')}
         />
 
         <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">

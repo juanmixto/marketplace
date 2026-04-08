@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { slugify } from '@/lib/utils'
 import type { FulfillmentStatus } from '@/generated/prisma/enums'
+import { parseExpirationDateInput } from '@/domains/catalog/availability'
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 
@@ -33,6 +34,7 @@ const productSchema = z.object({
   certifications: z.array(z.string()).default([]),
   originRegion: z.string().max(100).optional(),
   images: z.array(z.string().url()).default([]),
+  expiresAt: z.string().date().optional().nullable(),
   status: z.enum(['DRAFT', 'PENDING_REVIEW']).default('DRAFT'),
 })
 
@@ -62,6 +64,7 @@ export async function createProduct(input: ProductInput) {
       description: data.description ?? null,
       categoryId: data.categoryId ?? null,
       originRegion: data.originRegion ?? null,
+      expiresAt: parseExpirationDateInput(data.expiresAt),
     },
   })
 
@@ -88,6 +91,7 @@ export async function updateProduct(productId: string, input: Partial<ProductInp
     where: { id: productId },
     data: {
       ...data,
+      ...(data.expiresAt !== undefined && { expiresAt: parseExpirationDateInput(data.expiresAt) }),
       // Reset rejection note when re-editing a rejected product
       ...(product.status === 'REJECTED' && { rejectionNote: null }),
     },

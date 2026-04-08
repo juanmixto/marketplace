@@ -242,6 +242,7 @@ model Product {
   certifications String[]
   originRegion   String?
   tags           String[]
+  expiresAt      DateTime?
   rejectionNote  String?
   deletedAt      DateTime?
   createdAt      DateTime      @default(now())
@@ -255,6 +256,7 @@ model Product {
 
   @@index([status, categoryId])
   @@index([vendorId, status])
+  @@index([expiresAt])
   @@index([slug])
 }
 

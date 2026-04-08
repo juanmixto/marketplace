@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { formatPrice } from '@/lib/utils'
 import { ExclamationCircleIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
 import type { Metadata } from 'next'
+import { getAvailableProductWhere } from '@/domains/catalog/availability'
 
 export const metadata: Metadata = { title: 'Dashboard' }
 
@@ -15,7 +16,7 @@ export default async function VendorDashboardPage() {
   const vendor = await db.vendor.findUnique({
     where: { userId: session.user.id },
     include: {
-      products: { where: { status: 'ACTIVE', deletedAt: null } },
+      products: { where: getAvailableProductWhere() },
       fulfillments: {
         where: { status: { in: ['PENDING', 'CONFIRMED', 'PREPARING', 'READY'] } },
         include: { order: { include: { lines: true } } },

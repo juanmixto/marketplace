@@ -9,6 +9,7 @@ import { revalidatePath } from 'next/cache'
 import { calculateOrderTotals, checkoutSchema, type CheckoutFormData } from '@/domains/orders/checkout'
 import { shouldApplyPaymentSucceeded } from '@/domains/payments/webhook'
 import { getServerEnv } from '@/lib/env'
+import { getAvailableProductWhere } from '@/domains/catalog/availability'
 
 export interface CartItemInput {
   productId: string
@@ -31,7 +32,7 @@ export async function createOrder(
 
   // Load products with current prices
   const products = await db.product.findMany({
-    where: { id: { in: items.map(i => i.productId) }, status: 'ACTIVE', deletedAt: null },
+    where: { id: { in: items.map(i => i.productId) }, ...getAvailableProductWhere() },
     include: { vendor: { select: { id: true, displayName: true } } },
   })
 

@@ -7,6 +7,7 @@ import { PlusIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import { ProductActions } from '@/components/vendor/ProductActions'
 import type { BadgeVariant } from '@/domains/catalog/types'
 import type { Metadata } from 'next'
+import { formatExpirationLabel, getExpirationTone, isProductExpired } from '@/domains/catalog/availability'
 
 export const metadata: Metadata = { title: 'Mi catálogo' }
 
@@ -20,9 +21,11 @@ const STATUS_CONFIG: Record<string, { label: string; variant: BadgeVariant }> = 
 
 export default async function VendorProductosPage() {
   const products = await getMyProducts()
+  const now = new Date()
 
   const lowStock = products.filter(p => p.trackStock && p.stock > 0 && p.stock <= 5)
   const outOfStock = products.filter(p => p.trackStock && p.stock === 0 && p.status === 'ACTIVE')
+  const expired = products.filter(product => isProductExpired(product.expiresAt, now))
 
   return (
     <div className="space-y-5 max-w-4xl">
@@ -40,10 +43,15 @@ export default async function VendorProductosPage() {
       </div>
 
       {/* Stock alerts */}
-      {(lowStock.length > 0 || outOfStock.length > 0) && (
+      {(lowStock.length > 0 || outOfStock.length > 0 || expired.length > 0) && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
           <ExclamationTriangleIcon className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="text-sm">
+            {expired.length > 0 && (
+              <p className="font-medium text-amber-900">
+                {expired.length} producto{expired.length > 1 ? 's' : ''} retirado{expired.length > 1 ? 's' : ''} por caducidad: {expired.map(product => product.name).join(', ')}
+              </p>
+            )}
             {outOfStock.length > 0 && (
               <p className="font-medium text-amber-900">
                 {outOfStock.length} producto{outOfStock.length > 1 ? 's' : ''} sin stock: {outOfStock.map(p => p.name).join(', ')}
@@ -71,6 +79,8 @@ export default async function VendorProductosPage() {
           <div className="divide-y divide-gray-100">
             {products.map(product => {
               const statusConfig = STATUS_CONFIG[product.status] ?? { label: product.status, variant: 'default' }
+              const expirationTone = getExpirationTone(product.expiresAt, now)
+              const expirationLabel = formatExpirationLabel(product.expiresAt, now)
               return (
                 <div key={product.id} className="flex items-center gap-4 p-4 hover:bg-gray-50">
                   <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-gray-100">
@@ -83,11 +93,25 @@ export default async function VendorProductosPage() {
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-gray-900 truncate">{product.name}</p>
                       <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
+                      {expirationTone === 'expired' && <Badge variant="red">Caducado</Badge>}
+                      {expirationTone === 'today' && <Badge variant="amber">Caduca hoy</Badge>}
+                      {expirationTone === 'soon' && <Badge variant="amber">Caduca pronto</Badge>}
                     </div>
                     <p className="text-sm text-gray-500 mt-0.5">
                       {formatPrice(Number(product.basePrice))} / {product.unit}
                       {product.category && ` · ${product.category.name}`}
                     </p>
+                    {expirationLabel && (
+                      <p className={`mt-1 text-xs ${
+                        expirationTone === 'expired'
+                          ? 'text-red-600'
+                          : expirationTone === 'today' || expirationTone === 'soon'
+                            ? 'text-amber-700'
+                            : 'text-gray-500'
+                      }`}>
+                        {expirationLabel}
+                      </p>
+                    )}
                     {product.status === 'REJECTED' && product.rejectionNote && (
                       <p className="text-xs text-red-600 mt-1">
                         Motivo: {product.rejectionNote}

@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { PAGINATION_DEFAULTS } from '@/lib/constants'
+import { getAvailableProductWhere } from '@/domains/catalog/availability'
 
 export interface ProductFilters {
   categorySlug?: string
@@ -29,8 +30,7 @@ export async function getProducts(filters: ProductFilters = {}) {
   const skip = (page - 1) * limit
 
   const where = {
-    status: 'ACTIVE' as const,
-    deletedAt: null,
+    ...getAvailableProductWhere(),
     ...(categorySlug && { category: { slug: categorySlug } }),
     ...(vendorSlug && { vendor: { slug: vendorSlug } }),
     ...(certifications?.length && { certifications: { hasSome: certifications } }),
@@ -78,8 +78,8 @@ export async function getProducts(filters: ProductFilters = {}) {
 }
 
 export async function getProductBySlug(slug: string) {
-  return db.product.findUnique({
-    where: { slug, status: 'ACTIVE', deletedAt: null },
+  return db.product.findFirst({
+    where: { slug, ...getAvailableProductWhere() },
     include: {
       vendor: {
         select: {
@@ -100,7 +100,7 @@ export async function getProductBySlug(slug: string) {
 
 export async function getFeaturedProducts(limit = 8) {
   return db.product.findMany({
-    where: { status: 'ACTIVE', deletedAt: null },
+    where: getAvailableProductWhere(),
     orderBy: { createdAt: 'desc' },
     take: limit,
     include: {
@@ -115,7 +115,7 @@ export async function getCategories() {
     where: { isActive: true, parentId: null },
     orderBy: { sortOrder: 'asc' },
     include: {
-      _count: { select: { products: { where: { status: 'ACTIVE' } } } },
+      _count: { select: { products: { where: getAvailableProductWhere() } } },
     },
   })
 }
@@ -126,7 +126,7 @@ export async function getVendors(limit = 12) {
     orderBy: { avgRating: 'desc' },
     take: limit,
     include: {
-      _count: { select: { products: { where: { status: 'ACTIVE' } } } },
+      _count: { select: { products: { where: getAvailableProductWhere() } } },
     },
   })
 }
@@ -137,7 +137,7 @@ export async function getHomeSnapshot() {
     getCategories(),
     getVendors(6),
     db.product.count({
-      where: { status: 'ACTIVE', deletedAt: null },
+      where: getAvailableProductWhere(),
     }),
     db.vendor.count({
       where: { status: 'ACTIVE' },
@@ -165,7 +165,7 @@ export async function getVendorBySlug(slug: string) {
     where: { slug, status: 'ACTIVE' },
     include: {
       products: {
-        where: { status: 'ACTIVE', deletedAt: null },
+        where: getAvailableProductWhere(),
         include: { category: { select: { name: true, slug: true } } },
         orderBy: { createdAt: 'desc' },
       },
