@@ -1,10 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { parseServerEnv } from '@/lib/env'
+import { getServerEnv, parseServerEnv, resetServerEnvCache } from '@/lib/env'
 
 test('parseServerEnv accepts mock mode without Stripe secrets', () => {
   const env = parseServerEnv({
     DATABASE_URL: 'postgresql://user:pass@localhost:5432/marketplace',
+    NODE_ENV: 'test',
     PAYMENT_PROVIDER: 'mock',
     NEXT_PUBLIC_APP_URL: 'http://localhost:3000',
   })
@@ -18,6 +19,7 @@ test('parseServerEnv requires Stripe variables in stripe mode', () => {
     () =>
       parseServerEnv({
         DATABASE_URL: 'postgresql://user:pass@localhost:5432/marketplace',
+        NODE_ENV: 'test',
         PAYMENT_PROVIDER: 'stripe',
         NEXT_PUBLIC_APP_URL: 'http://localhost:3000',
       }),
@@ -28,6 +30,7 @@ test('parseServerEnv requires Stripe variables in stripe mode', () => {
 test('parseServerEnv returns normalized stripe config when complete', () => {
   const env = parseServerEnv({
     DATABASE_URL: 'postgresql://user:pass@localhost:5432/marketplace',
+    NODE_ENV: 'test',
     PAYMENT_PROVIDER: 'stripe',
     NEXT_PUBLIC_APP_URL: 'http://localhost:3000',
     STRIPE_SECRET_KEY: 'sk_test_123',
@@ -39,4 +42,52 @@ test('parseServerEnv returns normalized stripe config when complete', () => {
   assert.equal(env.stripeSecretKey, 'sk_test_123')
   assert.equal(env.stripeWebhookSecret, 'whsec_123')
   assert.equal(env.stripePublishableKey, 'pk_test_123')
+})
+
+test('parseServerEnv falls back to localhost app url by default', () => {
+  const env = parseServerEnv({
+    DATABASE_URL: 'postgresql://user:pass@localhost:5432/marketplace',
+    NODE_ENV: 'test',
+  })
+
+  assert.equal(env.appUrl, 'http://localhost:3000')
+  assert.equal(env.paymentProvider, 'mock')
+})
+
+test('parseServerEnv rejects invalid public app urls', () => {
+  assert.throws(
+    () =>
+      parseServerEnv({
+        DATABASE_URL: 'postgresql://user:pass@localhost:5432/marketplace',
+        NODE_ENV: 'test',
+        NEXT_PUBLIC_APP_URL: 'not-a-url',
+      }),
+    /NEXT_PUBLIC_APP_URL must be a valid URL/
+  )
+})
+
+test('getServerEnv caches until resetServerEnvCache is called', () => {
+  const originalEnv = { ...process.env }
+
+  Object.assign(process.env, {
+    DATABASE_URL: 'postgresql://user:pass@localhost:5432/marketplace',
+    NODE_ENV: 'test',
+    NEXT_PUBLIC_APP_URL: 'http://localhost:3000',
+    PAYMENT_PROVIDER: 'mock',
+  })
+  resetServerEnvCache()
+
+  const first = getServerEnv()
+  process.env.NEXT_PUBLIC_APP_URL = 'https://changed.example.com'
+  const second = getServerEnv()
+
+  assert.equal(first.appUrl, 'http://localhost:3000')
+  assert.equal(second.appUrl, 'http://localhost:3000')
+
+  resetServerEnvCache()
+  const third = getServerEnv()
+  assert.equal(third.appUrl, 'https://changed.example.com')
+
+  process.env = originalEnv
+  resetServerEnvCache()
 })

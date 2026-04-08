@@ -50,3 +50,7 @@ export function getServerEnv() {
   cachedEnv ??= parseServerEnv(process.env)
   return cachedEnv
 }
+
+export function resetServerEnvCache() {
+  cachedEnv = undefined
+}

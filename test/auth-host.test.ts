@@ -41,3 +41,13 @@ test('normalizeAuthHostEnv keeps external auth url intact', () => {
 
   assert.equal(env.AUTH_URL, 'https://keywords-union-viruses-loc.trycloudflare.com')
 })
+
+test('shouldUseDynamicAuthUrl also honors NEXTAUTH_URL when AUTH_URL is missing', () => {
+  assert.equal(
+    shouldUseDynamicAuthUrl({
+      NODE_ENV: 'development',
+      NEXTAUTH_URL: 'http://localhost:3000',
+    }),
+    true
+  )
+})
