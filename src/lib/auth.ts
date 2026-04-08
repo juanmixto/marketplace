@@ -4,15 +4,13 @@ import Credentials from 'next-auth/providers/credentials'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
+import { authConfig } from './auth-config'
 import type { UserRole } from '@/generated/prisma/enums'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(db),
+  ...authConfig,
+  adapter: PrismaAdapter(db) as any,
   session: { strategy: 'jwt' },
-  pages: {
-    signIn: '/login',
-    error: '/login',
-  },
   providers: [
     Credentials({
       credentials: {
@@ -45,20 +43,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  callbacks: {
-    jwt({ token, user }) {
-      if (user) {
-        token.id = user.id
-        token.role = (user as { role: UserRole }).role
-      }
-      return token
-    },
-    session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string
-        session.user.role = token.role as UserRole
-      }
-      return session
-    },
-  },
 })
