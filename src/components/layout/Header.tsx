@@ -13,7 +13,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import { SITE_NAME } from '@/lib/constants'
-import { getPrimaryPortalHref } from '@/lib/portals'
+import { getPortalLabel, getPrimaryPortalHref } from '@/lib/portals'
 import type { UserRole } from '@/generated/prisma/enums'
 
 const CATEGORIES = [
@@ -37,12 +37,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
   const [catOpen, setCatOpen] = useState(false)
   const pathname = usePathname()
   const portalHref = getPrimaryPortalHref(user?.role)
-  const portalLabel =
-    user?.role === 'VENDOR'
-      ? 'Panel productor'
-      : user?.role?.startsWith('ADMIN') || user?.role === 'SUPERADMIN'
-        ? 'Panel admin'
-        : 'Mi cuenta'
+  const portalLabel = getPortalLabel(user?.role)
 
   return (
     <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">

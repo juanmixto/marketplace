@@ -6,6 +6,11 @@ export interface PortalLink {
   description: string
 }
 
+export const STOREFRONT_PATH = '/'
+const DEFAULT_ACCOUNT_PATH = '/cuenta'
+const LOGIN_PATH = '/login'
+const REGISTER_PATH = '/register'
+
 export const publicPortalLinks: PortalLink[] = [
   {
     href: '/productos',
@@ -27,5 +32,22 @@ export const publicPortalLinks: PortalLink[] = [
 export function getPrimaryPortalHref(role?: UserRole) {
   if (role === 'VENDOR') return '/vendor/dashboard'
   if (role?.startsWith('ADMIN') || role === 'SUPERADMIN') return '/admin/dashboard'
-  return '/cuenta'
+  return DEFAULT_ACCOUNT_PATH
+}
+
+export function getPortalLabel(role?: UserRole) {
+  if (role === 'VENDOR') return 'Panel productor'
+  if (role?.startsWith('ADMIN') || role === 'SUPERADMIN') return 'Panel admin'
+  return 'Mi cuenta'
+}
+
+export function sanitizeCallbackUrl(callbackUrl?: string | null) {
+  if (!callbackUrl) return undefined
+  if (!callbackUrl.startsWith('/') || callbackUrl.startsWith('//')) return undefined
+  if (callbackUrl.startsWith(LOGIN_PATH) || callbackUrl.startsWith(REGISTER_PATH)) return undefined
+  return callbackUrl
+}
+
+export function resolvePostLoginDestination(role?: UserRole, callbackUrl?: string | null) {
+  return sanitizeCallbackUrl(callbackUrl) ?? (role ? getPrimaryPortalHref(role) : STOREFRONT_PATH)
 }

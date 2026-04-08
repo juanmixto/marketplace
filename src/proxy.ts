@@ -13,17 +13,23 @@ export async function proxy(request: NextRequest) {
   const token = await getToken({ req: request, secret })
   const role = (token?.role as string) ?? ''
 
+  function redirectToLogin() {
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('callbackUrl', pathname)
+    return NextResponse.redirect(loginUrl)
+  }
+
   // Admin routes — need ADMIN or SUPERADMIN
   if (pathname.startsWith('/admin')) {
     if (!token || !isAdmin(role)) {
-      return NextResponse.redirect(new URL('/', request.url))
+      return redirectToLogin()
     }
   }
 
   // Vendor portal
   if (pathname.startsWith('/vendor')) {
     if (!token || role !== 'VENDOR') {
-      return NextResponse.redirect(new URL('/login', request.url))
+      return redirectToLogin()
     }
   }
 
@@ -31,9 +37,7 @@ export async function proxy(request: NextRequest) {
   const buyerPaths = ['/carrito', '/checkout', '/cuenta']
   if (buyerPaths.some(p => pathname.startsWith(p))) {
     if (!token) {
-      const loginUrl = new URL('/login', request.url)
-      loginUrl.searchParams.set('callbackUrl', pathname)
-      return NextResponse.redirect(loginUrl)
+      return redirectToLogin()
     }
   }
 

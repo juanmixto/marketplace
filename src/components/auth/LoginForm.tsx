@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
-import { publicPortalLinks } from '@/lib/portals'
+import { publicPortalLinks, sanitizeCallbackUrl, STOREFRONT_PATH } from '@/lib/portals'
 
 interface LoginFormProps {
   callbackUrl?: string
@@ -15,6 +15,7 @@ interface LoginFormProps {
 
 export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
   const router = useRouter()
+  const safeCallbackUrl = sanitizeCallbackUrl(callbackUrl) ?? STOREFRONT_PATH
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showPass, setShowPass] = useState(false)
@@ -29,7 +30,7 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
       email: data.get('email') as string,
       password: data.get('password') as string,
       redirect: false,
-      callbackUrl,
+      callbackUrl: safeCallbackUrl,
     })
 
     setLoading(false)
@@ -37,7 +38,7 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
     if (result?.error) {
       setError('Email o contraseña incorrectos')
     } else {
-      router.push(result?.url ?? callbackUrl)
+      window.location.assign(result?.url ?? safeCallbackUrl)
       router.refresh()
     }
   }
