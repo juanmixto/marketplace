@@ -40,8 +40,16 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center gap-4">
           {/* Logo */}
-          <Link href="/" className="flex shrink-0 items-center gap-2">
-            <span className="text-xl font-bold text-emerald-600">{SITE_NAME}</span>
+          <Link href="/" className="flex shrink-0 items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-600 via-teal-600 to-lime-600 text-sm font-extrabold text-white shadow-sm">
+              MP
+            </span>
+            <span className="hidden leading-tight sm:block">
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-700">
+                Mercado local
+              </span>
+              <span className="block text-lg font-bold text-gray-900">{SITE_NAME}</span>
+            </span>
           </Link>
 
           {/* Categories dropdown */}
