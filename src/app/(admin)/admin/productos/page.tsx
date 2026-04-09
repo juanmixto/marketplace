@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { db } from '@/lib/db'
 import { formatDate, formatPrice } from '@/lib/utils'
 import { AdminStatusBadge } from '@/components/admin/AdminStatusBadge'
+import { ProductModerationActions } from '@/components/admin/ProductModerationActions'
 import { getProductStatusTone } from '@/domains/admin/overview'
 
 export const metadata: Metadata = { title: 'Productos | Admin' }
@@ -41,17 +42,18 @@ export default async function AdminProductsPage() {
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-        <div className="grid grid-cols-[1.5fr,1fr,0.8fr,0.8fr,0.8fr,0.9fr] gap-4 border-b border-gray-100 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+        <div className="grid grid-cols-[1.5fr,1fr,0.8fr,0.8fr,0.8fr,0.9fr,auto] gap-4 border-b border-gray-100 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
           <span>Producto</span>
           <span>Productor</span>
           <span>Categoria</span>
           <span>Precio</span>
           <span>Stock</span>
           <span>Estado</span>
+          <span>Acciones</span>
         </div>
         <div className="divide-y divide-gray-100">
           {products.map(product => (
-            <div key={product.id} className="grid grid-cols-[1.5fr,1fr,0.8fr,0.8fr,0.8fr,0.9fr] gap-4 px-5 py-4 text-sm">
+            <div key={product.id} className="grid grid-cols-[1.5fr,1fr,0.8fr,0.8fr,0.8fr,0.9fr,auto] gap-4 px-5 py-4 text-sm items-center">
               <div>
                 <p className="font-semibold text-gray-900">{product.name}</p>
                 <p className="text-xs text-gray-500">Actualizado {formatDate(product.updatedAt)}</p>
@@ -64,6 +66,13 @@ export default async function AdminProductsPage() {
               </div>
               <div>
                 <AdminStatusBadge label={product.status} tone={getProductStatusTone(product.status)} />
+              </div>
+              <div>
+                <ProductModerationActions
+                  productId={product.id}
+                  productName={product.name}
+                  status={product.status}
+                />
               </div>
             </div>
           ))}

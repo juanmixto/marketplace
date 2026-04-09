@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { db } from '@/lib/db'
 import { formatDate } from '@/lib/utils'
 import { AdminStatusBadge } from '@/components/admin/AdminStatusBadge'
+import { VendorModerationActions } from '@/components/admin/VendorModerationActions'
 import { getVendorStatusTone } from '@/domains/admin/overview'
 
 export const metadata: Metadata = { title: 'Productores | Admin' }
@@ -47,7 +48,10 @@ export default async function AdminVendorsPage() {
                 <h2 className="text-lg font-semibold text-gray-900">{vendor.displayName}</h2>
                 <p className="text-sm text-gray-500">{vendor.user.email}</p>
               </div>
-              <AdminStatusBadge label={vendor.status} tone={getVendorStatusTone(vendor.status)} />
+              <div className="flex flex-col items-end gap-2">
+                <AdminStatusBadge label={vendor.status} tone={getVendorStatusTone(vendor.status)} />
+                <VendorModerationActions vendorId={vendor.id} status={vendor.status} />
+              </div>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div>
