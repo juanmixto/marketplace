@@ -23,115 +23,134 @@ Marketplace agroalimentario con compra directa al productor. La aplicación incl
 ## Requisitos
 
 - Node.js 20+
-- PostgreSQL
+- Docker (para PostgreSQL)
 - npm
 
-## Configuración
+---
 
-1. Instala dependencias:
+## Arranque rápido (recomendado)
+
+Un solo comando levanta la base de datos, aplica migraciones, carga los datos de prueba y arranca Next.js:
+
+```bash
+./dev.sh
+```
+
+La app queda disponible en **http://localhost:3000**
+
+### Reiniciar con base de datos limpia
+
+```bash
+./dev.sh --reset
+```
+
+Borra todos los datos y repuebla desde cero con el seed.
+
+### Parar todo
+
+```bash
+docker compose down
+```
+
+---
+
+## Usuarios de prueba
+
+Disponibles tras el seed (se cargan automáticamente con `./dev.sh`):
+
+| Rol | Email | Contraseña | Panel |
+|-----|-------|-----------|-------|
+| Admin | `admin@marketplace.com` | `admin1234` | `/admin/dashboard` |
+| Vendedor | `productor@test.com` | `vendor1234` | `/vendor/dashboard` |
+| Comprador | `cliente@test.com` | `cliente1234` | `/cuenta/pedidos` |
+
+---
+
+## Configuración manual (sin el script)
+
+Si prefieres lanzarlo paso a paso:
+
+### 1. Instala dependencias
 
 ```bash
 npm install
 ```
 
-2. Crea tu entorno local:
+### 2. Variables de entorno
+
+El fichero `.env.local` ya está configurado para desarrollo local con valores por defecto:
+
+- `PAYMENT_PROVIDER=mock` — no necesitas Stripe real
+- `DATABASE_URL` apunta a PostgreSQL en localhost:5432
+
+Si necesitas ajustarlo, edita `.env.local` directamente.
+
+### 3. Base de datos
 
 ```bash
-cp .env.example .env.local
-```
+# Levantar PostgreSQL con Docker
+docker compose up -d db
 
-3. Ajusta las variables:
-
-- `DATABASE_URL`: conexión a PostgreSQL
-- `AUTH_SECRET`: secreto para Auth.js
-- `NEXT_PUBLIC_APP_URL`: URL pública de la app
-- `PAYMENT_PROVIDER`: `mock` o `stripe`
-- Si `PAYMENT_PROVIDER="stripe"`, también necesitas:
-  - `STRIPE_SECRET_KEY`
-  - `STRIPE_WEBHOOK_SECRET`
-  - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
-
-## Base de datos
-
-Aplicar migraciones:
-
-```bash
+# Aplicar migraciones
 npm run db:migrate
-```
 
-Cargar datos de ejemplo:
-
-```bash
+# Cargar datos de ejemplo
 npm run db:seed
 ```
 
-Reset completo con seed:
-
-```bash
-npm run db:reset
-```
-
-Abrir Prisma Studio:
-
-```bash
-npm run db:studio
-```
-
-## Desarrollo
-
-Levantar la app:
+### 4. Arrancar la app
 
 ```bash
 npm run dev
 ```
 
-Validar tests:
+---
 
-```bash
-npm test
-```
+## Herramientas de desarrollo
 
-Validar build de producción:
+| Comando | Descripción |
+|---------|-------------|
+| `./dev.sh` | Arranque completo en un comando |
+| `./dev.sh --reset` | Reset de BD + arranque |
+| `npm test` | Tests unitarios |
+| `npm run db:studio` | Prisma Studio en http://localhost:5555 |
+| `npm run db:reset` | Reset de BD con seed (sin arrancar app) |
+| `npm run typecheck` | Validación de TypeScript sin compilar |
+| `npm run build` | Build de producción |
 
-```bash
-npm run build
-```
+---
 
 ## Pagos
 
-### Modo mock
+### Modo mock (por defecto)
 
-Usa `PAYMENT_PROVIDER="mock"` para desarrollo rápido sin Stripe real.
-
-- El checkout crea la orden
-- El pago se confirma automáticamente
-- El flujo completa el pedido sin webhook externo
+`PAYMENT_PROVIDER="mock"` — el checkout confirma el pedido automáticamente sin Stripe real. Ideal para desarrollar y probar flujos de compra.
 
 ### Modo Stripe
 
-Usa `PAYMENT_PROVIDER="stripe"` cuando quieras probar el flujo real.
+Cambia a `PAYMENT_PROVIDER="stripe"` en `.env.local` y añade tus claves de test:
 
-- El checkout crea un `PaymentIntent`
-- El usuario continúa a `/checkout/pago`
-- Stripe Elements confirma el pago
-- El webhook `/api/webhooks/stripe` actualiza el estado del pago y del pedido
+```env
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+```
 
-El proyecto ya incluye validación de envs por modo de pago, así que si activas Stripe sin sus claves necesarias, la app fallará con un error explícito al arrancar.
+El webhook de confirmación está en `/api/webhooks/stripe`. Para recibirlo en local usa [Stripe CLI](https://stripe.com/docs/stripe-cli):
 
-## Credenciales de seed
+```bash
+stripe listen --forward-to localhost:3000/api/webhooks/stripe
+```
 
-Después de `npm run db:seed` quedan disponibles:
-
-- Admin: `admin@marketplace.com` / `admin1234`
-- Productor: `productor@test.com` / `vendor1234`
-- Cliente: `cliente@test.com` / `cliente1234`
+---
 
 ## Estado actual
 
 El proyecto está operativo para desarrollo local y ya tiene:
 
-- build pasando
-- tests básicos de checkout, pagos, envs y utilidades de catálogo
-- soporte de pago mock y flujo base con Stripe
+- Build pasando
+- Tests básicos de checkout, pagos, envs y utilidades de catálogo
+- Soporte de pago mock y flujo base con Stripe
 
-Todavía hay áreas en evolución, especialmente admin, reglas avanzadas de fulfillment y documentación funcional más profunda.
+Áreas en evolución: panel admin completo, incidencias, liquidaciones, emails transaccionales y Stripe Connect para vendedores.

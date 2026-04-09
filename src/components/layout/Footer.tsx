@@ -36,7 +36,7 @@ export function Footer() {
                 { href: '#', label: 'Cómo funciona' },
                 { href: '#', label: 'Comisiones' },
               ].map(l => (
-                <li key={l.href}>
+                <li key={l.label}>
                   <Link href={l.href} className="text-sm text-gray-500 hover:text-gray-900">{l.label}</Link>
                 </li>
               ))}
@@ -51,7 +51,7 @@ export function Footer() {
                 { href: '#', label: 'Envíos' },
                 { href: '#', label: 'Contacto' },
               ].map(l => (
-                <li key={l.href}>
+                <li key={l.label}>
                   <Link href={l.href} className="text-sm text-gray-500 hover:text-gray-900">{l.label}</Link>
                 </li>
               ))}

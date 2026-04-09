@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { getProducts, getCategories } from '@/domains/catalog/queries'
 import { ProductCard } from '@/components/catalog/ProductCard'
 import { ProductFiltersPanel } from '@/components/catalog/ProductFiltersPanel'
+import { SortSelect } from '@/components/catalog/SortSelect'
 import { parseProductSort, type ProductWithVendor } from '@/domains/catalog/types'
 import type { Metadata } from 'next'
 
@@ -95,28 +96,3 @@ export default async function ProductosPage({ searchParams }: Props) {
   )
 }
 
-function SortSelect({ current }: { current?: string }) {
-  const options = [
-    { value: 'newest', label: 'Más recientes' },
-    { value: 'price_asc', label: 'Precio: menor a mayor' },
-    { value: 'price_desc', label: 'Precio: mayor a menor' },
-    { value: 'popular', label: 'Más populares' },
-  ]
-  return (
-    <form>
-      <select
-        name="orden"
-        defaultValue={current ?? 'newest'}
-        onChange={e => {
-          const form = e.target.closest('form') as HTMLFormElement
-          form?.requestSubmit()
-        }}
-        className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-      >
-        {options.map(o => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
-      </select>
-    </form>
-  )
-}
