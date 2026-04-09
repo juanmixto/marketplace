@@ -17,13 +17,15 @@ export function CartPageClient({ shippingSettings }: Props) {
 
   if (items.length === 0) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-24 text-center">
-        <ShoppingBagIcon className="mx-auto mb-4 h-16 w-16 text-[var(--muted-light)]" />
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">Tu carrito está vacío</h1>
-        <p className="mt-2 text-[var(--muted)]">Explora nuestros productos y añade los que más te gusten.</p>
-        <Link href="/productos" className="mt-6 inline-block rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400">
-          Explorar productos
-        </Link>
+      <div className="mx-auto max-w-2xl px-4 py-24">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center shadow-sm">
+          <ShoppingBagIcon className="mx-auto mb-4 h-16 w-16 text-[var(--muted)]" />
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">Tu carrito está vacío</h1>
+          <p className="mt-2 text-[var(--muted)]">Explora nuestros productos y añade los que más te gusten.</p>
+          <Link href="/productos" className="mt-6 inline-flex rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white shadow-sm shadow-emerald-950/10 hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400">
+            Explorar productos
+          </Link>
+        </div>
       </div>
     )
   }
@@ -62,8 +64,8 @@ export function CartPageClient({ shippingSettings }: Props) {
                 </p>
                 <div className="mt-1 flex items-center gap-3">
                   <div className="flex items-center gap-1 rounded-lg border border-[var(--border)]">
-                    <button onClick={() => updateQty(item.productId, item.quantity - 1, item.variantId)}
-                      className="rounded-l-lg p-1.5 hover:bg-[var(--surface-raised)]">
+                  <button onClick={() => updateQty(item.productId, item.quantity - 1, item.variantId)}
+                    className="rounded-l-lg p-1.5 hover:bg-[var(--surface-raised)]">
                       <MinusIcon className="h-3.5 w-3.5 text-[var(--foreground-soft)]" />
                     </button>
                     <span className="w-8 text-center text-sm font-medium text-[var(--foreground)]">{item.quantity}</span>
@@ -73,7 +75,7 @@ export function CartPageClient({ shippingSettings }: Props) {
                     </button>
                   </div>
                   <button onClick={() => removeItem(item.productId, item.variantId)}
-                    className="text-[var(--muted)] hover:text-red-500">
+                    className="text-[var(--muted)] hover:text-red-600 dark:hover:text-red-400">
                     <TrashIcon className="h-4 w-4" />
                   </button>
                 </div>
@@ -83,7 +85,7 @@ export function CartPageClient({ shippingSettings }: Props) {
               </div>
             </div>
           ))}
-          <button onClick={clearCart} className="mt-2 text-sm text-[var(--muted)] hover:text-red-500">
+          <button onClick={clearCart} className="mt-2 text-sm text-[var(--muted)] hover:text-red-600 dark:hover:text-red-400">
             Vaciar carrito
           </button>
         </div>

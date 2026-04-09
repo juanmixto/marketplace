@@ -6,7 +6,7 @@ function Card({ className, ...props }: CardProps) {
   return (
     <div
       className={cn(
-        'rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm',
+        'overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm shadow-black/5 dark:shadow-black/20',
         className
       )}
       {...props}
@@ -17,7 +17,7 @@ function Card({ className, ...props }: CardProps) {
 function CardHeader({ className, ...props }: CardProps) {
   return (
     <div
-      className={cn('border-b border-[var(--border)] px-5 py-4', className)}
+      className={cn('border-b border-[var(--border)] bg-[var(--surface)] px-5 py-4', className)}
       {...props}
     />
   )
@@ -30,7 +30,7 @@ function CardBody({ className, ...props }: CardProps) {
 function CardFooter({ className, ...props }: CardProps) {
   return (
     <div
-      className={cn('border-t border-[var(--border)] px-5 py-4', className)}
+      className={cn('border-t border-[var(--border)] bg-[var(--surface)] px-5 py-4', className)}
       {...props}
     />
   )

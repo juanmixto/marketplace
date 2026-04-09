@@ -33,8 +33,8 @@ export default async function CuentaPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6 lg:px-8">
       {/* Avatar */}
-      <div className="flex items-center gap-4 mb-8">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-600 dark:bg-emerald-500 text-2xl font-bold text-white dark:text-gray-950">
+      <div className="mb-8 flex items-center gap-4">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full border border-white/20 bg-emerald-600 text-2xl font-bold text-white shadow-sm shadow-emerald-950/10 dark:border-white/10 dark:bg-emerald-500 dark:text-gray-950">
           {initial}
         </div>
         <div>
@@ -49,34 +49,34 @@ export default async function CuentaPage() {
           const Icon = meta.icon
 
           if (!available) {
-            return (
-              <div
-                key={href}
-                className="flex items-center gap-4 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-raised)] p-4"
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface)]">
-                  <Icon className="h-5 w-5 text-[var(--muted)]" />
+              return (
+                <div
+                  key={href}
+                  className="flex items-center gap-4 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-raised)] p-4"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface)]">
+                    <Icon className="h-5 w-5 text-[var(--muted)]" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-[var(--foreground-soft)]">{label}</p>
+                    <p className="text-sm text-[var(--muted)]">{meta.desc}</p>
+                  </div>
+                  <span className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--muted)]">
+                    Próximamente
+                  </span>
                 </div>
-                <div className="flex-1">
-                  <p className="font-medium text-[var(--foreground-soft)]">{label}</p>
-                  <p className="text-sm text-[var(--muted)]">{meta.desc}</p>
-                </div>
-                <span className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--muted)]">
-                  Proximamente
-                </span>
-              </div>
-            )
-          }
+              )
+            }
 
-          return (
-            <Link
-              key={href}
-              href={href}
-              className="flex items-center gap-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-sm transition"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-raised)]">
-                <Icon className="h-5 w-5 text-[var(--foreground-soft)]" />
-              </div>
+            return (
+              <Link
+                key={href}
+                href={href}
+                className="flex items-center gap-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 transition hover:border-emerald-300 hover:shadow-sm dark:hover:border-emerald-700"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-raised)]">
+                  <Icon className="h-5 w-5 text-[var(--foreground-soft)]" />
+                </div>
               <div className="flex-1">
                 <p className="font-medium text-[var(--foreground)]">{label}</p>
                 <p className="text-sm text-[var(--muted)]">{meta.desc}</p>

@@ -32,11 +32,11 @@ export default async function MisPedidosPage() {
       <h1 className="text-2xl font-bold text-[var(--foreground)] mb-6">Mis pedidos</h1>
 
       {orders.length === 0 ? (
-        <div className="py-20 text-center">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-6 py-16 text-center shadow-sm">
           <p className="text-4xl mb-3">📦</p>
           <p className="font-medium text-[var(--foreground-soft)]">Aún no tienes pedidos</p>
-          <Link href="/productos" className="mt-4 inline-block text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:underline">
-            Explorar productos →
+          <Link href="/productos" className="mt-4 inline-flex rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-300 dark:hover:bg-emerald-950/55">
+            Explorar productos
           </Link>
         </div>
       ) : (
@@ -45,7 +45,7 @@ export default async function MisPedidosPage() {
             <Link
               key={order.id}
               href={`/cuenta/pedidos/${order.id}`}
-              className="block rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-sm transition"
+              className="block rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 transition hover:border-emerald-300 hover:shadow-sm dark:hover:border-emerald-700"
             >
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div>

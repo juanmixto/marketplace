@@ -124,7 +124,7 @@ export function CheckoutPageClient({ shippingZones, shippingRates, fallbackShipp
                 <Input label="Provincia" error={errors.province?.message} {...register('province')} />
                 <Input label="Teléfono (opcional)" type="tel" {...register('phone')} />
                 <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--foreground-soft)]">
-                  <input type="checkbox" {...register('saveAddress')} className="rounded border-[var(--border-strong)] text-emerald-600" />
+                  <input type="checkbox" {...register('saveAddress')} className="rounded border-[var(--border-strong)] text-emerald-600 accent-emerald-600 dark:accent-emerald-400" />
                   Guardar esta dirección para futuros pedidos
                 </label>
               </div>
@@ -132,16 +132,16 @@ export function CheckoutPageClient({ shippingZones, shippingRates, fallbackShipp
 
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <h2 className="mb-3 font-semibold text-[var(--foreground)]">Pago</h2>
-              <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 p-3 text-sm text-blue-700 dark:text-blue-300">
+              <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-700 dark:border-sky-800 dark:bg-sky-950/35 dark:text-sky-300">
                 <p className="font-medium">Modo demo activado</p>
-                <p className="mt-0.5 text-blue-600 dark:text-blue-400">
+                <p className="mt-0.5 text-sky-600 dark:text-sky-400">
                   El pago se simulará automáticamente. En producción se integra Stripe.
                 </p>
               </div>
             </div>
 
             {serverError && (
-              <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-4 text-sm text-red-700 dark:text-red-300">
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/35 dark:text-red-300">
                 {serverError}
               </div>
             )}

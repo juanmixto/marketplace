@@ -34,11 +34,11 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
       {/* Success banner */}
       {nuevo === '1' && (
-        <div className="mb-6 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-5 flex items-start gap-3">
-          <CheckCircleIcon className="h-6 w-6 text-emerald-500 shrink-0 mt-0.5" />
+        <div className="mb-6 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-800 dark:bg-emerald-950/35">
+          <CheckCircleIcon className="mt-0.5 h-6 w-6 shrink-0 text-emerald-500 dark:text-emerald-400" />
           <div>
             <p className="font-semibold text-emerald-900 dark:text-emerald-300">¡Pedido confirmado!</p>
-            <p className="text-sm text-emerald-700 dark:text-emerald-400 mt-0.5">
+            <p className="mt-0.5 text-sm text-emerald-700 dark:text-emerald-400">
               Hemos recibido tu pedido. Recibirás actualizaciones por email.
             </p>
           </div>
@@ -56,7 +56,7 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
       </div>
 
       {/* Products */}
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] mb-4">
+      <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--surface)]">
         <div className="border-b border-[var(--border)] px-5 py-3.5">
           <h2 className="font-semibold text-[var(--foreground)]">Productos</h2>
         </div>
@@ -101,7 +101,7 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
 
       {/* Fulfillments */}
       {order.fulfillments.length > 0 && (
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] mb-4">
+        <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--surface)]">
           <div className="border-b border-[var(--border)] px-5 py-3.5">
             <h2 className="font-semibold text-[var(--foreground)]">Estado del envío</h2>
           </div>
@@ -124,7 +124,7 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
       )}
 
       {/* Totals */}
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] mb-4 p-5">
+      <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
         <h2 className="font-semibold text-[var(--foreground)] mb-3">Resumen</h2>
         <div className="space-y-2 text-sm">
           <div className="flex justify-between text-[var(--foreground-soft)]">

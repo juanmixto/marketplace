@@ -38,27 +38,30 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
       badge: 'Acceso cliente',
       title: 'Entrar a tu cuenta',
       description: 'Consulta pedidos, carrito y seguimiento de tus compras.',
-      tint: 'from-slate-50 to-white',
-      border: 'border-slate-200',
-      accent: 'text-slate-700',
+      tint: 'from-slate-50 to-white dark:from-slate-900/80 dark:to-slate-950',
+      border: 'border-slate-200 dark:border-slate-700/80',
+      accent: 'text-slate-700 dark:text-slate-300',
+      iconBg: 'bg-white dark:bg-slate-900',
       icon: ShoppingBagIcon,
     },
     vendor: {
       badge: 'Portal productor',
       title: 'Entrar como productor',
       description: 'Gestiona catalogo, stock, pedidos y visibilidad de tu tienda.',
-      tint: 'from-emerald-50 to-white',
-      border: 'border-emerald-200',
-      accent: 'text-emerald-700',
+      tint: 'from-emerald-50 to-white dark:from-emerald-950/60 dark:to-slate-950',
+      border: 'border-emerald-200 dark:border-emerald-800/70',
+      accent: 'text-emerald-700 dark:text-emerald-300',
+      iconBg: 'bg-white dark:bg-slate-900',
       icon: BuildingStorefrontIcon,
     },
     admin: {
       badge: 'Panel admin',
       title: 'Entrar como administrador',
       description: 'Supervisa el marketplace, revisiones y operaciones internas.',
-      tint: 'from-amber-50 to-white',
-      border: 'border-amber-200',
-      accent: 'text-amber-700',
+      tint: 'from-amber-50 to-white dark:from-amber-950/60 dark:to-slate-950',
+      border: 'border-amber-200 dark:border-amber-800/70',
+      accent: 'text-amber-700 dark:text-amber-300',
+      iconBg: 'bg-white dark:bg-slate-900',
       icon: ShieldCheckIcon,
     },
   } as const
@@ -96,9 +99,9 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
 
   return (
     <div>
-      <div className={`rounded-2xl border bg-gradient-to-br p-4 ${currentPortal.border} ${currentPortal.tint}`}>
+      <div className={`rounded-2xl border bg-gradient-to-br p-4 shadow-sm ${currentPortal.border} ${currentPortal.tint}`}>
         <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-sm">
+          <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border border-black/5 shadow-sm dark:border-white/10 ${currentPortal.iconBg}`}>
             <PortalIcon className={`h-5 w-5 ${currentPortal.accent}`} />
           </div>
           <div>
@@ -132,14 +135,16 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
           <button
             type="button"
             onClick={() => setShowPass(v => !v)}
-            className="absolute right-3 top-8 text-[var(--muted)] hover:text-[var(--foreground)]"
+            className="absolute right-3 top-8 rounded-md p-1 text-[var(--muted)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
           >
             {showPass ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
           </button>
         </div>
 
         {error && (
-          <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>
+          <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/35 dark:text-red-300">
+            {error}
+          </p>
         )}
 
         <Button type="submit" className="w-full" isLoading={loading} size="lg">
@@ -161,11 +166,11 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
           <Link
             key={link.href}
             href={link.href}
-            className={`rounded-xl border px-4 py-3 text-sm transition ${
+            className={`rounded-xl border px-4 py-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] ${
               link.href.includes('/vendor') && portalMode === 'vendor'
-                ? 'border-emerald-300 bg-emerald-50 text-emerald-900 shadow-sm'
+                ? 'border-emerald-300 bg-emerald-50 text-emerald-950 shadow-sm dark:border-emerald-700 dark:bg-emerald-950/45 dark:text-emerald-100'
                 : link.href.includes('/admin') && portalMode === 'admin'
-                  ? 'border-amber-300 bg-amber-50 text-amber-900 shadow-sm'
+                  ? 'border-amber-300 bg-amber-50 text-amber-950 shadow-sm dark:border-amber-700 dark:bg-amber-950/45 dark:text-amber-100'
                   : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-soft)] hover:border-emerald-200 hover:bg-emerald-50/40 dark:hover:border-emerald-800 dark:hover:bg-emerald-950/20'
             }`}
           >
@@ -177,7 +182,7 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
 
       <p className="mt-6 text-center text-sm text-[var(--muted)]">
         ¿No tienes cuenta?{' '}
-        <Link href="/register" className="font-semibold text-emerald-600 hover:underline">
+        <Link href="/register" className="font-semibold text-emerald-600 hover:underline dark:text-emerald-400">
           Regístrate gratis
         </Link>
       </p>

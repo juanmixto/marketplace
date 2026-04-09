@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import { useTheme } from 'next-themes'
 import { useRouter } from 'next/navigation'
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js'
+import type { Appearance } from '@stripe/stripe-js'
 import { loadStripe } from '@stripe/stripe-js'
 import { Button } from '@/components/ui/button'
 import { formatPrice } from '@/lib/utils'
@@ -21,9 +23,47 @@ interface StripeCheckoutFormProps {
 
 interface InnerFormProps extends StripeCheckoutFormProps {
   returnUrl: string
+  appearance: Appearance
 }
 
-function InnerStripeCheckoutForm({ orderId, orderNumber, grandTotal, returnUrl }: InnerFormProps) {
+export function getStripeAppearance(theme?: string | null): Appearance {
+  const isDark = theme === 'dark'
+
+  return {
+    theme: isDark ? 'night' : 'stripe',
+    variables: {
+      colorPrimary: isDark ? '#34d399' : '#059669',
+      colorBackground: isDark ? 'rgba(15, 23, 42, 0.72)' : '#ffffff',
+      colorText: isDark ? '#e2e8f0' : '#0f172a',
+      colorDanger: isDark ? '#fca5a5' : '#dc2626',
+      colorTextPlaceholder: isDark ? '#94a3b8' : '#94a3b8',
+      colorBackgroundText: 'transparent',
+      borderRadius: '12px',
+      spacingUnit: '4px',
+      fontFamily: 'var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif',
+    },
+    rules: {
+      '.Input': {
+        borderColor: isDark ? 'rgba(148, 163, 184, 0.28)' : 'rgba(148, 163, 184, 0.35)',
+        boxShadow: 'none',
+      },
+      '.Input:focus': {
+        borderColor: isDark ? '#4ade80' : '#10b981',
+        boxShadow: isDark ? '0 0 0 2px rgba(74, 222, 128, 0.18)' : '0 0 0 2px rgba(16, 185, 129, 0.14)',
+      },
+      '.Tab, .Block, .AccordionItem': {
+        backgroundColor: isDark ? 'rgba(15, 23, 42, 0.55)' : '#ffffff',
+        borderColor: isDark ? 'rgba(148, 163, 184, 0.28)' : 'rgba(148, 163, 184, 0.35)',
+      },
+      '.Tab--selected, .Block--selected': {
+        backgroundColor: isDark ? 'rgba(15, 118, 110, 0.18)' : 'rgba(236, 253, 245, 0.92)',
+        borderColor: isDark ? 'rgba(74, 222, 128, 0.55)' : 'rgba(16, 185, 129, 0.45)',
+      },
+    },
+  }
+}
+
+function InnerStripeCheckoutForm({ orderId, orderNumber, grandTotal, returnUrl, appearance }: InnerFormProps) {
   const stripe = useStripe()
   const elements = useElements()
   const router = useRouter()
@@ -68,12 +108,12 @@ function InnerStripeCheckoutForm({ orderId, orderNumber, grandTotal, returnUrl }
         </p>
       </div>
 
-      <div className="rounded-xl border border-[var(--border)] p-4">
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-4">
         <PaymentElement />
       </div>
 
       {error ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/35 dark:text-red-300">
           {error}
         </div>
       ) : null}
@@ -89,9 +129,12 @@ function InnerStripeCheckoutForm({ orderId, orderNumber, grandTotal, returnUrl }
 }
 
 export function StripeCheckoutForm(props: StripeCheckoutFormProps) {
+  const { resolvedTheme } = useTheme()
+  const appearance = getStripeAppearance(resolvedTheme)
+
   if (!stripePromise) {
     return (
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/35 dark:text-amber-300">
         Falta configurar `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` para mostrar el formulario de pago.
       </div>
     )
@@ -100,8 +143,8 @@ export function StripeCheckoutForm(props: StripeCheckoutFormProps) {
   const returnUrl = `${props.appUrl}/cuenta/pedidos/${props.orderId}?nuevo=1`
 
   return (
-    <Elements stripe={stripePromise} options={{ clientSecret: props.clientSecret }}>
-      <InnerStripeCheckoutForm {...props} returnUrl={returnUrl} />
+    <Elements stripe={stripePromise} options={{ clientSecret: props.clientSecret, appearance }}>
+      <InnerStripeCheckoutForm {...props} returnUrl={returnUrl} appearance={appearance} />
     </Elements>
   )
 }
