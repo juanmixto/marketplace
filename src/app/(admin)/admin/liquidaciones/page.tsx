@@ -4,6 +4,7 @@ import { formatPrice } from '@/lib/utils'
 import { AdminStatusBadge } from '@/components/admin/AdminStatusBadge'
 import { formatAdminPeriodLabel, getSettlementStatusTone } from '@/domains/admin/overview'
 import { SettlementActions } from '@/components/admin/SettlementActions'
+import { getCommissionRate } from '@/domains/finance/commission'
 
 export const metadata: Metadata = { title: 'Liquidaciones | Admin' }
 export const revalidate = 30
@@ -22,6 +23,15 @@ export default async function AdminSettlementsPage() {
       _count: { _all: true },
     }),
   ])
+
+  const settlementRates = new Map(
+    await Promise.all(
+      settlements.map(async settlement => [
+        settlement.id,
+        await getCommissionRate(settlement.vendorId),
+      ] as const)
+    )
+  )
 
   return (
     <div className="space-y-6">
@@ -73,6 +83,9 @@ export default async function AdminSettlementsPage() {
               <div>
                 <p className="text-xs uppercase tracking-wide text-gray-400">Comisiones</p>
                 <p className="mt-1 font-medium text-gray-900">{formatPrice(Number(settlement.commissions))}</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Regla actual {(settlementRates.get(settlement.id) ?? 0).toFixed(4)}
+                </p>
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wide text-gray-400">Refunds</p>

@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { setMarketplaceConfig } from '@/lib/config'
 import { createAuditLog, getAuditRequestIp, type AuditValue } from '@/lib/audit'
+import { getCommissionRate } from '@/domains/finance/commission'
 
 const ADMIN_ROLES = ['ADMIN_SUPPORT', 'ADMIN_CATALOG', 'ADMIN_FINANCE', 'ADMIN_OPS', 'SUPERADMIN'] as const
 
@@ -199,6 +200,13 @@ const marketplaceConfigSchema = z.object({
   HERO_BANNER_TEXT: z.string().max(160).trim(),
 })
 
+const commissionRuleSchema = z.object({
+  vendorId: z.string().trim().optional(),
+  categoryId: z.string().trim().optional(),
+  type: z.enum(['PERCENTAGE', 'FIXED']),
+  rate: z.coerce.number().min(0).max(1000),
+})
+
 export async function updateMarketplaceConfigAction(formData: FormData) {
   const session = await requireAdmin()
   if (session.user.role !== 'SUPERADMIN' && session.user.role !== 'ADMIN_OPS') {
@@ -259,6 +267,128 @@ export async function updateMarketplaceConfigAction(formData: FormData) {
   revalidatePath('/')
   revalidatePath('/carrito')
   revalidatePath('/checkout')
+}
+
+export async function createCommissionRule(formData: FormData) {
+  const session = await requireAdmin()
+  if (!['SUPERADMIN', 'ADMIN_FINANCE', 'ADMIN_OPS'].includes(session.user.role)) {
+    throw new Error('No tienes permisos para gestionar reglas de comisión')
+  }
+
+  const parsed = commissionRuleSchema.parse({
+    vendorId: formData.get('vendorId')?.toString() || undefined,
+    categoryId: formData.get('categoryId')?.toString() || undefined,
+    type: formData.get('type'),
+    rate: formData.get('rate'),
+  })
+
+  if (!parsed.vendorId && !parsed.categoryId) {
+    throw new Error('Debes seleccionar al menos un productor o una categoría')
+  }
+
+  const createdRule = await db.commissionRule.create({
+    data: {
+      vendorId: parsed.vendorId ?? null,
+      categoryId: parsed.categoryId ?? null,
+      type: parsed.type,
+      rate: parsed.rate,
+      isActive: true,
+    },
+  })
+  const ip = await getAuditRequestIp()
+
+  await createAuditLog({
+    action: 'COMMISSION_RULE_CREATED',
+    entityType: 'CommissionRule',
+    entityId: createdRule.id,
+    after: {
+      id: createdRule.id,
+      vendorId: createdRule.vendorId,
+      categoryId: createdRule.categoryId,
+      type: createdRule.type,
+      rate: Number(createdRule.rate),
+      isActive: createdRule.isActive,
+    },
+    actorId: session.user.id,
+    actorRole: session.user.role,
+    ip,
+  })
+
+  revalidatePath('/admin/comisiones')
+  revalidatePath('/admin/auditoria')
+}
+
+export async function toggleCommissionRule(ruleId: string) {
+  const session = await requireAdmin()
+  if (!['SUPERADMIN', 'ADMIN_FINANCE', 'ADMIN_OPS'].includes(session.user.role)) {
+    throw new Error('No tienes permisos para gestionar reglas de comisión')
+  }
+
+  const rule = await db.commissionRule.findUnique({ where: { id: ruleId } })
+  if (!rule) throw new Error('Regla no encontrada')
+
+  const updatedRule = await db.commissionRule.update({
+    where: { id: ruleId },
+    data: { isActive: !rule.isActive },
+  })
+  const ip = await getAuditRequestIp()
+
+  await createAuditLog({
+    action: 'COMMISSION_RULE_TOGGLED',
+    entityType: 'CommissionRule',
+    entityId: ruleId,
+    before: {
+      id: rule.id,
+      isActive: rule.isActive,
+      type: rule.type,
+      rate: Number(rule.rate),
+    },
+    after: {
+      id: updatedRule.id,
+      isActive: updatedRule.isActive,
+      type: updatedRule.type,
+      rate: Number(updatedRule.rate),
+    },
+    actorId: session.user.id,
+    actorRole: session.user.role,
+    ip,
+  })
+
+  revalidatePath('/admin/comisiones')
+  revalidatePath('/admin/auditoria')
+}
+
+export async function deleteCommissionRule(ruleId: string) {
+  const session = await requireAdmin()
+  if (!['SUPERADMIN', 'ADMIN_FINANCE', 'ADMIN_OPS'].includes(session.user.role)) {
+    throw new Error('No tienes permisos para gestionar reglas de comisión')
+  }
+
+  const rule = await db.commissionRule.findUnique({ where: { id: ruleId } })
+  if (!rule) throw new Error('Regla no encontrada')
+
+  await db.commissionRule.delete({ where: { id: ruleId } })
+  const ip = await getAuditRequestIp()
+
+  await createAuditLog({
+    action: 'COMMISSION_RULE_DELETED',
+    entityType: 'CommissionRule',
+    entityId: ruleId,
+    before: {
+      id: rule.id,
+      vendorId: rule.vendorId,
+      categoryId: rule.categoryId,
+      type: rule.type,
+      rate: Number(rule.rate),
+      isActive: rule.isActive,
+    },
+    actorId: session.user.id,
+    actorRole: session.user.role,
+    ip,
+  })
+
+  revalidatePath('/admin/comisiones')
+  revalidatePath('/admin/auditoria')
 }
 
 /**
