@@ -18,6 +18,7 @@ export const adminNavItems: AppNavItem[] = [
   { href: '/admin/productores', label: 'Productores', available: true },
   { href: '/admin/productos', label: 'Productos', available: true },
   { href: '/admin/configuracion', label: 'Configuracion', available: true },
+  { href: '/admin/auditoria', label: 'Auditoria', available: true },
   { href: '/admin/liquidaciones', label: 'Liquidaciones', available: true },
   { href: '/admin/incidencias', label: 'Incidencias', available: true },
   { href: '/admin/informes', label: 'Informes', available: true },

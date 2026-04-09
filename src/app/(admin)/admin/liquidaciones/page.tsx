@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { formatPrice } from '@/lib/utils'
 import { AdminStatusBadge } from '@/components/admin/AdminStatusBadge'
 import { formatAdminPeriodLabel, getSettlementStatusTone } from '@/domains/admin/overview'
+import { SettlementActions } from '@/components/admin/SettlementActions'
 
 export const metadata: Metadata = { title: 'Liquidaciones | Admin' }
 export const revalidate = 30
@@ -81,6 +82,9 @@ export default async function AdminSettlementsPage() {
                 <p className="text-xs uppercase tracking-wide text-gray-400">Neto</p>
                 <p className="mt-1 font-semibold text-gray-900">{formatPrice(Number(settlement.netPayable))}</p>
               </div>
+            </div>
+            <div className="mt-4 border-t border-gray-100 pt-4">
+              <SettlementActions settlementId={settlement.id} status={settlement.status} />
             </div>
           </div>
         ))}
