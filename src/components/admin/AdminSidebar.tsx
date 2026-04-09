@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   HomeIcon,
   ShoppingBagIcon,
+  TruckIcon,
   UsersIcon,
   ArchiveBoxIcon,
   ScaleIcon,
@@ -23,6 +24,7 @@ const NAV_META = {
   '/admin/pedidos': ShoppingBagIcon,
   '/admin/productores': UsersIcon,
   '/admin/productos': ArchiveBoxIcon,
+  '/admin/envios': TruckIcon,
   '/admin/comisiones': ScaleIcon,
   '/admin/configuracion': Cog6ToothIcon,
   '/admin/auditoria': ClipboardDocumentListIcon,

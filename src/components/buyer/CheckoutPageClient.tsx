@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useCartStore } from '@/lib/cart-store'
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Input } from '@/components/ui/input'
@@ -11,7 +11,11 @@ import { Button } from '@/components/ui/button'
 import { createOrder, confirmOrder } from '@/domains/orders/actions'
 import { formatPrice } from '@/lib/utils'
 import Image from 'next/image'
-import { calculateShippingCost, type PublicMarketplaceSettings } from '@/lib/marketplace-settings'
+import {
+  calculateShippingCostFromTables,
+  type ShippingRateLike,
+  type ShippingZoneLike,
+} from '@/domains/shipping/shared'
 
 const schema = z.object({
   firstName: z.string().min(1, 'Requerido'),
@@ -28,24 +32,37 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 interface Props {
-  shippingSettings: Pick<PublicMarketplaceSettings, 'FREE_SHIPPING_THRESHOLD' | 'FLAT_SHIPPING_COST'>
+  shippingZones: ShippingZoneLike[]
+  shippingRates: ShippingRateLike[]
+  fallbackShippingCost: number
 }
 
-export function CheckoutPageClient({ shippingSettings }: Props) {
+export function CheckoutPageClient({ shippingZones, shippingRates, fallbackShippingCost }: Props) {
   const router = useRouter()
   const { items, subtotal, clearCart } = useCartStore()
   const [step, setStep] = useState<'address' | 'payment' | 'processing'>('address')
   const [serverError, setServerError] = useState<string | null>(null)
 
   const sub = subtotal()
-  const shipping = calculateShippingCost(sub, shippingSettings)
-  const total = sub + shipping
 
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({ resolver: zodResolver(schema) })
+  const watchedPostalCode = useWatch({ control, name: 'postalCode' }) ?? ''
+
+  const shipping = watchedPostalCode.length === 5
+    ? calculateShippingCostFromTables({
+        postalCode: watchedPostalCode,
+        subtotal: sub,
+        zones: shippingZones,
+        rates: shippingRates,
+        fallbackCost: fallbackShippingCost,
+      })
+    : fallbackShippingCost
+  const total = sub + shipping
 
   if (items.length === 0) {
     router.replace('/carrito')
@@ -173,7 +190,7 @@ export function CheckoutPageClient({ shippingSettings }: Props) {
               </div>
               {shipping > 0 && (
                 <p className="text-xs text-gray-400">
-                  Envío gratis a partir de {formatPrice(shippingSettings.FREE_SHIPPING_THRESHOLD)}
+                  El coste se ajusta automáticamente según el código postal y la zona de envío.
                 </p>
               )}
               <div className="flex justify-between border-t border-gray-100 pt-2 text-base font-bold text-gray-900">

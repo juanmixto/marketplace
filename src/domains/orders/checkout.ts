@@ -1,10 +1,4 @@
 import { z } from 'zod'
-import {
-  calculateShippingCost,
-  MARKETPLACE_SETTINGS_DEFAULTS,
-  type PublicMarketplaceSettings,
-} from '@/lib/marketplace-settings'
-
 export const addressSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
@@ -39,27 +33,35 @@ export function getIncludedTaxAmount(unitPrice: number, quantity: number, taxRat
   return roundCurrency(gross - net)
 }
 
-export function calculateOrderTotals(lines: OrderPricingLine[]) {
-  return calculateOrderTotalsWithConfig(lines, MARKETPLACE_SETTINGS_DEFAULTS)
-}
-
-export function calculateOrderTotalsWithConfig(
-  lines: OrderPricingLine[],
-  settings: Pick<PublicMarketplaceSettings, 'FREE_SHIPPING_THRESHOLD' | 'FLAT_SHIPPING_COST'>
-) {
+export function calculateOrderPricing(lines: OrderPricingLine[]) {
   const subtotal = roundCurrency(
     lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0)
   )
   const taxAmount = roundCurrency(
     lines.reduce((sum, line) => sum + getIncludedTaxAmount(line.unitPrice, line.quantity, line.taxRate), 0)
   )
-  const shippingCost = calculateShippingCost(subtotal, settings)
+
+  return {
+    subtotal,
+    taxAmount,
+  }
+}
+
+export function calculateOrderTotals(lines: OrderPricingLine[]) {
+  return calculateOrderTotalsWithShippingCost(lines, 4.95)
+}
+
+export function calculateOrderTotalsWithShippingCost(
+  lines: OrderPricingLine[],
+  shippingCost: number
+) {
+  const { subtotal, taxAmount } = calculateOrderPricing(lines)
   const grandTotal = roundCurrency(subtotal + shippingCost)
 
   return {
     subtotal,
     taxAmount,
-    shippingCost,
+    shippingCost: roundCurrency(shippingCost),
     grandTotal,
   }
 }

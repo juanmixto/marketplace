@@ -207,6 +207,19 @@ const commissionRuleSchema = z.object({
   rate: z.coerce.number().min(0).max(1000),
 })
 
+const shippingZoneSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  provinces: z.string().trim().min(2),
+})
+
+const shippingRateSchema = z.object({
+  zoneId: z.string().trim().min(1),
+  name: z.string().trim().min(2).max(80),
+  minOrderAmount: z.coerce.number().min(0).optional(),
+  price: z.coerce.number().min(0).max(1000),
+  freeAbove: z.coerce.number().min(0).optional(),
+})
+
 export async function updateMarketplaceConfigAction(formData: FormData) {
   const session = await requireAdmin()
   if (session.user.role !== 'SUPERADMIN' && session.user.role !== 'ADMIN_OPS') {
@@ -388,6 +401,125 @@ export async function deleteCommissionRule(ruleId: string) {
   })
 
   revalidatePath('/admin/comisiones')
+  revalidatePath('/admin/auditoria')
+}
+
+export async function createShippingZone(formData: FormData) {
+  const session = await requireAdmin()
+  if (!['SUPERADMIN', 'ADMIN_OPS'].includes(session.user.role)) {
+    throw new Error('No tienes permisos para gestionar zonas de envío')
+  }
+
+  const parsed = shippingZoneSchema.parse({
+    name: formData.get('name'),
+    provinces: formData.get('provinces'),
+  })
+
+  const createdZone = await db.shippingZone.create({
+    data: {
+      name: parsed.name,
+      provinces: parsed.provinces.split(',').map(value => value.trim()).filter(Boolean),
+      isActive: true,
+    },
+  })
+  const ip = await getAuditRequestIp()
+
+  await createAuditLog({
+    action: 'SHIPPING_ZONE_CREATED',
+    entityType: 'ShippingZone',
+    entityId: createdZone.id,
+    after: {
+      id: createdZone.id,
+      name: createdZone.name,
+      provinces: createdZone.provinces,
+      isActive: createdZone.isActive,
+    },
+    actorId: session.user.id,
+    actorRole: session.user.role,
+    ip,
+  })
+
+  revalidatePath('/admin/envios')
+  revalidatePath('/admin/auditoria')
+}
+
+export async function addShippingRate(formData: FormData) {
+  const session = await requireAdmin()
+  if (!['SUPERADMIN', 'ADMIN_OPS'].includes(session.user.role)) {
+    throw new Error('No tienes permisos para gestionar tarifas de envío')
+  }
+
+  const parsed = shippingRateSchema.parse({
+    zoneId: formData.get('zoneId'),
+    name: formData.get('name'),
+    minOrderAmount: formData.get('minOrderAmount') || undefined,
+    price: formData.get('price'),
+    freeAbove: formData.get('freeAbove') || undefined,
+  })
+
+  const createdRate = await db.shippingRate.create({
+    data: {
+      zoneId: parsed.zoneId,
+      name: parsed.name,
+      minOrderAmount: parsed.minOrderAmount ?? null,
+      price: parsed.price,
+      freeAbove: parsed.freeAbove ?? null,
+      isActive: true,
+    },
+  })
+  const ip = await getAuditRequestIp()
+
+  await createAuditLog({
+    action: 'SHIPPING_RATE_CREATED',
+    entityType: 'ShippingRate',
+    entityId: createdRate.id,
+    after: {
+      id: createdRate.id,
+      zoneId: createdRate.zoneId,
+      name: createdRate.name,
+      minOrderAmount: createdRate.minOrderAmount == null ? null : Number(createdRate.minOrderAmount),
+      price: Number(createdRate.price),
+      freeAbove: createdRate.freeAbove == null ? null : Number(createdRate.freeAbove),
+    },
+    actorId: session.user.id,
+    actorRole: session.user.role,
+    ip,
+  })
+
+  revalidatePath('/admin/envios')
+  revalidatePath('/admin/auditoria')
+}
+
+export async function deleteShippingRate(rateId: string) {
+  const session = await requireAdmin()
+  if (!['SUPERADMIN', 'ADMIN_OPS'].includes(session.user.role)) {
+    throw new Error('No tienes permisos para gestionar tarifas de envío')
+  }
+
+  const rate = await db.shippingRate.findUnique({ where: { id: rateId } })
+  if (!rate) throw new Error('Tarifa no encontrada')
+
+  await db.shippingRate.delete({ where: { id: rateId } })
+  const ip = await getAuditRequestIp()
+
+  await createAuditLog({
+    action: 'SHIPPING_RATE_DELETED',
+    entityType: 'ShippingRate',
+    entityId: rateId,
+    before: {
+      id: rate.id,
+      zoneId: rate.zoneId,
+      name: rate.name,
+      minOrderAmount: rate.minOrderAmount == null ? null : Number(rate.minOrderAmount),
+      price: Number(rate.price),
+      freeAbove: rate.freeAbove == null ? null : Number(rate.freeAbove),
+    },
+    actorId: session.user.id,
+    actorRole: session.user.role,
+    ip,
+  })
+
+  revalidatePath('/admin/envios')
   revalidatePath('/admin/auditoria')
 }
 

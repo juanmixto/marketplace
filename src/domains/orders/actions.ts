@@ -6,11 +6,11 @@ import { redirect } from 'next/navigation'
 import { generateOrderNumber } from '@/lib/utils'
 import { createPaymentIntent } from '@/domains/payments/provider'
 import { revalidatePath } from 'next/cache'
-import { calculateOrderTotalsWithConfig, checkoutSchema, type CheckoutFormData } from '@/domains/orders/checkout'
+import { calculateOrderPricing, calculateOrderTotalsWithShippingCost, checkoutSchema, type CheckoutFormData } from '@/domains/orders/checkout'
 import { shouldApplyPaymentSucceeded } from '@/domains/payments/webhook'
 import { getServerEnv } from '@/lib/env'
 import { getAvailableProductWhere } from '@/domains/catalog/availability'
-import { getPublicMarketplaceConfig } from '@/lib/config'
+import { getShippingCost } from '@/domains/shipping/calculator'
 
 export interface CartItemInput {
   productId: string
@@ -65,15 +65,21 @@ export async function createOrder(
   })
 
   // Calculate totals
-  const shippingSettings = await getPublicMarketplaceConfig()
-
-  const { subtotal, taxAmount, shippingCost, grandTotal } = calculateOrderTotalsWithConfig(
+  const pricing = calculateOrderPricing(
+    lines.map(line => ({
+      unitPrice: Number(line.unitPrice),
+      quantity: line.quantity,
+      taxRate: Number(line.taxRate),
+    }))
+  )
+  const shippingCost = await getShippingCost(validated.address.postalCode, pricing.subtotal)
+  const { subtotal, taxAmount, grandTotal } = calculateOrderTotalsWithShippingCost(
     lines.map(line => ({
       unitPrice: Number(line.unitPrice),
       quantity: line.quantity,
       taxRate: Number(line.taxRate),
     })),
-    shippingSettings
+    shippingCost
   )
 
   // Save address if requested

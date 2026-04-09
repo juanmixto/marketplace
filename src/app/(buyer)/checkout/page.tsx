@@ -1,7 +1,13 @@
 import { CheckoutPageClient } from '@/components/buyer/CheckoutPageClient'
-import { getPublicMarketplaceConfig } from '@/lib/config'
+import { getShippingConfigurationSnapshot } from '@/domains/shipping/calculator'
 
 export default async function CheckoutPage() {
-  const shippingSettings = await getPublicMarketplaceConfig()
-  return <CheckoutPageClient shippingSettings={shippingSettings} />
+  const shippingConfig = await getShippingConfigurationSnapshot()
+  return (
+    <CheckoutPageClient
+      shippingZones={shippingConfig.zones}
+      shippingRates={shippingConfig.rates}
+      fallbackShippingCost={shippingConfig.fallbackCost}
+    />
+  )
 }
