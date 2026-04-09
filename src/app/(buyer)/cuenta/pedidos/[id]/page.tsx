@@ -8,6 +8,8 @@ import { ORDER_STATUS_LABELS, FULFILLMENT_STATUS_LABELS } from '@/lib/constants'
 import { Badge } from '@/components/ui/badge'
 import { CheckCircleIcon } from '@heroicons/react/24/solid'
 import { parseOrderLineSnapshot } from '@/domains/orders/order-line-snapshot'
+import { canLeaveReview } from '@/domains/reviews/actions'
+import { ReviewFormButton } from '@/components/reviews/ReviewFormButton'
 import type { Metadata } from 'next'
 
 interface Props { params: Promise<{ id: string }>, searchParams: Promise<{ nuevo?: string }> }
@@ -22,6 +24,11 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
   const { nuevo } = await searchParams
   const order = await getOrderDetail(id)
   if (!order) notFound()
+  const reviewEligibility = new Map(
+    await Promise.all(
+      order.lines.map(async line => [line.productId, await canLeaveReview(order.id, line.productId)] as const)
+    )
+  )
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
@@ -73,6 +80,15 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
                     <p className="text-sm font-medium text-emerald-700">{snapshot.variantName}</p>
                   )}
                   <p className="text-sm text-gray-500">× {line.quantity} {line.product.unit}</p>
+                  {reviewEligibility.get(line.productId) && (
+                    <div className="mt-3">
+                      <ReviewFormButton
+                        orderId={order.id}
+                        productId={line.productId}
+                        productName={line.product.name}
+                      />
+                    </div>
+                  )}
                 </div>
                 <p className="font-medium text-gray-900 shrink-0">
                   {formatPrice(Number(line.unitPrice) * line.quantity)}

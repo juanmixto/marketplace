@@ -128,6 +128,7 @@ model User {
   cart_items  CartItem[]
   addresses   Address[]
   incidents   Incident[]
+  reviews     Review[]
 
   @@index([email])
   @@index([role])
@@ -197,6 +198,7 @@ model Vendor {
   products     Product[]
   fulfillments VendorFulfillment[]
   settlements  Settlement[]
+  reviews      Review[]
 
   @@index([status])
   @@index([slug])
@@ -254,6 +256,7 @@ model Product {
   variants   ProductVariant[]
   orderLines OrderLine[]
   cartItems  CartItem[]
+  reviews    Review[]
 
   @@index([status, categoryId])
   @@index([vendorId, status])
@@ -357,6 +360,7 @@ model Order {
   fulfillments VendorFulfillment[]
   incidents    Incident[]
   events       OrderEvent[]
+  reviews      Review[]
 
   @@index([customerId, status])
   @@index([status, placedAt])
@@ -380,6 +384,27 @@ model OrderLine {
 
   @@index([orderId])
   @@index([vendorId])
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  orderId    String
+  productId  String
+  vendorId   String
+  customerId String
+  rating     Int
+  body       String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  order    Order   @relation(fields: [orderId], references: [id])
+  product  Product @relation(fields: [productId], references: [id])
+  vendor   Vendor  @relation(fields: [vendorId], references: [id])
+  customer User    @relation(fields: [customerId], references: [id])
+
+  @@unique([orderId, productId])
+  @@index([productId])
+  @@index([vendorId])
+  @@index([customerId])
 }
 
 model VendorFulfillment {

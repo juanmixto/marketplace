@@ -4,9 +4,11 @@ import Link from 'next/link'
 import { getProductBySlug, getProducts } from '@/domains/catalog/queries'
 import { Badge } from '@/components/ui/badge'
 import { ProductPurchasePanel } from '@/components/catalog/ProductPurchasePanel'
+import { StarRating } from '@/components/reviews/StarRating'
 import type { ProductWithVendor } from '@/domains/catalog/types'
 import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import { ProductCard } from '@/components/catalog/ProductCard'
+import { getProductReviews } from '@/domains/reviews/actions'
 import type { Metadata } from 'next'
 
 interface Props {
@@ -42,6 +44,7 @@ export default async function ProductDetailPage({ params }: Props) {
     categorySlug: product.category?.slug,
     limit: 4,
   }).then(r => r.products.filter(p => p.id !== product.id).slice(0, 4))
+  const reviewSummary = await getProductReviews(product.id)
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -177,6 +180,59 @@ export default async function ProductDetailPage({ params }: Props) {
           </div>
         </div>
       </div>
+
+      <section className="mt-16 rounded-3xl border border-gray-200 bg-white p-6 sm:p-8">
+        <div className="flex flex-col gap-6 border-b border-gray-100 pb-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Reseñas del producto</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Opiniones verificadas de compradores que ya recibieron este producto.
+            </p>
+          </div>
+          <div className="rounded-2xl bg-amber-50 px-5 py-4">
+            <div className="flex items-center gap-3">
+              <StarRating rating={reviewSummary.averageRating ?? 0} />
+              <div>
+                <p className="text-lg font-bold text-gray-900">
+                  {reviewSummary.averageRating ? reviewSummary.averageRating.toFixed(1) : 'Sin nota'}
+                </p>
+                <p className="text-sm text-gray-500">
+                  {reviewSummary.totalReviews} reseña{reviewSummary.totalReviews === 1 ? '' : 's'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {reviewSummary.reviews.length === 0 ? (
+          <div className="py-10 text-center text-sm text-gray-500">
+            Aún no hay reseñas para este producto.
+          </div>
+        ) : (
+          <div className="mt-6 space-y-4">
+            {reviewSummary.reviews.map(review => (
+              <article key={review.id} className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <p className="font-medium text-gray-900">
+                        {review.customer.firstName} {review.customer.lastName.slice(0, 1)}.
+                      </p>
+                      <StarRating rating={review.rating} size="sm" />
+                    </div>
+                    <p className="mt-1 text-xs text-gray-400">
+                      {new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium' }).format(review.createdAt)}
+                    </p>
+                  </div>
+                </div>
+                {review.body && (
+                  <p className="mt-3 text-sm leading-relaxed text-gray-600">{review.body}</p>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* Related */}
       {related.length > 0 && (
