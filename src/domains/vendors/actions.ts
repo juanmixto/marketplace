@@ -1,18 +1,18 @@
 'use server'
 
-import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { redirect } from 'next/navigation'
-import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { slugify } from '@/lib/utils'
 import type { FulfillmentStatus } from '@/generated/prisma/enums'
 import { parseExpirationDateInput } from '@/domains/catalog/availability'
+import { getActionSession } from '@/lib/action-session'
+import { safeRevalidatePath } from '@/lib/revalidate'
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 
 async function requireVendor() {
-  const session = await auth()
+  const session = await getActionSession()
   if (!session || session.user.role !== 'VENDOR') redirect('/login')
   const vendor = await db.vendor.findUnique({ where: { userId: session.user.id } })
   if (!vendor) redirect('/login')
@@ -68,7 +68,7 @@ export async function createProduct(input: ProductInput) {
     },
   })
 
-  revalidatePath('/vendor/productos')
+  safeRevalidatePath('/vendor/productos')
   return product
 }
 
@@ -97,8 +97,8 @@ export async function updateProduct(productId: string, input: Partial<ProductInp
     },
   })
 
-  revalidatePath('/vendor/productos')
-  revalidatePath(`/productos/${product.slug}`)
+  safeRevalidatePath('/vendor/productos')
+  safeRevalidatePath(`/productos/${product.slug}`)
   return updated
 }
 
@@ -118,7 +118,7 @@ export async function submitForReview(productId: string) {
     data: { status: 'PENDING_REVIEW', rejectionNote: null },
   })
 
-  revalidatePath('/vendor/productos')
+  safeRevalidatePath('/vendor/productos')
 }
 
 /**
@@ -147,7 +147,7 @@ export async function deleteProduct(productId: string) {
     data: { deletedAt: new Date(), status: 'SUSPENDED' },
   })
 
-  revalidatePath('/vendor/productos')
+  safeRevalidatePath('/vendor/productos')
 }
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
@@ -209,7 +209,7 @@ export async function advanceFulfillment(
     },
   })
 
-  revalidatePath('/vendor/pedidos')
+  safeRevalidatePath('/vendor/pedidos')
 }
 
 export async function getMyFulfillments(filter?: 'active' | 'urgent' | 'shipped' | 'all') {
@@ -266,7 +266,7 @@ export async function updateVendorProfile(input: z.infer<typeof profileSchema>) 
     data,
   })
 
-  revalidatePath('/vendor/perfil')
+  safeRevalidatePath('/vendor/perfil')
   return updated
 }
 

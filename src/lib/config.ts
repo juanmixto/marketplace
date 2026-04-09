@@ -1,5 +1,3 @@
-import 'server-only'
-
 import { revalidateTag, unstable_cache } from 'next/cache'
 import { db } from '@/lib/db'
 import {
@@ -41,6 +39,30 @@ const loadMarketplaceSettings = unstable_cache(
 )
 
 export async function getMarketplaceConfig() {
+  if (process.env.NODE_ENV === 'test') {
+    const rows = await db.marketplaceConfig.findMany({
+      where: {
+        key: {
+          in: [
+            MARKETPLACE_CONFIG_KEYS.DEFAULT_COMMISSION_RATE,
+            MARKETPLACE_CONFIG_KEYS.FREE_SHIPPING_THRESHOLD,
+            MARKETPLACE_CONFIG_KEYS.FLAT_SHIPPING_COST,
+            MARKETPLACE_CONFIG_KEYS.MAINTENANCE_MODE,
+            MARKETPLACE_CONFIG_KEYS.HERO_BANNER_TEXT,
+            'commission_default',
+            'free_shipping_threshold',
+            'flat_shipping_cost',
+            'maintenance_mode',
+            'hero_banner_text',
+          ],
+        },
+      },
+      select: { key: true, value: true },
+    })
+
+    return resolveMarketplaceSettings(rows)
+  }
+
   return loadMarketplaceSettings()
 }
 

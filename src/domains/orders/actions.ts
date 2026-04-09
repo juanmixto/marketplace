@@ -1,17 +1,17 @@
 'use server'
 
-import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import { generateOrderNumber } from '@/lib/utils'
 import { createPaymentIntent } from '@/domains/payments/provider'
-import { revalidatePath } from 'next/cache'
 import { calculateOrderPricing, calculateOrderTotalsWithShippingCost, checkoutSchema, type CheckoutFormData } from '@/domains/orders/checkout'
 import { shouldApplyPaymentSucceeded } from '@/domains/payments/webhook'
 import { getServerEnv } from '@/lib/env'
 import { getAvailableProductWhere } from '@/domains/catalog/availability'
 import { getAvailableStockForPurchase, getSelectedVariant, getVariantAdjustedPrice, productRequiresVariantSelection } from '@/domains/catalog/variants'
 import { getShippingCost } from '@/domains/shipping/calculator'
+import { getActionSession } from '@/lib/action-session'
+import { safeRevalidatePath } from '@/lib/revalidate'
 
 export interface CartItemInput {
   productId: string
@@ -27,7 +27,7 @@ export async function createOrder(
   items: CartItemInput[],
   formData: CheckoutFormData
 ): Promise<{ orderId: string; clientSecret: string; orderNumber: string }> {
-  const session = await auth()
+  const session = await getActionSession()
   if (!session) redirect('/login')
 
   const validated = checkoutSchema.parse(formData)
@@ -210,7 +210,7 @@ export async function confirmOrder(orderId: string, providerRef: string) {
     orderPaymentStatus: payment.order.paymentStatus,
     orderStatus: payment.order.status,
   })) {
-    revalidatePath(`/cuenta/pedidos`)
+    safeRevalidatePath(`/cuenta/pedidos`)
     return
   }
 
@@ -237,11 +237,11 @@ export async function confirmOrder(orderId: string, providerRef: string) {
     }
   })
 
-  revalidatePath(`/cuenta/pedidos`)
+  safeRevalidatePath(`/cuenta/pedidos`)
 }
 
 export async function getMyOrders() {
-  const session = await auth()
+  const session = await getActionSession()
   if (!session) return []
 
   return db.order.findMany({
@@ -256,7 +256,7 @@ export async function getMyOrders() {
 }
 
 export async function getOrderDetail(orderId: string) {
-  const session = await auth()
+  const session = await getActionSession()
   if (!session) return null
 
   return db.order.findFirst({

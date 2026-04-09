@@ -1,5 +1,3 @@
-import 'server-only'
-
 import { calculateShippingCostFromTables } from '@/domains/shipping/shared'
 
 export async function getShippingCost(postalCode: string, subtotal: number) {
