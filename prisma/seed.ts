@@ -16,9 +16,34 @@ async function main() {
     create: { key: 'commission_default', value: 0.12, description: 'Comisión por defecto (12%)' },
   })
   await db.marketplaceConfig.upsert({
+    where: { key: 'DEFAULT_COMMISSION_RATE' },
+    update: {},
+    create: { key: 'DEFAULT_COMMISSION_RATE', value: 0.12, description: 'Comisión por defecto (12%)' },
+  })
+  await db.marketplaceConfig.upsert({
     where: { key: 'sla_hours' },
     update: {},
     create: { key: 'sla_hours', value: 48, description: 'Horas SLA para incidencias' },
+  })
+  await db.marketplaceConfig.upsert({
+    where: { key: 'FREE_SHIPPING_THRESHOLD' },
+    update: {},
+    create: { key: 'FREE_SHIPPING_THRESHOLD', value: 35, description: 'Importe mínimo para envío gratis' },
+  })
+  await db.marketplaceConfig.upsert({
+    where: { key: 'FLAT_SHIPPING_COST' },
+    update: {},
+    create: { key: 'FLAT_SHIPPING_COST', value: 4.95, description: 'Coste fijo de envío estándar' },
+  })
+  await db.marketplaceConfig.upsert({
+    where: { key: 'MAINTENANCE_MODE' },
+    update: {},
+    create: { key: 'MAINTENANCE_MODE', value: false, description: 'Modo mantenimiento del storefront' },
+  })
+  await db.marketplaceConfig.upsert({
+    where: { key: 'HERO_BANNER_TEXT' },
+    update: {},
+    create: { key: 'HERO_BANNER_TEXT', value: '', description: 'Texto principal del banner de home' },
   })
 
   // ─── Commission rule ──────────────────────────────────────────────────────

@@ -22,6 +22,7 @@ const profileSchema = z.object({
 })
 
 type ProfileFormValues = z.infer<typeof profileSchema>
+type ProfileFormInput = z.input<typeof profileSchema>
 
 interface Props {
   vendor: Vendor
@@ -35,7 +36,7 @@ export function VendorProfileForm({ vendor }: Props) {
     register,
     handleSubmit,
     formState: { errors, isSubmitting, isDirty },
-  } = useForm<ProfileFormValues>({
+  } = useForm<ProfileFormInput, unknown, ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       displayName: vendor.displayName,

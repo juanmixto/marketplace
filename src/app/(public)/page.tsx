@@ -7,15 +7,31 @@ import type { ProductWithVendor } from '@/domains/catalog/types'
 import { publicPortalLinks } from '@/lib/portals'
 import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import { CheckBadgeIcon, TruckIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
+import { getPublicMarketplaceConfig } from '@/lib/config'
 
 export const revalidate = 60
 
 export default async function HomePage() {
   const { featured, categories, vendors, stats } = await getHomeSnapshot()
   const heroStats = buildHomeStats(stats)
+  const publicConfig = await getPublicMarketplaceConfig()
 
   return (
     <div>
+      {publicConfig.MAINTENANCE_MODE && (
+        <section className="border-b border-rose-200 bg-rose-50">
+          <div className="mx-auto max-w-7xl px-4 py-3 text-sm font-medium text-rose-900 sm:px-6 lg:px-8">
+            Estamos realizando tareas de mantenimiento. Algunas funciones pueden tardar más de lo habitual.
+          </div>
+        </section>
+      )}
+      {publicConfig.HERO_BANNER_TEXT && (
+        <section className="border-b border-amber-200 bg-amber-50">
+          <div className="mx-auto max-w-7xl px-4 py-3 text-sm font-medium text-amber-900 sm:px-6 lg:px-8">
+            {publicConfig.HERO_BANNER_TEXT}
+          </div>
+        </section>
+      )}
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-700 text-white">
         <div className="absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.2),transparent_55%)]" />
@@ -57,6 +73,11 @@ export default async function HomePage() {
                 <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5">
                   Paneles separados para cliente, productor y admin
                 </span>
+                {publicConfig.FREE_SHIPPING_THRESHOLD > 0 && (
+                  <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5">
+                    Envío gratis desde {publicConfig.FREE_SHIPPING_THRESHOLD.toFixed(2)} EUR
+                  </span>
+                )}
               </div>
               <div className="mt-10 grid grid-cols-3 gap-4">
                 {heroStats.map(s => (

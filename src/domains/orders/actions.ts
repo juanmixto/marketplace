@@ -6,10 +6,11 @@ import { redirect } from 'next/navigation'
 import { generateOrderNumber } from '@/lib/utils'
 import { createPaymentIntent } from '@/domains/payments/provider'
 import { revalidatePath } from 'next/cache'
-import { calculateOrderTotals, checkoutSchema, type CheckoutFormData } from '@/domains/orders/checkout'
+import { calculateOrderTotalsWithConfig, checkoutSchema, type CheckoutFormData } from '@/domains/orders/checkout'
 import { shouldApplyPaymentSucceeded } from '@/domains/payments/webhook'
 import { getServerEnv } from '@/lib/env'
 import { getAvailableProductWhere } from '@/domains/catalog/availability'
+import { getPublicMarketplaceConfig } from '@/lib/config'
 
 export interface CartItemInput {
   productId: string
@@ -64,12 +65,15 @@ export async function createOrder(
   })
 
   // Calculate totals
-  const { subtotal, taxAmount, shippingCost, grandTotal } = calculateOrderTotals(
+  const shippingSettings = await getPublicMarketplaceConfig()
+
+  const { subtotal, taxAmount, shippingCost, grandTotal } = calculateOrderTotalsWithConfig(
     lines.map(line => ({
       unitPrice: Number(line.unitPrice),
       quantity: line.quantity,
       taxRate: Number(line.taxRate),
-    }))
+    })),
+    shippingSettings
   )
 
   // Save address if requested

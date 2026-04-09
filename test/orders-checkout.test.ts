@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { calculateOrderTotals, checkoutSchema, getIncludedTaxAmount } from '@/domains/orders/checkout'
+import { calculateOrderTotals, calculateOrderTotalsWithConfig, checkoutSchema, getIncludedTaxAmount } from '@/domains/orders/checkout'
+import { resolveMarketplaceSettings } from '@/lib/marketplace-settings'
 
 test('calculateOrderTotals keeps tax included in subtotal and only adds shipping once', () => {
   const totals = calculateOrderTotals([
@@ -24,6 +25,17 @@ test('calculateOrderTotals applies free shipping threshold', () => {
   assert.equal(totals.subtotal, 36)
   assert.equal(totals.shippingCost, 0)
   assert.equal(totals.grandTotal, 36)
+})
+
+test('calculateOrderTotalsWithConfig uses dynamic shipping settings', () => {
+  const totals = calculateOrderTotalsWithConfig(
+    [{ unitPrice: 18, quantity: 2, taxRate: 0.1 }],
+    { FREE_SHIPPING_THRESHOLD: 50, FLAT_SHIPPING_COST: 7.5 }
+  )
+
+  assert.equal(totals.subtotal, 36)
+  assert.equal(totals.shippingCost, 7.5)
+  assert.equal(totals.grandTotal, 43.5)
 })
 
 test('getIncludedTaxAmount derives VAT portion from gross price', () => {
@@ -56,5 +68,23 @@ test('checkoutSchema keeps saveAddress at top level and strips it from address p
     province: 'Madrid',
     postalCode: '28001',
     phone: '600000000',
+  })
+})
+
+test('resolveMarketplaceSettings accepts canonical keys and legacy aliases', () => {
+  const resolved = resolveMarketplaceSettings([
+    { key: 'commission_default', value: 0.15 },
+    { key: 'FREE_SHIPPING_THRESHOLD', value: 49 },
+    { key: 'flat_shipping_cost', value: 6.25 },
+    { key: 'MAINTENANCE_MODE', value: true },
+    { key: 'hero_banner_text', value: 'Promo de primavera' },
+  ])
+
+  assert.deepEqual(resolved, {
+    DEFAULT_COMMISSION_RATE: 0.15,
+    FREE_SHIPPING_THRESHOLD: 49,
+    FLAT_SHIPPING_COST: 6.25,
+    MAINTENANCE_MODE: true,
+    HERO_BANNER_TEXT: 'Promo de primavera',
   })
 })

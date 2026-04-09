@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { setMarketplaceConfig } from '@/lib/config'
 
 const ADMIN_ROLES = ['ADMIN_SUPPORT', 'ADMIN_CATALOG', 'ADMIN_FINANCE', 'ADMIN_OPS', 'SUPERADMIN'] as const
 
@@ -72,6 +73,43 @@ const reviewSchema = z.object({
   action: z.enum(['approve', 'reject']),
   rejectionNote: z.string().max(500).optional(),
 })
+
+const marketplaceConfigSchema = z.object({
+  DEFAULT_COMMISSION_RATE_PERCENT: z.coerce.number().min(0).max(100),
+  FREE_SHIPPING_THRESHOLD: z.coerce.number().min(0).max(10000),
+  FLAT_SHIPPING_COST: z.coerce.number().min(0).max(1000),
+  MAINTENANCE_MODE: z.coerce.boolean().default(false),
+  HERO_BANNER_TEXT: z.string().max(160).trim(),
+})
+
+export async function updateMarketplaceConfigAction(formData: FormData) {
+  const session = await requireAdmin()
+  if (session.user.role !== 'SUPERADMIN' && session.user.role !== 'ADMIN_OPS') {
+    throw new Error('No tienes permisos para actualizar la configuración del marketplace')
+  }
+
+  const parsed = marketplaceConfigSchema.parse({
+    DEFAULT_COMMISSION_RATE_PERCENT: formData.get('DEFAULT_COMMISSION_RATE'),
+    FREE_SHIPPING_THRESHOLD: formData.get('FREE_SHIPPING_THRESHOLD'),
+    FLAT_SHIPPING_COST: formData.get('FLAT_SHIPPING_COST'),
+    MAINTENANCE_MODE: formData.get('MAINTENANCE_MODE') === 'on',
+    HERO_BANNER_TEXT: formData.get('HERO_BANNER_TEXT')?.toString() ?? '',
+  })
+
+  await setMarketplaceConfig({
+    DEFAULT_COMMISSION_RATE: parsed.DEFAULT_COMMISSION_RATE_PERCENT / 100,
+    FREE_SHIPPING_THRESHOLD: parsed.FREE_SHIPPING_THRESHOLD,
+    FLAT_SHIPPING_COST: parsed.FLAT_SHIPPING_COST,
+    MAINTENANCE_MODE: parsed.MAINTENANCE_MODE,
+    HERO_BANNER_TEXT: parsed.HERO_BANNER_TEXT,
+  })
+
+  revalidatePath('/admin/configuracion')
+  revalidatePath('/admin/dashboard')
+  revalidatePath('/')
+  revalidatePath('/carrito')
+  revalidatePath('/checkout')
+}
 
 /**
  * Approves or rejects a product in PENDING_REVIEW status.
