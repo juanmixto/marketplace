@@ -16,16 +16,17 @@ import { SITE_NAME } from '@/lib/constants'
 import { getPortalLabel, getPrimaryPortalHref } from '@/lib/portals'
 import type { UserRole } from '@/generated/prisma/enums'
 import { SignOutButton } from '@/components/auth/SignOutButton'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 const CATEGORIES = [
   { name: 'Verduras y Hortalizas', slug: 'verduras', icon: '🥦' },
-  { name: 'Frutas', slug: 'frutas', icon: '🍎' },
-  { name: 'Lácteos y Huevos', slug: 'lacteos', icon: '🧀' },
-  { name: 'Cárnicos', slug: 'carnicos', icon: '🥩' },
-  { name: 'Aceites y Conservas', slug: 'aceites', icon: '🫒' },
-  { name: 'Panadería y Repostería', slug: 'panaderia', icon: '🍞' },
-  { name: 'Vinos y Bebidas', slug: 'vinos', icon: '🍷' },
-  { name: 'Miel y Mermeladas', slug: 'miel', icon: '🍯' },
+  { name: 'Frutas',                slug: 'frutas',   icon: '🍎' },
+  { name: 'Lácteos y Huevos',      slug: 'lacteos',  icon: '🧀' },
+  { name: 'Cárnicos',              slug: 'carnicos', icon: '🥩' },
+  { name: 'Aceites y Conservas',   slug: 'aceites',  icon: '🫒' },
+  { name: 'Panadería y Repostería',slug: 'panaderia',icon: '🍞' },
+  { name: 'Vinos y Bebidas',       slug: 'vinos',    icon: '🍷' },
+  { name: 'Miel y Mermeladas',     slug: 'miel',     icon: '🍯' },
 ]
 
 interface HeaderProps {
@@ -34,27 +35,28 @@ interface HeaderProps {
 }
 
 export function Header({ user, cartCount = 0 }: HeaderProps) {
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [catOpen, setCatOpen] = useState(false)
+  const [mobileOpen,  setMobileOpen]  = useState(false)
+  const [catOpen,     setCatOpen]     = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
-  const pathname = usePathname()
+  const pathname   = usePathname()
   const portalHref = getPrimaryPortalHref(user?.role)
   const portalLabel = getPortalLabel(user?.role)
 
   return (
-    <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur-md">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center gap-4">
+        <div className="flex h-16 items-center gap-3">
+
           {/* Logo */}
-          <Link href="/" className="flex shrink-0 items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-600 via-teal-600 to-lime-600 text-sm font-extrabold text-white shadow-sm">
+          <Link href="/" className="flex shrink-0 items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 text-[11px] font-extrabold text-white shadow-sm">
               MP
             </span>
-            <span className="hidden leading-tight sm:block">
-              <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-700">
+            <span className="hidden sm:block leading-none">
+              <span className="block text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-600 dark:text-emerald-400">
                 Mercado local
               </span>
-              <span className="block text-lg font-bold text-gray-900">{SITE_NAME}</span>
+              <span className="block text-base font-bold text-[var(--foreground)]">{SITE_NAME}</span>
             </span>
           </Link>
 
@@ -62,23 +64,24 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
           <div className="relative hidden md:block">
             <button
               onClick={() => setCatOpen(v => !v)}
-              className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+              className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
             >
-              Categorías <ChevronDownIcon className={cn('h-4 w-4 transition', catOpen && 'rotate-180')} />
+              Categorías
+              <ChevronDownIcon className={cn('h-3.5 w-3.5 transition-transform', catOpen && 'rotate-180')} />
             </button>
             {catOpen && (
               <>
                 <div className="fixed inset-0" onClick={() => setCatOpen(false)} />
-                <div className="absolute left-0 top-full mt-1 w-64 rounded-xl border border-gray-200 bg-white shadow-lg">
-                  <div className="p-2">
+                <div className="absolute left-0 top-full mt-2 w-64 rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xl ring-1 ring-black/5 dark:ring-white/5">
+                  <div className="p-1.5">
                     {CATEGORIES.map(cat => (
                       <Link
                         key={cat.slug}
                         href={`/productos?categoria=${cat.slug}`}
                         onClick={() => setCatOpen(false)}
-                        className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
                       >
-                        <span>{cat.icon}</span>
+                        <span className="text-base">{cat.icon}</span>
                         {cat.name}
                       </Link>
                     ))}
@@ -90,7 +93,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
 
           <Link
             href="/productores"
-            className="hidden text-sm font-medium text-gray-700 hover:text-emerald-600 md:block"
+            className="hidden text-sm font-medium text-[var(--foreground-soft)] hover:text-emerald-600 dark:hover:text-emerald-400 md:block transition-colors"
           >
             Productores
           </Link>
@@ -98,75 +101,79 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
           {!user && (
             <Link
               href="/login?callbackUrl=%2Fvendor%2Fdashboard"
-              className="hidden text-sm font-medium text-gray-700 hover:text-emerald-600 lg:block"
+              className="hidden text-sm font-medium text-[var(--foreground-soft)] hover:text-emerald-600 dark:hover:text-emerald-400 lg:block transition-colors"
             >
               Portal productor
             </Link>
           )}
 
           {/* Search */}
-          <form
-            action="/productos"
-            className="hidden flex-1 md:block"
-          >
+          <form action="/productos" className="hidden flex-1 md:block">
             <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
               <input
                 name="q"
                 type="search"
                 placeholder="Buscar productos, productores..."
-                className="w-full rounded-lg border border-gray-300 bg-gray-50 py-2 pl-9 pr-4 text-sm focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                className={[
+                  'w-full rounded-xl border border-[var(--border)] bg-[var(--surface-raised)]',
+                  'py-2 pl-9 pr-4 text-sm text-[var(--foreground)]',
+                  'placeholder:text-[var(--muted)] transition-all',
+                  'focus:border-emerald-500 focus:bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20',
+                  'dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20',
+                ].join(' ')}
               />
             </div>
           </form>
 
           {/* Right actions */}
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1">
+            <ThemeToggle />
+
             {user ? (
               <>
                 <Link
                   href={portalHref}
-                  className="hidden rounded-lg px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 md:block"
+                  className="hidden rounded-lg px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30 md:block"
                 >
                   {portalLabel}
                 </Link>
                 <div className="relative hidden md:block">
                   <button
                     onClick={() => setAccountOpen(v => !v)}
-                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
                   >
                     <UserCircleIcon className="h-5 w-5" />
                     {user.name?.split(' ')[0] ?? 'Cuenta'}
-                    <ChevronDownIcon className={cn('h-4 w-4 text-gray-400 transition', accountOpen && 'rotate-180')} />
+                    <ChevronDownIcon className={cn('h-3.5 w-3.5 text-[var(--muted)] transition-transform', accountOpen && 'rotate-180')} />
                   </button>
                   {accountOpen && (
                     <>
                       <div className="fixed inset-0" onClick={() => setAccountOpen(false)} />
-                      <div className="absolute right-0 top-full z-20 mt-1 w-56 rounded-xl border border-gray-200 bg-white p-1 shadow-lg">
+                      <div className="absolute right-0 top-full z-20 mt-2 w-56 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-xl ring-1 ring-black/5 dark:ring-white/5">
                         <Link
                           href="/cuenta"
                           onClick={() => setAccountOpen(false)}
-                          className="block rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          className="block rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
                         >
                           Mi cuenta
                         </Link>
                         <Link
                           href="/cuenta/pedidos"
                           onClick={() => setAccountOpen(false)}
-                          className="block rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          className="block rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
                         >
                           Mis pedidos
                         </Link>
                         <Link
                           href={portalHref}
                           onClick={() => setAccountOpen(false)}
-                          className="block rounded-lg px-3 py-2 text-sm text-emerald-700 hover:bg-emerald-50"
+                          className="block rounded-xl px-3 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30"
                         >
                           {portalLabel}
                         </Link>
-                        <div className="border-t border-gray-100 px-1 py-1">
-                          <SignOutButton compact />
-                        </div>
+                        <div className="mx-1 my-1 border-t border-[var(--border)]" />
+                        <SignOutButton compact />
                       </div>
                     </>
                   )}
@@ -177,15 +184,15 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                 <Link
                   href="/login"
                   className={cn(
-                    'hidden rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 md:block',
-                    pathname === '/login' && 'bg-gray-100'
+                    'hidden rounded-xl px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] md:block',
+                    pathname === '/login' && 'bg-[var(--surface-raised)]'
                   )}
                 >
                   Entrar
                 </Link>
                 <Link
                   href="/register"
-                  className="hidden rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 md:block"
+                  className="hidden rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow-sm dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:text-gray-950 md:block"
                 >
                   Registrarse
                 </Link>
@@ -193,21 +200,24 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
             )}
 
             {/* Cart */}
-            <Link href="/carrito" className="relative rounded-lg p-2 hover:bg-gray-100">
-              <ShoppingCartIcon className="h-6 w-6 text-gray-700" />
+            <Link
+              href="/carrito"
+              className="relative rounded-xl p-2 text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
+            >
+              <ShoppingCartIcon className="h-5 w-5" />
               {cartCount > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">
-                  {cartCount}
+                <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white shadow-sm dark:bg-emerald-500">
+                  {cartCount > 9 ? '9+' : cartCount}
                 </span>
               )}
             </Link>
 
-            {/* Mobile menu */}
+            {/* Mobile menu toggle */}
             <button
               onClick={() => setMobileOpen(v => !v)}
-              className="rounded-lg p-2 hover:bg-gray-100 md:hidden"
+              className="rounded-xl p-2 text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] md:hidden"
             >
-              {mobileOpen ? <XMarkIcon className="h-6 w-6" /> : <Bars3Icon className="h-6 w-6" />}
+              {mobileOpen ? <XMarkIcon className="h-5 w-5" /> : <Bars3Icon className="h-5 w-5" />}
             </button>
           </div>
         </div>
@@ -215,64 +225,82 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
 
       {/* Mobile drawer */}
       {mobileOpen && (
-        <div className="border-t border-gray-200 bg-white md:hidden">
-          <div className="p-4 space-y-1">
-            <form action="/productos" className="mb-4">
+        <div className="border-t border-[var(--border)] bg-[var(--surface)] md:hidden">
+          <div className="space-y-1 p-4">
+            {/* Search */}
+            <form action="/productos" className="mb-3">
               <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
                 <input
                   name="q"
                   type="search"
                   placeholder="Buscar..."
-                  className="w-full rounded-lg border border-gray-300 py-2 pl-9 pr-4 text-sm focus:outline-none"
+                  className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] py-2.5 pl-9 pr-4 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
               </div>
             </form>
+
+            {/* Categories */}
+            <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">Categorías</p>
             {CATEGORIES.map(cat => (
               <Link
                 key={cat.slug}
                 href={`/productos?categoria=${cat.slug}`}
                 onClick={() => setMobileOpen(false)}
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]"
               >
-                <span>{cat.icon}</span> {cat.name}
+                <span className="text-base">{cat.icon}</span>
+                {cat.name}
               </Link>
             ))}
-            <div className="border-t border-gray-100 pt-3 mt-3 space-y-2">
-              {user ? (
-                <>
-                  <Link
-                    href={portalHref}
-                    onClick={() => setMobileOpen(false)}
-                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-emerald-700"
-                  >
-                    {portalLabel}
+
+            <div className="mx-0 my-2 border-t border-[var(--border)]" />
+
+            {user ? (
+              <>
+                <Link
+                  href={portalHref}
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30"
+                >
+                  {portalLabel}
+                </Link>
+                <Link
+                  href="/cuenta"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]"
+                >
+                  <UserCircleIcon className="h-5 w-5" /> Mi cuenta
+                </Link>
+                <Link
+                  href="/cuenta/pedidos"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]"
+                >
+                  Mis pedidos
+                </Link>
+                <div className="pt-1">
+                  <SignOutButton compact />
+                </div>
+              </>
+            ) : (
+              <div className="space-y-2 pt-1">
+                <Link
+                  href="/login?callbackUrl=%2Fvendor%2Fdashboard"
+                  className="block rounded-xl border border-[var(--border)] px-4 py-2.5 text-center text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]"
+                >
+                  Portal productor
+                </Link>
+                <div className="flex gap-2">
+                  <Link href="/login" className="flex-1 rounded-xl border border-[var(--border)] px-4 py-2.5 text-center text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]">
+                    Entrar
                   </Link>
-                  <Link href="/cuenta" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700">
-                    <UserCircleIcon className="h-5 w-5" /> Mi cuenta
+                  <Link href="/register" className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950">
+                    Registrarse
                   </Link>
-                  <Link href="/cuenta/pedidos" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700">
-                    <ShoppingCartIcon className="h-5 w-5" /> Mis pedidos
-                  </Link>
-                  <div className="pt-1">
-                    <SignOutButton compact />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <Link
-                    href="/login?callbackUrl=%2Fvendor%2Fdashboard"
-                    className="block rounded-lg bg-emerald-50 px-4 py-2 text-center text-sm font-medium text-emerald-700"
-                  >
-                    Portal productor
-                  </Link>
-                  <div className="flex gap-2">
-                    <Link href="/login" className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-center text-sm font-medium">Entrar</Link>
-                    <Link href="/register" className="flex-1 rounded-lg bg-emerald-600 px-4 py-2 text-center text-sm font-semibold text-white">Registrarse</Link>
-                  </div>
-                </>
-              )}
-            </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

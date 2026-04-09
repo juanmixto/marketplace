@@ -27,16 +27,23 @@ export function Modal({ open, onClose, title, children, size = 'md', className }
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[2px] p-4 sm:items-center"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className={cn('w-full rounded-xl bg-white shadow-xl', SIZES[size], className)}>
+      <div
+        className={cn(
+          'w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl',
+          'ring-1 ring-black/5 dark:ring-white/5',
+          SIZES[size],
+          className
+        )}
+      >
         {title && (
-          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-            <h2 className="font-semibold text-gray-900">{title}</h2>
+          <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
+            <h2 className="font-semibold text-[var(--foreground)]">{title}</h2>
             <button
               onClick={onClose}
-              className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              className="rounded-lg p-1.5 text-[var(--muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
             >
               <XMarkIcon className="h-5 w-5" />
             </button>

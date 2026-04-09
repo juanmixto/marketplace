@@ -1,53 +1,112 @@
 @import "tailwindcss";
 
+/* ─── Dark mode via class (.dark en <html>) ─────────────────────────────── */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ─── Design tokens — Light ─────────────────────────────────────────────── */
 :root {
-  --background: #f7f4ee;
-  --background-soft: #fffdf8;
-  --foreground: #1f2937;
-  --muted: #5b6472;
-  --accent: #0f766e;
-  --accent-strong: #14532d;
+  --background:       #f5f2ec;
+  --background-soft:  #fdfcf8;
+  --surface:          #ffffff;
+  --surface-raised:   #f9f7f2;
+  --border:           #e5e0d8;
+  --border-strong:    #ccc7bc;
+  --foreground:       #1c2020;
+  --foreground-soft:  #3d4444;
+  --muted:            #6b7280;
+  --muted-light:      #9ca3af;
+  --accent:           #059669;
+  --accent-hover:     #047857;
+  --accent-soft:      #d1fae5;
+  --accent-text:      #065f46;
 }
 
+/* ─── Design tokens — Dark ──────────────────────────────────────────────── */
+.dark {
+  --background:       #0d1117;
+  --background-soft:  #0a0e13;
+  --surface:          #161b22;
+  --surface-raised:   #1c2128;
+  --border:           #30363d;
+  --border-strong:    #484f58;
+  --foreground:       #e6edf3;
+  --foreground-soft:  #adbac7;
+  --muted:            #768390;
+  --muted-light:      #545d68;
+  --accent:           #3fb950;
+  --accent-hover:     #56d364;
+  --accent-soft:      #1b3a2a;
+  --accent-text:      #3fb950;
+}
+
+/* ─── Tailwind theme bridge ──────────────────────────────────────────────── */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background:      var(--background);
+  --color-surface:         var(--surface);
+  --color-surface-raised:  var(--surface-raised);
+  --color-border:          var(--border);
+  --color-foreground:      var(--foreground);
+  --color-muted:           var(--muted);
+  --color-accent:          var(--accent);
+  --font-sans:             var(--font-geist-sans);
+  --font-mono:             var(--font-geist-mono);
 }
 
-* {
-  box-sizing: border-box;
-}
+/* ─── Base ───────────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
 
 html {
   color-scheme: light;
   background: var(--background);
+  scroll-behavior: smooth;
+}
+
+html.dark {
+  color-scheme: dark;
 }
 
 body {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top, rgba(15, 118, 110, 0.08), transparent 32%),
-    linear-gradient(180deg, var(--background-soft) 0%, var(--background) 100%);
+  background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle texture overlay in light mode */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at top, rgba(5, 150, 105, 0.04) 0%, transparent 50%);
+  z-index: 0;
 }
 
 ::selection {
-  background: rgba(15, 118, 110, 0.18);
+  background: rgba(5, 150, 105, 0.2);
   color: var(--foreground);
 }
 
-a,
-button,
-input,
-select,
-textarea {
-  transition:
-    color 160ms ease,
-    background-color 160ms ease,
-    border-color 160ms ease,
-    box-shadow 160ms ease,
-    transform 160ms ease;
+/* ─── Transitions ────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ─── Focus ring ─────────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }

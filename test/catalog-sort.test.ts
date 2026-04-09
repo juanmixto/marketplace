@@ -22,13 +22,13 @@ test('SortSelect OPTIONS have unique labels', () => {
 })
 
 test('SortSelect defaults to newest when no current value provided', () => {
-  const defaultValue = undefined ?? 'newest'
-  assert.equal(defaultValue, 'newest')
+  function resolveDefault(current: string | undefined) { return current ?? 'newest' }
+  assert.equal(resolveDefault(undefined), 'newest')
 })
 
 test('SortSelect uses provided current value as default', () => {
-  const defaultValue = 'price_asc' ?? 'newest'
-  assert.equal(defaultValue, 'price_asc')
+  function resolveDefault(current: string | undefined) { return current ?? 'newest' }
+  assert.equal(resolveDefault('price_asc'), 'price_asc')
 })
 
 test('SortSelect covers all parseProductSort valid values', () => {

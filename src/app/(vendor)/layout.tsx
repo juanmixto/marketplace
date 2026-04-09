@@ -14,7 +14,7 @@ export default async function VendorLayout({ children }: { children: React.React
   })
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-[var(--background)]">
       <VendorSidebar vendor={vendor} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <VendorHeader user={session.user} vendor={vendor} />

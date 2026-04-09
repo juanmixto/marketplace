@@ -48,10 +48,10 @@ export default async function ProductosPage({ searchParams }: Props) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-2xl font-bold text-[var(--foreground)]">
                 {params.q ? `"${params.q}"` : params.categoria ? categories.find(c => c.slug === params.categoria)?.name ?? 'Productos' : 'Todos los productos'}
               </h1>
-              <p className="text-sm text-gray-500 mt-0.5">{total} resultado{total !== 1 ? 's' : ''}</p>
+              <p className="text-sm text-[var(--muted)] mt-0.5">{total} resultado{total !== 1 ? 's' : ''}</p>
             </div>
             <Suspense fallback={null}>
               <SortSelect current={params.orden} />
@@ -60,9 +60,9 @@ export default async function ProductosPage({ searchParams }: Props) {
 
           {products.length === 0 ? (
             <div className="py-24 text-center">
-              <p className="text-4xl mb-3">🔍</p>
-              <p className="font-medium text-gray-700">Sin resultados</p>
-              <p className="text-sm text-gray-500 mt-1">Prueba con otros filtros o términos de búsqueda</p>
+              <p className="text-5xl mb-4">🔍</p>
+              <p className="font-semibold text-[var(--foreground)]">Sin resultados</p>
+              <p className="text-sm text-[var(--muted)] mt-1">Prueba con otros filtros o términos de búsqueda</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
@@ -79,10 +79,10 @@ export default async function ProductosPage({ searchParams }: Props) {
                 <a
                   key={n}
                   href={`?${new URLSearchParams({ ...Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined) as [string, string][]), pagina: String(n) })}`}
-                  className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition ${
+                  className={`flex h-9 w-9 items-center justify-center rounded-xl text-sm font-medium transition ${
                     n === page
-                      ? 'bg-emerald-600 text-white'
-                      : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                      ? 'bg-emerald-600 text-white shadow-sm dark:bg-emerald-500 dark:text-gray-950'
+                      : 'border border-[var(--border)] text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]'
                   }`}
                 >
                   {n}

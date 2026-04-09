@@ -4,6 +4,7 @@ import { Geist } from 'next/font/google'
 import './globals.css'
 import { SITE_NAME, SITE_DESCRIPTION } from '@/lib/constants'
 import { siteAppearance } from '@/lib/brand'
+import { ThemeProvider } from '@/components/ThemeProvider'
 
 const geist = Geist({
   variable: '--font-geist-sans',
@@ -24,15 +25,24 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: siteAppearance.themeColor,
-  colorScheme: siteAppearance.colorScheme,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f5f2ec' },
+    { media: '(prefers-color-scheme: dark)',  color: '#0d1117' },
+  ],
+  colorScheme: 'light dark',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`${geist.variable} h-full antialiased`} suppressHydrationWarning>
+    <html
+      lang="es"
+      className={`${geist.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
       <body className="flex min-h-full flex-col bg-[var(--background)] text-[var(--foreground)]">
-        {children}
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   )
