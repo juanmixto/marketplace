@@ -27,7 +27,7 @@ export function SettlementActions({ settlementId, status }: Props) {
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      {error && <p className="w-full text-xs text-red-600">{error}</p>}
+      {error && <p className="w-full text-xs text-red-600 dark:text-red-400">{error}</p>}
 
       {['DRAFT', 'PENDING_APPROVAL'].includes(status) && (
         <Button

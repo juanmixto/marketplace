@@ -88,16 +88,16 @@ export default async function AdminAuditPage({ searchParams }: PageProps) {
           </select>
         </label>
         <div className="flex items-end gap-2">
-          <button type="submit" className="rounded-xl bg-[var(--foreground)] px-4 py-2 text-sm font-medium text-[var(--background)] hover:opacity-90">
+          <button type="submit" className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400">
             Filtrar
           </button>
-          <a href="/admin/auditoria" className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]">
+          <a href="/admin/auditoria" className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]">
             Limpiar
           </a>
         </div>
       </form>
 
-      <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
+      <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
         <div className="grid grid-cols-[1.1fr,0.9fr,0.8fr,1fr,0.9fr,1.2fr] gap-4 border-b border-[var(--border)] px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
           <span>Fecha</span>
           <span>Accion</span>

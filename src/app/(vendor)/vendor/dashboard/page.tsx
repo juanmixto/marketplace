@@ -45,7 +45,7 @@ export default async function VendorDashboardPage() {
 
       {/* Onboarding checklist — only for new/incomplete vendors */}
       {isNew && (
-        <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-5">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-sm dark:border-amber-800 dark:bg-amber-950/30">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-amber-900 dark:text-amber-300">Configura tu cuenta ({setupDone}/3)</h2>
             <div className="h-2 w-32 rounded-full bg-amber-200 dark:bg-amber-900">
@@ -66,7 +66,7 @@ export default async function VendorDashboardPage() {
                 </span>
                 {!step.done && (
                   <Link href={`/vendor/${step.key === 'product' ? 'productos/nuevo' : 'perfil'}`}
-                    className="ml-auto text-xs text-amber-700 dark:text-amber-400 hover:underline">
+                    className="ml-auto rounded-sm text-xs text-amber-700 hover:underline dark:text-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/30">
                     Hacer ahora →
                   </Link>
                 )}
@@ -78,14 +78,14 @@ export default async function VendorDashboardPage() {
 
       {/* Urgent orders */}
       {urgent.length > 0 && (
-        <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-5">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-5 shadow-sm dark:border-red-800 dark:bg-red-950/30">
           <div className="flex items-center gap-2 mb-3">
             <ExclamationCircleIcon className="h-5 w-5 text-red-600 dark:text-red-400" />
             <h2 className="font-semibold text-red-900 dark:text-red-300">{urgent.length} pedido{urgent.length > 1 ? 's' : ''} requieren acción</h2>
           </div>
           <div className="space-y-2">
             {urgent.map(f => (
-              <div key={f.id} className="flex items-center justify-between rounded-lg bg-[var(--surface)] p-3">
+              <div key={f.id} className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 shadow-sm">
                 <div>
                   <p className="text-sm font-medium text-[var(--foreground)]">Pedido #{f.orderId.slice(-6).toUpperCase()}</p>
                   <p className="text-xs text-[var(--muted)]">
@@ -93,8 +93,8 @@ export default async function VendorDashboardPage() {
                   </p>
                 </div>
                 <Link href="/vendor/productos"
-                  className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700">
-                  Ver catalogo
+                  className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
+                  Ver pedidos
                 </Link>
               </div>
             ))}
@@ -109,7 +109,7 @@ export default async function VendorDashboardPage() {
           { label: 'Pedidos activos', value: vendor.fulfillments.length },
           { label: 'Valoración', value: vendor.avgRating ? `${Number(vendor.avgRating).toFixed(1)}★` : '—' },
         ].map(s => (
-          <div key={s.label} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+          <div key={s.label} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
             <p className="text-2xl font-bold text-[var(--foreground)]">{s.value}</p>
             <p className="text-sm text-[var(--muted)]">{s.label}</p>
           </div>
@@ -121,15 +121,15 @@ export default async function VendorDashboardPage() {
         <h2 className="font-semibold text-[var(--foreground)] mb-3">Acciones rápidas</h2>
         <div className="flex flex-wrap gap-3">
           <Link href="/vendor/productos/nuevo"
-            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]">
+            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] shadow-sm hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
             + Nuevo producto
           </Link>
           <Link href="/vendor/productos"
-            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]">
-            Gestionar catalogo
+            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] shadow-sm hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
+            Gestionar catálogo
           </Link>
           <Link href="/"
-            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]">
+            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] shadow-sm hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
             Ver tienda
           </Link>
         </div>

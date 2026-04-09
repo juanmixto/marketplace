@@ -36,7 +36,7 @@ export default async function VendorProductosPage() {
         </div>
         <Link
           href="/vendor/productos/nuevo"
-          className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400"
+          className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
         >
           <PlusIcon className="h-4 w-4" /> Nuevo producto
         </Link>
@@ -44,7 +44,7 @@ export default async function VendorProductosPage() {
 
       {/* Stock alerts */}
       {(lowStock.length > 0 || outOfStock.length > 0 || expired.length > 0) && (
-        <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-4 flex items-start gap-3">
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-800 dark:bg-amber-950/30">
           <ExclamationTriangleIcon className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
           <div className="text-sm">
             {expired.length > 0 && (
@@ -70,19 +70,19 @@ export default async function VendorProductosPage() {
         <div className="rounded-xl border-2 border-dashed border-[var(--border)] py-16 text-center">
           <p className="text-[var(--muted)] mb-3">Aún no tienes productos</p>
           <Link href="/vendor/productos/nuevo"
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950">
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
             <PlusIcon className="h-4 w-4" /> Añadir primer producto
           </Link>
         </div>
       ) : (
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+        <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
           <div className="divide-y divide-[var(--border)]">
             {products.map(product => {
               const statusConfig = STATUS_CONFIG[product.status] ?? { label: product.status, variant: 'default' }
               const expirationTone = getExpirationTone(product.expiresAt, now)
               const expirationLabel = formatExpirationLabel(product.expiresAt, now)
               return (
-                <div key={product.id} className="flex items-center gap-4 p-4 hover:bg-[var(--surface-raised)]">
+                <div key={product.id} className="flex items-center gap-4 p-4 transition-colors hover:bg-[var(--surface-raised)]">
                   <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-[var(--surface-raised)]">
                     {product.images?.[0]
                       ? <Image src={product.images[0]} alt={product.name} fill className="object-cover" sizes="64px" />

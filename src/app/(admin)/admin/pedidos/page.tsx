@@ -46,7 +46,7 @@ export default async function AdminOrdersPage() {
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
+      <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
         <div className="grid grid-cols-[1.1fr,1.3fr,0.7fr,0.7fr,0.9fr] gap-4 border-b border-[var(--border)] px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
           <span>Pedido</span>
           <span>Cliente</span>
@@ -56,7 +56,7 @@ export default async function AdminOrdersPage() {
         </div>
         <div className="divide-y divide-[var(--border)]">
           {orders.map(order => (
-            <div key={order.id} className="grid grid-cols-[1.1fr,1.3fr,0.7fr,0.7fr,0.9fr] gap-4 px-5 py-4 text-sm">
+            <div key={order.id} className="grid grid-cols-[1.1fr,1.3fr,0.7fr,0.7fr,0.9fr] gap-4 px-5 py-4 text-sm transition-colors hover:bg-[var(--surface-raised)]/80">
               <div>
                 <p className="font-semibold text-[var(--foreground)]">{order.orderNumber}</p>
                 <p className="text-xs text-[var(--muted)]">{formatDate(order.placedAt)}</p>

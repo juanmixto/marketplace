@@ -42,19 +42,19 @@ export default async function AdminSettlementsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
           <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">Liquidaciones</p>
           <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">{totals._count._all}</p>
         </div>
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
           <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">Ventas brutas</p>
           <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">{formatPrice(Number(totals._sum.grossSales ?? 0))}</p>
         </div>
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
           <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">Comisiones</p>
           <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">{formatPrice(Number(totals._sum.commissions ?? 0))}</p>
         </div>
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
           <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">Neto pagable</p>
           <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">{formatPrice(Number(totals._sum.netPayable ?? 0))}</p>
         </div>
@@ -62,7 +62,7 @@ export default async function AdminSettlementsPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         {settlements.map(settlement => (
-          <div key={settlement.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <div key={settlement.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-lg font-semibold text-[var(--foreground)]">{settlement.vendor.displayName}</h2>

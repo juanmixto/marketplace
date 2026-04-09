@@ -65,7 +65,7 @@ export default async function AdminMarketplaceConfigPage() {
             <span className="text-xs text-[var(--muted)]">Se usa cuando el pedido no alcanza el umbral de envio gratis.</span>
           </label>
 
-          <label className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+          <label className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-4 shadow-sm">
             <input
               name="MAINTENANCE_MODE"
               type="checkbox"
@@ -94,11 +94,11 @@ export default async function AdminMarketplaceConfigPage() {
           <span className="text-xs text-[var(--muted)]">Si lo dejas vacio, la home no mostrara ningun banner promocional.</span>
         </label>
 
-        <div className="flex items-center justify-between rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm text-amber-900 dark:text-amber-300">
+        <div className="flex items-center justify-between rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm text-amber-900 dark:text-amber-300 shadow-sm">
           <p>Los cambios se aplican al storefront, carrito, checkout y panel admin tras guardar.</p>
           <button
             type="submit"
-            className="rounded-xl bg-[var(--foreground)] px-4 py-2 font-medium text-[var(--background)] transition hover:opacity-90"
+            className="rounded-xl bg-emerald-600 px-4 py-2 font-medium text-white shadow-sm transition hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400"
           >
             Guardar cambios
           </button>

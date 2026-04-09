@@ -41,7 +41,7 @@ export default async function AdminProductsPage() {
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
+      <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
         <div className="grid grid-cols-[1.5fr,1fr,0.8fr,0.8fr,0.8fr,0.9fr,auto] gap-4 border-b border-[var(--border)] px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
           <span>Producto</span>
           <span>Productor</span>
@@ -53,7 +53,7 @@ export default async function AdminProductsPage() {
         </div>
         <div className="divide-y divide-[var(--border)]">
           {products.map(product => (
-            <div key={product.id} className="grid grid-cols-[1.5fr,1fr,0.8fr,0.8fr,0.8fr,0.9fr,auto] gap-4 px-5 py-4 text-sm items-center">
+            <div key={product.id} className="grid grid-cols-[1.5fr,1fr,0.8fr,0.8fr,0.8fr,0.9fr,auto] items-center gap-4 px-5 py-4 text-sm transition-colors hover:bg-[var(--surface-raised)]/80">
               <div>
                 <p className="font-semibold text-[var(--foreground)]">{product.name}</p>
                 <p className="text-xs text-[var(--muted)]">Actualizado {formatDate(product.updatedAt)}</p>

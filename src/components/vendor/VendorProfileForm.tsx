@@ -63,7 +63,7 @@ export function VendorProfileForm({ vendor }: Props) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Public info */}
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 space-y-4">
+      <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
         <h2 className="font-semibold text-[var(--foreground)]">Información pública</h2>
 
         <Input
@@ -79,11 +79,11 @@ export function VendorProfileForm({ vendor }: Props) {
           <textarea
             id="description"
             rows={4}
-            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
             placeholder="Cuéntanos sobre tu explotación, tus prácticas, tu historia..."
             {...register('description')}
           />
-          {errors.description?.message && <p className="text-xs text-red-600">{errors.description.message}</p>}
+          {errors.description?.message && <p className="text-xs text-red-600 dark:text-red-400">{errors.description.message}</p>}
         </div>
 
         <Input
@@ -95,7 +95,7 @@ export function VendorProfileForm({ vendor }: Props) {
       </section>
 
       {/* Logistics */}
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 space-y-4">
+      <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
         <h2 className="font-semibold text-[var(--foreground)]">Logística</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
@@ -118,7 +118,7 @@ export function VendorProfileForm({ vendor }: Props) {
       </section>
 
       {/* Banking */}
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 space-y-4">
+      <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
         <h2 className="font-semibold text-[var(--foreground)]">Datos bancarios</h2>
         <p className="text-sm text-[var(--muted)]">Para recibir tus liquidaciones.</p>
         <Input
@@ -137,12 +137,12 @@ export function VendorProfileForm({ vendor }: Props) {
       </section>
 
       {success && (
-        <p className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">
+        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-300">
           Perfil actualizado correctamente.
         </p>
       )}
       {serverError && (
-        <p className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/35 dark:text-red-300">
           {serverError}
         </p>
       )}

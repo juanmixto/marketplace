@@ -47,17 +47,17 @@ export default async function AdminDashboardPage() {
           <p className="font-semibold text-red-800 dark:text-red-300 mb-2">Requieren atención inmediata</p>
           <div className="flex flex-wrap gap-3">
             {pendingVendors > 0 && (
-              <Link href="/admin/productores" className="rounded-lg border border-red-200 dark:border-red-800 bg-[var(--surface)] px-3 py-2 text-sm font-medium text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20">
+              <Link href="/admin/productores" className="rounded-lg border border-red-200 dark:border-red-800 bg-[var(--surface)] px-3 py-2 text-sm font-medium text-red-700 dark:text-red-400 transition hover:bg-red-50 dark:hover:bg-red-950/20">
                 {pendingVendors} productor{pendingVendors > 1 ? 'es' : ''} pendiente{pendingVendors > 1 ? 's' : ''}
               </Link>
             )}
             {pendingProducts > 0 && (
-              <Link href="/admin/productos" className="rounded-lg border border-amber-200 dark:border-amber-800 bg-[var(--surface)] px-3 py-2 text-sm font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20">
+              <Link href="/admin/productos" className="rounded-lg border border-amber-200 dark:border-amber-800 bg-[var(--surface)] px-3 py-2 text-sm font-medium text-amber-700 dark:text-amber-400 transition hover:bg-amber-50 dark:hover:bg-amber-950/20">
                 {pendingProducts} producto{pendingProducts > 1 ? 's' : ''} por revisar
               </Link>
             )}
             {openIncidents > 0 && (
-              <Link href="/admin/incidencias" className="rounded-lg border border-red-200 dark:border-red-800 bg-[var(--surface)] px-3 py-2 text-sm font-medium text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20">
+              <Link href="/admin/incidencias" className="rounded-lg border border-red-200 dark:border-red-800 bg-[var(--surface)] px-3 py-2 text-sm font-medium text-red-700 dark:text-red-400 transition hover:bg-red-50 dark:hover:bg-red-950/20">
                 {openIncidents} incidencia{openIncidents > 1 ? 's' : ''} abierta{openIncidents > 1 ? 's' : ''}
               </Link>
             )}
@@ -68,7 +68,7 @@ export default async function AdminDashboardPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {stats.map(s => (
-          <Link key={s.label} href={s.href} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 transition hover:border-[var(--border-strong)] hover:shadow-sm">
+          <Link key={s.label} href={s.href} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm transition hover:border-[var(--border-strong)] hover:shadow-md">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
@@ -83,7 +83,7 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Recent orders */}
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
         <div className="border-b border-[var(--border)] px-5 py-3.5 flex items-center justify-between">
           <h2 className="font-semibold text-[var(--foreground)]">Pedidos recientes</h2>
           <Link href="/admin/pedidos" className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline">Ver todos</Link>

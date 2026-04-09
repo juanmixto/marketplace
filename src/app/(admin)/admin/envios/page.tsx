@@ -43,7 +43,7 @@ export default async function AdminShippingPage() {
               placeholder="28, 08, Sevilla, Madrid"
             />
           </label>
-          <button type="submit" className="rounded-xl bg-[var(--foreground)] px-4 py-2 text-sm font-medium text-[var(--background)] hover:opacity-90">
+          <button type="submit" className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400">
             Crear zona
           </button>
         </form>
@@ -77,7 +77,7 @@ export default async function AdminShippingPage() {
               <input name="freeAbove" type="number" step="0.01" min="0" className={inputCls} placeholder="35" />
             </label>
           </div>
-          <button type="submit" className="rounded-xl bg-[var(--foreground)] px-4 py-2 text-sm font-medium text-[var(--background)] hover:opacity-90">
+          <button type="submit" className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400">
             Añadir tarifa
           </button>
         </form>
@@ -85,7 +85,7 @@ export default async function AdminShippingPage() {
 
       <div className="space-y-4">
         {zones.map(zone => (
-          <div key={zone.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <div key={zone.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <h2 className="text-lg font-semibold text-[var(--foreground)]">{zone.name}</h2>

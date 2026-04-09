@@ -68,7 +68,7 @@ export function FulfillmentActions({ fulfillmentId, status }: Props) {
               value={carrier}
               onChange={e => setCarrier(e.target.value)}
             />
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
             <div className="flex gap-3 justify-end">
               <Button variant="secondary" size="sm" onClick={() => setShipModal(false)}>
                 Cancelar
@@ -89,7 +89,7 @@ export function FulfillmentActions({ fulfillmentId, status }: Props) {
 
   return (
     <div className="space-y-1">
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
       <Button size="sm" isLoading={loading} onClick={() => handleAdvance()}>
         {nextAction}
       </Button>

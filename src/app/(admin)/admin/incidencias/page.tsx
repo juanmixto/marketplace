@@ -28,7 +28,7 @@ export default async function AdminIncidentsPage() {
 
       <div className="space-y-4">
         {incidents.map(incident => (
-          <div key={incident.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <div key={incident.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2">
@@ -67,7 +67,7 @@ export default async function AdminIncidentsPage() {
           </div>
         ))}
         {incidents.length === 0 && (
-          <p className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--muted)]">
+          <p className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--muted)] shadow-sm">
             No hay incidencias registradas.
           </p>
         )}

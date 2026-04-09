@@ -47,18 +47,18 @@ export function VendorHeader({ user, vendor }: Props) {
         {open && (
           <>
             <div className="fixed inset-0" onClick={() => setOpen(false)} />
-            <div className="absolute right-0 top-full z-10 mt-2 w-52 rounded-2xl border border-[var(--border)] bg-[var(--surface)] py-1.5 shadow-xl ring-1 ring-black/5 dark:ring-white/5">
+            <div className="absolute right-0 top-full z-10 mt-2 w-52 rounded-2xl border border-[var(--border)] bg-[var(--surface)] py-1.5 shadow-2xl ring-1 ring-black/5 backdrop-blur dark:ring-white/10">
               <p className="px-3 py-2 text-xs text-[var(--muted)] border-b border-[var(--border)] mb-1 truncate">{user.email}</p>
               <Link
                 href="/"
                 onClick={() => setOpen(false)}
-                className="block px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] rounded-lg mx-1"
+                className="block rounded-lg px-3 py-2.5 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] mx-1"
               >
                 Ir a la tienda
               </Link>
               <button
                 onClick={() => signOut({ callbackUrl: '/login' })}
-                className="w-full text-left px-3 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg mx-1 mt-1 border-t border-[var(--border)] pt-2"
+                className="mt-1 w-full rounded-lg border-t border-[var(--border)] px-3 py-2.5 text-left text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40 mx-1 pt-2"
               >
                 Cerrar sesión
               </button>

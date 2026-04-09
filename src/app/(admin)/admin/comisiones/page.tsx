@@ -108,18 +108,18 @@ export default async function AdminCommissionRulesPage() {
           />
         </label>
 
-        <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-xs text-amber-900 dark:text-amber-300 xl:col-span-2">
+        <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-xs text-amber-900 dark:text-amber-300 shadow-sm xl:col-span-2">
           Crea la regla con productor o categoría. Si usas ambas, la regla quedará registrada, pero la prioridad operativa seguirá favoreciendo la coincidencia por productor.
         </div>
 
         <div className="xl:col-span-6">
-          <button type="submit" className="rounded-xl bg-[var(--foreground)] px-4 py-2 text-sm font-medium text-[var(--background)] hover:opacity-90">
+          <button type="submit" className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400">
             Crear regla
           </button>
         </div>
       </form>
 
-      <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
+      <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
         <div className="grid grid-cols-[1fr,1fr,0.8fr,0.8fr,0.9fr,0.9fr,auto] gap-4 border-b border-[var(--border)] px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
           <span>Ámbito</span>
           <span>Fallback</span>

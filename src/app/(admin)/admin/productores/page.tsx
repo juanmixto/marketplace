@@ -33,7 +33,7 @@ export default async function AdminVendorsPage() {
 
       <div className="grid gap-4 md:grid-cols-4">
         {vendorStats.map(stat => (
-          <div key={stat.status} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+          <div key={stat.status} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
             <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">{stat.status}</p>
             <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">{stat._count._all}</p>
           </div>
@@ -42,7 +42,7 @@ export default async function AdminVendorsPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         {vendors.map(vendor => (
-          <div key={vendor.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <div key={vendor.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-lg font-semibold text-[var(--foreground)]">{vendor.displayName}</h2>
@@ -77,7 +77,7 @@ export default async function AdminVendorsPage() {
           </div>
         ))}
         {vendors.length === 0 && (
-          <p className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--muted)]">
+          <p className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--muted)] shadow-sm">
             Aun no hay productores creados.
           </p>
         )}

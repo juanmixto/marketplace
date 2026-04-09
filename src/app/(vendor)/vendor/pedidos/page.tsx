@@ -64,12 +64,12 @@ type FulfillmentWithDetails = Awaited<ReturnType<typeof getMyFulfillments>>[numb
 
 function FulfillmentList({ fulfillments }: { fulfillments: FulfillmentWithDetails[] }) {
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden divide-y divide-[var(--border)]">
+    <div className="divide-y divide-[var(--border)] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
       {fulfillments.map(f => {
         const statusConfig = STATUS_CONFIG[f.status] ?? { label: f.status, variant: 'default' as BadgeVariant }
         const customer = f.order.customer
         return (
-          <div key={f.id} className="p-4 space-y-3">
+          <div key={f.id} className="space-y-3 p-4 transition-colors hover:bg-[var(--surface-raised)]/70">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2">

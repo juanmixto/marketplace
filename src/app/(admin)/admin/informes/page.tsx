@@ -78,7 +78,7 @@ export default async function AdminReportsPage() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {reportCards.map(card => (
-          <div key={card.label} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <div key={card.label} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
             <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">{card.label}</p>
             <p className="mt-3 text-3xl font-bold text-[var(--foreground)]">{card.value}</p>
             <p className="mt-2 text-sm text-[var(--muted)]">{card.detail}</p>

@@ -55,10 +55,10 @@ export function ProductActions({ product }: Props) {
         {menuOpen && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-            <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-lg ring-1 ring-black/5 dark:ring-white/5 py-1">
+            <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-2xl ring-1 ring-black/5 backdrop-blur dark:ring-white/10">
               <Link
                 href={`/vendor/productos/${product.id}`}
-                className="block px-4 py-2 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]"
+                className="block px-4 py-2 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
                 onClick={() => setMenuOpen(false)}
               >
                 Editar
@@ -67,7 +67,7 @@ export function ProductActions({ product }: Props) {
                 <button
                   onClick={handleSubmitReview}
                   disabled={loading}
-                  className="block w-full text-left px-4 py-2 text-sm text-emerald-700 hover:bg-emerald-50"
+                  className="block w-full px-4 py-2 text-left text-sm text-emerald-700 transition hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/35"
                 >
                   Enviar a revisión
                 </button>
@@ -76,7 +76,7 @@ export function ProductActions({ product }: Props) {
                 <Link
                   href={`/productos/${product.slug}`}
                   target="_blank"
-                  className="block px-4 py-2 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]"
+                  className="block px-4 py-2 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
                 >
                   Ver en tienda ↗
                 </Link>
@@ -84,7 +84,7 @@ export function ProductActions({ product }: Props) {
               <div className="border-t border-[var(--border)] mt-1 pt-1">
                 <button
                   onClick={() => { setDeleteModal(true); setMenuOpen(false) }}
-                  className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                  className="block w-full px-4 py-2 text-left text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/35"
                 >
                   Eliminar
                 </button>
@@ -105,7 +105,7 @@ export function ProductActions({ product }: Props) {
           <p className="text-sm text-[var(--foreground-soft)]">
             ¿Eliminar <strong>{product.name}</strong>? Esta acción no se puede deshacer.
           </p>
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
           <div className="flex gap-3 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setDeleteModal(false)}>
               Cancelar
