@@ -57,10 +57,10 @@ export function ReviewFormButton({ orderId, productId, productName }: Props) {
                     key={value}
                     type="button"
                     onClick={() => setRating(value)}
-                    className={`rounded-xl border px-3 py-2 transition ${
+                    className={`rounded-xl border px-3 py-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] ${
                       active
-                        ? 'border-amber-300 bg-amber-50'
-                        : 'border-[var(--border)] hover:border-amber-200 hover:bg-[var(--surface-raised)] dark:hover:border-amber-800'
+                        ? 'border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-50'
+                        : 'border-[var(--border)] bg-[var(--surface)] hover:border-amber-200 hover:bg-[var(--surface-raised)] dark:hover:border-amber-800'
                     }`}
                     aria-label={`${value} estrellas`}
                   >
@@ -82,12 +82,12 @@ export function ReviewFormButton({ orderId, productId, productName }: Props) {
               value={body}
               onChange={event => setBody(event.target.value)}
               placeholder="Cuenta que te ha parecido el producto, el sabor, la frescura o la presentacion."
-              className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+              className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
             />
-            <p className="mt-1 text-xs text-[var(--muted-light)]">{body.length}/1000</p>
+            <p className="mt-1 text-xs text-[var(--muted)]">{body.length}/1000</p>
           </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
           <div className="flex justify-end gap-3">
             <Button variant="secondary" onClick={() => setOpen(false)}>

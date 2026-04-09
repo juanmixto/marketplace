@@ -46,7 +46,7 @@ export function AddToCartButton({
       onClick={handleAdd}
       disabled={disabled}
       size="lg"
-      className="w-full"
+      className="w-full shadow-sm"
       variant={added ? 'secondary' : 'primary'}
     >
       {added ? (

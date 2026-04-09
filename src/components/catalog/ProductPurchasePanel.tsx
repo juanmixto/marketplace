@@ -64,7 +64,7 @@ export function ProductPurchasePanel({
   const isOutOfStock = trackStock && availableStock === 0
 
   return (
-    <div className="mt-6">
+    <div className="mt-6 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
       <div className="flex items-baseline gap-3">
         <span className="text-4xl font-bold text-[var(--foreground)]">{formatPrice(displayPrice)}</span>
         <span className="text-lg text-[var(--muted)]">/ {unit}</span>
@@ -77,7 +77,7 @@ export function ProductPurchasePanel({
       </p>
 
       {requiresVariantSelection && (
-        <div className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+        <div className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-4">
           <p className="text-sm font-semibold text-[var(--foreground)]">Selecciona formato</p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {variants.map(variant => {
@@ -90,10 +90,10 @@ export function ProductPurchasePanel({
                   key={variant.id}
                   type="button"
                   onClick={() => setSelectedVariantId(variant.id)}
-                  className={`rounded-xl border px-4 py-3 text-left transition ${
+                  className={`rounded-xl border px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset ${
                     isSelected
-                      ? 'border-emerald-500 bg-emerald-50 shadow-sm dark:bg-emerald-950/40 dark:border-emerald-500'
-                      : 'border-[var(--border)] hover:border-emerald-300 hover:bg-[var(--surface-raised)] dark:hover:border-emerald-700'
+                      ? 'border-emerald-500 bg-emerald-50 shadow-sm dark:border-emerald-400 dark:bg-emerald-950/40'
+                      : 'border-[var(--border)] bg-[var(--surface)] hover:border-emerald-300 hover:bg-[var(--surface-raised)] dark:hover:border-emerald-700'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -122,7 +122,7 @@ export function ProductPurchasePanel({
           </div>
           {!selectedVariant && (
             <p className="mt-3 text-sm text-amber-700 dark:text-amber-400">
-              Selecciona una variante antes de anadir el producto al carrito.
+              Selecciona una variante antes de añadir el producto al carrito.
             </p>
           )}
         </div>

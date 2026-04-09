@@ -31,8 +31,9 @@ export function ProductCard({ product }: ProductCardProps) {
       className={[
         'group flex flex-col overflow-hidden rounded-2xl',
         'border border-[var(--border)] bg-[var(--surface)]',
-        'shadow-sm hover:shadow-md hover:-translate-y-1',
+        'shadow-sm hover:border-[var(--border-strong)] hover:shadow-md hover:-translate-y-1',
         'transition-all duration-200',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]',
       ].join(' ')}
     >
       {/* Image */}
@@ -56,8 +57,8 @@ export function ProductCard({ product }: ProductCardProps) {
         )}
 
         {isOutOfStock && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-[1px]">
-            <span className="rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-gray-700 dark:bg-black/80 dark:text-gray-200 shadow">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/55 backdrop-blur-[2px]">
+            <span className="rounded-full border border-white/20 bg-white/95 px-3 py-1 text-xs font-semibold text-gray-700 shadow dark:border-white/10 dark:bg-black/80 dark:text-gray-200">
               Sin stock
             </span>
           </div>
@@ -105,7 +106,7 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
           {isLowStock && (
             <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-              ¡{product.stock} left!
+              Quedan {product.stock} uds.
             </span>
           )}
         </div>

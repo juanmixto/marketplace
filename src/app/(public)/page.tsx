@@ -64,14 +64,14 @@ export default async function HomePage() {
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
                   href="/productos"
-                  className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 font-semibold text-emerald-950 shadow-md hover:bg-emerald-50 hover:-translate-y-0.5 transition-all"
+                  className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 font-semibold text-emerald-950 shadow-md transition-all hover:-translate-y-0.5 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-900"
                 >
                   Explorar productos
                   <ArrowRightIcon className="h-4 w-4" />
                 </Link>
                 <Link
                   href="/productores"
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-6 py-3 font-semibold text-white backdrop-blur-sm hover:bg-white/20 hover:-translate-y-0.5 transition-all"
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-6 py-3 font-semibold text-white backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-900"
                 >
                   Conocer productores
                 </Link>
@@ -138,13 +138,13 @@ export default async function HomePage() {
 
       {/* ── Quick access ─────────────────────────────────────────────────── */}
       <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] via-emerald-50/40 to-teal-50/30 dark:from-[var(--surface)] dark:via-emerald-950/20 dark:to-teal-950/10 p-6">
+        <div className="rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] via-emerald-50/40 to-teal-50/30 p-6 shadow-sm dark:from-[var(--surface)] dark:via-emerald-950/20 dark:to-teal-950/10">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Accesos rápidos</p>
               <h2 className="mt-1 text-xl font-bold text-[var(--foreground)]">Entra según tu perfil</h2>
             </div>
-            <Link href="/login" className="text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:underline underline-offset-4">
+            <Link href="/login" className="rounded-md text-sm font-medium text-emerald-600 underline-offset-4 hover:underline dark:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
               Ver credenciales demo →
             </Link>
           </div>
@@ -153,7 +153,7 @@ export default async function HomePage() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="group rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm hover:border-emerald-300 hover:shadow-md hover:-translate-y-0.5 dark:hover:border-emerald-700 transition-all"
+                className="group rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md dark:hover:border-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
               >
                 <p className="font-semibold text-[var(--foreground)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{link.label}</p>
                 <p className="mt-1 text-sm text-[var(--muted)]">{link.description}</p>
@@ -176,7 +176,7 @@ export default async function HomePage() {
             <Link
               key={cat.slug}
               href={`/productos?categoria=${cat.slug}`}
-              className="group flex flex-col items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 text-center hover:border-emerald-400 hover:bg-emerald-50 dark:hover:border-emerald-600 dark:hover:bg-emerald-950/30 hover:-translate-y-0.5 transition-all"
+              className="group flex flex-col items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 text-center transition-all hover:-translate-y-0.5 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:border-emerald-600 dark:hover:bg-emerald-950/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
             >
               <span className="text-2xl">{cat.icon ?? '🌿'}</span>
               <span className="text-[11px] font-medium leading-tight text-[var(--foreground-soft)] group-hover:text-emerald-700 dark:group-hover:text-emerald-300">{cat.name}</span>
@@ -195,7 +195,7 @@ export default async function HomePage() {
             <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Selección</p>
             <h2 className="text-2xl font-bold text-[var(--foreground)]">Productos destacados</h2>
           </div>
-          <Link href="/productos" className="flex items-center gap-1 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:underline underline-offset-4">
+          <Link href="/productos" className="rounded-md text-sm font-medium text-emerald-600 underline-offset-4 hover:underline dark:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
             Ver todos <ArrowRightIcon className="h-3.5 w-3.5" />
           </Link>
         </div>
@@ -258,7 +258,7 @@ export default async function HomePage() {
               <Link
                 key={v.slug}
                 href={`/productores/${v.slug}`}
-                className="group flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 hover:border-emerald-300 hover:shadow-md dark:hover:border-emerald-700 hover:-translate-y-0.5 transition-all"
+                className="group flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md dark:hover:border-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
               >
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-2xl">
                   🌾
@@ -300,7 +300,7 @@ export default async function HomePage() {
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Link
               href="/register?rol=productor"
-              className="inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 font-semibold text-emerald-950 shadow-md hover:bg-emerald-50 hover:-translate-y-0.5 transition-all"
+              className="inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 font-semibold text-emerald-950 shadow-md transition-all hover:-translate-y-0.5 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-900"
             >
               Empieza gratis
               <ArrowRightIcon className="h-4 w-4" />

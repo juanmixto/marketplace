@@ -41,13 +41,13 @@ export function ProductFiltersPanel({ categories }: Props) {
   const hasFilters   = currentCat || currentCerts.length > 0
 
   return (
-    <div className="space-y-6 sticky top-24">
+    <div className="sticky top-24 space-y-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-[var(--foreground)]">Filtros</h3>
         {hasFilters && (
           <button
             onClick={() => router.push(pathname)}
-            className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline underline-offset-2"
+            className="rounded-md text-xs text-emerald-600 underline-offset-2 hover:underline dark:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
           >
             Limpiar todo
           </button>
@@ -61,9 +61,9 @@ export function ProductFiltersPanel({ categories }: Props) {
           <button
             onClick={() => setParam('categoria', null)}
             className={cn(
-              'w-full text-left rounded-xl px-3 py-2 text-sm transition-colors',
+              'w-full rounded-xl px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset',
               !currentCat
-                ? 'bg-emerald-50 text-emerald-700 font-medium dark:bg-emerald-950/40 dark:text-emerald-300'
+                ? 'border border-emerald-200 bg-emerald-50 font-medium text-emerald-800 shadow-sm dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300'
                 : 'text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]'
             )}
           >
@@ -74,9 +74,9 @@ export function ProductFiltersPanel({ categories }: Props) {
               key={cat.slug}
               onClick={() => setParam('categoria', currentCat === cat.slug ? null : cat.slug)}
               className={cn(
-                'w-full text-left rounded-xl px-3 py-2 text-sm transition-colors flex items-center justify-between',
+                'flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset',
                 currentCat === cat.slug
-                  ? 'bg-emerald-50 text-emerald-700 font-medium dark:bg-emerald-950/40 dark:text-emerald-300'
+                  ? 'border border-emerald-200 bg-emerald-50 font-medium text-emerald-800 shadow-sm dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300'
                   : 'text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]'
               )}
             >
@@ -100,7 +100,7 @@ export function ProductFiltersPanel({ categories }: Props) {
                 type="checkbox"
                 checked={currentCerts.includes(cert)}
                 onChange={() => toggleCert(cert)}
-                className="rounded border-[var(--border)] text-emerald-600 focus:ring-emerald-500 dark:border-[var(--border-strong)]"
+                className="h-4 w-4 rounded border-[var(--border)] text-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 dark:border-[var(--border-strong)] dark:text-emerald-400"
               />
               <span className="text-sm text-[var(--foreground-soft)]">{cert}</span>
             </label>

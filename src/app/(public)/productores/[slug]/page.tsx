@@ -22,7 +22,7 @@ export default async function VendorPublicPage({ params }: Props) {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Header */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 mb-8">
+      <div className="mb-8 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
         <div className="flex items-start gap-5">
           <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-4xl">
             🌾
@@ -48,7 +48,7 @@ export default async function VendorPublicPage({ params }: Props) {
       </div>
 
       {/* Products */}
-      <h2 className="text-xl font-bold text-[var(--foreground)] mb-4">
+      <h2 className="mb-4 text-xl font-bold text-[var(--foreground)]">
         Productos ({vendor.products.length})
       </h2>
       {vendor.products.length > 0 ? (

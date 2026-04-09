@@ -79,7 +79,7 @@ export default async function ProductosPage({ searchParams }: Props) {
                 <a
                   key={n}
                   href={`?${new URLSearchParams({ ...Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined) as [string, string][]), pagina: String(n) })}`}
-                  className={`flex h-9 w-9 items-center justify-center rounded-xl text-sm font-medium transition ${
+                  className={`flex h-9 w-9 items-center justify-center rounded-xl text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] ${
                     n === page
                       ? 'bg-emerald-600 text-white shadow-sm dark:bg-emerald-500 dark:text-gray-950'
                       : 'border border-[var(--border)] text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]'
@@ -95,4 +95,3 @@ export default async function ProductosPage({ searchParams }: Props) {
     </div>
   )
 }
-

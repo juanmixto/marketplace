@@ -19,7 +19,7 @@ export default async function ProductoresPage() {
           <Link
             key={v.slug}
             href={`/productores/${v.slug}`}
-            className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 hover:border-emerald-300 hover:shadow-sm transition dark:hover:border-emerald-700"
+            className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md dark:hover:border-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
           >
             <div className="flex items-start gap-4">
               <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-3xl">

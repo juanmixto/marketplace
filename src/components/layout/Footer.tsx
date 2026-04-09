@@ -24,7 +24,7 @@ const LINKS = {
 
 export function Footer() {
   return (
-    <footer className="border-t border-[var(--border)] bg-[var(--surface)] mt-16">
+    <footer className="mt-16 border-t border-[var(--border)] bg-[var(--surface)]">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           {/* Brand */}
@@ -41,7 +41,7 @@ export function Footer() {
             <ul className="mt-3 space-y-2">
               {LINKS.comprar.map(l => (
                 <li key={l.href}>
-                  <Link href={l.href} className="text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
+                  <Link href={l.href} className="rounded-md text-sm text-[var(--muted)] transition-colors hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
                     {l.label}
                   </Link>
                 </li>
@@ -55,7 +55,7 @@ export function Footer() {
             <ul className="mt-3 space-y-2">
               {LINKS.vender.map(l => (
                 <li key={l.label}>
-                  <Link href={l.href} className="text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
+                  <Link href={l.href} className="rounded-md text-sm text-[var(--muted)] transition-colors hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
                     {l.label}
                   </Link>
                 </li>
@@ -69,7 +69,7 @@ export function Footer() {
             <ul className="mt-3 space-y-2">
               {LINKS.ayuda.map(l => (
                 <li key={l.label}>
-                  <Link href={l.href} className="text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
+                  <Link href={l.href} className="rounded-md text-sm text-[var(--muted)] transition-colors hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
                     {l.label}
                   </Link>
                 </li>
@@ -84,7 +84,7 @@ export function Footer() {
           </p>
           <div className="flex gap-4">
             {['Aviso legal', 'Privacidad', 'Cookies'].map(label => (
-              <Link key={label} href="#" className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
+              <Link key={label} href="#" className="rounded-md text-xs text-[var(--muted)] transition-colors hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
                 {label}
               </Link>
             ))}

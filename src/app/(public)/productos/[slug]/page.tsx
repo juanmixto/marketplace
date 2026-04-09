@@ -50,13 +50,13 @@ export default async function ProductDetailPage({ params }: Props) {
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Breadcrumb */}
       <nav className="mb-6 flex items-center gap-2 text-sm text-[var(--muted)]">
-        <Link href="/" className="hover:text-[var(--foreground)]">Inicio</Link>
+        <Link href="/" className="rounded-md hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">Inicio</Link>
         <span>/</span>
-        <Link href="/productos" className="hover:text-[var(--foreground)]">Productos</Link>
+        <Link href="/productos" className="rounded-md hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">Productos</Link>
         {product.category && (
           <>
             <span>/</span>
-            <Link href={`/productos?categoria=${product.category.slug}`} className="hover:text-[var(--foreground)]">
+            <Link href={`/productos?categoria=${product.category.slug}`} className="rounded-md hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
               {product.category.name}
             </Link>
           </>
@@ -68,7 +68,7 @@ export default async function ProductDetailPage({ params }: Props) {
       <div className="grid gap-10 lg:grid-cols-2">
         {/* Gallery */}
         <div className="space-y-3">
-          <div className="relative aspect-square overflow-hidden rounded-2xl bg-[var(--surface-raised)]">
+          <div className="relative aspect-square overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] shadow-sm">
             {product.images?.[0] ? (
               <Image
                 src={product.images[0]}
@@ -85,7 +85,7 @@ export default async function ProductDetailPage({ params }: Props) {
           {product.images.length > 1 && (
             <div className="flex gap-2 overflow-x-auto">
               {product.images.map((img, i) => (
-                <div key={i} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-[var(--surface-raised)]">
+                <div key={i} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] shadow-sm">
                   <Image src={img} alt="" fill className="object-cover" />
                 </div>
               ))}
@@ -109,7 +109,7 @@ export default async function ProductDetailPage({ params }: Props) {
           {/* Vendor */}
           <Link
             href={`/productores/${product.vendor.slug}`}
-            className="mt-2 inline-flex items-center gap-1.5 text-sm text-[var(--muted)] hover:text-emerald-600 dark:hover:text-emerald-400"
+            className="mt-2 inline-flex items-center gap-1.5 rounded-md text-sm text-[var(--muted)] hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
           >
             {product.originRegion && (
               <>
@@ -156,7 +156,7 @@ export default async function ProductDetailPage({ params }: Props) {
           />
 
           {/* Vendor card */}
-          <div className="mt-8 rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+          <div className="mt-8 rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-4 shadow-sm">
             <div className="flex items-start gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-950/40 text-2xl">
                 🌾
@@ -171,7 +171,7 @@ export default async function ProductDetailPage({ params }: Props) {
                 )}
                 <Link
                   href={`/productores/${product.vendor.slug}`}
-                  className="mt-2 inline-block text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:underline"
+                  className="mt-2 inline-block rounded-md text-sm font-medium text-emerald-600 underline-offset-4 hover:underline dark:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
                 >
                   Ver todos sus productos →
                 </Link>
@@ -181,7 +181,7 @@ export default async function ProductDetailPage({ params }: Props) {
         </div>
       </div>
 
-      <section className="mt-16 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 sm:p-8">
+      <section className="mt-16 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm sm:p-8">
         <div className="flex flex-col gap-6 border-b border-[var(--border)] pb-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-2xl font-bold text-[var(--foreground)]">Reseñas del producto</h2>
@@ -189,7 +189,7 @@ export default async function ProductDetailPage({ params }: Props) {
               Opiniones verificadas de compradores que ya recibieron este producto.
             </p>
           </div>
-          <div className="rounded-2xl bg-amber-50 dark:bg-amber-950/30 px-5 py-4">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 dark:border-amber-900/40 dark:bg-amber-950/30">
             <div className="flex items-center gap-3">
               <StarRating rating={reviewSummary.averageRating ?? 0} />
               <div>
@@ -211,7 +211,7 @@ export default async function ProductDetailPage({ params }: Props) {
         ) : (
           <div className="mt-6 space-y-4">
             {reviewSummary.reviews.map(review => (
-              <article key={review.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-5">
+              <article key={review.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-5 shadow-sm">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <div className="flex items-center gap-3">
