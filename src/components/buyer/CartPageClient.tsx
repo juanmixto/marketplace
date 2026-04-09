@@ -53,6 +53,9 @@ export function CartPageClient({ shippingSettings }: Props) {
                 <Link href={`/productos/${item.slug}`} className="line-clamp-1 font-medium text-gray-900 hover:text-emerald-600">
                   {item.name}
                 </Link>
+                {item.variantName && (
+                  <p className="text-xs font-medium text-emerald-700">{item.variantName}</p>
+                )}
                 <p className="text-xs text-gray-500">{item.vendorName}</p>
                 <p className="text-sm font-semibold text-gray-900">
                   {formatPrice(item.price)} / {item.unit}

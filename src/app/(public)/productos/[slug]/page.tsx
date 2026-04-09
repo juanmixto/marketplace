@@ -3,9 +3,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { getProductBySlug, getProducts } from '@/domains/catalog/queries'
 import { Badge } from '@/components/ui/badge'
-import { AddToCartButton } from '@/components/catalog/AddToCartButton'
+import { ProductPurchasePanel } from '@/components/catalog/ProductPurchasePanel'
 import type { ProductWithVendor } from '@/domains/catalog/types'
-import { formatPrice } from '@/lib/utils'
 import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import { ProductCard } from '@/components/catalog/ProductCard'
 import type { Metadata } from 'next'
@@ -37,11 +36,7 @@ export default async function ProductDetailPage({ params }: Props) {
   const product = await getProductBySlug(slug)
   if (!product) notFound()
 
-  const price = Number(product.basePrice)
-  const compareAt = product.compareAtPrice ? Number(product.compareAtPrice) : null
-  const hasDiscount = compareAt !== null && compareAt > price
   const taxRate = Number(product.taxRate)
-  const isOutOfStock = product.trackStock && product.stock === 0
 
   const related = await getProducts({
     categorySlug: product.category?.slug,
@@ -82,11 +77,6 @@ export default async function ProductDetailPage({ params }: Props) {
               />
             ) : (
               <div className="flex h-full items-center justify-center text-8xl">🌿</div>
-            )}
-            {isOutOfStock && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                <span className="rounded-full bg-white px-4 py-2 font-semibold text-gray-800">Sin stock</span>
-              </div>
             )}
           </div>
           {product.images.length > 1 && (
@@ -135,42 +125,32 @@ export default async function ProductDetailPage({ params }: Props) {
             )}
           </Link>
 
-          {/* Price */}
-          <div className="mt-6 flex items-baseline gap-3">
-            <span className="text-4xl font-bold text-gray-900">{formatPrice(price)}</span>
-            <span className="text-lg text-gray-500">/ {product.unit}</span>
-            {hasDiscount && (
-              <span className="text-xl text-gray-400 line-through">{formatPrice(compareAt!)}</span>
-            )}
-          </div>
-          <p className="mt-1 text-sm text-gray-500">
-            IVA incluido ({(taxRate * 100).toFixed(0)}%)
-          </p>
-
-          {/* Stock */}
-          {product.trackStock && (
-            <p className={`mt-2 text-sm font-medium ${product.stock === 0 ? 'text-red-600' : product.stock <= 5 ? 'text-amber-600' : 'text-emerald-600'}`}>
-              {product.stock === 0
-                ? 'Sin stock'
-                : product.stock <= 5
-                  ? `¡Solo quedan ${product.stock} unidades!`
-                  : `${product.stock} en stock`}
-            </p>
-          )}
-
           {/* Description */}
           {product.description && (
             <p className="mt-6 text-gray-600 leading-relaxed">{product.description}</p>
           )}
 
-          {/* Add to cart */}
-          <div className="mt-8">
-            <AddToCartButton
-              productId={product.id}
-              disabled={isOutOfStock}
-              productName={product.name}
-            />
-          </div>
+          <ProductPurchasePanel
+            productId={product.id}
+            productName={product.name}
+            slug={product.slug}
+            image={product.images[0]}
+            unit={product.unit}
+            vendorId={product.vendorId}
+            vendorName={product.vendor.displayName}
+            basePrice={Number(product.basePrice)}
+            compareAtPrice={product.compareAtPrice ? Number(product.compareAtPrice) : null}
+            taxRate={taxRate}
+            trackStock={product.trackStock}
+            stock={product.stock}
+            variants={product.variants.map(variant => ({
+              id: variant.id,
+              name: variant.name,
+              priceModifier: Number(variant.priceModifier),
+              stock: variant.stock,
+              isActive: variant.isActive,
+            }))}
+          />
 
           {/* Vendor card */}
           <div className="mt-8 rounded-xl border border-gray-200 bg-gray-50 p-4">

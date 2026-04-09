@@ -7,6 +7,7 @@ import { formatPrice, formatDate } from '@/lib/utils'
 import { ORDER_STATUS_LABELS, FULFILLMENT_STATUS_LABELS } from '@/lib/constants'
 import { Badge } from '@/components/ui/badge'
 import { CheckCircleIcon } from '@heroicons/react/24/solid'
+import { parseOrderLineSnapshot } from '@/domains/orders/order-line-snapshot'
 import type { Metadata } from 'next'
 
 interface Props { params: Promise<{ id: string }>, searchParams: Promise<{ nuevo?: string }> }
@@ -53,25 +54,32 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
           <h2 className="font-semibold text-gray-900">Productos</h2>
         </div>
         <div className="divide-y divide-gray-50">
-          {order.lines.map(line => (
-            <div key={line.id} className="flex items-center gap-4 px-5 py-4">
-              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                {line.product.images?.[0]
-                  ? <Image src={line.product.images[0]} alt={line.product.name} fill className="object-cover" sizes="56px" />
-                  : <div className="flex h-full items-center justify-center text-xl">🌿</div>
-                }
+          {order.lines.map(line => {
+            const snapshot = parseOrderLineSnapshot(line.productSnapshot)
+
+            return (
+              <div key={line.id} className="flex items-center gap-4 px-5 py-4">
+                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                  {line.product.images?.[0]
+                    ? <Image src={line.product.images[0]} alt={line.product.name} fill className="object-cover" sizes="56px" />
+                    : <div className="flex h-full items-center justify-center text-xl">🌿</div>
+                  }
+                </div>
+                <div className="flex-1 min-w-0">
+                  <Link href={`/productos/${line.product.slug}`} className="font-medium text-gray-900 hover:text-emerald-600">
+                    {line.product.name}
+                  </Link>
+                  {snapshot?.variantName && (
+                    <p className="text-sm font-medium text-emerald-700">{snapshot.variantName}</p>
+                  )}
+                  <p className="text-sm text-gray-500">× {line.quantity} {line.product.unit}</p>
+                </div>
+                <p className="font-medium text-gray-900 shrink-0">
+                  {formatPrice(Number(line.unitPrice) * line.quantity)}
+                </p>
               </div>
-              <div className="flex-1 min-w-0">
-                <Link href={`/productos/${line.product.slug}`} className="font-medium text-gray-900 hover:text-emerald-600">
-                  {line.product.name}
-                </Link>
-                <p className="text-sm text-gray-500">× {line.quantity} {line.product.unit}</p>
-              </div>
-              <p className="font-medium text-gray-900 shrink-0">
-                {formatPrice(Number(line.unitPrice) * line.quantity)}
-              </p>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 

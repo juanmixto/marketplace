@@ -10,6 +10,7 @@ import { calculateOrderPricing, calculateOrderTotalsWithShippingCost, checkoutSc
 import { shouldApplyPaymentSucceeded } from '@/domains/payments/webhook'
 import { getServerEnv } from '@/lib/env'
 import { getAvailableProductWhere } from '@/domains/catalog/availability'
+import { getAvailableStockForPurchase, getSelectedVariant, getVariantAdjustedPrice, productRequiresVariantSelection } from '@/domains/catalog/variants'
 import { getShippingCost } from '@/domains/shipping/calculator'
 
 export interface CartItemInput {
@@ -34,7 +35,10 @@ export async function createOrder(
   // Load products with current prices
   const products = await db.product.findMany({
     where: { id: { in: items.map(i => i.productId) }, ...getAvailableProductWhere() },
-    include: { vendor: { select: { id: true, displayName: true } } },
+    include: {
+      vendor: { select: { id: true, displayName: true } },
+      variants: { where: { isActive: true } },
+    },
   })
 
   if (products.length === 0) throw new Error('Carrito vacío o productos no disponibles')
@@ -43,15 +47,40 @@ export async function createOrder(
   const lines = items.map(item => {
     const product = products.find(p => p.id === item.productId)
     if (!product) throw new Error(`Producto ${item.productId} no disponible`)
-    if (product.trackStock && product.stock < item.quantity) {
-      throw new Error(`Stock insuficiente para "${product.name}"`)
+
+    const purchasableProduct = {
+      basePrice: Number(product.basePrice),
+      stock: product.stock,
+      trackStock: product.trackStock,
+      variants: product.variants.map(variant => ({
+        id: variant.id,
+        name: variant.name,
+        priceModifier: Number(variant.priceModifier),
+        stock: variant.stock,
+        isActive: variant.isActive,
+      })),
     }
+    const selectedVariant = getSelectedVariant(purchasableProduct, item.variantId)
+
+    if (item.variantId && !selectedVariant) {
+      throw new Error(`La variante seleccionada para "${product.name}" ya no esta disponible`)
+    }
+
+    if (productRequiresVariantSelection(purchasableProduct) && !selectedVariant) {
+      throw new Error(`Debes seleccionar una variante para "${product.name}"`)
+    }
+
+    const availableStock = getAvailableStockForPurchase(purchasableProduct, selectedVariant)
+    if (availableStock != null && availableStock < item.quantity) {
+      throw new Error(`Stock insuficiente para "${product.name}"${selectedVariant ? ` (${selectedVariant.name})` : ''}`)
+    }
+
     return {
       productId: product.id,
       vendorId: product.vendor.id,
-      variantId: item.variantId ?? null,
+      variantId: selectedVariant?.id ?? null,
       quantity: item.quantity,
-      unitPrice: product.basePrice,
+      unitPrice: getVariantAdjustedPrice(Number(product.basePrice), selectedVariant),
       taxRate: product.taxRate,
       productSnapshot: {
         id: product.id,
@@ -60,6 +89,7 @@ export async function createOrder(
         images: product.images,
         unit: product.unit,
         vendorName: product.vendor.displayName,
+        variantName: selectedVariant?.name ?? null,
       },
     }
   })
@@ -136,12 +166,21 @@ export async function createOrder(
 
     // Decrement stock
     for (const line of lines) {
-      if (products.find(p => p.id === line.productId)?.trackStock) {
-        await tx.product.update({
-          where: { id: line.productId },
+      const product = products.find(p => p.id === line.productId)
+      if (!product?.trackStock) continue
+
+      if (line.variantId) {
+        await tx.productVariant.update({
+          where: { id: line.variantId },
           data: { stock: { decrement: line.quantity } },
         })
+        continue
       }
+
+      await tx.product.update({
+        where: { id: line.productId },
+        data: { stock: { decrement: line.quantity } },
+      })
     }
 
     return order

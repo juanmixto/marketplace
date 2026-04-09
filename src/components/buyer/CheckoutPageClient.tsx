@@ -171,6 +171,9 @@ export function CheckoutPageClient({ shippingZones, shippingRates, fallbackShipp
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="line-clamp-1 text-sm font-medium text-gray-900">{item.name}</p>
+                    {item.variantName && (
+                      <p className="text-xs font-medium text-emerald-700">{item.variantName}</p>
+                    )}
                     <p className="text-xs text-gray-500">× {item.quantity}</p>
                   </div>
                   <p className="shrink-0 text-sm font-medium text-gray-900">

@@ -236,6 +236,7 @@ model Product {
   compareAtPrice Decimal?      @db.Decimal(10, 2)
   taxRate        Decimal       @default(0.10) @db.Decimal(4, 3)
   unit           String        @default("kg")
+  // Stock base solo se usa como fuente de verdad cuando el producto no define variantes activas.
   stock          Int           @default(0)
   trackStock     Boolean       @default(true)
   minOrderQty    Int           @default(1)
@@ -266,6 +267,7 @@ model ProductVariant {
   sku           String   @unique
   name          String
   priceModifier Decimal  @default(0) @db.Decimal(10, 2)
+  // Si hay variantes activas y el producto trackea stock, este stock manda sobre Product.stock.
   stock         Int      @default(0)
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
