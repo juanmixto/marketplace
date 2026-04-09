@@ -31,26 +31,26 @@ export default async function VendorPedidosPage() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Mis pedidos</h1>
-        <p className="text-sm text-gray-500 mt-0.5">{fulfillments.length} pedido{fulfillments.length !== 1 ? 's' : ''} en total</p>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">Mis pedidos</h1>
+        <p className="text-sm text-[var(--muted)] mt-0.5">{fulfillments.length} pedido{fulfillments.length !== 1 ? 's' : ''} en total</p>
       </div>
 
       {fulfillments.length === 0 ? (
-        <div className="rounded-xl border-2 border-dashed border-gray-300 py-16 text-center">
-          <p className="text-gray-500">Aún no tienes pedidos</p>
+        <div className="rounded-xl border-2 border-dashed border-[var(--border)] py-16 text-center">
+          <p className="text-[var(--muted)]">Aún no tienes pedidos</p>
         </div>
       ) : (
         <>
           {active.length > 0 && (
             <section>
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Activos</h2>
+              <h2 className="text-sm font-semibold text-[var(--muted)] uppercase tracking-wide mb-3">Activos</h2>
               <FulfillmentList fulfillments={active} />
             </section>
           )}
 
           {past.length > 0 && (
             <section>
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Historial</h2>
+              <h2 className="text-sm font-semibold text-[var(--muted)] uppercase tracking-wide mb-3">Historial</h2>
               <FulfillmentList fulfillments={past} />
             </section>
           )}
@@ -64,7 +64,7 @@ type FulfillmentWithDetails = Awaited<ReturnType<typeof getMyFulfillments>>[numb
 
 function FulfillmentList({ fulfillments }: { fulfillments: FulfillmentWithDetails[] }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden divide-y divide-gray-100">
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden divide-y divide-[var(--border)]">
       {fulfillments.map(f => {
         const statusConfig = STATUS_CONFIG[f.status] ?? { label: f.status, variant: 'default' as BadgeVariant }
         const customer = f.order.customer
@@ -73,16 +73,16 @@ function FulfillmentList({ fulfillments }: { fulfillments: FulfillmentWithDetail
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <p className="font-medium text-gray-900">
+                  <p className="font-medium text-[var(--foreground)]">
                     Pedido #{f.orderId.slice(-6).toUpperCase()}
                   </p>
                   <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
                 </div>
-                <p className="text-sm text-gray-500 mt-0.5">
+                <p className="text-sm text-[var(--muted)] mt-0.5">
                   {customer.firstName} {customer.lastName} · {formatDate(f.createdAt)}
                 </p>
                 {f.order.address && (
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  <p className="text-xs text-[var(--muted-light)] mt-0.5">
                     {f.order.address.line1}, {f.order.address.city} {f.order.address.postalCode}
                   </p>
                 )}
@@ -93,18 +93,18 @@ function FulfillmentList({ fulfillments }: { fulfillments: FulfillmentWithDetail
             <div className="space-y-2">
               {f.order.lines.map(line => (
                 <div key={line.id} className="flex items-center gap-3">
-                  <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                  <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-[var(--surface-raised)]">
                     {line.product.images?.[0]
                       ? <Image src={line.product.images[0]} alt={line.product.name} fill className="object-cover" sizes="40px" />
                       : <div className="flex h-full items-center justify-center text-lg">🌿</div>}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{line.product.name}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-sm font-medium text-[var(--foreground)] truncate">{line.product.name}</p>
+                    <p className="text-xs text-[var(--muted)]">
                       {line.quantity} {line.product.unit} · {formatPrice(Number(line.unitPrice))} / {line.product.unit}
                     </p>
                   </div>
-                  <p className="text-sm font-medium text-gray-900 shrink-0">
+                  <p className="text-sm font-medium text-[var(--foreground)] shrink-0">
                     {formatPrice(Number(line.unitPrice) * line.quantity)}
                   </p>
                 </div>
@@ -112,7 +112,7 @@ function FulfillmentList({ fulfillments }: { fulfillments: FulfillmentWithDetail
             </div>
 
             {f.trackingNumber && (
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-[var(--muted)]">
                 Seguimiento: <span className="font-mono">{f.trackingNumber}</span>
                 {f.carrier && ` (${f.carrier})`}
               </p>

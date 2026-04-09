@@ -39,16 +39,16 @@ export default async function VendorDashboardPage() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Buenos días, {vendor.displayName}</h1>
-        <p className="text-sm text-gray-500 mt-0.5">¿Qué necesitas hacer hoy?</p>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">Buenos días, {vendor.displayName}</h1>
+        <p className="text-sm text-[var(--muted)] mt-0.5">¿Qué necesitas hacer hoy?</p>
       </div>
 
       {/* Onboarding checklist — only for new/incomplete vendors */}
       {isNew && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
+        <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-5">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-amber-900">Configura tu cuenta ({setupDone}/3)</h2>
-            <div className="h-2 w-32 rounded-full bg-amber-200">
+            <h2 className="font-semibold text-amber-900 dark:text-amber-300">Configura tu cuenta ({setupDone}/3)</h2>
+            <div className="h-2 w-32 rounded-full bg-amber-200 dark:bg-amber-900">
               <div
                 className="h-2 rounded-full bg-amber-500 transition-all"
                 style={{ width: `${(setupDone / 3) * 100}%` }}
@@ -61,12 +61,12 @@ export default async function VendorDashboardPage() {
                 {step.done
                   ? <CheckCircleIcon className="h-5 w-5 text-emerald-500 shrink-0" />
                   : <div className="h-5 w-5 rounded-full border-2 border-amber-400 shrink-0" />}
-                <span className={step.done ? 'text-gray-500 line-through' : 'text-amber-900 font-medium'}>
+                <span className={step.done ? 'text-[var(--muted)] line-through' : 'text-amber-900 dark:text-amber-300 font-medium'}>
                   {step.label}
                 </span>
                 {!step.done && (
                   <Link href={`/vendor/${step.key === 'product' ? 'productos/nuevo' : 'perfil'}`}
-                    className="ml-auto text-xs text-amber-700 hover:underline">
+                    className="ml-auto text-xs text-amber-700 dark:text-amber-400 hover:underline">
                     Hacer ahora →
                   </Link>
                 )}
@@ -78,17 +78,17 @@ export default async function VendorDashboardPage() {
 
       {/* Urgent orders */}
       {urgent.length > 0 && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-5">
+        <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-5">
           <div className="flex items-center gap-2 mb-3">
-            <ExclamationCircleIcon className="h-5 w-5 text-red-600" />
-            <h2 className="font-semibold text-red-900">{urgent.length} pedido{urgent.length > 1 ? 's' : ''} requieren acción</h2>
+            <ExclamationCircleIcon className="h-5 w-5 text-red-600 dark:text-red-400" />
+            <h2 className="font-semibold text-red-900 dark:text-red-300">{urgent.length} pedido{urgent.length > 1 ? 's' : ''} requieren acción</h2>
           </div>
           <div className="space-y-2">
             {urgent.map(f => (
-              <div key={f.id} className="flex items-center justify-between rounded-lg bg-white p-3">
+              <div key={f.id} className="flex items-center justify-between rounded-lg bg-[var(--surface)] p-3">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Pedido #{f.orderId.slice(-6).toUpperCase()}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-sm font-medium text-[var(--foreground)]">Pedido #{f.orderId.slice(-6).toUpperCase()}</p>
+                  <p className="text-xs text-[var(--muted)]">
                     {f.status === 'PENDING' ? 'Pendiente de confirmación' : 'Listo para enviar'}
                   </p>
                 </div>
@@ -109,27 +109,27 @@ export default async function VendorDashboardPage() {
           { label: 'Pedidos activos', value: vendor.fulfillments.length },
           { label: 'Valoración', value: vendor.avgRating ? `${Number(vendor.avgRating).toFixed(1)}★` : '—' },
         ].map(s => (
-          <div key={s.label} className="rounded-xl border border-gray-200 bg-white p-4">
-            <p className="text-2xl font-bold text-gray-900">{s.value}</p>
-            <p className="text-sm text-gray-500">{s.label}</p>
+          <div key={s.label} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+            <p className="text-2xl font-bold text-[var(--foreground)]">{s.value}</p>
+            <p className="text-sm text-[var(--muted)]">{s.label}</p>
           </div>
         ))}
       </div>
 
       {/* Quick actions */}
       <div>
-        <h2 className="font-semibold text-gray-900 mb-3">Acciones rápidas</h2>
+        <h2 className="font-semibold text-[var(--foreground)] mb-3">Acciones rápidas</h2>
         <div className="flex flex-wrap gap-3">
           <Link href="/vendor/productos/nuevo"
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]">
             + Nuevo producto
           </Link>
           <Link href="/vendor/productos"
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]">
             Gestionar catalogo
           </Link>
           <Link href="/"
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]">
             Ver tienda
           </Link>
         </div>

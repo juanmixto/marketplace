@@ -63,8 +63,8 @@ export function VendorProfileForm({ vendor }: Props) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Public info */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 space-y-4">
-        <h2 className="font-semibold text-gray-900">Información pública</h2>
+      <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 space-y-4">
+        <h2 className="font-semibold text-[var(--foreground)]">Información pública</h2>
 
         <Input
           label="Nombre del productor"
@@ -73,13 +73,13 @@ export function VendorProfileForm({ vendor }: Props) {
         />
 
         <div className="space-y-1.5">
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="description" className="block text-sm font-medium text-[var(--foreground)]">
             Descripción
           </label>
           <textarea
             id="description"
             rows={4}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
             placeholder="Cuéntanos sobre tu explotación, tus prácticas, tu historia..."
             {...register('description')}
           />
@@ -95,8 +95,8 @@ export function VendorProfileForm({ vendor }: Props) {
       </section>
 
       {/* Logistics */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 space-y-4">
-        <h2 className="font-semibold text-gray-900">Logística</h2>
+      <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 space-y-4">
+        <h2 className="font-semibold text-[var(--foreground)]">Logística</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
             label="Hora de corte de pedidos"
@@ -118,9 +118,9 @@ export function VendorProfileForm({ vendor }: Props) {
       </section>
 
       {/* Banking */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 space-y-4">
-        <h2 className="font-semibold text-gray-900">Datos bancarios</h2>
-        <p className="text-sm text-gray-500">Para recibir tus liquidaciones.</p>
+      <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 space-y-4">
+        <h2 className="font-semibold text-[var(--foreground)]">Datos bancarios</h2>
+        <p className="text-sm text-[var(--muted)]">Para recibir tus liquidaciones.</p>
         <Input
           label="IBAN"
           placeholder="ES76 2100 0418 4502 0005 1332"

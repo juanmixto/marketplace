@@ -21,45 +21,45 @@ export default async function AdminIncidentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm font-medium text-emerald-700">Soporte</p>
-        <h1 className="text-2xl font-bold text-gray-900">Incidencias</h1>
-        <p className="mt-1 text-sm text-gray-500">Reclamaciones abiertas, SLA y resoluciones aplicadas.</p>
+        <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Soporte</p>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">Incidencias</h1>
+        <p className="mt-1 text-sm text-[var(--muted)]">Reclamaciones abiertas, SLA y resoluciones aplicadas.</p>
       </div>
 
       <div className="space-y-4">
         {incidents.map(incident => (
-          <div key={incident.id} className="rounded-2xl border border-gray-200 bg-white p-5">
+          <div key={incident.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-semibold text-gray-900">{incident.type}</h2>
+                  <h2 className="text-lg font-semibold text-[var(--foreground)]">{incident.type}</h2>
                   <AdminStatusBadge
                     label={incident.status}
                     tone={getIncidentStatusTone(incident.status)}
                   />
                 </div>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-[var(--muted)]">
                   {incident.order.orderNumber} · {incident.customer.firstName} {incident.customer.lastName}
                 </p>
               </div>
-              <div className="text-right text-sm text-gray-500">
+              <div className="text-right text-sm text-[var(--muted)]">
                 <p>Creada {formatDate(incident.createdAt)}</p>
                 <p>SLA {formatDate(incident.slaDeadline)}</p>
               </div>
             </div>
-            <p className="mt-4 text-sm leading-6 text-gray-700">{incident.description}</p>
+            <p className="mt-4 text-sm leading-6 text-[var(--foreground-soft)]">{incident.description}</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <div>
-                <p className="text-xs uppercase tracking-wide text-gray-400">Mensajes</p>
-                <p className="mt-1 font-medium text-gray-900">{incident.messages.length}</p>
+                <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">Mensajes</p>
+                <p className="mt-1 font-medium text-[var(--foreground)]">{incident.messages.length}</p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-gray-400">Resolucion</p>
-                <p className="mt-1 font-medium text-gray-900">{incident.resolution ?? 'Pendiente'}</p>
+                <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">Resolucion</p>
+                <p className="mt-1 font-medium text-[var(--foreground)]">{incident.resolution ?? 'Pendiente'}</p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-gray-400">Reembolso</p>
-                <p className="mt-1 font-medium text-gray-900">
+                <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">Reembolso</p>
+                <p className="mt-1 font-medium text-[var(--foreground)]">
                   {incident.refundAmount ? formatPrice(Number(incident.refundAmount)) : 'No aplica'}
                 </p>
               </div>
@@ -67,7 +67,7 @@ export default async function AdminIncidentsPage() {
           </div>
         ))}
         {incidents.length === 0 && (
-          <p className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
+          <p className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--muted)]">
             No hay incidencias registradas.
           </p>
         )}

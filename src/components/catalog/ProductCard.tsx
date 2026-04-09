@@ -57,7 +57,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
         {isOutOfStock && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-[1px]">
-            <span className="rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-gray-700 shadow">
+            <span className="rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-gray-700 dark:bg-black/80 dark:text-gray-200 shadow">
               Sin stock
             </span>
           </div>

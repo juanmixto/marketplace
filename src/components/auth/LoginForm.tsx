@@ -105,8 +105,8 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
             <p className={`text-xs font-semibold uppercase tracking-[0.22em] ${currentPortal.accent}`}>
               {currentPortal.badge}
             </p>
-            <h1 className="mt-1 text-2xl font-bold text-gray-900">{currentPortal.title}</h1>
-            <p className="mt-1 text-sm text-gray-600">{currentPortal.description}</p>
+            <h1 className="mt-1 text-2xl font-bold text-[var(--foreground)]">{currentPortal.title}</h1>
+            <p className="mt-1 text-sm text-[var(--foreground-soft)]">{currentPortal.description}</p>
           </div>
         </div>
       </div>
@@ -132,7 +132,7 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
           <button
             type="button"
             onClick={() => setShowPass(v => !v)}
-            className="absolute right-3 top-8 text-gray-400 hover:text-gray-600"
+            className="absolute right-3 top-8 text-[var(--muted)] hover:text-[var(--foreground)]"
           >
             {showPass ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
           </button>
@@ -147,9 +147,9 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
         </Button>
       </form>
 
-      <div className="mt-4 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-3">
-        <p className="text-xs font-medium text-gray-500 mb-1">Credenciales de prueba:</p>
-        <div className="text-xs text-gray-600 space-y-0.5">
+      <div className="mt-4 rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-raised)] p-3">
+        <p className="text-xs font-medium text-[var(--muted)] mb-1">Credenciales de prueba:</p>
+        <div className="text-xs text-[var(--foreground-soft)] space-y-0.5">
           <p>Admin: <code>admin@marketplace.com</code> / <code>admin1234</code></p>
           <p>Productor: <code>productor@test.com</code> / <code>vendor1234</code></p>
           <p>Cliente: <code>cliente@test.com</code> / <code>cliente1234</code></p>
@@ -166,16 +166,16 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
                 ? 'border-emerald-300 bg-emerald-50 text-emerald-900 shadow-sm'
                 : link.href.includes('/admin') && portalMode === 'admin'
                   ? 'border-amber-300 bg-amber-50 text-amber-900 shadow-sm'
-                  : 'border-gray-200 bg-white text-gray-700 hover:border-emerald-200 hover:bg-emerald-50/40'
+                  : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-soft)] hover:border-emerald-200 hover:bg-emerald-50/40 dark:hover:border-emerald-800 dark:hover:bg-emerald-950/20'
             }`}
           >
             <span className="block font-medium">{link.label}</span>
-            <span className="block text-xs text-gray-500">{link.description}</span>
+            <span className="block text-xs text-[var(--muted)]">{link.description}</span>
           </Link>
         ))}
       </div>
 
-      <p className="mt-6 text-center text-sm text-gray-500">
+      <p className="mt-6 text-center text-sm text-[var(--muted)]">
         ¿No tienes cuenta?{' '}
         <Link href="/register" className="font-semibold text-emerald-600 hover:underline">
           Regístrate gratis

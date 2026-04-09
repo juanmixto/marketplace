@@ -46,7 +46,7 @@ export function ReviewFormButton({ orderId, productId, productName }: Props) {
       <Modal open={open} onClose={() => setOpen(false)} title={`Valorar ${productName}`} size="md">
         <div className="space-y-5 p-5">
           <div>
-            <p className="text-sm font-medium text-gray-900">Tu valoración</p>
+            <p className="text-sm font-medium text-[var(--foreground)]">Tu valoración</p>
             <div className="mt-3 flex gap-2">
               {Array.from({ length: 5 }, (_, index) => {
                 const value = index + 1
@@ -60,7 +60,7 @@ export function ReviewFormButton({ orderId, productId, productName }: Props) {
                     className={`rounded-xl border px-3 py-2 transition ${
                       active
                         ? 'border-amber-300 bg-amber-50'
-                        : 'border-gray-200 hover:border-amber-200 hover:bg-gray-50'
+                        : 'border-[var(--border)] hover:border-amber-200 hover:bg-[var(--surface-raised)] dark:hover:border-amber-800'
                     }`}
                     aria-label={`${value} estrellas`}
                   >
@@ -72,7 +72,7 @@ export function ReviewFormButton({ orderId, productId, productName }: Props) {
           </div>
 
           <div>
-            <label htmlFor={`review-${productId}`} className="text-sm font-medium text-gray-900">
+            <label htmlFor={`review-${productId}`} className="text-sm font-medium text-[var(--foreground)]">
               Comentario
             </label>
             <textarea
@@ -82,9 +82,9 @@ export function ReviewFormButton({ orderId, productId, productName }: Props) {
               value={body}
               onChange={event => setBody(event.target.value)}
               placeholder="Cuenta que te ha parecido el producto, el sabor, la frescura o la presentacion."
-              className="mt-2 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none transition placeholder:text-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
             />
-            <p className="mt-1 text-xs text-gray-400">{body.length}/1000</p>
+            <p className="mt-1 text-xs text-[var(--muted-light)]">{body.length}/1000</p>
           </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}

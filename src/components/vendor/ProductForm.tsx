@@ -128,20 +128,20 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 rounded-2xl border border-gray-200 bg-white p-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <Input label="Nombre" error={errors.name?.message} {...register('name')} />
         </div>
 
         <div className="sm:col-span-2 space-y-1.5">
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="description" className="block text-sm font-medium text-[var(--foreground)]">
             Descripción
           </label>
           <textarea
             id="description"
             rows={5}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
             placeholder="Cuenta qué hace especial a este producto"
             {...register('description')}
           />
@@ -149,12 +149,12 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="categoryId" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="categoryId" className="block text-sm font-medium text-[var(--foreground)]">
             Categoría
           </label>
           <select
             id="categoryId"
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
             {...register('categoryId')}
           >
             <option value="">Sin categoría</option>
@@ -194,12 +194,12 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
         />
 
         <div className="space-y-1.5">
-          <label htmlFor="taxRate" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="taxRate" className="block text-sm font-medium text-[var(--foreground)]">
             IVA
           </label>
           <select
             id="taxRate"
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
             {...register('taxRate')}
           >
             <option value={TAX_RATES.REDUCED}>4%</option>
@@ -228,13 +228,13 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
           {...register('expiresAt')}
         />
 
-        <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-          <input id="trackStock" type="checkbox" className="rounded border-gray-300 text-emerald-600" {...register('trackStock')} />
+        <div className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground-soft)]">
+          <input id="trackStock" type="checkbox" className="rounded border-[var(--border-strong)] text-emerald-600" {...register('trackStock')} />
           <label htmlFor="trackStock">Controlar stock</label>
         </div>
 
         <div className="space-y-1.5 sm:col-span-2">
-          <p className="block text-sm font-medium text-gray-700">Certificaciones</p>
+          <p className="block text-sm font-medium text-[var(--foreground)]">Certificaciones</p>
           <div className="flex flex-wrap gap-2">
             {CERTIFICATIONS.map(certification => {
               const active = selectedCertifications.includes(certification)
@@ -246,7 +246,7 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
                   className={`rounded-full border px-3 py-1.5 text-sm transition ${
                     active
                       ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
-                      : 'border-gray-300 bg-white text-gray-600 hover:border-emerald-300 hover:text-emerald-700'
+                      : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-soft)] hover:border-emerald-300 hover:text-emerald-700 dark:hover:border-emerald-700'
                   }`}
                   disabled={isPending}
                 >
@@ -258,13 +258,13 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
         </div>
 
         <div className="space-y-1.5 sm:col-span-2">
-          <label htmlFor="imagesText" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="imagesText" className="block text-sm font-medium text-[var(--foreground)]">
             Imágenes
           </label>
           <textarea
             id="imagesText"
             rows={4}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
             placeholder="Una URL por línea"
             {...register('imagesText')}
           />
@@ -272,23 +272,23 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
         </div>
 
         <div className="space-y-1.5 sm:col-span-2">
-          <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="status" className="block text-sm font-medium text-[var(--foreground)]">
             Estado inicial
           </label>
           <select
             id="status"
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
             {...register('status')}
           >
             <option value="DRAFT">Guardar como borrador</option>
             <option value="PENDING_REVIEW">Enviar a revisión</option>
           </select>
-          <p className="text-xs text-gray-500">Puedes editar borradores y reenviar productos rechazados más adelante.</p>
+          <p className="text-xs text-[var(--muted)]">Puedes editar borradores y reenviar productos rechazados más adelante.</p>
         </div>
       </div>
 
       {initialData?.variants?.length ? (
-        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-4 text-sm text-[var(--foreground-soft)]">
           Este producto tiene {initialData.variants.length} variante{initialData.variants.length !== 1 ? 's' : ''}. La edición de variantes aún no está disponible en este formulario.
         </div>
       ) : null}

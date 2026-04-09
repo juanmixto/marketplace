@@ -34,12 +34,12 @@ export default async function CuentaPage() {
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6 lg:px-8">
       {/* Avatar */}
       <div className="flex items-center gap-4 mb-8">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-600 text-2xl font-bold text-white">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-600 dark:bg-emerald-500 text-2xl font-bold text-white dark:text-gray-950">
           {initial}
         </div>
         <div>
-          <p className="text-xl font-bold text-gray-900">{session.user.name}</p>
-          <p className="text-sm text-gray-500">{session.user.email}</p>
+          <p className="text-xl font-bold text-[var(--foreground)]">{session.user.name}</p>
+          <p className="text-sm text-[var(--muted)]">{session.user.email}</p>
         </div>
       </div>
 
@@ -52,16 +52,16 @@ export default async function CuentaPage() {
             return (
               <div
                 key={href}
-                className="flex items-center gap-4 rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4"
+                className="flex items-center gap-4 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-raised)] p-4"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white">
-                  <Icon className="h-5 w-5 text-gray-400" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface)]">
+                  <Icon className="h-5 w-5 text-[var(--muted)]" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium text-gray-700">{label}</p>
-                  <p className="text-sm text-gray-500">{meta.desc}</p>
+                  <p className="font-medium text-[var(--foreground-soft)]">{label}</p>
+                  <p className="text-sm text-[var(--muted)]">{meta.desc}</p>
                 </div>
-                <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-500">
+                <span className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--muted)]">
                   Proximamente
                 </span>
               </div>
@@ -72,16 +72,16 @@ export default async function CuentaPage() {
             <Link
               key={href}
               href={href}
-              className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 hover:border-emerald-300 hover:shadow-sm transition"
+              className="flex items-center gap-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-sm transition"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50">
-                <Icon className="h-5 w-5 text-gray-600" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-raised)]">
+                <Icon className="h-5 w-5 text-[var(--foreground-soft)]" />
               </div>
               <div className="flex-1">
-                <p className="font-medium text-gray-900">{label}</p>
-                <p className="text-sm text-gray-500">{meta.desc}</p>
+                <p className="font-medium text-[var(--foreground)]">{label}</p>
+                <p className="text-sm text-[var(--muted)]">{meta.desc}</p>
               </div>
-              <ChevronRightIcon className="h-5 w-5 text-gray-400" />
+              <ChevronRightIcon className="h-5 w-5 text-[var(--muted)]" />
             </Link>
           )
         })}

@@ -101,13 +101,13 @@ export function CheckoutPageClient({ shippingZones, shippingRates, fallbackShipp
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="mb-8 text-2xl font-bold text-gray-900">Finalizar pedido</h1>
+      <h1 className="mb-8 text-2xl font-bold text-[var(--foreground)]">Finalizar pedido</h1>
 
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div className="rounded-xl border border-gray-200 bg-white p-5">
-              <h2 className="mb-4 font-semibold text-gray-900">Dirección de entrega</h2>
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
+              <h2 className="mb-4 font-semibold text-[var(--foreground)]">Dirección de entrega</h2>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <Input label="Nombre" error={errors.firstName?.message} {...register('firstName')} />
@@ -123,25 +123,25 @@ export function CheckoutPageClient({ shippingZones, shippingRates, fallbackShipp
                 </div>
                 <Input label="Provincia" error={errors.province?.message} {...register('province')} />
                 <Input label="Teléfono (opcional)" type="tel" {...register('phone')} />
-                <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-600">
-                  <input type="checkbox" {...register('saveAddress')} className="rounded border-gray-300 text-emerald-600" />
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--foreground-soft)]">
+                  <input type="checkbox" {...register('saveAddress')} className="rounded border-[var(--border-strong)] text-emerald-600" />
                   Guardar esta dirección para futuros pedidos
                 </label>
               </div>
             </div>
 
-            <div className="rounded-xl border border-gray-200 bg-white p-5">
-              <h2 className="mb-3 font-semibold text-gray-900">Pago</h2>
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
+              <h2 className="mb-3 font-semibold text-[var(--foreground)]">Pago</h2>
+              <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 p-3 text-sm text-blue-700 dark:text-blue-300">
                 <p className="font-medium">Modo demo activado</p>
-                <p className="mt-0.5 text-blue-600">
+                <p className="mt-0.5 text-blue-600 dark:text-blue-400">
                   El pago se simulará automáticamente. En producción se integra Stripe.
                 </p>
               </div>
             </div>
 
             {serverError && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-4 text-sm text-red-700 dark:text-red-300">
                 {serverError}
               </div>
             )}
@@ -158,45 +158,45 @@ export function CheckoutPageClient({ shippingZones, shippingRates, fallbackShipp
         </div>
 
         <div>
-          <div className="sticky top-24 rounded-xl border border-gray-200 bg-white p-5">
-            <h2 className="mb-4 font-semibold text-gray-900">Tu pedido</h2>
+          <div className="sticky top-24 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
+            <h2 className="mb-4 font-semibold text-[var(--foreground)]">Tu pedido</h2>
             <div className="max-h-64 space-y-3 overflow-y-auto">
               {items.map(item => (
                 <div key={`${item.productId}-${item.variantId}`} className="flex gap-3">
-                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[var(--surface-raised)]">
                     {item.image
                       ? <Image src={item.image} alt={item.name} fill className="object-cover" />
                       : <div className="flex h-full items-center justify-center text-lg">🌿</div>
                     }
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="line-clamp-1 text-sm font-medium text-gray-900">{item.name}</p>
+                    <p className="line-clamp-1 text-sm font-medium text-[var(--foreground)]">{item.name}</p>
                     {item.variantName && (
-                      <p className="text-xs font-medium text-emerald-700">{item.variantName}</p>
+                      <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">{item.variantName}</p>
                     )}
-                    <p className="text-xs text-gray-500">× {item.quantity}</p>
+                    <p className="text-xs text-[var(--muted)]">× {item.quantity}</p>
                   </div>
-                  <p className="shrink-0 text-sm font-medium text-gray-900">
+                  <p className="shrink-0 text-sm font-medium text-[var(--foreground)]">
                     {formatPrice(item.price * item.quantity)}
                   </p>
                 </div>
               ))}
             </div>
 
-            <div className="mt-4 space-y-2 border-t border-gray-100 pt-4 text-sm">
-              <div className="flex justify-between text-gray-600">
+            <div className="mt-4 space-y-2 border-t border-[var(--border)] pt-4 text-sm">
+              <div className="flex justify-between text-[var(--foreground-soft)]">
                 <span>Subtotal</span><span>{formatPrice(sub)}</span>
               </div>
-              <div className="flex justify-between text-gray-600">
+              <div className="flex justify-between text-[var(--foreground-soft)]">
                 <span>Envío</span>
-                <span>{shipping === 0 ? <span className="text-emerald-600">Gratis</span> : formatPrice(shipping)}</span>
+                <span>{shipping === 0 ? <span className="text-emerald-600 dark:text-emerald-400">Gratis</span> : formatPrice(shipping)}</span>
               </div>
               {shipping > 0 && (
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-[var(--muted-light)]">
                   El coste se ajusta automáticamente según el código postal y la zona de envío.
                 </p>
               )}
-              <div className="flex justify-between border-t border-gray-100 pt-2 text-base font-bold text-gray-900">
+              <div className="flex justify-between border-t border-[var(--border)] pt-2 text-base font-bold text-[var(--foreground)]">
                 <span>Total</span><span>{formatPrice(total)}</span>
               </div>
             </div>

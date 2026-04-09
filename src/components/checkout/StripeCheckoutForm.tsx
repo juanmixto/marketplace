@@ -60,15 +60,15 @@ function InnerStripeCheckoutForm({ orderId, orderNumber, grandTotal, returnUrl }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl border border-gray-200 bg-white p-6">
+    <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Pago seguro</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">Pago seguro</h1>
+        <p className="mt-1 text-sm text-[var(--muted)]">
           Pedido {orderNumber} · Total {formatPrice(grandTotal)}
         </p>
       </div>
 
-      <div className="rounded-xl border border-gray-200 p-4">
+      <div className="rounded-xl border border-[var(--border)] p-4">
         <PaymentElement />
       </div>
 
@@ -79,7 +79,7 @@ function InnerStripeCheckoutForm({ orderId, orderNumber, grandTotal, returnUrl }
       ) : null}
 
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-gray-500">Stripe procesará el pago y te devolveremos al detalle del pedido.</p>
+        <p className="text-sm text-[var(--muted)]">Stripe procesará el pago y te devolveremos al detalle del pedido.</p>
         <Button type="submit" size="lg" isLoading={isSubmitting || !stripe || !elements}>
           Pagar {formatPrice(grandTotal)}
         </Button>

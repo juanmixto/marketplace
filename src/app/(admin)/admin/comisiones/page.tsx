@@ -51,20 +51,22 @@ export default async function AdminCommissionRulesPage() {
     seenConflictKeys.add(key)
   }
 
+  const inputCls = 'w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
+
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm font-medium text-emerald-700">Finanzas</p>
-        <h1 className="text-2xl font-bold text-gray-900">Comisiones</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Finanzas</p>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">Comisiones</h1>
+        <p className="mt-1 text-sm text-[var(--muted)]">
           Gestiona reglas por productor o categoría. La prioridad es productor, luego categoría y por último la tasa base del productor.
         </p>
       </div>
 
-      <form action={createCommissionRule} className="grid gap-4 rounded-2xl border border-gray-200 bg-white p-5 md:grid-cols-2 xl:grid-cols-6">
+      <form action={createCommissionRule} className="grid gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 md:grid-cols-2 xl:grid-cols-6">
         <label className="space-y-1.5">
-          <span className="text-sm font-medium text-gray-900">Productor</span>
-          <select name="vendorId" defaultValue="" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900">
+          <span className="text-sm font-medium text-[var(--foreground)]">Productor</span>
+          <select name="vendorId" defaultValue="" className={inputCls}>
             <option value="">Ninguno</option>
             {vendors.map(vendor => (
               <option key={vendor.id} value={vendor.id}>
@@ -75,8 +77,8 @@ export default async function AdminCommissionRulesPage() {
         </label>
 
         <label className="space-y-1.5">
-          <span className="text-sm font-medium text-gray-900">Categoría</span>
-          <select name="categoryId" defaultValue="" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900">
+          <span className="text-sm font-medium text-[var(--foreground)]">Categoría</span>
+          <select name="categoryId" defaultValue="" className={inputCls}>
             <option value="">Ninguna</option>
             {categories.map(category => (
               <option key={category.id} value={category.id}>
@@ -87,38 +89,38 @@ export default async function AdminCommissionRulesPage() {
         </label>
 
         <label className="space-y-1.5">
-          <span className="text-sm font-medium text-gray-900">Tipo</span>
-          <select name="type" defaultValue="PERCENTAGE" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900">
+          <span className="text-sm font-medium text-[var(--foreground)]">Tipo</span>
+          <select name="type" defaultValue="PERCENTAGE" className={inputCls}>
             <option value="PERCENTAGE">Porcentaje</option>
             <option value="FIXED">Fijo</option>
           </select>
         </label>
 
         <label className="space-y-1.5">
-          <span className="text-sm font-medium text-gray-900">Valor</span>
+          <span className="text-sm font-medium text-[var(--foreground)]">Valor</span>
           <input
             name="rate"
             type="number"
             min="0"
             step="0.01"
             placeholder="0.12 o 4.95"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
+            className={inputCls}
           />
         </label>
 
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 xl:col-span-2">
+        <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-xs text-amber-900 dark:text-amber-300 xl:col-span-2">
           Crea la regla con productor o categoría. Si usas ambas, la regla quedará registrada, pero la prioridad operativa seguirá favoreciendo la coincidencia por productor.
         </div>
 
         <div className="xl:col-span-6">
-          <button type="submit" className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800">
+          <button type="submit" className="rounded-xl bg-[var(--foreground)] px-4 py-2 text-sm font-medium text-[var(--background)] hover:opacity-90">
             Crear regla
           </button>
         </div>
       </form>
 
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-        <div className="grid grid-cols-[1fr,1fr,0.8fr,0.8fr,0.9fr,0.9fr,auto] gap-4 border-b border-gray-100 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+      <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
+        <div className="grid grid-cols-[1fr,1fr,0.8fr,0.8fr,0.9fr,0.9fr,auto] gap-4 border-b border-[var(--border)] px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
           <span>Ámbito</span>
           <span>Fallback</span>
           <span>Tipo</span>
@@ -127,7 +129,7 @@ export default async function AdminCommissionRulesPage() {
           <span>Alta</span>
           <span>Acciones</span>
         </div>
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-[var(--border)]">
           {rules.map(rule => {
             const vendor = rule.vendorId ? vendorsById.get(rule.vendorId) : null
             const category = rule.categoryId ? categoriesById.get(rule.categoryId) : null
@@ -137,28 +139,28 @@ export default async function AdminCommissionRulesPage() {
             return (
               <div key={rule.id} className="grid grid-cols-[1fr,1fr,0.8fr,0.8fr,0.9fr,0.9fr,auto] gap-4 px-5 py-4 text-sm items-start">
                 <div>
-                  <p className="font-medium text-gray-900">{vendor?.displayName ?? category?.name ?? 'Global manual'}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="font-medium text-[var(--foreground)]">{vendor?.displayName ?? category?.name ?? 'Global manual'}</p>
+                  <p className="text-xs text-[var(--muted)]">
                     {vendor ? 'Productor' : category ? 'Categoría' : 'Sin ámbito'}
                     {vendor && category ? ' + categoría' : ''}
                   </p>
                   {hasConflict && (
-                    <p className="mt-1 text-xs font-medium text-amber-700">Conflicto: hay otra regla activa con el mismo ámbito.</p>
+                    <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-400">Conflicto: hay otra regla activa con el mismo ámbito.</p>
                   )}
                 </div>
-                <div className="text-gray-600">
+                <div className="text-[var(--foreground-soft)]">
                   {vendor
                     ? `Base vendor ${(Number(vendor.commissionRate) * 100).toFixed(2)}%`
                     : 'Usa fallback del productor'}
                 </div>
-                <div className="font-medium text-gray-900">{formatCommissionRuleType(rule.type)}</div>
-                <div className="font-medium text-gray-900">{formatRate(rule.type, Number(rule.rate))}</div>
+                <div className="font-medium text-[var(--foreground)]">{formatCommissionRuleType(rule.type)}</div>
+                <div className="font-medium text-[var(--foreground)]">{formatRate(rule.type, Number(rule.rate))}</div>
                 <div>
-                  <span className={rule.isActive ? 'rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700' : 'rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500'}>
+                  <span className={rule.isActive ? 'rounded-full bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-400' : 'rounded-full bg-[var(--surface-raised)] px-2.5 py-1 text-xs font-medium text-[var(--muted)]'}>
                     {rule.isActive ? 'Activa' : 'Inactiva'}
                   </span>
                 </div>
-                <div className="text-gray-500">{formatDate(rule.createdAt)}</div>
+                <div className="text-[var(--muted)]">{formatDate(rule.createdAt)}</div>
                 <div>
                   <CommissionRuleActions ruleId={rule.id} isActive={rule.isActive} />
                 </div>
@@ -166,7 +168,7 @@ export default async function AdminCommissionRulesPage() {
             )
           })}
           {rules.length === 0 && (
-            <p className="px-5 py-10 text-center text-sm text-gray-500">Todavía no hay reglas de comisión creadas.</p>
+            <p className="px-5 py-10 text-center text-sm text-[var(--muted)]">Todavía no hay reglas de comisión creadas.</p>
           )}
         </div>
       </div>

@@ -55,7 +55,7 @@ export function FulfillmentActions({ fulfillmentId, status }: Props) {
           size="sm"
         >
           <div className="p-5 space-y-4">
-            <p className="text-sm text-gray-600">Opcional: añade el número de seguimiento.</p>
+            <p className="text-sm text-[var(--foreground-soft)]">Opcional: añade el número de seguimiento.</p>
             <Input
               label="Número de seguimiento"
               placeholder="ES123456789"

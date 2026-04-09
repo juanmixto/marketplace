@@ -19,7 +19,7 @@ export function StarRating({ rating, size = 'md' }: Props) {
     <div className="flex items-center gap-1" aria-label={`${rounded} de 5 estrellas`}>
       {Array.from({ length: 5 }, (_, index) => {
         const Icon = index < rounded ? StarSolidIcon : StarOutlineIcon
-        return <Icon key={index} className={`${sizeClass} ${index < rounded ? 'text-amber-400' : 'text-gray-300'}`} />
+        return <Icon key={index} className={`${sizeClass} ${index < rounded ? 'text-amber-400' : 'text-gray-300 dark:text-gray-600'}`} />
       })}
     </div>
   )
