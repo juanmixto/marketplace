@@ -8,7 +8,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       attribute="class"
       defaultTheme="system"
       enableSystem
-      disableTransitionOnChange={false}
+      enableColorScheme
+      disableTransitionOnChange
+      themes={['light', 'dark', 'system']}
+      storageKey="marketplace-theme"
     >
       {children}
     </NextThemesProvider>

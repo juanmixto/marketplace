@@ -5,6 +5,7 @@ import './globals.css'
 import { SITE_NAME, SITE_DESCRIPTION } from '@/lib/constants'
 import { siteAppearance } from '@/lib/brand'
 import { ThemeProvider } from '@/components/ThemeProvider'
+import { THEME_COLORS } from '@/lib/theme'
 
 const geist = Geist({
   variable: '--font-geist-sans',
@@ -26,8 +27,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f5f2ec' },
-    { media: '(prefers-color-scheme: dark)',  color: '#0d1117' },
+    { media: '(prefers-color-scheme: light)', color: THEME_COLORS.light },
+    { media: '(prefers-color-scheme: dark)', color: THEME_COLORS.dark },
   ],
   colorScheme: 'light dark',
 }
