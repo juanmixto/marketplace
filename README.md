@@ -1,52 +1,40 @@
-# Marketplace
+# 🌾 Marketplace Agroalimentario
 
-Marketplace agroalimentario con compra directa al productor. La aplicación incluye escaparate público, carrito y checkout para compradores, panel de catálogo para productores y un área inicial de administración.
+Plataforma de compra directa al productor. Compradores pueden explorar catálogo, añadir productos al carrito y pagar. Productores gestionan su catálogo y reciben pedidos. Administradores supervisan la plataforma.
 
-## Stack
+## 🚀 Lanzar la aplicación
 
-- Next.js 16 + App Router
-- React 19
-- Prisma 7 + PostgreSQL
-- NextAuth v5 con credenciales
-- Tailwind CSS 4
-- Stripe con modo `mock` para desarrollo
-- Zustand para carrito en cliente
-- Node test runner + `tsx` para tests rápidos
-
-## Áreas principales
-
-- Público: home, catálogo, detalle de producto y fichas de productor
-- Comprador: carrito, checkout, pago y seguimiento de pedidos
-- Productor: dashboard, catálogo, alta y edición de productos
-- Admin: dashboard base
-
-## Requisitos
-
-- Node.js 20+
-- Docker (para PostgreSQL)
-- npm
-
----
-
-## Arranque rápido (recomendado)
-
-Un solo comando levanta la base de datos, aplica migraciones, carga los datos de prueba y arranca Next.js:
+**Requisito único: Docker instalado**
 
 ```bash
 ./dev.sh
 ```
 
-La app queda disponible en **http://localhost:3000**
+Eso es. Se levanta automáticamente:
+- Base de datos PostgreSQL
+- Migraciones y datos de prueba
+- Servidor Next.js (normalmente **http://localhost:3000**, o **3003+** si 3000 está ocupado)
 
-### Reiniciar con base de datos limpia
-
+**Para limpiar y reiniciar:**
 ```bash
 ./dev.sh --reset
 ```
 
-Borra todos los datos y repuebla desde cero con el seed.
+---
 
-### Parar todo
+## 📋 Acceso a la aplicación
+
+Una vez ejecutado `./dev.sh`, accede a **http://localhost:3000** con estas credenciales:
+
+| Rol | Email | Contraseña | URL directa |
+|-----|-------|-----------|------------|
+| 👨‍💼 **Admin** | `admin@marketplace.com` | `admin1234` | http://localhost:3000/admin/dashboard |
+| 🌾 **Productor** | `productor@test.com` | `vendor1234` | http://localhost:3000/vendor/dashboard |
+| 👤 **Comprador** | `cliente@test.com` | `cliente1234` | http://localhost:3000/cuenta/pedidos |
+
+---
+
+## 🛑 Parar la aplicación
 
 ```bash
 docker compose down
@@ -54,15 +42,29 @@ docker compose down
 
 ---
 
-## Usuarios de prueba
+## 📚 Stack técnico
 
-Disponibles tras el seed (se cargan automáticamente con `./dev.sh`):
+- **Next.js 16** + App Router  
+- **React 19**  
+- **Prisma 7** + **PostgreSQL**  
+- **NextAuth v5** (autenticación por credenciales)  
+- **Tailwind CSS 4** (estilos)  
+- **Stripe** (modo mock para desarrollo)  
+- **Zustand** (estado del carrito)  
+- **Node test runner** (tests)
 
-| Rol | Email | Contraseña | Panel |
-|-----|-------|-----------|-------|
-| Admin | `admin@marketplace.com` | `admin1234` | `/admin/dashboard` |
-| Vendedor | `productor@test.com` | `vendor1234` | `/vendor/dashboard` |
-| Comprador | `cliente@test.com` | `cliente1234` | `/cuenta/pedidos` |
+## 🎯 Áreas principales
+
+- **Pública**: home, catálogo, detalle de productos, perfil de productor
+- **Comprador**: carrito, checkout, pagos, historial de pedidos
+- **Productor**: dashboard, gestión de catálogo, alta/edición de productos
+- **Admin**: dashboard de administración
+
+## 💻 Requisitos del sistema
+
+- **Node.js 20+**
+- **Docker** (para PostgreSQL)
+- **npm**
 
 ---
 
