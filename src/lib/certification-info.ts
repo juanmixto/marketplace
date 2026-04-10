@@ -1,22 +1,22 @@
 export const CERTIFICATION_INFO = {
   'ECO-ES': {
-    description: 'Certificación ecológica española',
-    color: 'green',
+    label: 'Ecológico ES',
+    description: 'Certificación ecológica oficial para productos agrarios y alimentarios en España.',
   },
-  'DOP': {
-    description: 'Denominación de Origen Protegida',
-    color: 'blue',
+  DOP: {
+    label: 'Denominación de Origen Protegida',
+    description: 'Sello para productos cuya calidad o características dependen de su origen geográfico.',
   },
-  'KM0': {
-    description: 'Producto local - kilómetro cero',
-    color: 'purple',
+  IGP: {
+    label: 'Indicación Geográfica Protegida',
+    description: 'Reconoce productos ligados a una región concreta por su reputación o proceso productivo.',
   },
-  'BIO': {
-    description: 'Producción biológica certificada',
-    color: 'green',
+  BIO: {
+    label: 'Producción biológica',
+    description: 'Identifica productos obtenidos conforme a estándares de agricultura biológica.',
   },
-  'IGP': {
-    description: 'Indicación Geográfica Protegida',
-    color: 'amber',
+  KM0: {
+    label: 'Kilómetro 0',
+    description: 'Destaca productos de cercanía con circuitos cortos de producción y distribución.',
   },
 } as const

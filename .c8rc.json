@@ -8,20 +8,10 @@
     "src/generated/**",
     "src/domains/**/actions.ts",
     "src/domains/catalog/queries.ts",
-    "src/domains/settlements/**",
-    "src/domains/vendors/stripe.ts",
-    "src/domains/shipping/calculator.ts",
-    "src/domains/auth/email-verification.ts",
     "src/lib/auth.ts",
     "src/lib/cart-store.ts",
     "src/lib/constants.ts",
-    "src/lib/db.ts",
-    "src/lib/action-session.ts",
-    "src/lib/auth-guard.ts",
-    "src/lib/config.ts",
-    "src/lib/email.ts",
-    "src/lib/revalidate.ts",
-    "src/lib/certification-info.ts"
+    "src/lib/db.ts"
   ],
   "reporter": [
     "text",
@@ -29,8 +19,8 @@
     "html"
   ],
   "check-coverage": true,
-  "lines": 70,
-  "functions": 70,
-  "branches": 65,
-  "statements": 70
+  "lines": 85,
+  "functions": 85,
+  "branches": 78,
+  "statements": 85
 }

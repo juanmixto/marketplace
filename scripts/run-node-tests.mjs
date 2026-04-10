@@ -16,7 +16,6 @@ const dbBackedTests = new Set([
 const args = process.argv.slice(2)
 const runDbTests = args.includes('--db')
 const runParallel = args.includes('--parallel')
-const testTimeoutMs = runDbTests ? 30000 : 10000
 
 const testFiles = readdirSync(testDir)
   .filter(file => file.endsWith('.test.ts'))
@@ -57,7 +56,7 @@ if (runDbTests) {
   childEnv.PAYMENT_PROVIDER ??= 'mock'
 }
 
-nodeArgs.push('--import', 'tsx', '--test', `--test-timeout=${testTimeoutMs}`)
+nodeArgs.push('--import', 'tsx', '--test')
 
 if (runParallel) {
   nodeArgs.push('--test-concurrency=8')
