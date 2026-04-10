@@ -19,7 +19,7 @@ interface RateLimitEntry {
 const inMemoryStore = new Map<string, RateLimitEntry>()
 
 // Cleanup old entries every 5 minutes
-setInterval(() => {
+const cleanupInterval = setInterval(() => {
   const now = Date.now()
   for (const [key, entry] of inMemoryStore.entries()) {
     if (entry.resetAt < now) {
@@ -27,6 +27,8 @@ setInterval(() => {
     }
   }
 }, 5 * 60 * 1000)
+
+cleanupInterval.unref?.()
 
 export interface RateLimitResult {
   success: boolean
