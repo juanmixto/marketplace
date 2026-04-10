@@ -31,17 +31,7 @@ export async function POST(req: NextRequest) {
           },
         })
 
-        // Log reset link (in production, send via email)
-        const resetLink = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/recuperar-contrasena/nueva?token=${token}`
-        console.log(`
-🔐 Password Reset Link (log only - send via email in production)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Email: ${email}
-Link: ${resetLink}
-Expires: ${expiresAt.toISOString()}
-Valid for: 1 hour
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        `)
+        // Token stored in database. In production, send reset link via email.
       }
     } catch (dbError) {
       console.error('Database error during password reset request:', dbError)

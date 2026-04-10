@@ -15,11 +15,6 @@ export async function POST(req: NextRequest) {
 
     // Always return success to prevent email enumeration
     // In production, would send actual email with reset link
-    console.log('[forgot-password]', {
-      email: data.email,
-      token: result.token, // Log for development/testing
-      resetLink: `${process.env.NEXTAUTH_URL}/auth/reset-password/${result.token}`,
-    })
 
     return NextResponse.json(
       { message: 'Si el email existe en nuestra base de datos, recibirás un enlace para recuperar tu contraseña.' },
