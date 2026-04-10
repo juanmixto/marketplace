@@ -8,7 +8,7 @@ export const vendorNavItems: AppNavItem[] = [
   { href: '/vendor/dashboard', label: 'Inicio', available: true },
   { href: '/vendor/productos', label: 'Mi catalogo', available: true },
   { href: '/vendor/pedidos', label: 'Mis pedidos', available: true },
-  { href: '/vendor/liquidaciones', label: 'Liquidaciones', available: false },
+  { href: '/vendor/liquidaciones', label: 'Liquidaciones', available: true },
   { href: '/vendor/perfil', label: 'Mi perfil', available: true },
 ]
 
