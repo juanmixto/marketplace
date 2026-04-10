@@ -109,7 +109,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
           )}
 
           {/* Search */}
-          <form action="/productos" className="hidden flex-1 md:block">
+          <form action="/buscar" className="hidden flex-1 md:block">
             <div className="relative">
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
               <input
@@ -231,7 +231,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
         <div className="border-t border-[var(--border)] bg-[var(--surface)] shadow-2xl md:hidden">
           <div className="space-y-1 p-4">
             {/* Search */}
-            <form action="/productos" className="mb-3">
+            <form action="/buscar" className="mb-3">
               <div className="relative">
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
                 <input
