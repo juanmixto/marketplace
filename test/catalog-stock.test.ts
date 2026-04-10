@@ -7,7 +7,7 @@ import {
 } from '@/domains/catalog/stock'
 import type { Product, ProductVariant } from '@/generated/prisma/client'
 
-function makeProduct(overrides: Partial<Product> = {}): Product & { variants?: ProductVariant[] } {
+function makeProduct(overrides: Record<string, unknown> = {}): Product & { variants?: ProductVariant[] } {
   return {
     id: 'prod_1',
     name: 'Test Product',
@@ -30,7 +30,7 @@ function makeProduct(overrides: Partial<Product> = {}): Product & { variants?: P
   } as unknown as Product
 }
 
-function makeVariant(overrides: Partial<ProductVariant> = {}): ProductVariant {
+function makeVariant(overrides: Record<string, unknown> = {}): ProductVariant {
   return {
     id: 'var_1',
     productId: 'prod_1',
