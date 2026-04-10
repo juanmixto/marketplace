@@ -11,14 +11,14 @@ const LINKS = {
   vender: [
     { href: '/register?rol=productor', label: 'Hazte productor' },
     { href: '/vendor/dashboard',       label: 'Portal productor' },
-    { href: '#',                       label: 'Cómo funciona' },
-    { href: '#',                       label: 'Comisiones' },
+    { href: '/como-funciona',          label: 'Cómo funciona' },
+    { href: '/como-vender',            label: 'Por qué vender con nosotros' },
   ],
   ayuda: [
-    { href: '#', label: 'Preguntas frecuentes' },
-    { href: '#', label: 'Política de devoluciones' },
-    { href: '#', label: 'Envíos' },
-    { href: '#', label: 'Contacto' },
+    { href: '/faq',          label: 'Preguntas frecuentes' },
+    { href: '/contacto',     label: 'Contacto' },
+    { href: '/sobre-nosotros', label: 'Sobre nosotros' },
+    { href: '/contacto',     label: 'Soporte' },
   ],
 }
 
@@ -83,9 +83,14 @@ export function Footer() {
             © {new Date().getFullYear()} {SITE_NAME}. Todos los derechos reservados.
           </p>
           <div className="flex gap-4">
-            {['Aviso legal', 'Privacidad', 'Cookies'].map(label => (
-              <Link key={label} href="#" className="rounded-md text-xs text-[var(--muted)] transition-colors hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
-                {label}
+            {[
+              { label: 'Aviso legal', href: '/aviso-legal' },
+              { label: 'Privacidad', href: '/privacidad' },
+              { label: 'Cookies', href: '/cookies' },
+              { label: 'Términos', href: '/terminos' },
+            ].map(link => (
+              <Link key={link.label} href={link.href} className="rounded-md text-xs text-[var(--muted)] transition-colors hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
+                {link.label}
               </Link>
             ))}
           </div>
