@@ -8,10 +8,10 @@ import { z } from 'zod'
 
 const resetSchema = z.object({
   password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
-  confirmPassword: z.string().min(8),
-}).refine((data) => data.password === data.confirmPassword, {
+  passwordConfirm: z.string().min(8),
+}).refine((data) => data.password === data.passwordConfirm, {
   message: 'Las contraseñas no coinciden',
-  path: ['confirmPassword'],
+  path: ['passwordConfirm'],
 })
 
 type ResetFormData = z.infer<typeof resetSchema>
@@ -39,13 +39,13 @@ export function ResetForm({ token }: ResetFormProps) {
     setError(null)
 
     try {
-      const response = await fetch('/api/auth/reset', {
+      const response = await fetch('/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           token,
           password: data.password,
-          confirmPassword: data.confirmPassword,
+          passwordConfirm: data.passwordConfirm,
         }),
       })
 
@@ -100,17 +100,17 @@ export function ResetForm({ token }: ResetFormProps) {
 
       {/* Confirm Password */}
       <div>
-        <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-900">
+        <label htmlFor="passwordConfirm" className="block text-sm font-medium text-gray-900">
           Confirmar contraseña *
         </label>
         <input
-          {...register('confirmPassword')}
+          {...register('passwordConfirm')}
           type="password"
-          id="confirmPassword"
+          id="passwordConfirm"
           placeholder="Repite la contraseña"
           className="mt-2 block w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-900 placeholder-gray-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
         />
-        {errors.confirmPassword && <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>}
+        {errors.passwordConfirm && <p className="mt-1 text-sm text-red-600">{errors.passwordConfirm.message}</p>}
       </div>
 
       {/* Submit button */}

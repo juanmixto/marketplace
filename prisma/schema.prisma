@@ -411,6 +411,7 @@ model Review {
   @@unique([orderId, productId])
   @@index([productId])
   @@index([vendorId])
+  @@index([vendorId, createdAt])
   @@index([customerId])
 }
 
@@ -502,6 +503,7 @@ model Incident {
   messages IncidentMessage[]
 
   @@index([status, slaDeadline])
+  @@index([orderId])
   @@index([customerId])
 }
 
