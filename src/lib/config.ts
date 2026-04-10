@@ -1,5 +1,6 @@
 import { revalidateTag, unstable_cache } from 'next/cache'
 import { db } from '@/lib/db'
+import { CACHE_TAGS } from '@/lib/cache-tags'
 import {
   MARKETPLACE_CONFIG_KEYS,
   MARKETPLACE_SETTINGS_DEFAULTS,
@@ -98,6 +99,7 @@ export async function setMarketplaceConfig(
   )
 
   revalidateTag(MARKETPLACE_CONFIG_TAG, 'max')
+  revalidateTag(CACHE_TAGS.home, 'max')
   return merged
 }
 

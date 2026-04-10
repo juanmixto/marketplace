@@ -4,7 +4,7 @@ import { formatPrice } from '@/lib/utils'
 import { AdminStatusBadge } from '@/components/admin/AdminStatusBadge'
 import { formatAdminPeriodLabel, getSettlementStatusTone } from '@/domains/admin/overview'
 import { SettlementActions } from '@/components/admin/SettlementActions'
-import { getCommissionRate } from '@/domains/finance/commission'
+import { resolveEffectiveCommissionRate } from '@/domains/finance/commission'
 
 export const metadata: Metadata = { title: 'Liquidaciones | Admin' }
 export const revalidate = 30
@@ -25,10 +25,10 @@ export default async function AdminSettlementsPage() {
   ])
 
   const settlementRates = new Map(
-    await Promise.all(
+        await Promise.all(
       settlements.map(async settlement => [
         settlement.id,
-        await getCommissionRate(settlement.vendorId),
+        await resolveEffectiveCommissionRate(settlement.vendorId),
       ] as const)
     )
   )

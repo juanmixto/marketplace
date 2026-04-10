@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createAuditLog, extractAuditIp } from '@/lib/audit'
+import { createAuditLog, extractAuditIp, readAuditPayload } from '@/lib/audit'
 
 test('extractAuditIp prioritizes the first forwarded address', () => {
   const ip = extractAuditIp({
@@ -57,4 +57,15 @@ test('createAuditLog swallows persistence failures so admin actions keep running
   }
 
   assert.equal(calls, 1)
+})
+
+test('readAuditPayload returns typed before/after snapshots', () => {
+  const payload = readAuditPayload<{ status: string }, { status: string; reviewer: string }>({
+    before: { status: 'APPLYING' },
+    after: { status: 'ACTIVE', reviewer: 'admin_1' },
+  })
+
+  assert.equal(payload.before?.status, 'APPLYING')
+  assert.equal(payload.after?.status, 'ACTIVE')
+  assert.equal(payload.after?.reviewer, 'admin_1')
 })

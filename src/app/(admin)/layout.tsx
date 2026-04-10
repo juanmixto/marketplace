@@ -1,15 +1,9 @@
-import { auth } from '@/lib/auth'
-import { redirect } from 'next/navigation'
 import { AdminSidebar } from '@/components/admin/AdminSidebar'
 import { AdminHeader } from '@/components/admin/AdminHeader'
-
-function isAdmin(role: string) {
-  return role.startsWith('ADMIN') || role === 'SUPERADMIN'
-}
+import { requireAdmin } from '@/lib/auth-guard'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth()
-  if (!session || !isAdmin(session.user.role)) redirect('/')
+  const session = await requireAdmin()
 
   return (
     <div className="flex h-screen bg-[var(--background)]">

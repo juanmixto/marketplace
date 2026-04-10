@@ -1,4 +1,5 @@
 import type { UserRole } from '@/generated/prisma/enums'
+import { isAdmin, isVendor } from '@/lib/roles'
 
 export interface PortalLink {
   href: string
@@ -32,15 +33,21 @@ export const publicPortalLinks: PortalLink[] = [
 ]
 
 export function getPrimaryPortalHref(role?: UserRole) {
-  if (role === 'VENDOR') return '/vendor/dashboard'
-  if (role?.startsWith('ADMIN') || role === 'SUPERADMIN') return '/admin/dashboard'
+  if (isVendor(role)) return '/vendor/dashboard'
+  if (isAdmin(role)) return '/admin/dashboard'
   return DEFAULT_ACCOUNT_PATH
 }
 
 export function getPortalLabel(role?: UserRole) {
-  if (role === 'VENDOR') return 'Panel productor'
-  if (role?.startsWith('ADMIN') || role === 'SUPERADMIN') return 'Panel admin'
+  if (isVendor(role)) return 'Panel productor'
+  if (isAdmin(role)) return 'Panel admin'
   return 'Mi cuenta'
+}
+
+function getPortalModeForRole(role?: UserRole): LoginPortalMode {
+  if (isVendor(role)) return 'vendor'
+  if (isAdmin(role)) return 'admin'
+  return 'buyer'
 }
 
 export function sanitizeCallbackUrl(callbackUrl?: string | null) {
@@ -51,7 +58,18 @@ export function sanitizeCallbackUrl(callbackUrl?: string | null) {
 }
 
 export function resolvePostLoginDestination(role?: UserRole, callbackUrl?: string | null) {
-  return sanitizeCallbackUrl(callbackUrl) ?? (role ? getPrimaryPortalHref(role) : STOREFRONT_PATH)
+  const safeCallbackUrl = sanitizeCallbackUrl(callbackUrl)
+
+  if (safeCallbackUrl) {
+    const callbackMode = getLoginPortalMode(safeCallbackUrl)
+    const roleMode = getPortalModeForRole(role)
+
+    if (!role || callbackMode === roleMode) {
+      return safeCallbackUrl
+    }
+  }
+
+  return role ? getPrimaryPortalHref(role) : STOREFRONT_PATH
 }
 
 export function normalizeAuthRedirectUrl(url?: string | null) {

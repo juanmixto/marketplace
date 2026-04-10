@@ -10,6 +10,10 @@ import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import { ProductCard } from '@/components/catalog/ProductCard'
 import { getProductReviews } from '@/domains/reviews/actions'
 import type { Metadata } from 'next'
+import { db } from '@/lib/db'
+import { getAvailableProductWhere } from '@/domains/catalog/availability'
+
+export const revalidate = 300
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -23,6 +27,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: product.name,
     description: product.description ?? undefined,
   }
+}
+
+export async function generateStaticParams() {
+  const products = await db.product.findMany({
+    where: getAvailableProductWhere(),
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+    select: { slug: true },
+  })
+
+  return products.map(product => ({ slug: product.slug }))
 }
 
 const CERT_COLORS: Record<string, 'green' | 'blue' | 'purple' | 'amber'> = {

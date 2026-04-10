@@ -9,7 +9,7 @@ import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import { CheckBadgeIcon, TruckIcon, ShieldCheckIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
 import { getPublicMarketplaceConfig } from '@/lib/config'
 
-export const revalidate = 60
+export const revalidate = 3600
 
 export default async function HomePage() {
   const { featured, categories, vendors, stats } = await getHomeSnapshot()

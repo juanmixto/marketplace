@@ -14,7 +14,7 @@ interface Props {
     categoria?: string
     cert?: string | string[]
     orden?: string
-    pagina?: string
+    cursor?: string
   }>
 }
 
@@ -24,12 +24,12 @@ export default async function ProductosPage({ searchParams }: Props) {
     ? Array.isArray(params.cert) ? params.cert : [params.cert]
     : []
 
-  const { products, total, page, totalPages } = await getProducts({
+  const { products, nextCursor, hasNext, hasPrev } = await getProducts({
     q: params.q,
     categorySlug: params.categoria,
     certifications: certs,
     sort: parseProductSort(params.orden),
-    page: params.pagina ? parseInt(params.pagina) : 1,
+    cursor: params.cursor,
   })
 
   const categories = await getCategories()

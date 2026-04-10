@@ -3,6 +3,11 @@ import type { Prisma } from '@/generated/prisma/client'
 
 export type AuditValue = Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput
 
+export interface AuditPayload<TBefore = unknown, TAfter = TBefore> {
+  before: TBefore | null
+  after: TAfter | null
+}
+
 export interface AuditLogInput {
   action: string
   entityType: string
@@ -66,6 +71,16 @@ export async function createAuditLog(
       entityId: input.entityId,
       error,
     })
+  }
+}
+
+export function readAuditPayload<TBefore = unknown, TAfter = TBefore>(entry: {
+  before: unknown
+  after: unknown
+}): AuditPayload<TBefore, TAfter> {
+  return {
+    before: (entry.before ?? null) as TBefore | null,
+    after: (entry.after ?? null) as TAfter | null,
   }
 }
 

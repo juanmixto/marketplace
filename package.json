@@ -13,6 +13,7 @@
     "prisma:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "node --env-file=.env --env-file-if-exists=.env.local --import tsx prisma/seed.ts",
+    "db:clear-demo": "node --env-file=.env --env-file-if-exists=.env.local --import tsx scripts/clear-demo-data.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset --force && npm run db:seed"
   },

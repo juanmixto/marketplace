@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  assertProviderRefForPaymentStatus,
   doesWebhookPaymentMatchStoredPayment,
   shouldApplyPaymentFailed,
   shouldApplyPaymentSucceeded,
@@ -69,6 +70,26 @@ test('shouldApplyPaymentFailed returns false for an already failed payment', () 
       orderStatus: 'PLACED',
     }),
     false
+  )
+})
+
+test('assertProviderRefForPaymentStatus rejects successful transitions without providerRef', () => {
+  assert.throws(
+    () =>
+      assertProviderRefForPaymentStatus({
+        providerRef: null,
+        nextStatus: 'SUCCEEDED',
+      }),
+    /providerRef requerido/i
+  )
+})
+
+test('assertProviderRefForPaymentStatus allows pending payments without providerRef', () => {
+  assert.doesNotThrow(() =>
+    assertProviderRefForPaymentStatus({
+      providerRef: null,
+      nextStatus: 'PENDING',
+    })
   )
 })
 

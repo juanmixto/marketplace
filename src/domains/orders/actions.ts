@@ -11,13 +11,15 @@ import {
   orderItemsSchema,
   type CheckoutFormData,
 } from '@/domains/orders/checkout'
-import { shouldApplyPaymentSucceeded } from '@/domains/payments/webhook'
+import { orderLineSnapshotSchema } from '@/types/order'
+import { assertProviderRefForPaymentStatus, shouldApplyPaymentSucceeded } from '@/domains/payments/webhook'
 import { getServerEnv } from '@/lib/env'
 import { getAvailableProductWhere } from '@/domains/catalog/availability'
 import { getAvailableStockForPurchase, getSelectedVariant, getVariantAdjustedPrice, productRequiresVariantSelection } from '@/domains/catalog/variants'
 import { getShippingCost } from '@/domains/shipping/calculator'
 import { getActionSession } from '@/lib/action-session'
 import { safeRevalidatePath } from '@/lib/revalidate'
+import { createPaymentConfirmedEventPayload } from '@/domains/orders/order-event-payload'
 
 export interface CartItemInput {
   productId: string
@@ -89,7 +91,7 @@ export async function createOrder(
       quantity: item.quantity,
       unitPrice: getVariantAdjustedPrice(Number(product.basePrice), selectedVariant),
       taxRate: product.taxRate,
-      productSnapshot: {
+      productSnapshot: orderLineSnapshotSchema.parse({
         id: product.id,
         name: product.name,
         slug: product.slug,
@@ -97,7 +99,7 @@ export async function createOrder(
         unit: product.unit,
         vendorName: product.vendor.displayName,
         variantName: selectedVariant?.name ?? null,
-      },
+      }),
     }
   })
 
@@ -229,6 +231,10 @@ export async function confirmOrder(orderId: string, providerRef: string) {
   if (payment.order.customerId !== session.user.id) {
     throw new Error('No puedes confirmar un pedido que no te pertenece')
   }
+  assertProviderRefForPaymentStatus({
+    providerRef: payment.providerRef,
+    nextStatus: 'SUCCEEDED',
+  })
 
   if (!shouldApplyPaymentSucceeded({
     paymentStatus: payment.status,
@@ -257,7 +263,11 @@ export async function confirmOrder(orderId: string, providerRef: string) {
 
     if (paymentUpdate.count > 0 || orderUpdate.count > 0) {
       await tx.orderEvent.create({
-        data: { orderId, type: 'PAYMENT_CONFIRMED', payload: { providerRef, source: 'manual-confirm' } },
+        data: {
+          orderId,
+          type: 'PAYMENT_CONFIRMED',
+          payload: createPaymentConfirmedEventPayload({ providerRef, source: 'manual-confirm' }),
+        },
       })
     }
   })

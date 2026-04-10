@@ -14,7 +14,7 @@ export interface ResolveCommissionRateInput {
   rules: CommissionRuleLike[]
 }
 
-export function resolveCommissionRule({
+function resolveCommissionRule({
   vendorId,
   categoryId,
   rules,
@@ -35,12 +35,25 @@ export function resolveCommissionRule({
   return null
 }
 
-export function resolveCommissionRate(input: ResolveCommissionRateInput) {
+function resolveCommissionRate(input: ResolveCommissionRateInput) {
   const matchedRule = resolveCommissionRule(input)
   return matchedRule ? matchedRule.rate : input.vendorRate
 }
 
-export async function getCommissionRate(vendorId: string, categoryId?: string) {
+export async function resolveEffectiveCommissionRate(
+  vendorId: string,
+  categoryId?: string,
+  injected?: Omit<ResolveCommissionRateInput, 'vendorId' | 'categoryId'>
+) {
+  if (injected) {
+    return resolveCommissionRate({
+      vendorId,
+      categoryId,
+      vendorRate: injected.vendorRate,
+      rules: injected.rules,
+    })
+  }
+
   const { db } = await import('@/lib/db')
 
   const [vendor, rules] = await Promise.all([
