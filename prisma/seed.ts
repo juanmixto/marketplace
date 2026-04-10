@@ -687,11 +687,13 @@ async function main() {
     })
   }
 
-  await db.commissionRule.upsert({
-    where: { id: 'global-rule' },
-    update: { type: 'PERCENTAGE', rate: 0.12, isActive: true },
-    create: { id: 'global-rule', type: 'PERCENTAGE', rate: 0.12, isActive: true },
-  })
+  // Global commission rule - commented out as it violates the check constraint
+  // (CommissionRule requires at least vendorId or categoryId)
+  // await db.commissionRule.upsert({
+  //   where: { id: 'global-rule' },
+  //   update: { type: 'PERCENTAGE', rate: 0.12, isActive: true },
+  //   create: { id: 'global-rule', type: 'PERCENTAGE', rate: 0.12, isActive: true },
+  // })
 
   for (const category of categories) {
     await db.category.upsert({
