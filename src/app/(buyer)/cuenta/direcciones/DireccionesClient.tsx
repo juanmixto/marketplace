@@ -148,21 +148,21 @@ export function DireccionesClient() {
   }
 
   if (loading) {
-    return <div className="text-center text-gray-600">Cargando direcciones...</div>
+    return <div className="text-center text-[var(--muted)]">Cargando direcciones...</div>
   }
 
   return (
     <div className="space-y-6">
       {error && (
-        <div className="rounded-lg bg-red-50 p-4 text-red-800">
+        <div className="rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30 p-4 text-red-800 dark:text-red-300">
           ✗ {error}
         </div>
       )}
 
       {/* Form */}
       {showForm && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-6">
-          <h2 className="mb-4 text-lg font-semibold">
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
+          <h2 className="mb-4 text-lg font-semibold text-[var(--foreground)]">
             {editingId ? 'Editar dirección' : 'Añadir nueva dirección'}
           </h2>
 
@@ -170,94 +170,94 @@ export function DireccionesClient() {
             <div className="grid gap-4 md:grid-cols-2">
               {/* Label */}
               <div>
-                <label className="block text-sm font-medium text-gray-700">Etiqueta</label>
+                <label className="block text-sm font-medium text-[var(--foreground)]">Etiqueta</label>
                 <input
                   {...register('label')}
                   placeholder="Casa, Trabajo..."
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
-                {errors.label && <p className="mt-1 text-xs text-red-600">{errors.label.message}</p>}
+                {errors.label && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.label.message}</p>}
               </div>
 
               {/* FirstName */}
               <div>
-                <label className="block text-sm font-medium text-gray-700">Nombre *</label>
+                <label className="block text-sm font-medium text-[var(--foreground)]">Nombre *</label>
                 <input
                   {...register('firstName')}
                   placeholder="Juan"
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
-                {errors.firstName && <p className="mt-1 text-xs text-red-600">{errors.firstName.message}</p>}
+                {errors.firstName && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.firstName.message}</p>}
               </div>
 
               {/* LastName */}
               <div>
-                <label className="block text-sm font-medium text-gray-700">Apellidos *</label>
+                <label className="block text-sm font-medium text-[var(--foreground)]">Apellidos *</label>
                 <input
                   {...register('lastName')}
                   placeholder="García"
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
-                {errors.lastName && <p className="mt-1 text-xs text-red-600">{errors.lastName.message}</p>}
+                {errors.lastName && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.lastName.message}</p>}
               </div>
 
               {/* Line1 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700">Dirección *</label>
+                <label className="block text-sm font-medium text-[var(--foreground)]">Dirección *</label>
                 <input
                   {...register('line1')}
                   placeholder="Calle Mayor 1, 2º B"
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
-                {errors.line1 && <p className="mt-1 text-xs text-red-600">{errors.line1.message}</p>}
+                {errors.line1 && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.line1.message}</p>}
               </div>
 
               {/* Line2 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700">Piso/Puerta</label>
+                <label className="block text-sm font-medium text-[var(--foreground)]">Piso/Puerta</label>
                 <input
                   {...register('line2')}
                   placeholder="Apto 4B"
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
-                {errors.line2 && <p className="mt-1 text-xs text-red-600">{errors.line2.message}</p>}
+                {errors.line2 && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.line2.message}</p>}
               </div>
 
               {/* City */}
               <div>
-                <label className="block text-sm font-medium text-gray-700">Ciudad *</label>
+                <label className="block text-sm font-medium text-[var(--foreground)]">Ciudad *</label>
                 <input
                   {...register('city')}
                   placeholder="Madrid"
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
-                {errors.city && <p className="mt-1 text-xs text-red-600">{errors.city.message}</p>}
+                {errors.city && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.city.message}</p>}
               </div>
 
               {/* Province */}
               <div>
-                <label className="block text-sm font-medium text-gray-700">Provincia *</label>
+                <label className="block text-sm font-medium text-[var(--foreground)]">Provincia *</label>
                 <select
                   {...register('province')}
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 >
                   <option value="">Selecciona provincia...</option>
                   {SPANISH_PROVINCES.map(p => (
                     <option key={p} value={p}>{p}</option>
                   ))}
                 </select>
-                {errors.province && <p className="mt-1 text-xs text-red-600">{errors.province.message}</p>}
+                {errors.province && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.province.message}</p>}
               </div>
 
               {/* PostalCode */}
               <div>
-                <label className="block text-sm font-medium text-gray-700">Código Postal *</label>
+                <label className="block text-sm font-medium text-[var(--foreground)]">Código Postal *</label>
                 <input
                   {...register('postalCode')}
                   placeholder="28001"
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
-                {errors.postalCode && <p className="mt-1 text-xs text-red-600">{errors.postalCode.message}</p>}
+                {errors.postalCode && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.postalCode.message}</p>}
               </div>
 
               {/* IsDefault */}
@@ -266,9 +266,9 @@ export function DireccionesClient() {
                   {...register('isDefault')}
                   type="checkbox"
                   id="isDefault"
-                  className="h-4 w-4 rounded"
+                  className="h-4 w-4 rounded border-[var(--border)] accent-emerald-600"
                 />
-                <label htmlFor="isDefault" className="text-sm font-medium text-gray-700">
+                <label htmlFor="isDefault" className="text-sm font-medium text-[var(--foreground)]">
                   Establecer como predeterminada
                 </label>
               </div>
@@ -277,7 +277,7 @@ export function DireccionesClient() {
             <div className="flex gap-2 pt-2">
               <button
                 type="submit"
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 transition"
               >
                 {editingId ? 'Actualizar' : 'Guardar'}
               </button>
@@ -288,7 +288,7 @@ export function DireccionesClient() {
                   setEditingId(null)
                   reset()
                 }}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-4 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface)] transition"
               >
                 Cancelar
               </button>
@@ -301,27 +301,27 @@ export function DireccionesClient() {
       {!showForm && addresses.length > 0 && (
         <div className="space-y-4">
           {addresses.map(address => (
-            <div key={address.id} className="rounded-lg border border-gray-200 p-4">
+            <div key={address.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-4 shadow-sm">
               <div className="mb-3 flex items-start justify-between">
                 <div className="flex-1">
                   <div className="mb-1 flex items-center gap-2">
-                    <h3 className="font-semibold text-gray-900">
+                    <h3 className="font-semibold text-[var(--foreground)]">
                       {address.firstName} {address.lastName}
                     </h3>
                     {address.isDefault && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
                         <CheckIcon className="h-3 w-3" />
                         Predeterminada
                       </span>
                     )}
                   </div>
                   {address.label && (
-                    <p className="text-sm text-gray-600">{address.label}</p>
+                    <p className="text-sm text-[var(--muted)]">{address.label}</p>
                   )}
                 </div>
               </div>
 
-              <div className="mb-3 text-sm text-gray-600">
+              <div className="mb-3 text-sm text-[var(--muted)]">
                 <p>{address.line1}</p>
                 {address.line2 && <p>{address.line2}</p>}
                 <p>{address.city}, {address.province} {address.postalCode}</p>
@@ -330,7 +330,7 @@ export function DireccionesClient() {
               <div className="flex gap-2">
                 <button
                   onClick={() => handleEdit(address)}
-                  className="inline-flex items-center gap-1 text-sm font-medium text-emerald-600 hover:text-emerald-700"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
                 >
                   <PencilIcon className="h-4 w-4" />
                   Editar
@@ -338,7 +338,7 @@ export function DireccionesClient() {
                 {!address.isDefault && (
                   <button
                     onClick={() => handleSetDefault(address.id)}
-                    className="inline-flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-700"
+                    className="inline-flex items-center gap-1 text-sm font-medium text-[var(--muted)] hover:text-[var(--foreground)]"
                   >
                     Establecer como predeterminada
                   </button>
@@ -346,7 +346,7 @@ export function DireccionesClient() {
                 <button
                   onClick={() => handleDelete(address.id)}
                   disabled={deleting === address.id}
-                  className="ml-auto inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+                  className="ml-auto inline-flex items-center gap-1 text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 disabled:opacity-50"
                 >
                   <TrashIcon className="h-4 w-4" />
                   Eliminar
@@ -359,8 +359,8 @@ export function DireccionesClient() {
 
       {/* Empty State */}
       {!showForm && addresses.length === 0 && (
-        <div className="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
-          <p className="text-gray-600">No tienes direcciones guardadas.</p>
+        <div className="rounded-lg border-2 border-dashed border-[var(--border)] bg-[var(--surface-raised)] p-8 text-center shadow-sm">
+          <p className="text-[var(--muted)]">No tienes direcciones guardadas.</p>
         </div>
       )}
 
@@ -371,7 +371,7 @@ export function DireccionesClient() {
             setShowForm(true)
             reset()
           }}
-          className="rounded-lg bg-emerald-600 px-4 py-2 font-medium text-white hover:bg-emerald-700"
+          className="rounded-lg bg-emerald-600 dark:bg-emerald-500 px-4 py-2 font-medium text-white hover:bg-emerald-700 dark:hover:bg-emerald-600 transition"
         >
           + Añadir dirección
         </button>

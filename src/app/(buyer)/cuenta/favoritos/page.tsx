@@ -35,15 +35,15 @@ export default async function Favoritos() {
   })
 
   return (
-    <main className="space-y-6">
+    <main className="space-y-6 max-w-3xl mx-auto px-4 py-10 sm:px-6 lg:px-8">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Mis favoritos</h1>
-        <p className="mt-2 text-gray-600">
+        <h1 className="text-3xl font-bold text-[var(--foreground)]">Mis favoritos</h1>
+        <p className="mt-2 text-[var(--muted)]">
           Productos que has marcado como favoritos
         </p>
       </div>
 
-      <div className="rounded-lg bg-white p-6 shadow">
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
         <FavoritosClient initialFavorites={favorites} />
       </div>
     </main>
