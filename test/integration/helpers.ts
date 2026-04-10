@@ -56,6 +56,8 @@ export async function createVendorUser() {
       slug: `vendor-${randomUUID().slice(0, 8)}`,
       displayName: 'Vendor Test',
       status: 'ACTIVE',
+      stripeOnboarded: true,
+      stripeAccountId: `acct_test_${randomUUID().replace(/-/g, '')}`,
     },
   })
 

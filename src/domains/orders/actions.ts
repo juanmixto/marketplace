@@ -160,35 +160,9 @@ export async function createOrder(
   // Create order in transaction
   const env = getServerEnv()
   const order = await db.$transaction(async tx => {
-    const order = await tx.order.create({
-      data: {
-        orderNumber: generateOrderNumber(),
-        customerId: session.user.id,
-        addressId: addressId ?? null,
-        subtotal,
-        shippingCost,
-        taxAmount,
-        grandTotal,
-        status: 'PLACED',
-        paymentStatus: 'PENDING',
-        lines: { create: lines },
-        payments: {
-          create: {
-            provider: env.paymentProvider === 'mock' ? 'mock' : 'stripe',
-            providerRef: payment.id,
-            amount: grandTotal,
-            currency: 'EUR',
-            status: 'PENDING',
-          },
-        },
-        fulfillments: {
-          create: vendorIds.map(vendorId => ({ vendorId, status: 'PENDING' })),
-        },
-      },
-    })
-
-    // Validate and decrement stock with pessimistic locking (SELECT FOR UPDATE)
-    // This prevents race conditions where multiple concurrent orders could over-sell
+    // Lock and decrement stock before creating the order record.
+    // Doing this first reduces the chance of deadlocks when several buyers
+    // try to checkout the same product at the same time.
     for (const line of lines) {
       const product = products.find(p => p.id === line.productId)
       if (!product?.trackStock) continue
@@ -242,7 +216,32 @@ export async function createOrder(
       }
     }
 
-    return order
+    return tx.order.create({
+      data: {
+        orderNumber: generateOrderNumber(),
+        customerId: session.user.id,
+        addressId: addressId ?? null,
+        subtotal,
+        shippingCost,
+        taxAmount,
+        grandTotal,
+        status: 'PLACED',
+        paymentStatus: 'PENDING',
+        lines: { create: lines },
+        payments: {
+          create: {
+            provider: env.paymentProvider === 'mock' ? 'mock' : 'stripe',
+            providerRef: payment.id,
+            amount: grandTotal,
+            currency: 'EUR',
+            status: 'PENDING',
+          },
+        },
+        fulfillments: {
+          create: vendorIds.map(vendorId => ({ vendorId, status: 'PENDING' })),
+        },
+      },
+    })
   })
 
   return {

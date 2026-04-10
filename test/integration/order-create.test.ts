@@ -260,15 +260,14 @@ const CHECKOUT_FORM = {
 test('concurrent orders for last unit: only one succeeds, stock never goes negative', async () => {
   const { vendor } = await createVendorUser()
   const product = await createActiveProduct(vendor.id, { stock: 1 })
+  const customer = await createUser('CUSTOMER')
+  useTestSession(buildSession(customer.id, 'CUSTOMER'))
 
-  // Ten customers all race to buy the last unit
+  // Ten concurrent attempts from the same customer race to buy the last unit.
+  // Keeping a single test session avoids races on the global auth test helper.
   const CONCURRENCY = 10
   const results = await Promise.allSettled(
-    Array.from({ length: CONCURRENCY }, async () => {
-      const customer = await createUser('CUSTOMER')
-      useTestSession(buildSession(customer.id, 'CUSTOMER'))
-      return createOrder([{ productId: product.id, quantity: 1 }], CHECKOUT_FORM)
-    })
+    Array.from({ length: CONCURRENCY }, () => createOrder([{ productId: product.id, quantity: 1 }], CHECKOUT_FORM))
   )
 
   const succeeded = results.filter(r => r.status === 'fulfilled')
