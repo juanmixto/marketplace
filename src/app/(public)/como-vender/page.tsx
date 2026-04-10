@@ -136,7 +136,7 @@ export default function ComoVender() {
           <h2 className="mb-4 text-center text-3xl font-bold text-foreground">
             Precios y comisiones
           </h2>
-          <p className="mb-8 text-center text-gray-600">
+          <p className="mb-8 text-center text-[var(--muted)]">
             Transparentes y justos. Solo pagas cuando vendes.
           </p>
 
@@ -147,7 +147,7 @@ export default function ComoVender() {
             <div className="space-y-2 text-left">
               <div className="flex justify-between">
                 <span>Vendes un producto por</span>
-                <strong className="text-green-600">€10,00</strong>
+                <strong className="text-accent">€10,00</strong>
               </div>
               <div className="border-t border-border pt-2">
                 <div className="flex justify-between text-foreground-soft">
@@ -155,14 +155,14 @@ export default function ComoVender() {
                   <span>-€1,20</span>
                 </div>
               </div>
-              <div className="border-t-2 border-gray-900 pt-2">
+              <div className="border-t-2 border-[var(--foreground)] pt-2">
                 <div className="flex justify-between">
                   <strong>Tú recibes</strong>
                   <strong className="text-accent">€8,80</strong>
                 </div>
               </div>
             </div>
-            <p className="mt-6 text-sm text-gray-500">
+            <p className="mt-6 text-sm text-[var(--muted)]">
               Sin cuotas mensuales. Sin costes ocultos.
             </p>
           </div>
@@ -179,12 +179,12 @@ export default function ComoVender() {
           <div className="space-y-6">
             {steps.map((step) => (
               <div key={step.num} className="flex gap-6">
-                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white font-bold">
+                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-accent text-white font-bold">
                   {step.num}
                 </div>
                 <div className="flex flex-col justify-center">
                   <h3 className="font-semibold text-foreground">{step.title}</h3>
-                  <p className="text-sm text-gray-600">{step.desc}</p>
+                  <p className="text-sm text-[var(--muted)]">{step.desc}</p>
                 </div>
               </div>
             ))}
@@ -201,20 +201,20 @@ export default function ComoVender() {
 
           <div className="space-y-4">
             <div className="flex gap-4">
-              <CheckCircleIcon className="h-6 w-6 flex-shrink-0 text-emerald-600" />
-              <p className="text-gray-700">Ser productor/agricultor registrado en España</p>
+              <CheckCircleIcon className="h-6 w-6 flex-shrink-0 text-accent" />
+              <p className="text-[var(--foreground-soft)]">Ser productor/agricultor registrado en España</p>
             </div>
             <div className="flex gap-4">
-              <CheckCircleIcon className="h-6 w-6 flex-shrink-0 text-emerald-600" />
-              <p className="text-gray-700">Tener cuenta bancaria española (IBAN) para cobrar</p>
+              <CheckCircleIcon className="h-6 w-6 flex-shrink-0 text-accent" />
+              <p className="text-[var(--foreground-soft)]">Tener cuenta bancaria española (IBAN) para cobrar</p>
             </div>
             <div className="flex gap-4">
-              <CheckCircleIcon className="h-6 w-6 flex-shrink-0 text-emerald-600" />
-              <p className="text-gray-700">Productos alimentarios con origen verificable</p>
+              <CheckCircleIcon className="h-6 w-6 flex-shrink-0 text-accent" />
+              <p className="text-[var(--foreground-soft)]">Productos alimentarios con origen verificable</p>
             </div>
             <div className="flex gap-4">
-              <CheckCircleIcon className="h-6 w-6 flex-shrink-0 text-emerald-600" />
-              <p className="text-gray-700">Cumplimiento de normativa sanitaria aplicable</p>
+              <CheckCircleIcon className="h-6 w-6 flex-shrink-0 text-accent" />
+              <p className="text-[var(--foreground-soft)]">Cumplimiento de normativa sanitaria aplicable</p>
             </div>
           </div>
         </div>
@@ -231,13 +231,13 @@ export default function ComoVender() {
           </p>
           <Link
             href="/register?rol=productor"
-            className="rounded-lg bg-emerald-600 px-10 py-4 text-lg font-semibold text-white transition-colors hover:bg-emerald-700"
+            className="rounded-lg bg-accent px-10 py-4 text-lg font-semibold text-white transition-colors hover:bg-accent-hover"
           >
             Crear cuenta de productor
           </Link>
-          <p className="mt-6 text-sm text-gray-600">
-            ¿Dudas? Consulta nuestro <Link href="/faq" className="font-semibold text-emerald-600 hover:underline">FAQ</Link> o{' '}
-            <Link href="/contacto" className="font-semibold text-emerald-600 hover:underline">
+          <p className="mt-6 text-sm text-[var(--muted)]">
+            ¿Dudas? Consulta nuestro <Link href="/faq" className="font-semibold text-accent hover:underline">FAQ</Link> o{' '}
+            <Link href="/contacto" className="font-semibold text-accent hover:underline">
               contacta
             </Link>
           </p>

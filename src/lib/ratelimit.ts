@@ -19,6 +19,7 @@ interface RateLimitEntry {
 const inMemoryStore = new Map<string, RateLimitEntry>()
 
 // Cleanup old entries every 5 minutes
+// .unref() ensures this timer doesn't keep the process alive (e.g. during tests)
 setInterval(() => {
   const now = Date.now()
   for (const [key, entry] of inMemoryStore.entries()) {
@@ -26,7 +27,7 @@ setInterval(() => {
       inMemoryStore.delete(key)
     }
   }
-}, 5 * 60 * 1000)
+}, 5 * 60 * 1000).unref()
 
 export interface RateLimitResult {
   success: boolean
