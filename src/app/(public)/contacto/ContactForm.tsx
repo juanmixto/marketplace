@@ -72,7 +72,7 @@ export function ContactForm() {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Success message */}
       {success && (
-        <div className="rounded-lg bg-emerald-50 p-4 text-emerald-800">
+        <div className="rounded-lg bg-accent-soft p-4 text-foreground">
           ✓ Mensaje recibido. Nos pondremos en contacto en breve.
         </div>
       )}
@@ -86,7 +86,7 @@ export function ContactForm() {
 
       {/* Nombre */}
       <div>
-        <label htmlFor="nombre" className="block text-sm font-medium text-gray-900">
+        <label htmlFor="nombre" className="block text-sm font-medium text-foreground">
           Nombre *
         </label>
         <input
@@ -94,14 +94,14 @@ export function ContactForm() {
           type="text"
           id="nombre"
           placeholder="Tu nombre"
-          className="mt-2 block w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-900 placeholder-gray-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+          className="mt-2 block w-full rounded-lg border border-border px-4 py-2 text-foreground placeholder-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft"
         />
         {errors.nombre && <p className="mt-1 text-sm text-red-600">{errors.nombre.message}</p>}
       </div>
 
       {/* Email */}
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-900">
+        <label htmlFor="email" className="block text-sm font-medium text-foreground">
           Email *
         </label>
         <input
@@ -109,20 +109,20 @@ export function ContactForm() {
           type="email"
           id="email"
           placeholder="tu@email.com"
-          className="mt-2 block w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-900 placeholder-gray-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+          className="mt-2 block w-full rounded-lg border border-border px-4 py-2 text-foreground placeholder-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft"
         />
         {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>}
       </div>
 
       {/* Asunto */}
       <div>
-        <label htmlFor="asunto" className="block text-sm font-medium text-gray-900">
+        <label htmlFor="asunto" className="block text-sm font-medium text-foreground">
           Asunto *
         </label>
         <select
           {...register('asunto')}
           id="asunto"
-          className="mt-2 block w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+          className="mt-2 block w-full rounded-lg border border-border px-4 py-2 text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft"
         >
           <option value="">Elige un asunto...</option>
           {Object.entries(asuntoLabels).map(([key, label]) => (
@@ -136,7 +136,7 @@ export function ContactForm() {
 
       {/* Mensaje */}
       <div>
-        <label htmlFor="mensaje" className="block text-sm font-medium text-gray-900">
+        <label htmlFor="mensaje" className="block text-sm font-medium text-foreground">
           Mensaje *
         </label>
         <textarea
@@ -144,7 +144,7 @@ export function ContactForm() {
           id="mensaje"
           rows={5}
           placeholder="Cuéntanos lo que necesitas..."
-          className="mt-2 block w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-900 placeholder-gray-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+          className="mt-2 block w-full rounded-lg border border-border px-4 py-2 text-foreground placeholder-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft"
         />
         {errors.mensaje && <p className="mt-1 text-sm text-red-600">{errors.mensaje.message}</p>}
       </div>
@@ -155,11 +155,11 @@ export function ContactForm() {
           {...register('privacidad')}
           type="checkbox"
           id="privacidad"
-          className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+          className="mt-1 h-4 w-4 rounded border-border text-accent focus:ring-accent"
         />
-        <label htmlFor="privacidad" className="text-sm text-gray-700">
+        <label htmlFor="privacidad" className="text-sm text-foreground-soft">
           He leído y acepto la{' '}
-          <a href="/privacidad" className="text-emerald-600 hover:underline">
+          <a href="/privacidad" className="text-accent hover:underline">
             Política de Privacidad
           </a>
           {errors.privacidad && <span className="text-red-600">*</span>}
@@ -171,7 +171,7 @@ export function ContactForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full rounded-lg bg-accent px-4 py-3 font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? 'Enviando...' : 'Enviar mensaje'}
       </button>

@@ -96,7 +96,7 @@ export default async function ProductosPage({ searchParams }: Props) {
                         .filter(([, v]) => v !== undefined) as [string, string][]
                     )
                   )}`}
-                  className="flex h-9 items-center gap-1.5 rounded-xl bg-emerald-600 px-4 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400"
+                  className="flex h-9 items-center gap-1.5 rounded-xl bg-accent px-4 text-sm font-medium text-white shadow-sm transition hover:bg-accent-hover dark:bg-accent dark:text-white dark:hover:bg-accent-hover"
                 >
                   Siguiente →
                 </a>

@@ -75,26 +75,26 @@ const steps = [
 
 export default function ComoVender() {
   return (
-    <main className="bg-white">
+    <main className="bg-surface">
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-b from-emerald-50 to-white px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
-          <h1 className="mb-6 text-5xl font-bold text-gray-900">
+          <h1 className="mb-6 text-5xl font-bold text-foreground">
             Vende tus productos directamente
           </h1>
-          <p className="mb-8 text-xl text-gray-600">
+          <p className="mb-8 text-xl text-foreground-soft">
             Únete a +150 productores que ya cobran <strong>sin intermediarios</strong>. En Mercado Productor, tú fijas los precios.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Link
               href="/register?rol=productor"
-              className="rounded-lg bg-emerald-600 px-8 py-4 font-semibold text-white transition-colors hover:bg-emerald-700"
+              className="rounded-lg bg-accent px-8 py-4 font-semibold text-white transition-colors hover:bg-accent-hover"
             >
               Empezar a vender gratis
             </Link>
             <Link
               href="/como-funciona"
-              className="rounded-lg border-2 border-emerald-600 px-8 py-4 font-semibold text-emerald-600 transition-colors hover:bg-emerald-50"
+              className="rounded-lg border-2 border-accent px-8 py-4 font-semibold text-accent transition-colors hover:bg-accent-soft"
             >
               Ver cómo funciona
             </Link>
@@ -105,10 +105,10 @@ export default function ComoVender() {
       {/* Por qué */}
       <section className="px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-5xl">
-          <h2 className="mb-4 text-center text-3xl font-bold text-gray-900">
+          <h2 className="mb-4 text-center text-3xl font-bold text-foreground">
             ¿Por qué Mercado Productor?
           </h2>
-          <p className="mb-12 text-center text-lg text-gray-600">
+          <p className="mb-12 text-center text-lg text-foreground-soft">
             6 razones por las que +150 productores locales han elegido vender con nosotros
           </p>
 
@@ -118,11 +118,11 @@ export default function ComoVender() {
               return (
                 <div
                   key={i}
-                  className="rounded-lg border border-emerald-100 bg-emerald-50 p-6"
+                  className="rounded-lg border border-accent-soft bg-accent-soft p-6"
                 >
-                  <Icon className="mb-4 h-8 w-8 text-emerald-600" />
-                  <h3 className="mb-2 font-semibold text-gray-900">{benefit.title}</h3>
-                  <p className="text-sm text-gray-600">{benefit.description}</p>
+                  <Icon className="mb-4 h-8 w-8 text-accent" />
+                  <h3 className="mb-2 font-semibold text-foreground">{benefit.title}</h3>
+                  <p className="text-sm text-foreground-soft">{benefit.description}</p>
                 </div>
               )
             })}
@@ -131,26 +131,26 @@ export default function ComoVender() {
       </section>
 
       {/* Precios */}
-      <section className="bg-gray-50 px-4 py-16 sm:px-6 lg:px-8">
+      <section className="bg-surface-raised px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl">
-          <h2 className="mb-4 text-center text-3xl font-bold text-gray-900">
+          <h2 className="mb-4 text-center text-3xl font-bold text-foreground">
             Precios y comisiones
           </h2>
           <p className="mb-8 text-center text-gray-600">
             Transparentes y justos. Solo pagas cuando vendes.
           </p>
 
-          <div className="rounded-lg border-2 border-emerald-600 bg-white p-8 text-center">
-            <p className="mb-4 text-gray-600">Comisión de plataforma:</p>
-            <p className="mb-8 text-5xl font-bold text-emerald-600">12%</p>
-            <h3 className="mb-6 text-lg font-semibold text-gray-900">Ejemplo</h3>
+          <div className="rounded-lg border-2 border-accent bg-surface p-8 text-center">
+            <p className="mb-4 text-foreground-soft">Comisión de plataforma:</p>
+            <p className="mb-8 text-5xl font-bold text-accent">12%</p>
+            <h3 className="mb-6 text-lg font-semibold text-foreground">Ejemplo</h3>
             <div className="space-y-2 text-left">
               <div className="flex justify-between">
                 <span>Vendes un producto por</span>
                 <strong className="text-green-600">€10,00</strong>
               </div>
-              <div className="border-t border-gray-200 pt-2">
-                <div className="flex justify-between text-gray-600">
+              <div className="border-t border-border pt-2">
+                <div className="flex justify-between text-foreground-soft">
                   <span>Comisión 12%</span>
                   <span>-€1,20</span>
                 </div>
@@ -158,7 +158,7 @@ export default function ComoVender() {
               <div className="border-t-2 border-gray-900 pt-2">
                 <div className="flex justify-between">
                   <strong>Tú recibes</strong>
-                  <strong className="text-emerald-600">€8,80</strong>
+                  <strong className="text-accent">€8,80</strong>
                 </div>
               </div>
             </div>
@@ -172,7 +172,7 @@ export default function ComoVender() {
       {/* Pasos */}
       <section className="px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl">
-          <h2 className="mb-12 text-center text-3xl font-bold text-gray-900">
+          <h2 className="mb-12 text-center text-3xl font-bold text-foreground">
             Así de sencillo. 6 pasos.
           </h2>
 
@@ -183,7 +183,7 @@ export default function ComoVender() {
                   {step.num}
                 </div>
                 <div className="flex flex-col justify-center">
-                  <h3 className="font-semibold text-gray-900">{step.title}</h3>
+                  <h3 className="font-semibold text-foreground">{step.title}</h3>
                   <p className="text-sm text-gray-600">{step.desc}</p>
                 </div>
               </div>
@@ -193,9 +193,9 @@ export default function ComoVender() {
       </section>
 
       {/* Requisitos */}
-      <section className="bg-gray-50 px-4 py-16 sm:px-6 lg:px-8">
+      <section className="bg-surface-raised px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl">
-          <h2 className="mb-8 text-center text-3xl font-bold text-gray-900">
+          <h2 className="mb-8 text-center text-3xl font-bold text-foreground">
             Requisitos para unirse
           </h2>
 
@@ -223,10 +223,10 @@ export default function ComoVender() {
       {/* CTA final */}
       <section className="px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="mb-6 text-4xl font-bold text-gray-900">
+          <h2 className="mb-6 text-4xl font-bold text-foreground">
             ¿Listo para empezar?
           </h2>
-          <p className="mb-8 text-xl text-gray-600">
+          <p className="mb-8 text-xl text-foreground-soft">
             Regístrate hoy, sin compromisos. La verificación toma 24-48 horas.
           </p>
           <Link

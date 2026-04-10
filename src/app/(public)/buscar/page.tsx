@@ -33,12 +33,12 @@ export default async function BuscarPage({ searchParams }: Props) {
   if (!params.q || params.q.trim() === '') {
     return (
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="rounded-lg bg-blue-50 p-8 text-center">
-          <p className="text-lg font-semibold text-blue-900">¿Qué estás buscando?</p>
-          <p className="mt-2 text-blue-700">Usa el campo de búsqueda para encontrar productos</p>
+        <div className="rounded-lg bg-surface-raised p-8 text-center">
+          <p className="text-lg font-semibold text-foreground">¿Qué estás buscando?</p>
+          <p className="mt-2 text-foreground-soft">Usa el campo de búsqueda para encontrar productos</p>
           <Link
             href="/productos"
-            className="mt-4 inline-block text-emerald-600 hover:underline"
+            className="mt-4 inline-block text-accent hover:underline"
           >
             Ver todos los productos
           </Link>
@@ -99,13 +99,13 @@ export default async function BuscarPage({ searchParams }: Props) {
               <div className="flex flex-col gap-3 sm:flex-row justify-center">
                 <Link
                   href="/productos"
-                  className="inline-block rounded-lg bg-emerald-600 px-6 py-2 font-semibold text-white hover:bg-emerald-700"
+                  className="inline-block rounded-lg bg-accent px-6 py-2 font-semibold text-white hover:bg-accent-hover"
                 >
                   Ver todos los productos
                 </Link>
                 <Link
                   href="/productos?categoria=frutas"
-                  className="inline-block rounded-lg border-2 border-emerald-600 px-6 py-2 font-semibold text-emerald-600 hover:bg-emerald-50"
+                  className="inline-block rounded-lg border-2 border-accent px-6 py-2 font-semibold text-accent hover:bg-accent-soft"
                 >
                   Explorar por categoría
                 </Link>
@@ -125,7 +125,7 @@ export default async function BuscarPage({ searchParams }: Props) {
                   {hasPrev && (
                     <a
                       href={`?q=${encodeURIComponent(params.q || '')}${params.categoria ? `&categoria=${params.categoria}` : ''}${params.orden ? `&orden=${params.orden}` : ''}`}
-                      className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-raised"
                     >
                       ← Anterior
                     </a>
@@ -133,7 +133,7 @@ export default async function BuscarPage({ searchParams }: Props) {
                   {hasNext && (
                     <a
                       href={`?q=${encodeURIComponent(params.q || '')}&cursor=${nextCursor}${params.categoria ? `&categoria=${params.categoria}` : ''}${params.orden ? `&orden=${params.orden}` : ''}`}
-                      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                      className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
                     >
                       Siguiente →
                     </a>

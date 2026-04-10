@@ -121,14 +121,14 @@ const faqs = [
 
 export default function FAQ() {
   return (
-    <main className="bg-white">
+    <main className="bg-surface">
       {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-emerald-50 to-white px-4 py-20 sm:px-6 lg:px-8">
+      <section className="relative overflow-hidden bg-gradient-to-b from-accent-soft to-surface px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
-          <h1 className="mb-6 text-5xl font-bold text-gray-900">
+          <h1 className="mb-6 text-5xl font-bold text-foreground">
             Preguntas frecuentes
           </h1>
-          <p className="mb-8 text-xl text-gray-600">
+          <p className="mb-8 text-xl text-foreground-soft">
             Encuentra respuestas a las preguntas más comunes sobre Mercado Productor.
           </p>
         </div>
@@ -140,7 +140,7 @@ export default function FAQ() {
           <div className="space-y-12">
             {faqs.map((section, sectionIdx) => (
               <div key={sectionIdx}>
-                <h2 className="mb-6 text-2xl font-bold text-gray-900">
+                <h2 className="mb-6 text-2xl font-bold text-foreground">
                   {section.category}
                 </h2>
 
@@ -148,15 +148,15 @@ export default function FAQ() {
                   {section.questions.map((faq, qIdx) => (
                     <details
                       key={qIdx}
-                      className="group rounded-lg border border-gray-200 bg-white p-6 hover:shadow-md transition-shadow"
+                      className="group rounded-lg border border-border bg-surface p-6 hover:shadow-md transition-shadow"
                     >
-                      <summary className="flex cursor-pointer items-center justify-between font-semibold text-gray-900 hover:text-emerald-600">
+                      <summary className="flex cursor-pointer items-center justify-between font-semibold text-foreground hover:text-accent">
                         <span>{faq.q}</span>
-                        <span className="text-emerald-600 transition-transform group-open:rotate-180">
+                        <span className="text-accent transition-transform group-open:rotate-180">
                           ▼
                         </span>
                       </summary>
-                      <p className="mt-4 text-gray-600">{faq.a}</p>
+                      <p className="mt-4 text-foreground-soft">{faq.a}</p>
                     </details>
                   ))}
                 </div>
@@ -167,17 +167,17 @@ export default function FAQ() {
       </section>
 
       {/* Still have questions */}
-      <section className="bg-emerald-50 px-4 py-16 sm:px-6 lg:px-8">
+      <section className="bg-accent-soft px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="mb-4 text-3xl font-bold text-gray-900">
+          <h2 className="mb-4 text-3xl font-bold text-foreground">
             ¿Aún tienes preguntas?
           </h2>
-          <p className="mb-6 text-lg text-gray-600">
+          <p className="mb-6 text-lg text-foreground-soft">
             Nuestro equipo de soporte está aquí para ayudarte
           </p>
           <Link
             href="/contacto"
-            className="inline-block rounded-lg bg-emerald-600 px-8 py-4 font-semibold text-white hover:bg-emerald-700"
+            className="inline-block rounded-lg bg-accent px-8 py-4 font-semibold text-white hover:bg-accent-hover"
           >
             Contacta con nosotros
           </Link>

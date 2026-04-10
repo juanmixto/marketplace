@@ -8,11 +8,11 @@ export const metadata: Metadata = {
 
 export default function Contacto() {
   return (
-    <main className="min-h-screen bg-white py-12 px-4 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-surface py-12 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
         <div className="mb-12 text-center">
-          <h1 className="mb-4 text-4xl font-bold text-gray-900">Contacto</h1>
-          <p className="text-lg text-gray-600">
+          <h1 className="mb-4 text-4xl font-bold text-foreground">Contacto</h1>
+          <p className="text-lg text-foreground-soft">
             ¿Tienes dudas o necesitas ayuda? Nos encantaría saber de ti.
           </p>
         </div>
@@ -21,57 +21,57 @@ export default function Contacto() {
           {/* Información de contacto */}
           <div className="space-y-8">
             <div>
-              <h2 className="mb-6 text-2xl font-bold text-gray-900">Información de contacto</h2>
+              <h2 className="mb-6 text-2xl font-bold text-foreground">Información de contacto</h2>
 
               <div className="space-y-6">
                 <div>
-                  <h3 className="font-semibold text-gray-900">Soporte general</h3>
-                  <p className="mt-1 text-gray-600">
-                    <a href="mailto:hola@mercadoproductor.es" className="text-emerald-600 hover:underline">
+                  <h3 className="font-semibold text-foreground">Soporte general</h3>
+                  <p className="mt-1 text-foreground-soft">
+                    <a href="mailto:hola@mercadoproductor.es" className="text-accent hover:underline">
                       hola@mercadoproductor.es
                     </a>
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-gray-900">Soporte con pedidos</h3>
-                  <p className="mt-1 text-gray-600">
-                    <a href="mailto:soporte@mercadoproductor.es" className="text-emerald-600 hover:underline">
+                  <h3 className="font-semibold text-foreground">Soporte con pedidos</h3>
+                  <p className="mt-1 text-foreground-soft">
+                    <a href="mailto:soporte@mercadoproductor.es" className="text-accent hover:underline">
                       soporte@mercadoproductor.es
                     </a>
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-gray-900">Para productores</h3>
-                  <p className="mt-1 text-gray-600">
-                    <a href="mailto:productores@mercadoproductor.es" className="text-emerald-600 hover:underline">
+                  <h3 className="font-semibold text-foreground">Para productores</h3>
+                  <p className="mt-1 text-foreground-soft">
+                    <a href="mailto:productores@mercadoproductor.es" className="text-accent hover:underline">
                       productores@mercadoproductor.es
                     </a>
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-gray-900">Asuntos legales</h3>
-                  <p className="mt-1 text-gray-600">
-                    <a href="mailto:legal@mercadoproductor.es" className="text-emerald-600 hover:underline">
+                  <h3 className="font-semibold text-foreground">Asuntos legales</h3>
+                  <p className="mt-1 text-foreground-soft">
+                    <a href="mailto:legal@mercadoproductor.es" className="text-accent hover:underline">
                       legal@mercadoproductor.es
                     </a>
                   </p>
                 </div>
 
                 <div className="border-t pt-6">
-                  <h3 className="font-semibold text-gray-900">Horario de atención</h3>
-                  <p className="mt-1 text-gray-600">Lunes a viernes, 9:00 - 18:00 (hora peninsular)</p>
-                  <p className="mt-1 text-sm text-gray-500">Tiempo de respuesta: 24-48 horas laborables</p>
+                  <h3 className="font-semibold text-foreground">Horario de atención</h3>
+                  <p className="mt-1 text-foreground-soft">Lunes a viernes, 9:00 - 18:00 (hora peninsular)</p>
+                  <p className="mt-1 text-sm text-muted">Tiempo de respuesta: 24-48 horas laborables</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Formulario */}
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-8">
-            <h2 className="mb-6 text-2xl font-bold text-gray-900">Envíanos un mensaje</h2>
+          <div className="rounded-lg border border-border bg-surface-raised p-8">
+            <h2 className="mb-6 text-2xl font-bold text-foreground">Envíanos un mensaje</h2>
             <ContactForm />
           </div>
         </div>

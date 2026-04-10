@@ -42,14 +42,14 @@ const steps = [
 
 export default function ComoFunciona() {
   return (
-    <main className="bg-white">
+    <main className="bg-surface">
       {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-emerald-50 to-white px-4 py-20 sm:px-6 lg:px-8">
+      <section className="relative overflow-hidden bg-gradient-to-b from-accent-soft to-surface px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
-          <h1 className="mb-6 text-5xl font-bold text-gray-900">
+          <h1 className="mb-6 text-5xl font-bold text-foreground">
             Cómo funciona
           </h1>
-          <p className="mb-8 text-xl text-gray-600">
+          <p className="mb-8 text-xl text-foreground-soft">
             Conectamos productores locales con consumidores que valoran la calidad y la proximidad. Sin intermediarios, sin sorpresas.
           </p>
         </div>
@@ -67,24 +67,24 @@ export default function ComoFunciona() {
                 <div key={step.num}>
                   <div className="flex gap-6">
                     {/* Número */}
-                    <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-2xl font-bold text-white">
+                    <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-accent text-2xl font-bold text-white">
                       {step.num}
                     </div>
 
                     {/* Contenido */}
                     <div className="flex-1 pt-1">
                       <div className="flex items-start gap-3 mb-2">
-                        <Icon className="h-6 w-6 text-emerald-600 flex-shrink-0 mt-1" />
-                        <h3 className="text-2xl font-bold text-gray-900">{step.title}</h3>
+                        <Icon className="h-6 w-6 text-accent flex-shrink-0 mt-1" />
+                        <h3 className="text-2xl font-bold text-foreground">{step.title}</h3>
                       </div>
-                      <p className="text-lg text-gray-600">{step.description}</p>
+                      <p className="text-lg text-foreground-soft">{step.description}</p>
                     </div>
                   </div>
 
                   {/* Flecha */}
                   {!isLast && (
                     <div className="ml-8 mt-6 flex justify-center">
-                      <ArrowRightIcon className="h-6 w-6 text-emerald-200 rotate-90" />
+                      <ArrowRightIcon className="h-6 w-6 text-accent-soft rotate-90" />
                     </div>
                   )}
                 </div>
@@ -95,9 +95,9 @@ export default function ComoFunciona() {
       </section>
 
       {/* Ventajas */}
-      <section className="bg-gray-50 px-4 py-16 sm:px-6 lg:px-8">
+      <section className="bg-surface-raised px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl">
-          <h2 className="mb-12 text-center text-3xl font-bold text-gray-900">
+          <h2 className="mb-12 text-center text-3xl font-bold text-foreground">
             Ventajas de comprar con nosotros
           </h2>
 
@@ -136,13 +136,13 @@ export default function ComoFunciona() {
             ].map((item, idx) => (
               <div
                 key={idx}
-                className="rounded-lg border border-emerald-100 bg-white p-6"
+                className="rounded-lg border border-border bg-surface p-6"
               >
                 <p className="mb-3 text-4xl">{item.icon}</p>
-                <h3 className="mb-2 text-lg font-semibold text-gray-900">
+                <h3 className="mb-2 text-lg font-semibold text-foreground">
                   {item.title}
                 </h3>
-                <p className="text-gray-600">{item.description}</p>
+                <p className="text-foreground-soft">{item.description}</p>
               </div>
             ))}
           </div>
@@ -152,22 +152,22 @@ export default function ComoFunciona() {
       {/* CTA */}
       <section className="px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="mb-6 text-4xl font-bold text-gray-900">
+          <h2 className="mb-6 text-4xl font-bold text-foreground">
             ¿Listo para empezar?
           </h2>
-          <p className="mb-8 text-xl text-gray-600">
+          <p className="mb-8 text-xl text-foreground-soft">
             Explora nuestro catálogo y descubre productores locales de calidad
           </p>
           <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
             <Link
               href="/productos"
-              className="inline-block rounded-lg bg-emerald-600 px-8 py-4 font-semibold text-white hover:bg-emerald-700"
+              className="inline-block rounded-lg bg-accent px-8 py-4 font-semibold text-white hover:bg-accent-hover"
             >
               Ver productos
             </Link>
             <Link
               href="/productores"
-              className="inline-block rounded-lg border-2 border-emerald-600 px-8 py-4 font-semibold text-emerald-600 hover:bg-emerald-50"
+              className="inline-block rounded-lg border-2 border-accent px-8 py-4 font-semibold text-accent hover:bg-accent-soft"
             >
               Ver productores
             </Link>
