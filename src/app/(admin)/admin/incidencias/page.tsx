@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { db } from '@/lib/db'
 import { formatDate, formatPrice } from '@/lib/utils'
 import { AdminStatusBadge } from '@/components/admin/AdminStatusBadge'
@@ -28,7 +29,11 @@ export default async function AdminIncidentsPage() {
 
       <div className="space-y-4">
         {incidents.map(incident => (
-          <div key={incident.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
+          <Link
+            key={incident.id}
+            href={`/admin/incidencias/${incident.id}`}
+            className="block rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm transition hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700"
+          >
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2">
@@ -64,7 +69,7 @@ export default async function AdminIncidentsPage() {
                 </p>
               </div>
             </div>
-          </div>
+          </Link>
         ))}
         {incidents.length === 0 && (
           <p className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--muted)] shadow-sm">
