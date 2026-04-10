@@ -49,6 +49,12 @@ type ProductInput = z.infer<typeof productSchema>
  */
 export async function createProduct(input: ProductInput) {
   const { vendor } = await requireVendor()
+
+  // Check if vendor has Stripe onboarded to accept payment
+  if (!vendor.stripeOnboarded) {
+    throw new Error('Debes configurar Stripe para poder publicar productos')
+  }
+
   const data = productSchema.parse(input)
 
   // Generate unique slug
