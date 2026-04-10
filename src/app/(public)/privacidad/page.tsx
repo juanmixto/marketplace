@@ -57,7 +57,7 @@ export default function PrivacyPage() {
             <h2 className="text-2xl font-semibold text-foreground mb-4">
               3. Base Legal del Tratamiento
             </h2>
-            <ul className="list-disc pl-5 text-[var(--foreground-soft)] space-y-1">
+            <ul className="list-disc pl-5 text-foreground-soft space-y-1">
               <li>
                 <strong>Consentimiento:</strong> Para marketing, uso de cookies no esenciales
               </li>
@@ -78,7 +78,7 @@ export default function PrivacyPage() {
             <h2 className="text-2xl font-semibold text-foreground mb-4">
               4. Tus Derechos (RGPD Arts. 12-22)
             </h2>
-            <ul className="list-disc pl-5 text-[var(--foreground-soft)] space-y-2">
+            <ul className="list-disc pl-5 text-foreground-soft space-y-2">
               <li>
                 <strong>Derecho de acceso (Art. 15):</strong> Obtener una copia de tus datos
                 personales
@@ -101,7 +101,7 @@ export default function PrivacyPage() {
                 <strong>Derecho de oposición (Art. 21):</strong> Optar por no recibir marketing
               </li>
             </ul>
-            <p className="text-[var(--foreground-soft)] mt-4">
+            <p className="mt-4 text-foreground-soft">
               Para ejercer cualquier derecho, accede a tu cuenta → Privacidad y Datos.
             </p>
           </section>
@@ -111,7 +111,7 @@ export default function PrivacyPage() {
             <h2 className="text-2xl font-semibold text-foreground mb-4">
               5. Retención de Datos
             </h2>
-            <ul className="list-disc pl-5 text-[var(--foreground-soft)] space-y-2">
+            <ul className="list-disc pl-5 text-foreground-soft space-y-2">
               <li>
                 <strong>Cuenta activa:</strong> Mientras tu cuenta esté activa
               </li>
@@ -136,7 +136,7 @@ export default function PrivacyPage() {
             <p className="text-foreground-soft">
               Implementamos medidas técnicas y organizativas para proteger tus datos:
             </p>
-            <ul className="list-disc pl-5 text-[var(--foreground-soft)] mt-3 space-y-1">
+            <ul className="mt-3 list-disc pl-5 text-foreground-soft space-y-1">
               <li>Encriptación HTTPS en tránsito</li>
               <li>Hashing de contraseñas con bcryptjs (12 rondas)</li>
               <li>Bases de datos alojadas en servidores seguros</li>
@@ -153,7 +153,7 @@ export default function PrivacyPage() {
             <p className="text-foreground-soft mb-3">
               Solo compartimos tus datos cuando es necesario:
             </p>
-            <ul className="list-disc pl-5 text-[var(--foreground-soft)] space-y-1">
+            <ul className="list-disc pl-5 text-foreground-soft space-y-1">
               <li>
                 <strong>Proveedores de pago:</strong> Stripe (procesamiento de pagos)
               </li>
@@ -190,10 +190,10 @@ export default function PrivacyPage() {
             </p>
             <div className="bg-surface-raised p-4 rounded-lg">
               <p className="text-foreground font-semibold">Responsable de Protección de Datos</p>
-              <p className="text-[var(--foreground-soft)] text-sm mt-2">
+              <p className="mt-2 text-sm text-foreground-soft">
                 Email: privacy@marketplace.local
               </p>
-              <p className="text-[var(--foreground-soft)] text-sm">
+              <p className="text-sm text-foreground-soft">
                 Disponible en tu cuenta: Privacidad y Datos
               </p>
             </div>

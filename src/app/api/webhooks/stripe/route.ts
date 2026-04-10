@@ -3,6 +3,8 @@ import { db } from '@/lib/db'
 import {
   assertProviderRefForPaymentStatus,
   doesWebhookPaymentMatchStoredPayment,
+  getWebhookIdempotencyKey,
+  isMockWebhookAllowed,
   shouldApplyPaymentFailed,
   shouldApplyPaymentSucceeded,
 } from '@/domains/payments/webhook'
@@ -58,12 +60,17 @@ export async function POST(req: NextRequest) {
   const env = getServerEnv()
   let event: Stripe.Event | WebhookEvent
 
-  // Skip signature check in mock mode
-  if (env.paymentProvider !== 'mock') {
+  if (env.paymentProvider === 'mock') {
+    // Mock mode: only allowed outside production to prevent spoofed events
+    if (!isMockWebhookAllowed(env.paymentProvider, process.env.NODE_ENV ?? 'production')) {
+      return NextResponse.json({ error: 'Mock webhooks disabled in production' }, { status: 403 })
+    }
+    event = JSON.parse(body)
+  } else {
+    // Stripe mode: verify HMAC signature using raw body (never parsed JSON)
     if (!sig || !env.stripeWebhookSecret) {
       return NextResponse.json({ error: 'Missing signature' }, { status: 400 })
     }
-
     try {
       const Stripe = (await import('stripe')).default
       const stripe = new Stripe(env.stripeSecretKey!)
@@ -71,8 +78,18 @@ export async function POST(req: NextRequest) {
     } catch {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
     }
-  } else {
-    event = JSON.parse(body)
+  }
+
+  // Idempotency: skip events already recorded in OrderEvent by eventId
+  const idempotencyKey = getWebhookIdempotencyKey(event.id)
+  if (idempotencyKey) {
+    const alreadyProcessed = await db.orderEvent.findFirst({
+      where: { payload: { path: ['eventId'], equals: idempotencyKey } },
+      select: { id: true },
+    })
+    if (alreadyProcessed) {
+      return NextResponse.json({ received: true, skipped: 'duplicate' })
+    }
   }
 
   try {

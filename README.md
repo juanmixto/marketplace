@@ -155,48 +155,12 @@ stripe listen --forward-to localhost:3000/api/webhooks/stripe
 
 ---
 
-## 📖 Documentación
+## Estado actual
 
-- **[DEVELOPMENT.md](./DEVELOPMENT.md)** — Guía completa para desarrolladores
-- **[package.json](./package.json)** — Scripts disponibles
-- **[prisma/schema.prisma](./prisma/schema.prisma)** — Esquema de BD
+El proyecto está operativo para desarrollo local y ya tiene:
 
-## ✨ Características implementadas
+- Build pasando
+- Tests básicos de checkout, pagos, envs y utilidades de catálogo
+- Soporte de pago mock y flujo base con Stripe
 
-✅ Autenticación segura (NextAuth + email verification)  
-✅ Carrito persistente con Zustand  
-✅ Checkout y pagos (Stripe + mock)  
-✅ Reseñas y valoraciones  
-✅ Dark mode completo  
-✅ GDPR compliance (export data, delete account)  
-✅ Gestión de direcciones  
-✅ Sistema de liquidaciones para productores  
-✅ Panel admin con auditoría  
-✅ Rate limiting en endpoints críticos  
-✅ Tests de integración  
-
-## 🚦 Estado del proyecto
-
-**Producción-ready para:**
-- Desarrollo local
-- Testing y QA
-- Demostración funcional
-
-**Próximas iteraciones:**
-- Emails transaccionales automáticos
-- Stripe Connect para liquidación de vendedores
-- Sistema de incidencias/soporte
-- Métricas y reportes admin
-- Mobile app (React Native)
-
-## 🤝 Contribuir
-
-1. Lee [DEVELOPMENT.md](./DEVELOPMENT.md)
-2. Crea rama: `git checkout -b feat/tu-feature`
-3. Haz cambios y tests: `npm test && npm run build`
-4. Push y abre PR a `main`
-5. Espera review + status checks
-
-## 📝 Licencia
-
-Privado - Proyecto agroalimentario 2026
+Áreas en evolución: panel admin completo, incidencias, liquidaciones, emails transaccionales y Stripe Connect para vendedores.
