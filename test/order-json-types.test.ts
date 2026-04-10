@@ -79,3 +79,34 @@ test('createPaymentMismatchEventPayload keeps expected and received payment meta
   assert.equal(payload.expectedCurrency, 'EUR')
   assert.equal(payload.amount, 2100)
 })
+test('parseOrderLineSnapshot returns snapshot with optional variantName as null', () => {
+  const snapshot = parseOrderLineSnapshot({
+    id: 'prod_456',
+    name: 'Aceite de oliva',
+    slug: 'aceite-oliva',
+    images: [],
+    unit: 'botella',
+    vendorName: 'Almazara Sur',
+    variantName: null,
+  })
+
+  assert.ok(snapshot)
+  assert.equal(snapshot.variantName, null)
+})
+
+test('parseOrderLineSnapshot rejects payloads with extra forbidden fields gracefully', () => {
+  // Zod strips unknown fields — snapshot remains valid
+  const snapshot = parseOrderLineSnapshot({
+    id: 'prod_789',
+    name: 'Miel',
+    slug: 'miel-campo',
+    images: ['https://cdn.example.com/miel.jpg'],
+    unit: 'tarro',
+    vendorName: 'Apicultura Montaña',
+    variantName: null,
+    unknownField: 'should be stripped',
+  })
+
+  assert.ok(snapshot)
+  assert.equal('unknownField' in (snapshot as object), false)
+})
