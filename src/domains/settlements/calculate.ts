@@ -102,6 +102,7 @@ export async function upsertSettlement(data: SettlementData) {
         grossSales: data.grossSales,
         commissions: data.commissions,
         refunds: data.refunds,
+        adjustments: data.adjustments,
         netPayable: data.netPayable,
       },
     })

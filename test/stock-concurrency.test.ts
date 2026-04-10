@@ -5,22 +5,27 @@
  * Run with: npm test -- stock-concurrency.test.ts
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from './test-helpers'
 import { db } from '@/lib/db'
 import { createOrder } from '@/domains/orders/actions'
 import type { CheckoutFormData } from '@/domains/orders/checkout'
+import { resetTestActionSession, setTestActionSession } from '@/lib/action-session'
 
 describe('Stock Race Condition Prevention (#79)', () => {
   let testProductId: string
   let testUserId1: string
   let testUserId2: string
+  let vendorUserId: string
+  let vendorId: string
 
   beforeAll(async () => {
     // Setup: Create test users and product with limited stock
     const user1 = await db.user.create({
       data: {
         email: `test-user-1-${Date.now()}@example.com`,
-        password: 'hashed-password',
+        firstName: 'Test',
+        lastName: 'User One',
+        passwordHash: 'hashed-password',
         role: 'CUSTOMER',
       },
     })
@@ -29,34 +34,52 @@ describe('Stock Race Condition Prevention (#79)', () => {
     const user2 = await db.user.create({
       data: {
         email: `test-user-2-${Date.now()}@example.com`,
-        password: 'hashed-password',
+        firstName: 'Test',
+        lastName: 'User Two',
+        passwordHash: 'hashed-password',
         role: 'CUSTOMER',
       },
     })
     testUserId2 = user2.id
 
+    const vendorUser = await db.user.create({
+      data: {
+        email: `test-vendor-${Date.now()}@example.com`,
+        firstName: 'Vendor',
+        lastName: 'Owner',
+        passwordHash: 'hashed-password',
+        role: 'VENDOR',
+      },
+    })
+    vendorUserId = vendorUser.id
+
     // Create vendor
     const vendor = await db.vendor.create({
       data: {
-        userId: user1.id,
+        userId: vendorUser.id,
         displayName: 'Test Vendor',
         slug: `test-vendor-${Date.now()}`,
+        status: 'ACTIVE',
         stripeOnboarded: true,
-        stripeAccountId: 'acct_test',
+        stripeAccountId: `acct_test_${Date.now()}`,
       },
     })
+    vendorId = vendor.id
 
     // Create product with stock = 1
     const product = await db.product.create({
       data: {
         name: 'Concurrency Test Product',
         slug: `test-product-${Date.now()}`,
+        images: [],
         basePrice: 10.0,
         taxRate: 0.21,
         unit: 'kg',
         stock: 1,
         trackStock: true,
-        vendorId: vendor.id,
+        certifications: [],
+        tags: [],
+        vendorId,
         status: 'ACTIVE',
       },
     })
@@ -65,15 +88,15 @@ describe('Stock Race Condition Prevention (#79)', () => {
 
   afterAll(async () => {
     // Cleanup
-    const product = await db.product.findUnique({
-      where: { id: testProductId },
-    })
-    if (product) {
-      await db.product.deleteMany({ where: { id: testProductId } })
-    }
-
+    resetTestActionSession()
+    await db.vendorFulfillment.deleteMany({ where: { order: { customerId: { in: [testUserId1, testUserId2] } } } })
+    await db.payment.deleteMany({ where: { order: { customerId: { in: [testUserId1, testUserId2] } } } })
+    await db.orderLine.deleteMany({ where: { order: { customerId: { in: [testUserId1, testUserId2] } } } })
+    await db.order.deleteMany({ where: { customerId: { in: [testUserId1, testUserId2] } } })
+    await db.product.deleteMany({ where: { id: testProductId } })
+    await db.vendor.deleteMany({ where: { id: vendorId } })
     await db.user.deleteMany({
-      where: { id: { in: [testUserId1, testUserId2] } },
+      where: { id: { in: [testUserId1, testUserId2, vendorUserId] } },
     })
   })
 
@@ -100,8 +123,7 @@ describe('Stock Race Condition Prevention (#79)', () => {
 
     // Order 1 attempt
     try {
-      // In a real scenario, this would be async and truly concurrent
-      // For now, we verify the logic works sequentially
+      setTestActionSession({ user: { id: testUserId1, role: 'CUSTOMER' } })
       const order1 = await createOrder(items, testAddress)
       successCount++
       expect(order1).toBeDefined()
@@ -113,7 +135,8 @@ describe('Stock Race Condition Prevention (#79)', () => {
 
     // Order 2 attempt (should fail because stock is now exhausted)
     try {
-      const order2 = await createOrder(items, testAddress)
+      setTestActionSession({ user: { id: testUserId2, role: 'CUSTOMER' } })
+      await createOrder(items, testAddress)
       // If we get here, it means BOTH orders succeeded, which is the bug
       errorCount++
       throw new Error('Race condition detected: second order should have failed')

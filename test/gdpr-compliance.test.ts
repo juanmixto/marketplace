@@ -3,12 +3,15 @@
  * Verifies data export and account deletion (right of access & right to be forgotten)
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from './test-helpers'
 import { db } from '@/lib/db'
 
 describe('GDPR Compliance (#95)', () => {
   let userId: string
   let email: string
+  let vendorId: string
+  let productId: string
+  let orderId: string
 
   beforeAll(async () => {
     // Create user with data
@@ -25,6 +28,27 @@ describe('GDPR Compliance (#95)', () => {
       },
     })
     userId = user.id
+
+    const vendorOwner = await db.user.create({
+      data: {
+        email: `gdpr-vendor-${Date.now()}@test.local`,
+        firstName: 'Vendor',
+        lastName: 'Owner',
+        passwordHash: 'hashed',
+        role: 'VENDOR',
+        emailVerified: new Date(),
+      },
+    })
+
+    const vendor = await db.vendor.create({
+      data: {
+        userId: vendorOwner.id,
+        displayName: 'GDPR Vendor',
+        slug: `gdpr-vendor-${Date.now()}`,
+        status: 'ACTIVE',
+      },
+    })
+    vendorId = vendor.id
 
     // Create address
     await db.address.create({
@@ -44,56 +68,69 @@ describe('GDPR Compliance (#95)', () => {
       data: {
         name: 'Test Product',
         slug: `test-${Date.now()}`,
+        images: [],
         basePrice: 100,
         taxRate: 0.21,
         unit: 'pcs',
         stock: 10,
         trackStock: true,
-        vendorId: 'dummy',
+        certifications: [],
+        tags: [],
+        vendorId,
         status: 'ACTIVE',
       },
     })
+    productId = product.id
 
-    const vendor = await db.vendor.findFirst()
-    if (vendor) {
-      const order = await db.order.create({
-        data: {
-          orderNumber: `ORD-GDPR-${Date.now()}`,
-          customerId: userId,
-          subtotal: 100,
-          shippingCost: 5,
-          taxAmount: 21,
-          grandTotal: 126,
-          status: 'DELIVERED',
-          paymentStatus: 'SUCCEEDED',
-        },
-      })
+    const order = await db.order.create({
+      data: {
+        orderNumber: `ORD-GDPR-${Date.now()}`,
+        customerId: userId,
+        subtotal: 100,
+        shippingCost: 5,
+        taxAmount: 21,
+        grandTotal: 126,
+        status: 'DELIVERED',
+        paymentStatus: 'SUCCEEDED',
+      },
+    })
+    orderId = order.id
 
-      await db.orderLine.create({
-        data: {
-          orderId: order.id,
-          productId: product.id,
-          vendorId: vendor.id,
-          quantity: 1,
-          unitPrice: 100,
-          taxRate: 0.21,
-          subtotal: 100,
-          productSnapshot: {
-            id: product.id,
-            name: 'Test',
-            slug: 'test',
-            images: [],
-            unit: 'pcs',
-            vendorName: 'Test',
-            variantName: null,
-          },
+    await db.orderLine.create({
+      data: {
+        orderId: order.id,
+        productId: product.id,
+        vendorId,
+        quantity: 1,
+        unitPrice: 100,
+        taxRate: 0.21,
+        productSnapshot: {
+          id: product.id,
+          name: 'Test',
+          slug: 'test',
+          images: [],
+          unit: 'pcs',
+          vendorName: 'GDPR Vendor',
+          variantName: null,
         },
-      })
-    }
+      },
+    })
   })
 
   afterAll(async () => {
-    // Cleanup is done by the deletion endpoint test
+    await db.review.deleteMany({ where: { customerId: userId } })
+    await db.orderLine.deleteMany({ where: { orderId } })
+    await db.order.deleteMany({ where: { id: orderId } })
+    await db.product.deleteMany({ where: { id: productId } })
+    await db.vendor.deleteMany({ where: { id: vendorId } })
+    await db.user.deleteMany({
+      where: {
+        OR: [
+          { id: userId },
+          { email: { startsWith: 'gdpr-vendor-' } },
+        ],
+      },
+    })
   })
 
   describe('Art. 15 - Right of Access', () => {
@@ -194,8 +231,8 @@ describe('GDPR Compliance (#95)', () => {
           data: {
             customerId: userId,
             orderId: order.id,
-            productId: 'test-product',
-            vendorId: 'test-vendor',
+            productId,
+            vendorId,
             rating: 4,
             body: 'Test comment',
           },

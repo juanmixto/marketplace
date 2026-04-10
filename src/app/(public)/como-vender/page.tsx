@@ -156,6 +156,7 @@ export default function ComoVender() {
                 </div>
               </div>
               <div className="border-t-2 border-[var(--foreground)] pt-2">
+              <div className="border-t-2 border-[var(--foreground)] pt-2">
                 <div className="flex justify-between">
                   <strong>Tú recibes</strong>
                   <strong className="text-accent">€8,80</strong>
