@@ -1,11 +1,12 @@
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ShoppingBagIcon, MapPinIcon, UserCircleIcon } from '@heroicons/react/24/outline'
+import { ShoppingBagIcon, MapPinIcon, UserCircleIcon, ArrowDownTrayIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { ChevronRightIcon } from '@heroicons/react/20/solid'
 import { SignOutButton } from '@/components/auth/SignOutButton'
 import type { Metadata } from 'next'
 import { buyerAccountItems } from '@/lib/navigation'
+import { GDPRActions } from './GDPRActions'
 
 export const metadata: Metadata = { title: 'Mi cuenta' }
 
@@ -85,6 +86,15 @@ export default async function CuentaPage() {
             </Link>
           )
         })}
+      </div>
+
+      {/* GDPR Privacy Section */}
+      <div className="mt-8 space-y-4">
+        <h2 className="text-lg font-semibold text-[var(--foreground)]">Privacidad y Datos</h2>
+        <p className="text-sm text-[var(--muted)]">
+          De conformidad con el RGPD, tienes derecho a acceder, exportar o eliminar tus datos personales.
+        </p>
+        <GDPRActions />
       </div>
 
       <div className="mt-6">

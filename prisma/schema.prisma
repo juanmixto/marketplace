@@ -117,6 +117,7 @@ model User {
   role          UserRole  @default(CUSTOMER)
   isActive      Boolean   @default(true)
   deletedAt     DateTime?
+  consentAcceptedAt DateTime?
   passwordResetToken   String?   @unique
   passwordResetExpires DateTime?
   createdAt     DateTime  @default(now())
