@@ -4,6 +4,8 @@ import { ProductCard } from '@/components/catalog/ProductCard'
 import type { ProductWithVendor } from '@/domains/catalog/types'
 import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import type { Metadata } from 'next'
+import { db } from '@/lib/db'
+import { VendorReviewsSection } from './VendorReviewsSection'
 
 interface Props { params: Promise<{ slug: string }> }
 
@@ -20,6 +22,37 @@ export default async function VendorPublicPage({ params }: Props) {
   const { slug } = await params
   const vendor = await getVendorBySlug(slug)
   if (!vendor) notFound()
+
+  // Cargar reseñas del vendedor
+  const [reviews, aggregate] = await Promise.all([
+    db.review.findMany({
+      where: { vendorId: vendor.id },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      select: {
+        id: true,
+        rating: true,
+        body: true,
+        createdAt: true,
+        customer: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+        product: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    }),
+    db.review.aggregate({
+      where: { vendorId: vendor.id },
+      _avg: { rating: true },
+      _count: { _all: true },
+    }),
+  ])
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -71,6 +104,20 @@ export default async function VendorPublicPage({ params }: Props) {
         </div>
       ) : (
         <p className="text-[var(--muted)]">Este productor aún no tiene productos publicados.</p>
+      )}
+
+      {/* Reviews */}
+      {reviews.length > 0 && (
+        <div className="mb-8 mt-12">
+          <h2 className="mb-6 text-xl font-bold text-[var(--foreground)]">
+            Reseñas ({aggregate._count._all})
+          </h2>
+          <VendorReviewsSection
+            reviews={reviews}
+            avgRating={aggregate._avg.rating ? Number(aggregate._avg.rating) : null}
+            totalReviews={aggregate._count._all}
+          />
+        </div>
       )}
     </div>
   )
