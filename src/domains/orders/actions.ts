@@ -348,3 +348,65 @@ export async function getOrderDetail(orderId: string) {
     },
   })
 }
+
+export interface StockValidationError {
+  productId: string
+  productName: string
+  requestedQty: number
+  availableQty: number
+}
+
+/**
+ * Pre-flight stock check for checkout. Non-transactional — only indicative.
+ * The definitive stock check happens inside createOrder (DB transaction with row lock).
+ */
+export async function validateCartStock(
+  items: CartItemInput[]
+): Promise<StockValidationError[]> {
+  if (items.length === 0) return []
+
+  const products = await db.product.findMany({
+    where: { id: { in: items.map(i => i.productId) }, ...getAvailableProductWhere() },
+    include: { variants: { where: { isActive: true } } },
+  })
+
+  const errors: StockValidationError[] = []
+
+  for (const item of items) {
+    const product = products.find(p => p.id === item.productId)
+    if (!product) {
+      errors.push({
+        productId: item.productId,
+        productName: 'Producto no disponible',
+        requestedQty: item.quantity,
+        availableQty: 0,
+      })
+      continue
+    }
+
+    if (!product.trackStock) continue
+
+    const hasVariants = product.variants.some(v => v.isActive)
+    let availableQty: number
+
+    if (hasVariants && item.variantId) {
+      const variant = product.variants.find(v => v.id === item.variantId)
+      availableQty = variant?.stock ?? 0
+    } else if (!hasVariants) {
+      availableQty = product.stock
+    } else {
+      continue
+    }
+
+    if (item.quantity > availableQty) {
+      errors.push({
+        productId: product.id,
+        productName: product.name,
+        requestedQty: item.quantity,
+        availableQty,
+      })
+    }
+  }
+
+  return errors
+}

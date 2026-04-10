@@ -121,6 +121,7 @@ export default async function HomePage() {
                     alt=""
                     width={200}
                     height={200}
+                    priority={i < 2}
                     className="w-full object-cover aspect-square"
                   />
                 </div>

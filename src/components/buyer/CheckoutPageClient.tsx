@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { createOrder, confirmOrder } from '@/domains/orders/actions'
+import { createOrder, confirmOrder, validateCartStock } from '@/domains/orders/actions'
 import { formatPrice } from '@/lib/utils'
 import Image from 'next/image'
 import {
@@ -80,6 +80,19 @@ export function CheckoutPageClient({ shippingZones, shippingRates, fallbackShipp
         quantity: i.quantity,
       }))
 
+      // Pre-flight stock check to show friendly errors before Stripe is involved
+      const stockErrors = await validateCartStock(cartItems)
+      if (stockErrors.length > 0) {
+        const messages = stockErrors.map(e =>
+          e.availableQty === 0
+            ? `"${e.productName}" está agotado`
+            : `"${e.productName}": solo quedan ${e.availableQty} unidades (pediste ${e.requestedQty})`
+        )
+        setServerError(`Stock insuficiente:\n${messages.join('\n')}`)
+        setStep('address')
+        return
+      }
+
       const { orderId, clientSecret } = await createOrder(cartItems, {
         address: data,
         saveAddress: data.saveAddress,
@@ -141,7 +154,7 @@ export function CheckoutPageClient({ shippingZones, shippingRates, fallbackShipp
             </div>
 
             {serverError && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/35 dark:text-red-300">
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/35 dark:text-red-300 whitespace-pre-line">
                 {serverError}
               </div>
             )}
