@@ -64,17 +64,23 @@ export function CartPageClient({ shippingSettings }: Props) {
                 </p>
                 <div className="mt-1 flex items-center gap-3">
                   <div className="flex items-center gap-1 rounded-lg border border-[var(--border)]">
-                  <button onClick={() => updateQty(item.productId, item.quantity - 1, item.variantId)}
+                  <button
+                    onClick={() => updateQty(item.productId, item.quantity - 1, item.variantId)}
+                    aria-label={`Reducir cantidad de ${item.name}`}
                     className="rounded-l-lg p-1.5 hover:bg-[var(--surface-raised)]">
                       <MinusIcon className="h-3.5 w-3.5 text-[var(--foreground-soft)]" />
                     </button>
-                    <span className="w-8 text-center text-sm font-medium text-[var(--foreground)]">{item.quantity}</span>
-                    <button onClick={() => updateQty(item.productId, item.quantity + 1, item.variantId)}
+                    <span className="w-8 text-center text-sm font-medium text-[var(--foreground)]" aria-label={`Cantidad: ${item.quantity}`}>{item.quantity}</span>
+                    <button
+                      onClick={() => updateQty(item.productId, item.quantity + 1, item.variantId)}
+                      aria-label={`Aumentar cantidad de ${item.name}`}
                       className="rounded-r-lg p-1.5 hover:bg-[var(--surface-raised)]">
                       <PlusIcon className="h-3.5 w-3.5 text-[var(--foreground-soft)]" />
                     </button>
                   </div>
-                  <button onClick={() => removeItem(item.productId, item.variantId)}
+                  <button
+                    onClick={() => removeItem(item.productId, item.variantId)}
+                    aria-label={`Eliminar ${item.name} del carrito`}
                     className="text-[var(--muted)] hover:text-red-600 dark:hover:text-red-400">
                     <TrashIcon className="h-4 w-4" />
                   </button>
@@ -85,7 +91,7 @@ export function CartPageClient({ shippingSettings }: Props) {
               </div>
             </div>
           ))}
-          <button onClick={clearCart} className="mt-2 text-sm text-[var(--muted)] hover:text-red-600 dark:hover:text-red-400">
+          <button onClick={clearCart} aria-label="Vaciar carrito" className="mt-2 text-sm text-[var(--muted)] hover:text-red-600 dark:hover:text-red-400">
             Vaciar carrito
           </button>
         </div>

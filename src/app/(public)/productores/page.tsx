@@ -2,8 +2,19 @@ import Link from 'next/link'
 import { getVendors } from '@/domains/catalog/queries'
 import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import type { Metadata } from 'next'
+import { SITE_NAME } from '@/lib/constants'
 
-export const metadata: Metadata = { title: 'Productores' }
+export const metadata: Metadata = {
+  title: 'Productores',
+  description: 'Conoce a los productores locales detrás de cada producto. Compra directamente a agricultores, ganaderos y artesanos de España.',
+  alternates: { canonical: '/productores' },
+  openGraph: {
+    title: `Productores | ${SITE_NAME}`,
+    description: 'Descubre a los productores locales. Compra directamente y apoya la agricultura española.',
+    url: '/productores',
+    type: 'website',
+  },
+}
 export const revalidate = 60
 
 export default async function ProductoresPage() {

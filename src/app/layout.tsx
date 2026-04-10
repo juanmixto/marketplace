@@ -4,7 +4,7 @@ import { Geist } from 'next/font/google'
 import './globals.css'
 import { SITE_NAME, SITE_DESCRIPTION } from '@/lib/constants'
 import { siteAppearance } from '@/lib/brand'
-import { ThemeProvider } from '@/components/ThemeProvider'
+import { Providers } from '@/components/Providers'
 import { THEME_COLORS } from '@/lib/theme'
 
 const geist = Geist({
@@ -13,6 +13,7 @@ const geist = Geist({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'),
   title: {
     default: SITE_NAME,
     template: `%s | ${SITE_NAME}`,
@@ -41,9 +42,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col bg-[var(--background)] text-[var(--foreground)]">
-        <ThemeProvider>
+        <Providers>
           {children}
-        </ThemeProvider>
+        </Providers>
       </body>
     </html>
   )

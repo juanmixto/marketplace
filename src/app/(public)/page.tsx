@@ -8,8 +8,20 @@ import { publicPortalLinks } from '@/lib/portals'
 import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import { CheckBadgeIcon, TruckIcon, ShieldCheckIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
 import { getPublicMarketplaceConfig } from '@/lib/config'
+import type { Metadata } from 'next'
+import { SITE_NAME, SITE_DESCRIPTION } from '@/lib/constants'
 
 export const revalidate = 3600
+
+export const metadata: Metadata = {
+  alternates: { canonical: '/' },
+  openGraph: {
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    url: '/',
+    type: 'website',
+  },
+}
 
 export default async function HomePage() {
   const { featured, categories, vendors, stats } = await getHomeSnapshot()

@@ -1,13 +1,10 @@
-import { auth } from '@/lib/auth'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 
-export default async function PublicLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth()
-
+export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <Header user={session?.user} />
+      <Header />
       <main className="flex-1">{children}</main>
       <Footer />
     </>

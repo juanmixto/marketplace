@@ -15,7 +15,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const vendor = await getVendorBySlug(slug)
   if (!vendor) return { title: 'Productor no encontrado' }
-  return { title: vendor.displayName, description: vendor.description ?? undefined }
+  return {
+    title: vendor.displayName,
+    description: vendor.description ?? undefined,
+    alternates: { canonical: `/productores/${slug}` },
+    openGraph: {
+      title: vendor.displayName,
+      description: vendor.description ?? undefined,
+      url: `/productores/${slug}`,
+      type: 'profile',
+    },
+  }
 }
 
 export default async function VendorPublicPage({ params }: Props) {

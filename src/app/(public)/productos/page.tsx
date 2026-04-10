@@ -6,7 +6,19 @@ import { SortSelect } from '@/components/catalog/SortSelect'
 import { parseProductSort, type ProductWithVendor } from '@/domains/catalog/types'
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = { title: 'Productos' }
+import { SITE_NAME } from '@/lib/constants'
+
+export const metadata: Metadata = {
+  title: 'Todos los productos',
+  description: 'Explora nuestra selección de productos frescos y locales: frutas, verduras, lácteos, cárnicos, aceites y mucho más directamente de productores españoles.',
+  alternates: { canonical: '/productos' },
+  openGraph: {
+    title: `Todos los productos | ${SITE_NAME}`,
+    description: 'Productos frescos y locales de productores españoles. Sin intermediarios.',
+    url: '/productos',
+    type: 'website',
+  },
+}
 
 interface Props {
   searchParams: Promise<{
