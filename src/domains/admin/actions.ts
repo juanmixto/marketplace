@@ -1,23 +1,15 @@
 'use server'
 
-import { auth } from '@/lib/auth'
+import { UserRole } from '@/generated/prisma/enums'
 import { db } from '@/lib/db'
-import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { setMarketplaceConfig } from '@/lib/config'
 import { createAuditLog, getAuditRequestIp, type AuditValue } from '@/lib/audit'
-import { getCommissionRate } from '@/domains/finance/commission'
-
-const ADMIN_ROLES = ['ADMIN_SUPPORT', 'ADMIN_CATALOG', 'ADMIN_FINANCE', 'ADMIN_OPS', 'SUPERADMIN'] as const
-
-async function requireAdmin() {
-  const session = await auth()
-  if (!session || !ADMIN_ROLES.includes(session.user.role as typeof ADMIN_ROLES[number])) {
-    redirect('/login')
-  }
-  return session
-}
+import { requireAdmin } from '@/lib/auth-guard'
+import { hasRole, isAdmin } from '@/lib/roles'
+import { getActionSession } from '@/lib/action-session'
+import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 
 function getVendorAuditSnapshot(vendor: {
   id: string
@@ -222,7 +214,7 @@ const shippingRateSchema = z.object({
 
 export async function updateMarketplaceConfigAction(formData: FormData) {
   const session = await requireAdmin()
-  if (session.user.role !== 'SUPERADMIN' && session.user.role !== 'ADMIN_OPS') {
+  if (!hasRole(session.user.role, [UserRole.SUPERADMIN, UserRole.ADMIN_OPS])) {
     throw new Error('No tienes permisos para actualizar la configuración del marketplace')
   }
 
@@ -284,7 +276,7 @@ export async function updateMarketplaceConfigAction(formData: FormData) {
 
 export async function createCommissionRule(formData: FormData) {
   const session = await requireAdmin()
-  if (!['SUPERADMIN', 'ADMIN_FINANCE', 'ADMIN_OPS'].includes(session.user.role)) {
+  if (!hasRole(session.user.role, [UserRole.SUPERADMIN, UserRole.ADMIN_FINANCE, UserRole.ADMIN_OPS])) {
     throw new Error('No tienes permisos para gestionar reglas de comisión')
   }
 
@@ -333,7 +325,7 @@ export async function createCommissionRule(formData: FormData) {
 
 export async function toggleCommissionRule(ruleId: string) {
   const session = await requireAdmin()
-  if (!['SUPERADMIN', 'ADMIN_FINANCE', 'ADMIN_OPS'].includes(session.user.role)) {
+  if (!hasRole(session.user.role, [UserRole.SUPERADMIN, UserRole.ADMIN_FINANCE, UserRole.ADMIN_OPS])) {
     throw new Error('No tienes permisos para gestionar reglas de comisión')
   }
 
@@ -373,7 +365,7 @@ export async function toggleCommissionRule(ruleId: string) {
 
 export async function deleteCommissionRule(ruleId: string) {
   const session = await requireAdmin()
-  if (!['SUPERADMIN', 'ADMIN_FINANCE', 'ADMIN_OPS'].includes(session.user.role)) {
+  if (!hasRole(session.user.role, [UserRole.SUPERADMIN, UserRole.ADMIN_FINANCE, UserRole.ADMIN_OPS])) {
     throw new Error('No tienes permisos para gestionar reglas de comisión')
   }
 
@@ -406,7 +398,7 @@ export async function deleteCommissionRule(ruleId: string) {
 
 export async function createShippingZone(formData: FormData) {
   const session = await requireAdmin()
-  if (!['SUPERADMIN', 'ADMIN_OPS'].includes(session.user.role)) {
+  if (!hasRole(session.user.role, [UserRole.SUPERADMIN, UserRole.ADMIN_OPS])) {
     throw new Error('No tienes permisos para gestionar zonas de envío')
   }
 
@@ -445,7 +437,7 @@ export async function createShippingZone(formData: FormData) {
 
 export async function addShippingRate(formData: FormData) {
   const session = await requireAdmin()
-  if (!['SUPERADMIN', 'ADMIN_OPS'].includes(session.user.role)) {
+  if (!hasRole(session.user.role, [UserRole.SUPERADMIN, UserRole.ADMIN_OPS])) {
     throw new Error('No tienes permisos para gestionar tarifas de envío')
   }
 
@@ -492,7 +484,7 @@ export async function addShippingRate(formData: FormData) {
 
 export async function deleteShippingRate(rateId: string) {
   const session = await requireAdmin()
-  if (!['SUPERADMIN', 'ADMIN_OPS'].includes(session.user.role)) {
+  if (!hasRole(session.user.role, [UserRole.SUPERADMIN, UserRole.ADMIN_OPS])) {
     throw new Error('No tienes permisos para gestionar tarifas de envío')
   }
 
@@ -567,6 +559,7 @@ export async function reviewProduct(
   revalidatePath('/admin/productos')
   revalidatePath('/admin/auditoria')
   revalidatePath('/vendor/productos')
+  revalidateCatalogExperience({ productSlug: updatedProduct.slug })
 }
 
 /**
@@ -599,6 +592,7 @@ export async function suspendProduct(productId: string, reason: string) {
   revalidatePath('/admin/productos')
   revalidatePath('/admin/auditoria')
   revalidatePath('/vendor/productos')
+  revalidateCatalogExperience({ productSlug: updatedProduct.slug })
 }
 
 export async function approveSettlement(settlementId: string) {
@@ -661,4 +655,89 @@ export async function markSettlementPaid(settlementId: string) {
 
   revalidatePath('/admin/liquidaciones')
   revalidatePath('/admin/auditoria')
+}
+
+// ─── Order management ─────────────────────────────────────────────────────────
+
+const CANCELLABLE_ORDER_STATUSES = ['PLACED', 'PAYMENT_CONFIRMED', 'PROCESSING', 'PARTIALLY_SHIPPED'] as const
+
+/**
+ * Cancels an order. Only admin can cancel.
+ * - Cascades cancellation to all non-terminal VendorFulfillments
+ * - Restores stock for all tracked products in the order
+ * - Orders with SHIPPED or DELIVERED fulfillments cannot be cancelled (those
+ *   lines require manual intervention / refund flow).
+ */
+export async function cancelOrder(orderId: string, reason: string) {
+  const session = await getActionSession()
+  if (!session || !isAdmin(session.user.role)) throw new Error('Acceso denegado')
+
+  const order = await db.order.findUnique({
+    where: { id: orderId },
+    include: {
+      lines: {
+        include: { product: { select: { trackStock: true } } },
+      },
+      fulfillments: { select: { vendorId: true, status: true } },
+    },
+  })
+
+  if (!order) throw new Error('Pedido no encontrado')
+  if (!(CANCELLABLE_ORDER_STATUSES as readonly string[]).includes(order.status)) {
+    throw new Error(`No se puede cancelar un pedido en estado ${order.status}`)
+  }
+
+  // Stock from already-shipped fulfillments was physically dispatched — do not restore it
+  const shippedVendorIds = new Set(
+    order.fulfillments
+      .filter(f => f.status === 'SHIPPED' || f.status === 'DELIVERED')
+      .map(f => f.vendorId)
+  )
+
+  await db.$transaction(async tx => {
+    await tx.order.update({
+      where: { id: orderId },
+      data: { status: 'CANCELLED' },
+    })
+
+    // Cascade cancellation to all non-terminal fulfillments
+    await tx.vendorFulfillment.updateMany({
+      where: {
+        orderId,
+        status: { notIn: ['SHIPPED', 'DELIVERED', 'CANCELLED'] },
+      },
+      data: { status: 'CANCELLED' },
+    })
+
+    // Restore stock only for lines whose vendor has not yet shipped
+    for (const line of order.lines) {
+      if (!line.product.trackStock) continue
+      if (shippedVendorIds.has(line.vendorId)) continue
+
+      if (line.variantId) {
+        await tx.productVariant.update({
+          where: { id: line.variantId },
+          data: { stock: { increment: line.quantity } },
+        })
+        continue
+      }
+
+      await tx.product.update({
+        where: { id: line.productId },
+        data: { stock: { increment: line.quantity } },
+      })
+    }
+
+    await tx.orderEvent.create({
+      data: {
+        orderId,
+        actorId: session.user.id,
+        type: 'ORDER_CANCELLED',
+        payload: { reason, cancelledBy: session.user.id },
+      },
+    })
+  })
+
+  safeRevalidatePath('/admin/pedidos')
+  safeRevalidatePath(`/admin/pedidos/${orderId}`)
 }
