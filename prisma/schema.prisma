@@ -131,6 +131,7 @@ model User {
   addresses   Address[]
   incidents   Incident[]
   reviews     Review[]
+  favorites   Favorite[]
 
   @@index([email])
   @@index([role])
@@ -259,6 +260,7 @@ model Product {
   orderLines OrderLine[]
   cartItems  CartItem[]
   reviews    Review[]
+  favorites  Favorite[]
 
   @@index([status, categoryId])
   @@index([vendorId, status])
@@ -603,4 +605,17 @@ model MarketplaceConfig {
   updatedAt   DateTime @updatedAt
 
   @@index([key])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
 }
