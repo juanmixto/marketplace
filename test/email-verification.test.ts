@@ -13,6 +13,8 @@ import {
   completePasswordReset,
   isEmailVerified,
 } from '@/domains/auth/email-verification'
+import { authorizeCredentials } from '@/domains/auth/credentials'
+import { POST as registerUser } from '@/app/api/auth/register/route'
 import bcrypt from 'bcryptjs'
 
 describe('Email Verification and Password Reset (#77)', () => {
@@ -112,6 +114,78 @@ describe('Email Verification and Password Reset (#77)', () => {
       expect(await isEmailVerified(newUser.id)).toBe(true)
 
       await db.user.delete({ where: { id: newUser.id } })
+    })
+
+    it('should register users unverified and block login until email verification completes', async () => {
+      const email = `register-flow-${Date.now()}@example.com`
+      const password = 'test-password-123'
+      const originalResendKey = process.env.RESEND_API_KEY
+      let createdUserId: string | undefined
+      delete process.env.RESEND_API_KEY
+
+      try {
+        const response = await registerUser(
+          new Request('http://localhost:3000/api/auth/register', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              'x-forwarded-for': `203.0.113.${Math.floor(Date.now() % 200) + 1}`,
+            },
+            body: JSON.stringify({
+              firstName: 'Register',
+              lastName: 'Flow',
+              email,
+              password,
+            }),
+          }) as never
+        )
+
+        expect(response.status).toBe(201)
+
+        const createdUser = await db.user.findUnique({
+          where: { email },
+        })
+
+        expect(createdUser).toBeDefined()
+        expect(createdUser?.emailVerified).toBeNull()
+        createdUserId = createdUser?.id
+
+        const tokenRecord = await db.emailVerificationToken.findFirst({
+          where: { userId: createdUser!.id },
+        })
+
+        expect(tokenRecord).toBeDefined()
+
+        const blockedLogin = await authorizeCredentials({ email, password })
+        expect(blockedLogin).toBeNull()
+
+        const verificationResult = await verifyEmailToken(tokenRecord!.token)
+        expect(verificationResult.success).toBe(true)
+
+        const allowedLogin = await authorizeCredentials({ email, password })
+        expect(allowedLogin).toBeDefined()
+        expect(allowedLogin?.email).toBe(email)
+      } finally {
+        if (originalResendKey === undefined) {
+          delete process.env.RESEND_API_KEY
+        } else {
+          process.env.RESEND_API_KEY = originalResendKey
+        }
+
+        if (createdUserId) {
+          await db.emailVerificationToken.deleteMany({
+            where: { userId: createdUserId },
+          }).catch(() => {})
+
+          await db.user.deleteMany({
+            where: { id: createdUserId },
+          }).catch(() => {})
+        } else {
+          await db.user.deleteMany({
+            where: { email },
+          }).catch(() => {})
+        }
+      }
     })
   })
 
