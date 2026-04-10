@@ -4,7 +4,13 @@ import { db } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import { generateOrderNumber } from '@/lib/utils'
 import { createPaymentIntent } from '@/domains/payments/provider'
-import { calculateOrderPricing, calculateOrderTotalsWithShippingCost, checkoutSchema, type CheckoutFormData } from '@/domains/orders/checkout'
+import {
+  calculateOrderPricing,
+  calculateOrderTotalsWithShippingCost,
+  checkoutSchema,
+  orderItemsSchema,
+  type CheckoutFormData,
+} from '@/domains/orders/checkout'
 import { shouldApplyPaymentSucceeded } from '@/domains/payments/webhook'
 import { getServerEnv } from '@/lib/env'
 import { getAvailableProductWhere } from '@/domains/catalog/availability'
@@ -30,11 +36,12 @@ export async function createOrder(
   const session = await getActionSession()
   if (!session) redirect('/login')
 
+  const validatedItems = orderItemsSchema.parse(items)
   const validated = checkoutSchema.parse(formData)
 
   // Load products with current prices
   const products = await db.product.findMany({
-    where: { id: { in: items.map(i => i.productId) }, ...getAvailableProductWhere() },
+    where: { id: { in: validatedItems.map(i => i.productId) }, ...getAvailableProductWhere() },
     include: {
       vendor: { select: { id: true, displayName: true } },
       variants: { where: { isActive: true } },
@@ -44,7 +51,7 @@ export async function createOrder(
   if (products.length === 0) throw new Error('Carrito vacío o productos no disponibles')
 
   // Build order lines with price snapshots
-  const lines = items.map(item => {
+  const lines = validatedItems.map(item => {
     const product = products.find(p => p.id === item.productId)
     if (!product) throw new Error(`Producto ${item.productId} no disponible`)
 
@@ -164,23 +171,30 @@ export async function createOrder(
       },
     })
 
-    // Decrement stock
+    // Atomically decrement stock: the WHERE condition acts as a lock-free guard.
+    // If another transaction already consumed the stock, count === 0 and we roll back.
     for (const line of lines) {
       const product = products.find(p => p.id === line.productId)
       if (!product?.trackStock) continue
 
       if (line.variantId) {
-        await tx.productVariant.update({
-          where: { id: line.variantId },
+        const result = await tx.productVariant.updateMany({
+          where: { id: line.variantId, stock: { gte: line.quantity } },
           data: { stock: { decrement: line.quantity } },
         })
+        if (result.count === 0) {
+          throw new Error(`Stock insuficiente para "${product.name}" (variante agotada)`)
+        }
         continue
       }
 
-      await tx.product.update({
-        where: { id: line.productId },
+      const result = await tx.product.updateMany({
+        where: { id: line.productId, stock: { gte: line.quantity } },
         data: { stock: { decrement: line.quantity } },
       })
+      if (result.count === 0) {
+        throw new Error(`Stock insuficiente para "${product.name}"`)
+      }
     }
 
     return order
@@ -198,12 +212,23 @@ export async function createOrder(
  * Called from the webhook (Stripe) or directly in mock mode.
  */
 export async function confirmOrder(orderId: string, providerRef: string) {
+  const env = getServerEnv()
+  if (env.paymentProvider !== 'mock') {
+    throw new Error('La confirmacion manual solo esta disponible en modo mock')
+  }
+
+  const session = await getActionSession()
+  if (!session) redirect('/login')
+
   const payment = await db.payment.findFirst({
     where: { orderId, providerRef },
     include: { order: true },
   })
 
   if (!payment) return
+  if (payment.order.customerId !== session.user.id) {
+    throw new Error('No puedes confirmar un pedido que no te pertenece')
+  }
 
   if (!shouldApplyPaymentSucceeded({
     paymentStatus: payment.status,
