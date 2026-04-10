@@ -110,6 +110,19 @@ async function handlePaymentSucceeded(providerRef: string, amount?: number, curr
   })
 
   if (!doesWebhookPaymentMatchStoredPayment(payment, { amount, currency })) {
+    // Security: Amount mismatch indicates possible tampering or data inconsistency
+    // Log fraud attempt with full details for investigation
+    console.error('[PAYMENT_FRAUD_ALERT]', {
+      orderId: payment.orderId,
+      providerRef,
+      expectedAmount: Number(payment.amount),
+      receivedAmount: amount,
+      expectedCurrency: payment.currency,
+      receivedCurrency: currency,
+      timestamp: new Date().toISOString(),
+      eventId,
+    })
+
     await db.orderEvent.create({
       data: {
         orderId: payment.orderId,
@@ -124,6 +137,8 @@ async function handlePaymentSucceeded(providerRef: string, amount?: number, curr
         }),
       },
     })
+
+    // DO NOT confirm this order - amount verification failed
     return
   }
 

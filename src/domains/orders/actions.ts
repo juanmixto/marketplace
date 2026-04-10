@@ -30,6 +30,23 @@ export interface CartItemInput {
 /**
  * Creates an order from the current cart items.
  * Returns a client secret for Stripe (or mock token) to complete payment.
+ *
+ * Security: Price calculation is ALWAYS done server-side
+ * - Client must send only productId, variantId, quantity (no prices)
+ * - Prices are loaded from database (current catalog prices)
+ * - Totals including tax and shipping are calculated server-side
+ * - PaymentIntent amount is derived 100% from server calculations
+ * - Webhook verification ensures the final payment amount matches the calculated total
+ *
+ * This prevents price manipulation attacks where a malicious client could:
+ * - Intercept and lower prices in cart
+ * - Modify prices in transit before payment
+ * - Create orders that bypass pricing rules
+ *
+ * @param items - Cart items with only IDs and quantities (prices NOT accepted)
+ * @param formData - Checkout form data (address, etc)
+ * @returns Order ID, Stripe client secret, and order number for confirmation
+ * @throws Error if items are malformed, stock is insufficient, or validation fails
  */
 export async function createOrder(
   items: CartItemInput[],
