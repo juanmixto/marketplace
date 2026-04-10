@@ -23,7 +23,7 @@ env:
 jobs:
   # Corre en paralelo con `build`
   quality:
-    name: Quality
+    name: Verify
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -64,7 +64,7 @@ jobs:
 
   # Corre en paralelo con `quality`
   build:
-    name: Build
+    name: Build And Migrate
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
