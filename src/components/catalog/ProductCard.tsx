@@ -1,9 +1,11 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { Badge } from '@/components/ui/badge'
+import { Tooltip } from '@/components/ui/tooltip'
 import { formatPrice } from '@/lib/utils'
 import type { BadgeVariant, ProductWithVendor } from '@/domains/catalog/types'
 import { MapPinIcon } from '@heroicons/react/24/outline'
+import { CERTIFICATION_INFO } from '@/lib/certification-info'
 
 const CERT_COLORS: Record<string, BadgeVariant> = {
   'ECO-ES': 'green',
@@ -66,14 +68,28 @@ export function ProductCard({ product }: ProductCardProps) {
       </div>
 
       {/* Info */}
-      <div className="flex flex-1 flex-col p-3">
+      <div className="flex flex-1 flex-col p-4">
         {product.certifications.length > 0 && (
-          <div className="mb-2 flex flex-wrap gap-1">
-            {product.certifications.slice(0, 2).map(cert => (
-              <Badge key={cert} variant={CERT_COLORS[cert] ?? 'default'} className="text-[10px] px-1.5 py-0">
-                {cert}
-              </Badge>
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            {product.certifications.slice(0, 3).map(cert => (
+              <Tooltip
+                key={cert}
+                content={CERTIFICATION_INFO[cert as keyof typeof CERTIFICATION_INFO]?.description || cert}
+                side="top"
+              >
+                <Badge
+                  variant={CERT_COLORS[cert] ?? 'default'}
+                  className="text-[11px] px-2 py-0.5 font-semibold cursor-pointer transition-all hover:shadow-md hover:scale-105"
+                >
+                  {cert}
+                </Badge>
+              </Tooltip>
             ))}
+            {product.certifications.length > 3 && (
+              <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-700 dark:bg-gray-900/40 dark:text-gray-300">
+                +{product.certifications.length - 3}
+              </span>
+            )}
           </div>
         )}
 

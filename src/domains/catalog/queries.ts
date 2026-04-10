@@ -87,7 +87,19 @@ async function getProductsUncached(filters: ProductFilters = {}) {
     orderBy,
     take: limit + 1,
     ...(cursor && { cursor: { id: cursor }, skip: 1 }),
-    include: {
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      images: true,
+      basePrice: true,
+      compareAtPrice: true,
+      stock: true,
+      trackStock: true,
+      unit: true,
+      certifications: true,
+      originRegion: true,
+      createdAt: true,
       vendor: { select: { slug: true, displayName: true, location: true } },
       category: { select: { name: true, slug: true } },
     },
@@ -121,9 +133,25 @@ export async function getProducts(filters: ProductFilters = {}) {
 async function getProductBySlugUncached(slug: string) {
   return db.product.findFirst({
     where: { slug, ...getAvailableProductWhere() },
-    include: {
+    select: {
+      id: true,
+      vendorId: true,
+      slug: true,
+      name: true,
+      description: true,
+      images: true,
+      basePrice: true,
+      compareAtPrice: true,
+      taxRate: true,
+      stock: true,
+      trackStock: true,
+      unit: true,
+      certifications: true,
+      originRegion: true,
+      createdAt: true,
       vendor: {
         select: {
+          id: true,
           slug: true,
           displayName: true,
           description: true,
@@ -150,12 +178,27 @@ export async function getProductBySlug(slug: string) {
   return getProductBySlugCached(slug)
 }
 
+// Explicit type for TypeScript inference
+type ProductDetail = Awaited<ReturnType<typeof getProductBySlugUncached>>
+
 async function getFeaturedProductsUncached(limit = 8) {
   return db.product.findMany({
     where: getAvailableProductWhere(),
     orderBy: { createdAt: 'desc' },
     take: limit,
-    include: {
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      images: true,
+      basePrice: true,
+      compareAtPrice: true,
+      stock: true,
+      trackStock: true,
+      unit: true,
+      certifications: true,
+      originRegion: true,
+      createdAt: true,
       vendor: { select: { slug: true, displayName: true, location: true } },
       category: { select: { name: true, slug: true } },
     },

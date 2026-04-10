@@ -154,7 +154,7 @@ export default async function ProductDetailPage({ params }: Props) {
             slug={product.slug}
             image={product.images[0]}
             unit={product.unit}
-            vendorId={product.vendorId}
+            vendorId={product.vendor.id}
             vendorName={product.vendor.displayName}
             basePrice={Number(product.basePrice)}
             compareAtPrice={product.compareAtPrice ? Number(product.compareAtPrice) : null}
