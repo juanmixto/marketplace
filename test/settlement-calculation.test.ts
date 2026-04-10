@@ -135,6 +135,7 @@ describe('Settlement Calculation (#88)', () => {
   })
 
   afterAll(async () => {
+    await db.settlement.deleteMany({ where: { vendorId } })
     await db.vendorFulfillment.deleteMany({ where: { orderId } })
     await db.payment.deleteMany({ where: { orderId } })
     await db.orderLine.deleteMany({ where: { orderId } })
