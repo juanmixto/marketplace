@@ -49,7 +49,7 @@ if (runDbTests) {
   })
 }
 
-nodeArgs.push('--import', 'tsx', '--test')
+nodeArgs.push('--import', 'tsx', '--test', '--test-timeout=10000')
 
 if (runParallel) {
   nodeArgs.push('--test-concurrency=8')

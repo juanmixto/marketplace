@@ -28,11 +28,17 @@ jobs:
       DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace
 
     steps:
+<<<<<<< HEAD
       - name: Checkout
         uses: actions/checkout@v5
 
       - name: Setup Node
         uses: actions/setup-node@v5
+=======
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+>>>>>>> 4cd87ff (chore: stabilize tests and optimize ci)
         with:
           node-version: 20
           cache: npm
@@ -106,6 +112,7 @@ jobs:
 
       - name: Run unit tests with coverage
         run: npm run test:coverage
+        timeout-minutes: 5
 
       - name: Upload coverage artifacts
         if: always()
@@ -125,11 +132,17 @@ jobs:
       DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace
 
     steps:
+<<<<<<< HEAD
       - name: Checkout
         uses: actions/checkout@v5
 
       - name: Setup Node
         uses: actions/setup-node@v5
+=======
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+>>>>>>> 4cd87ff (chore: stabilize tests and optimize ci)
         with:
           node-version: 20
           cache: npm
@@ -146,6 +159,7 @@ jobs:
       - name: Build application
         run: npm run build
 
+<<<<<<< HEAD
   db-tests:
     name: DB Tests
     runs-on: ubuntu-latest
@@ -161,9 +175,9 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U mp_user -d marketplace_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 15
     env:
       DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
       DATABASE_URL_TEST: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
@@ -239,3 +253,7 @@ jobs:
 
       - name: Seed database and run integration tests
         run: npm run test:integration
+<<<<<<< HEAD
+=======
+        timeout-minutes: 10
+>>>>>>> 4cd87ff (chore: stabilize tests and optimize ci)
