@@ -52,7 +52,7 @@ jobs:
       - name: Coverage
         run: |
           FILES=$(ls test/*.test.ts | grep -vE "email-verification|gdpr-compliance|settlement-calculation|stock-availability|stock-concurrency" | tr '\n' ' ')
-          c8 node --import tsx --test --test-timeout=10000 $FILES
+          npx c8 node --import tsx --test --test-timeout=10000 $FILES
         timeout-minutes: 5
 
       - uses: actions/upload-artifact@v4
