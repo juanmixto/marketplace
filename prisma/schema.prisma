@@ -122,16 +122,18 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts    Account[]
-  sessions    Session[]
-  vendor      Vendor?
-  orders      Order[]
-  cart        Cart?
-  cart_items  CartItem[]
-  addresses   Address[]
-  incidents   Incident[]
-  reviews     Review[]
-  favorites   Favorite[]
+  accounts                  Account[]
+  sessions                  Session[]
+  vendor                    Vendor?
+  orders                    Order[]
+  cart                      Cart?
+  cart_items                CartItem[]
+  addresses                 Address[]
+  incidents                 Incident[]
+  reviews                   Review[]
+  favorites                 Favorite[]
+  emailVerificationTokens   EmailVerificationToken[]
+  passwordResetTokens       PasswordResetToken[]
 
   @@index([email])
   @@index([role])
@@ -618,4 +620,34 @@ model Favorite {
 
   @@unique([userId, productId])
   @@index([userId])
+}
+
+// ─── Authentication Tokens ────────────────────────────────────────────────────
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique @default(cuid())
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique @default(cuid())
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
 }

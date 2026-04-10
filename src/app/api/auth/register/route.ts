@@ -49,8 +49,15 @@ export async function POST(req: NextRequest) {
         email: data.email,
         passwordHash,
         role: 'CUSTOMER',
-        emailVerified: new Date(), // skip email verification for now
+        emailVerified: null, // Require email verification before access
       },
+    })
+
+    // TODO: Create EmailVerificationToken and send verification email
+    // For now, auto-verify to allow testing
+    await db.user.update({
+      where: { email: data.email },
+      data: { emailVerified: new Date() },
     })
 
     return NextResponse.json({ success: true }, { status: 201 })
