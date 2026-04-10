@@ -147,6 +147,15 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
           </p>
         )}
 
+        <div className="flex justify-end">
+          <Link
+            href="/recuperar-contrasena"
+            className="text-sm font-medium text-emerald-600 hover:underline dark:text-emerald-400"
+          >
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </div>
+
         <Button type="submit" className="w-full" isLoading={loading} size="lg">
           Iniciar sesión
         </Button>

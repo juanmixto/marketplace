@@ -51,7 +51,7 @@ export default async function ProductosPage({ searchParams }: Props) {
               <h1 className="text-2xl font-bold text-[var(--foreground)]">
                 {params.q ? `"${params.q}"` : params.categoria ? categories.find(c => c.slug === params.categoria)?.name ?? 'Productos' : 'Todos los productos'}
               </h1>
-              <p className="text-sm text-[var(--muted)] mt-0.5">{total} resultado{total !== 1 ? 's' : ''}</p>
+              <p className="text-sm text-[var(--muted)] mt-0.5">{products.length} resultado{products.length !== 1 ? 's' : ''}{hasNext ? '+' : ''}</p>
             </div>
             <Suspense fallback={null}>
               <SortSelect current={params.orden} />
@@ -72,22 +72,35 @@ export default async function ProductosPage({ searchParams }: Props) {
             </div>
           )}
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="mt-10 flex justify-center gap-2">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+          {/* Cursor-based pagination */}
+          {(hasPrev || hasNext) && (
+            <div className="mt-10 flex justify-center gap-3">
+              {hasPrev && (
                 <a
-                  key={n}
-                  href={`?${new URLSearchParams({ ...Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined) as [string, string][]), pagina: String(n) })}`}
-                  className={`flex h-9 w-9 items-center justify-center rounded-xl text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] ${
-                    n === page
-                      ? 'bg-emerald-600 text-white shadow-sm dark:bg-emerald-500 dark:text-gray-950'
-                      : 'border border-[var(--border)] text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]'
-                  }`}
+                  href={`?${new URLSearchParams(
+                    Object.fromEntries(
+                      Object.entries({ q: params.q, categoria: params.categoria, orden: params.orden })
+                        .filter(([, v]) => v !== undefined) as [string, string][]
+                    )
+                  )}`}
+                  className="flex h-9 items-center gap-1.5 rounded-xl border border-[var(--border)] px-4 text-sm font-medium text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
                 >
-                  {n}
+                  ← Anterior
                 </a>
-              ))}
+              )}
+              {hasNext && nextCursor && (
+                <a
+                  href={`?${new URLSearchParams(
+                    Object.fromEntries(
+                      Object.entries({ q: params.q, categoria: params.categoria, orden: params.orden, cursor: nextCursor })
+                        .filter(([, v]) => v !== undefined) as [string, string][]
+                    )
+                  )}`}
+                  className="flex h-9 items-center gap-1.5 rounded-xl bg-emerald-600 px-4 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400"
+                >
+                  Siguiente →
+                </a>
+              )}
             </div>
           )}
         </div>

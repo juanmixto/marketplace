@@ -74,3 +74,45 @@ test('Footer Ayuda section has only # hrefs — key must use label not href', ()
   const allHash = FOOTER_AYUDA_LINKS.every(l => l.href === '#')
   assert.ok(allHash, 'All Ayuda links point to # so label is required as the React key')
 })
+
+// ─── Cursor pagination logic ──────────────────────────────────────────────────
+
+// These tests verify the hasNextPage / nextCursor logic extracted from queries.ts
+// without requiring a real database connection.
+
+function simulateCursorPage(items: Array<{ id: string }>, limit: number) {
+  const hasNextPage = items.length > limit
+  const page = hasNextPage ? items.slice(0, limit) : items
+  const nextCursor = hasNextPage ? page[page.length - 1]?.id ?? null : null
+  return { page, hasNextPage, nextCursor }
+}
+
+test('cursor pagination: exactly limit items means no next page', () => {
+  const items = Array.from({ length: 24 }, (_, i) => ({ id: `id_${i}` }))
+  const { hasNextPage, nextCursor } = simulateCursorPage(items, 24)
+  assert.equal(hasNextPage, false)
+  assert.equal(nextCursor, null)
+})
+
+test('cursor pagination: limit + 1 items means next page exists', () => {
+  const items = Array.from({ length: 25 }, (_, i) => ({ id: `id_${i}` }))
+  const { page, hasNextPage, nextCursor } = simulateCursorPage(items, 24)
+  assert.equal(hasNextPage, true)
+  assert.equal(page.length, 24)
+  assert.equal(nextCursor, 'id_23')
+})
+
+test('cursor pagination: fewer than limit items means last page', () => {
+  const items = Array.from({ length: 7 }, (_, i) => ({ id: `id_${i}` }))
+  const { page, hasNextPage, nextCursor } = simulateCursorPage(items, 24)
+  assert.equal(hasNextPage, false)
+  assert.equal(page.length, 7)
+  assert.equal(nextCursor, null)
+})
+
+test('cursor pagination: empty result has no next cursor', () => {
+  const { page, hasNextPage, nextCursor } = simulateCursorPage([], 24)
+  assert.equal(hasNextPage, false)
+  assert.equal(page.length, 0)
+  assert.equal(nextCursor, null)
+})
