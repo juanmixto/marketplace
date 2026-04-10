@@ -3,7 +3,7 @@
  * Comprehensive test coverage for identity security flows
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from './test-helpers'
 import { db } from '@/lib/db'
 import {
   createEmailVerificationToken,
@@ -34,7 +34,7 @@ describe('Email Verification and Password Reset (#77)', () => {
   })
 
   afterAll(async () => {
-    await db.user.delete({ where: { id: testUserId } })
+    await db.user.deleteMany({ where: { id: testUserId } })
   })
 
   describe('Email Verification Flow', () => {
@@ -74,7 +74,7 @@ describe('Email Verification and Password Reset (#77)', () => {
       // Try to use again
       const result = await verifyEmailToken(token)
       expect(result.success).toBe(false)
-      expect(result.message).toContain('Ya ha sido utilizado')
+      expect(result.message).toContain('ya ha sido utilizado')
     })
 
     it('should reject expired token', async () => {
@@ -237,8 +237,7 @@ describe('Email Verification and Password Reset (#77)', () => {
 
       // Try to verify - should fail gracefully
       const result = await verifyEmailToken(token)
-      // Note: This would fail at DB level, but service should handle gracefully
-      expect(result.success).toBe(false) || expect(result.message).toContain('Usuario no encontrado')
+      expect(result.success).toBe(false)
     })
 
     it('should enforce minimum password length in reset', async () => {

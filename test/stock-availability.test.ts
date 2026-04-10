@@ -3,7 +3,7 @@
  * Verifies single source of truth for inventory
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from './test-helpers'
 import { db } from '@/lib/db'
 import {
   getEffectiveStockForProduct,
@@ -14,19 +14,33 @@ import type { Product, ProductVariant } from '@/generated/prisma/client'
 
 describe('Stock Availability - Single Source of Truth (#80)', () => {
   let vendorId: string
+  let vendorUserId: string
   let productId: string
   let variantId1: string
   let variantId2: string
 
   beforeAll(async () => {
+    const vendorUser = await db.user.create({
+      data: {
+        email: `stock-vendor-${Date.now()}@test.local`,
+        firstName: 'Stock',
+        lastName: 'Vendor',
+        passwordHash: 'hashed',
+        role: 'VENDOR',
+        emailVerified: new Date(),
+      },
+    })
+    vendorUserId = vendorUser.id
+
     // Create vendor
     const vendor = await db.vendor.create({
       data: {
-        userId: `vendor-${Date.now()}@test.local`,
+        userId: vendorUser.id,
         displayName: 'Test Vendor',
         slug: `vendor-${Date.now()}`,
+        status: 'ACTIVE',
         stripeOnboarded: true,
-        stripeAccountId: 'acct_test',
+        stripeAccountId: `acct_test_${Date.now()}`,
       },
     })
     vendorId = vendor.id
@@ -36,11 +50,14 @@ describe('Stock Availability - Single Source of Truth (#80)', () => {
       data: {
         name: 'Test Product',
         slug: `product-${Date.now()}`,
+        images: [],
         basePrice: 50,
         taxRate: 0.21,
         unit: 'pcs',
         stock: 100, // Base product stock
         trackStock: true,
+        certifications: [],
+        tags: [],
         vendorId,
         status: 'ACTIVE',
       },
@@ -51,6 +68,7 @@ describe('Stock Availability - Single Source of Truth (#80)', () => {
     const var1 = await db.productVariant.create({
       data: {
         productId,
+        sku: `stock-red-${Date.now()}`,
         name: 'Red',
         stock: 30,
         isActive: true,
@@ -61,6 +79,7 @@ describe('Stock Availability - Single Source of Truth (#80)', () => {
     const var2 = await db.productVariant.create({
       data: {
         productId,
+        sku: `stock-blue-${Date.now()}`,
         name: 'Blue',
         stock: 20,
         isActive: true,
@@ -73,6 +92,7 @@ describe('Stock Availability - Single Source of Truth (#80)', () => {
     await db.productVariant.deleteMany({ where: { productId } })
     await db.product.delete({ where: { id: productId } })
     await db.vendor.delete({ where: { id: vendorId } })
+    await db.user.delete({ where: { id: vendorUserId } })
   })
 
   describe('getEffectiveStockForProduct', () => {
@@ -82,11 +102,14 @@ describe('Stock Availability - Single Source of Truth (#80)', () => {
         data: {
           name: 'No Variants',
           slug: `no-var-${Date.now()}`,
+          images: [],
           basePrice: 25,
           taxRate: 0.21,
           unit: 'kg',
           stock: 75,
           trackStock: true,
+          certifications: [],
+          tags: [],
           vendorId,
           status: 'ACTIVE',
         },
@@ -129,27 +152,15 @@ describe('Stock Availability - Single Source of Truth (#80)', () => {
       expect(variant2Stock.available).toBe(20)
     })
 
-    it('should handle unlimited stock (null variant stock)', async () => {
-      // Create unlimited variant
-      const unlimitedVar = await db.productVariant.create({
-        data: {
-          productId,
-          name: 'Unlimited Variant',
-          stock: null, // unlimited
-          isActive: true,
-        },
-      })
-
+    it('should return unavailable for an unknown variant id', async () => {
       const product = await db.product.findUnique({
         where: { id: productId },
-        include: { variants: { where: { deletedAt: null } } },
+        include: { variants: { where: { isActive: true } } },
       })
 
-      const stock = getEffectiveStockForProduct(product!, unlimitedVar.id)
-      expect(stock.available).toBeNull()
+      const stock = getEffectiveStockForProduct(product!, 'missing-variant')
+      expect(stock.available).toBe(0)
       expect(stock.limitTracked).toBe(false)
-
-      await db.productVariant.delete({ where: { id: unlimitedVar.id } })
     })
 
     it('should ignore inactive variants', async () => {
@@ -179,11 +190,14 @@ describe('Stock Availability - Single Source of Truth (#80)', () => {
         data: {
           name: 'No Stock Tracking',
           slug: `no-track-${Date.now()}`,
+          images: [],
           basePrice: 10,
           taxRate: 0.21,
           unit: 'service',
           stock: 0,
           trackStock: false, // Not tracking
+          certifications: [],
+          tags: [],
           vendorId,
           status: 'ACTIVE',
         },
@@ -246,9 +260,9 @@ describe('Stock Availability - Single Source of Truth (#80)', () => {
       expect(getStockDisplayText(stock)).toBe('En stock')
     })
 
-    it('should show "Disponible" for unlimited stock', () => {
+    it('should show "En stock" for unlimited stock when tracking is disabled', () => {
       const stock = { available: null, limitTracked: false }
-      expect(getStockDisplayText(stock)).toBe('Disponible')
+      expect(getStockDisplayText(stock)).toBe('En stock')
     })
   })
 

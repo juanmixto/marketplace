@@ -114,11 +114,19 @@ npm run dev
 |---------|-------------|
 | `./dev.sh` | Arranque completo en un comando |
 | `./dev.sh --reset` | Reset de BD + arranque |
-| `npm test` | Tests unitarios |
+| `npm test` | Tests rápidos sin base de datos |
+| `npm run test:parallel` | Tests rápidos en paralelo |
+| `npm run test:db` | Tests con base de datos y migraciones |
+| `npm run test:db:parallel` | Tests con base de datos en paralelo |
+| `npm run test:integration` | Tests de integración |
 | `npm run db:studio` | Prisma Studio en http://localhost:5555 |
 | `npm run db:reset` | Reset de BD con seed (sin arrancar app) |
-| `npm run typecheck` | Validación de TypeScript sin compilar |
+| `npm run typecheck` | Validación completa de TypeScript |
+| `npm run typecheck:app` | TypeScript de la app |
+| `npm run typecheck:test` | TypeScript de los tests |
 | `npm run build` | Build de producción |
+
+Más detalle del flujo de validación en [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ---
 

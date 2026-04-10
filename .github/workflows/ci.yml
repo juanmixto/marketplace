@@ -14,24 +14,25 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-jobs:
-  quality:
-    name: Quality
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+env:
+  AUTH_SECRET: ci-secret-please-change
+  NEXT_PUBLIC_APP_URL: http://localhost:3000
+  PAYMENT_PROVIDER: mock
 
+jobs:
+  typecheck-app:
+    name: Typecheck App
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace
-      AUTH_SECRET: ci-secret-please-change
-      NEXT_PUBLIC_APP_URL: http://localhost:3000
-      PAYMENT_PROVIDER: mock
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
@@ -45,15 +46,70 @@ jobs:
       - name: Generate Prisma client
         run: npm run prisma:generate
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Typecheck app
+        run: npm run typecheck:app
 
-      - name: Run tests with coverage
+  typecheck-tests:
+    name: Typecheck Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ensure env files exist for CLI steps
+        run: touch .env
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate
+
+      - name: Typecheck tests
+        run: npm run typecheck:test
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ensure env files exist for CLI steps
+        run: touch .env
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate
+
+      - name: Run unit tests with coverage
         run: npm run test:coverage
 
       - name: Upload coverage artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: coverage-report
           path: |
@@ -61,39 +117,63 @@ jobs:
             coverage/lcov.info
           if-no-files-found: error
 
-  integration:
-    name: Integration
+  build:
+    name: Build
     runs-on: ubuntu-latest
-    needs: quality
-    timeout-minutes: 20
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace
 
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ensure env files exist for CLI steps
+        run: touch .env
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate
+
+      - name: Build application
+        run: npm run build
+
+  db-tests:
+    name: DB Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_DB: marketplace
+          POSTGRES_DB: marketplace_test
           POSTGRES_USER: mp_user
           POSTGRES_PASSWORD: mp_pass
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U mp_user -d marketplace"
+          --health-cmd "pg_isready -U mp_user -d marketplace_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
-
     env:
-      DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace
-      AUTH_SECRET: ci-secret-please-change
-      NEXT_PUBLIC_APP_URL: http://localhost:3000
-      PAYMENT_PROVIDER: mock
+      DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
+      DATABASE_URL_TEST: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
@@ -110,14 +190,52 @@ jobs:
       - name: Generate Prisma client
         run: npm run prisma:generate
 
-      - name: Run migrations
-        run: npx prisma migrate deploy
+      - name: Run DB-backed tests
+        run: npm run test:db
 
-      - name: Seed database
-        run: npm run db:seed
+  integration:
+    name: Integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: marketplace_test
+          POSTGRES_USER: mp_user
+          POSTGRES_PASSWORD: mp_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mp_user -d marketplace_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
+      DATABASE_URL_TEST: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
 
-      - name: Run tests
-        run: npm test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
 
-      - name: Build application
-        run: npm run build
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ensure env files exist for CLI steps
+        run: touch .env
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate
+
+      - name: Seed database and run integration tests
+        run: npm run test:integration
