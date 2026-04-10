@@ -21,16 +21,15 @@ env:
   PAYMENT_PROVIDER: mock
 
 jobs:
-  # Corre en paralelo con `build`
   quality:
     name: Verify
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -40,38 +39,32 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Typecheck app
+        run: npm run typecheck:app
 
-      - name: Unit tests
-        run: |
-          FILES=$(ls test/*.test.ts | grep -vE "email-verification|gdpr-compliance|settlement-calculation|stock-availability|stock-concurrency" | tr '\n' ' ')
-          node --import tsx --test --test-timeout=10000 $FILES
-        timeout-minutes: 5
+      - name: Typecheck tests
+        run: npm run typecheck:test
 
       - name: Coverage
-        run: |
-          FILES=$(ls test/*.test.ts | grep -vE "email-verification|gdpr-compliance|settlement-calculation|stock-availability|stock-concurrency" | tr '\n' ' ')
-          npx c8 node --import tsx --test --test-timeout=10000 $FILES
+        run: npm run test:coverage
         timeout-minutes: 5
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: coverage-report
           path: coverage
           if-no-files-found: warn
 
-  # Corre en paralelo con `quality`
   build:
     name: Build And Migrate
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -84,7 +77,6 @@ jobs:
       - name: Build
         run: npm run build
 
-  # Solo corre si quality y build pasan
   integration:
     name: Integration
     runs-on: ubuntu-latest
@@ -95,21 +87,25 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: marketplace
+          POSTGRES_DB: marketplace_test
           POSTGRES_USER: mp_user
           POSTGRES_PASSWORD: mp_pass
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U mp_user -d marketplace"
+          --health-cmd "pg_isready -U mp_user -d marketplace_test"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 15
 
-    steps:
-      - uses: actions/checkout@v4
+    env:
+      DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
+      DATABASE_URL_TEST: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
 
-      - uses: actions/setup-node@v4
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -119,8 +115,8 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Run migrations
-        run: npx prisma migrate deploy
+      - name: Run DB-backed tests
+        run: npm run test:db
 
       - name: Create .env for seed script
         run: |
@@ -135,4 +131,3 @@ jobs:
       - name: Integration tests
         run: npm run test:integration
         timeout-minutes: 10
-        continue-on-error: true

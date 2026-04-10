@@ -2,10 +2,9 @@
  * Settlement Calculation and Approval Tests (#88)
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from './test-helpers'
 import { db } from '@/lib/db'
 import { calculateSettlement, upsertSettlement, generateSettlementsForPeriod } from '@/domains/settlements/calculate'
-import type { Decimal } from '@prisma/client/runtime/library'
 
 describe('Settlement Calculation (#88)', () => {
   let vendorId: string
@@ -33,8 +32,9 @@ describe('Settlement Calculation (#88)', () => {
         userId: user.id,
         displayName: 'Test Vendor',
         slug: `vendor-${Date.now()}`,
+        status: 'ACTIVE',
         stripeOnboarded: true,
-        stripeAccountId: 'acct_test',
+        stripeAccountId: `acct_test_${Date.now()}`,
       },
     })
     vendorId = vendor.id
@@ -57,11 +57,14 @@ describe('Settlement Calculation (#88)', () => {
       data: {
         name: 'Test Product',
         slug: `product-${Date.now()}`,
+        images: [],
         basePrice: 100,
         taxRate: 0.21,
         unit: 'pcs',
         stock: 100,
         trackStock: true,
+        certifications: [],
+        tags: [],
         vendorId,
         status: 'ACTIVE',
       },
@@ -92,7 +95,6 @@ describe('Settlement Calculation (#88)', () => {
         grandTotal: 126,
         status: 'DELIVERED',
         paymentStatus: 'SUCCEEDED',
-        deliveredAt: new Date(),
         lines: {
           create: {
             productId,
@@ -100,7 +102,6 @@ describe('Settlement Calculation (#88)', () => {
             quantity: 1,
             unitPrice: 100,
             taxRate: 0.21,
-            subtotal: 100,
             productSnapshot: {
               id: productId,
               name: 'Test Product',
@@ -134,10 +135,14 @@ describe('Settlement Calculation (#88)', () => {
   })
 
   afterAll(async () => {
-    await db.orderLine.deleteMany({ where: { productId } })
+    await db.settlement.deleteMany({ where: { vendorId } })
+    await db.vendorFulfillment.deleteMany({ where: { orderId } })
+    await db.payment.deleteMany({ where: { orderId } })
+    await db.orderLine.deleteMany({ where: { orderId } })
     await db.order.deleteMany({ where: { id: orderId } })
     await db.product.delete({ where: { id: productId } })
     await db.vendor.delete({ where: { id: vendorId } })
+    await db.address.deleteMany({ where: { userId: customerId } })
     await db.user.delete({ where: { id: userId } })
     await db.user.delete({ where: { id: customerId } })
   })
@@ -174,7 +179,7 @@ describe('Settlement Calculation (#88)', () => {
 
       const settlement = await calculateSettlement(vendorId, periodFrom, periodTo)
 
-      const expectedCommission = settlement.grossSales * 0.15 // Default 15% commission
+      const expectedCommission = settlement.grossSales * 0.12 // Default 12% commission
       expect(Math.abs(Number(settlement.commissions) - Number(expectedCommission))).toBeLessThan(0.01)
     })
   })
