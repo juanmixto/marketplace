@@ -21,6 +21,18 @@ interface PaymentStatusTransitionInput {
   nextStatus: PaymentStatus
 }
 
+/**
+ * Error thrown when a webhook event cannot be processed due to a permanent
+ * data integrity issue. Callers should return HTTP 200 so Stripe does not retry.
+ */
+export class PermanentWebhookError extends Error {
+  readonly permanent = true
+  constructor(message: string) {
+    super(message)
+    this.name = 'PermanentWebhookError'
+  }
+}
+
 export function shouldApplyPaymentSucceeded(snapshot: PaymentSnapshot) {
   return !(
     snapshot.paymentStatus === 'SUCCEEDED' &&
@@ -45,7 +57,7 @@ export function assertProviderRefForPaymentStatus({
   nextStatus,
 }: PaymentStatusTransitionInput) {
   if (nextStatus === 'SUCCEEDED' && (!providerRef || providerRef.trim().length === 0)) {
-    throw new Error('providerRef requerido para marcar pago como completado')
+    throw new PermanentWebhookError('providerRef requerido para marcar pago como completado')
   }
 }
 

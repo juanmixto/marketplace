@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import {
   assertProviderRefForPaymentStatus,
   doesWebhookPaymentMatchStoredPayment,
+  PermanentWebhookError,
   shouldApplyPaymentFailed,
   shouldApplyPaymentSucceeded,
 } from '@/domains/payments/webhook'
@@ -94,9 +95,7 @@ export async function POST(req: NextRequest) {
     // Distinguish transient errors (DB/network) from permanent ones.
     // Permanent errors should return 200 so Stripe does not retry indefinitely.
     // Transient errors return 500 to trigger Stripe's automatic retry.
-    const errMessage = err instanceof Error ? err.message : ''
-    const isPermanent =
-      errMessage === 'providerRef requerido para marcar pago como completado'
+    const isPermanent = err instanceof PermanentWebhookError
 
     console.error('[stripe-webhook]', { permanent: isPermanent, err })
 
