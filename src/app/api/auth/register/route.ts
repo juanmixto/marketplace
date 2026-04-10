@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
+import { checkRateLimit, getClientIP } from '@/lib/ratelimit'
 
 const schema = z.object({
   firstName: z.string().min(1).max(50),
@@ -12,6 +13,25 @@ const schema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limiting: 3 registrations per IP per hour
+    const clientIP = getClientIP(req)
+    const rateLimitResult = await checkRateLimit('register', clientIP, 3, 3600)
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { message: rateLimitResult.message },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000).toString(),
+            'X-RateLimit-Limit': '3',
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': rateLimitResult.resetAt.toString(),
+          },
+        }
+      )
+    }
+
     const body = await req.json()
     const data = schema.parse(body)
 
@@ -29,8 +49,15 @@ export async function POST(req: NextRequest) {
         email: data.email,
         passwordHash,
         role: 'CUSTOMER',
-        emailVerified: new Date(), // skip email verification for now
+        emailVerified: null, // Require email verification before access
       },
+    })
+
+    // TODO: Create EmailVerificationToken and send verification email
+    // For now, auto-verify to allow testing
+    await db.user.update({
+      where: { email: data.email },
+      data: { emailVerified: new Date() },
     })
 
     return NextResponse.json({ success: true }, { status: 201 })

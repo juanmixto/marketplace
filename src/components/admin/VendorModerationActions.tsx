@@ -27,7 +27,7 @@ export function VendorModerationActions({ vendorId, status }: Props) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {error && <p className="text-xs text-red-600 w-full">{error}</p>}
+      {error && <p className="w-full text-xs text-red-600 dark:text-red-400">{error}</p>}
 
       {['APPLYING', 'PENDING_DOCS'].includes(status) && (
         <>

@@ -4,8 +4,12 @@ import { ProductCard } from '@/components/catalog/ProductCard'
 import type { ProductWithVendor } from '@/domains/catalog/types'
 import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import type { Metadata } from 'next'
+import { db } from '@/lib/db'
+import { VendorReviewsSection } from './VendorReviewsSection'
 
 interface Props { params: Promise<{ slug: string }> }
+
+export const revalidate = 300
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
@@ -19,36 +23,67 @@ export default async function VendorPublicPage({ params }: Props) {
   const vendor = await getVendorBySlug(slug)
   if (!vendor) notFound()
 
+  // Cargar reseñas del vendedor
+  const [reviews, aggregate] = await Promise.all([
+    db.review.findMany({
+      where: { vendorId: vendor.id },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      select: {
+        id: true,
+        rating: true,
+        body: true,
+        createdAt: true,
+        customer: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+        product: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    }),
+    db.review.aggregate({
+      where: { vendorId: vendor.id },
+      _avg: { rating: true },
+      _count: { _all: true },
+    }),
+  ])
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Header */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 mb-8">
+      <div className="mb-8 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
         <div className="flex items-start gap-5">
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-4xl">
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-4xl">
             🌾
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{vendor.displayName}</h1>
+            <h1 className="text-2xl font-bold text-[var(--foreground)]">{vendor.displayName}</h1>
             {vendor.location && (
-              <p className="flex items-center gap-1 text-sm text-gray-500 mt-1">
+              <p className="flex items-center gap-1 text-sm text-[var(--muted)] mt-1">
                 <MapPinIcon className="h-4 w-4" /> {vendor.location}
               </p>
             )}
             {vendor.avgRating && (
-              <p className="flex items-center gap-1 text-sm text-amber-600 mt-1">
+              <p className="flex items-center gap-1 text-sm text-amber-600 dark:text-amber-400 mt-1">
                 <StarIcon className="h-4 w-4" />
                 {Number(vendor.avgRating).toFixed(1)} · {vendor.totalReviews} valoraciones
               </p>
             )}
             {vendor.description && (
-              <p className="mt-3 text-gray-600 leading-relaxed max-w-2xl">{vendor.description}</p>
+              <p className="mt-3 text-[var(--foreground-soft)] leading-relaxed max-w-2xl">{vendor.description}</p>
             )}
           </div>
         </div>
       </div>
 
       {/* Products */}
-      <h2 className="text-xl font-bold text-gray-900 mb-4">
+      <h2 className="mb-4 text-xl font-bold text-[var(--foreground)]">
         Productos ({vendor.products.length})
       </h2>
       {vendor.products.length > 0 ? (
@@ -68,7 +103,21 @@ export default async function VendorPublicPage({ params }: Props) {
           ))}
         </div>
       ) : (
-        <p className="text-gray-500">Este productor aún no tiene productos publicados.</p>
+        <p className="text-[var(--muted)]">Este productor aún no tiene productos publicados.</p>
+      )}
+
+      {/* Reviews */}
+      {reviews.length > 0 && (
+        <div className="mb-8 mt-12">
+          <h2 className="mb-6 text-xl font-bold text-[var(--foreground)]">
+            Reseñas ({aggregate._count._all})
+          </h2>
+          <VendorReviewsSection
+            reviews={reviews}
+            avgRating={aggregate._avg.rating ? Number(aggregate._avg.rating) : null}
+            totalReviews={aggregate._count._all}
+          />
+        </div>
       )}
     </div>
   )

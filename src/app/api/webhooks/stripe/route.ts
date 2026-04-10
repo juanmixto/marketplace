@@ -1,12 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { shouldApplyPaymentFailed, shouldApplyPaymentSucceeded } from '@/domains/payments/webhook'
+import {
+  assertProviderRefForPaymentStatus,
+  doesWebhookPaymentMatchStoredPayment,
+  shouldApplyPaymentFailed,
+  shouldApplyPaymentSucceeded,
+} from '@/domains/payments/webhook'
+import {
+  createPaymentConfirmedEventPayload,
+  createPaymentFailedEventPayload,
+  createPaymentMismatchEventPayload,
+} from '@/domains/orders/order-event-payload'
 import { getServerEnv } from '@/lib/env'
 import type Stripe from 'stripe'
 
 type WebhookPaymentIntent = {
   id: string
   amount?: number
+  currency?: string
 }
 
 type WebhookEvent = {
@@ -29,6 +40,7 @@ function getWebhookPaymentIntent(event: Stripe.Event | WebhookEvent): WebhookPay
     return {
       id: object.id,
       amount: 'amount' in object && typeof object.amount === 'number' ? object.amount : undefined,
+      currency: 'currency' in object && typeof object.currency === 'string' ? object.currency : undefined,
     }
   }
 
@@ -68,7 +80,7 @@ export async function POST(req: NextRequest) {
       case 'payment_intent.succeeded': {
         const pi = getWebhookPaymentIntent(event)
         if (!pi) break
-        await handlePaymentSucceeded(pi.id, pi.amount, event.id)
+        await handlePaymentSucceeded(pi.id, pi.amount, pi.currency, event.id)
         break
       }
       case 'payment_intent.payment_failed': {
@@ -86,12 +98,49 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ received: true })
 }
 
-async function handlePaymentSucceeded(providerRef: string, amount?: number, eventId?: string) {
+async function handlePaymentSucceeded(providerRef: string, amount?: number, currency?: string, eventId?: string) {
   const payment = await db.payment.findUnique({
     where: { providerRef },
     include: { order: true },
   })
   if (!payment) return
+  assertProviderRefForPaymentStatus({
+    providerRef: payment.providerRef,
+    nextStatus: 'SUCCEEDED',
+  })
+
+  if (!doesWebhookPaymentMatchStoredPayment(payment, { amount, currency })) {
+    // Security: Amount mismatch indicates possible tampering or data inconsistency
+    // Log fraud attempt with full details for investigation
+    console.error('[PAYMENT_FRAUD_ALERT]', {
+      orderId: payment.orderId,
+      providerRef,
+      expectedAmount: Number(payment.amount),
+      receivedAmount: amount,
+      expectedCurrency: payment.currency,
+      receivedCurrency: currency,
+      timestamp: new Date().toISOString(),
+      eventId,
+    })
+
+    await db.orderEvent.create({
+      data: {
+        orderId: payment.orderId,
+        type: 'PAYMENT_MISMATCH',
+        payload: createPaymentMismatchEventPayload({
+          providerRef,
+          amount,
+          currency,
+          eventId,
+          expectedAmount: Number(payment.amount),
+          expectedCurrency: payment.currency,
+        }),
+      },
+    })
+
+    // DO NOT confirm this order - amount verification failed
+    return
+  }
 
   if (!shouldApplyPaymentSucceeded({
     paymentStatus: payment.status,
@@ -121,7 +170,7 @@ async function handlePaymentSucceeded(providerRef: string, amount?: number, even
         data: {
           orderId: payment.orderId,
           type: 'PAYMENT_CONFIRMED',
-          payload: { providerRef, amount, eventId },
+          payload: createPaymentConfirmedEventPayload({ providerRef, amount, eventId }),
         },
       })
     }
@@ -157,7 +206,7 @@ async function handlePaymentFailed(providerRef: string, eventId?: string) {
         data: {
           orderId: payment.orderId,
           type: 'PAYMENT_FAILED',
-          payload: { providerRef, eventId },
+          payload: createPaymentFailedEventPayload({ providerRef, eventId }),
         },
       })
     }

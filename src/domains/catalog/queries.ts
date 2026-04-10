@@ -1,6 +1,8 @@
+import { unstable_cache } from 'next/cache'
 import { db } from '@/lib/db'
 import { PAGINATION_DEFAULTS } from '@/lib/constants'
 import { getAvailableProductWhere } from '@/domains/catalog/availability'
+import { CACHE_TAGS } from '@/lib/cache-tags'
 
 export interface ProductFilters {
   categorySlug?: string
@@ -10,11 +12,12 @@ export interface ProductFilters {
   vendorSlug?: string
   q?: string
   sort?: 'price_asc' | 'price_desc' | 'newest' | 'popular'
-  page?: number
+  /** Cursor-based pagination: ID of the last product on the previous page */
+  cursor?: string
   limit?: number
 }
 
-export async function getProducts(filters: ProductFilters = {}) {
+function normalizeProductFilters(filters: ProductFilters = {}) {
   const {
     categorySlug,
     certifications,
@@ -23,11 +26,35 @@ export async function getProducts(filters: ProductFilters = {}) {
     vendorSlug,
     q,
     sort = 'newest',
-    page = 1,
+    cursor,
     limit = PAGINATION_DEFAULTS.PAGE_SIZE,
   } = filters
 
-  const skip = (page - 1) * limit
+  return {
+    categorySlug,
+    certifications: certifications ? [...certifications].sort() : undefined,
+    minPrice,
+    maxPrice,
+    vendorSlug,
+    q,
+    sort,
+    cursor,
+    limit,
+  }
+}
+
+async function getProductsUncached(filters: ProductFilters = {}) {
+  const {
+    categorySlug,
+    certifications,
+    minPrice,
+    maxPrice,
+    vendorSlug,
+    q,
+    sort,
+    cursor,
+    limit,
+  } = normalizeProductFilters(filters)
 
   const where = {
     ...getAvailableProductWhere(),
@@ -45,44 +72,86 @@ export async function getProducts(filters: ProductFilters = {}) {
     }),
   }
 
+  // Stable compound sort: primary sort field + id tiebreaker ensures
+  // cursor pagination is consistent even for products with identical prices/dates.
   const orderBy = {
-    price_asc:  { basePrice: 'asc' as const },
-    price_desc: { basePrice: 'desc' as const },
-    newest:     { createdAt: 'desc' as const },
-    popular:    { createdAt: 'desc' as const }, // TODO: replace with sales count
+    price_asc:  [{ basePrice: 'asc' as const },  { id: 'asc' as const }],
+    price_desc: [{ basePrice: 'desc' as const }, { id: 'asc' as const }],
+    newest:     [{ createdAt: 'desc' as const }, { id: 'desc' as const }],
+    popular:    [{ createdAt: 'desc' as const }, { id: 'desc' as const }],
   }[sort]
 
-  const [products, total] = await Promise.all([
-    db.product.findMany({
-      where,
-      orderBy,
-      skip,
-      take: limit,
-      include: {
-        vendor: { select: { slug: true, displayName: true, location: true } },
-        category: { select: { name: true, slug: true } },
-      },
-    }),
-    db.product.count({ where }),
-  ])
+  // Fetch one extra item to determine if a next page exists
+  const products = await db.product.findMany({
+    where,
+    orderBy,
+    take: limit + 1,
+    ...(cursor && { cursor: { id: cursor }, skip: 1 }),
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      images: true,
+      basePrice: true,
+      compareAtPrice: true,
+      stock: true,
+      trackStock: true,
+      unit: true,
+      certifications: true,
+      originRegion: true,
+      createdAt: true,
+      vendor: { select: { slug: true, displayName: true, location: true } },
+      category: { select: { name: true, slug: true } },
+    },
+  })
+
+  const hasNextPage = products.length > limit
+  if (hasNextPage) products.pop()
+
+  const nextCursor = hasNextPage ? products[products.length - 1]?.id ?? null : null
 
   return {
     products,
-    total,
-    page,
+    nextCursor,
+    hasNext: hasNextPage,
+    hasPrev: !!cursor,
     limit,
-    totalPages: Math.ceil(total / limit),
-    hasNext: page * limit < total,
-    hasPrev: page > 1,
   }
 }
 
-export async function getProductBySlug(slug: string) {
+const getProductsCached = unstable_cache(
+  async (serializedFilters: string) => getProductsUncached(JSON.parse(serializedFilters) as ProductFilters),
+  ['catalog-products'],
+  { tags: [CACHE_TAGS.catalog], revalidate: 300 }
+)
+
+export async function getProducts(filters: ProductFilters = {}) {
+  if (process.env.NODE_ENV === 'test') return getProductsUncached(filters)
+  return getProductsCached(JSON.stringify(normalizeProductFilters(filters)))
+}
+
+async function getProductBySlugUncached(slug: string) {
   return db.product.findFirst({
     where: { slug, ...getAvailableProductWhere() },
-    include: {
+    select: {
+      id: true,
+      vendorId: true,
+      slug: true,
+      name: true,
+      description: true,
+      images: true,
+      basePrice: true,
+      compareAtPrice: true,
+      taxRate: true,
+      stock: true,
+      trackStock: true,
+      unit: true,
+      certifications: true,
+      originRegion: true,
+      createdAt: true,
       vendor: {
         select: {
+          id: true,
           slug: true,
           displayName: true,
           description: true,
@@ -98,19 +167,56 @@ export async function getProductBySlug(slug: string) {
   })
 }
 
-export async function getFeaturedProducts(limit = 8) {
+const getProductBySlugCached = unstable_cache(
+  async (slug: string) => getProductBySlugUncached(slug),
+  ['product-by-slug'],
+  { tags: [CACHE_TAGS.products], revalidate: 300 }
+)
+
+export async function getProductBySlug(slug: string) {
+  if (process.env.NODE_ENV === 'test') return getProductBySlugUncached(slug)
+  return getProductBySlugCached(slug)
+}
+
+// Explicit type for TypeScript inference
+type ProductDetail = Awaited<ReturnType<typeof getProductBySlugUncached>>
+
+async function getFeaturedProductsUncached(limit = 8) {
   return db.product.findMany({
     where: getAvailableProductWhere(),
     orderBy: { createdAt: 'desc' },
     take: limit,
-    include: {
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      images: true,
+      basePrice: true,
+      compareAtPrice: true,
+      stock: true,
+      trackStock: true,
+      unit: true,
+      certifications: true,
+      originRegion: true,
+      createdAt: true,
       vendor: { select: { slug: true, displayName: true, location: true } },
       category: { select: { name: true, slug: true } },
     },
   })
 }
 
-export async function getCategories() {
+const getFeaturedProductsCached = unstable_cache(
+  async (limit: number) => getFeaturedProductsUncached(limit),
+  ['featured-products'],
+  { tags: [CACHE_TAGS.catalog, CACHE_TAGS.home, CACHE_TAGS.products], revalidate: 300 }
+)
+
+export async function getFeaturedProducts(limit = 8) {
+  if (process.env.NODE_ENV === 'test') return getFeaturedProductsUncached(limit)
+  return getFeaturedProductsCached(limit)
+}
+
+async function getCategoriesUncached() {
   return db.category.findMany({
     where: { isActive: true, parentId: null },
     orderBy: { sortOrder: 'asc' },
@@ -120,7 +226,18 @@ export async function getCategories() {
   })
 }
 
-export async function getVendors(limit = 12) {
+const getCategoriesCached = unstable_cache(
+  async () => getCategoriesUncached(),
+  ['catalog-categories'],
+  { tags: [CACHE_TAGS.categories, CACHE_TAGS.catalog, CACHE_TAGS.home], revalidate: 300 }
+)
+
+export async function getCategories() {
+  if (process.env.NODE_ENV === 'test') return getCategoriesUncached()
+  return getCategoriesCached()
+}
+
+async function getVendorsUncached(limit = 12) {
   return db.vendor.findMany({
     where: { status: 'ACTIVE' },
     orderBy: { avgRating: 'desc' },
@@ -131,7 +248,18 @@ export async function getVendors(limit = 12) {
   })
 }
 
-export async function getHomeSnapshot() {
+const getVendorsCached = unstable_cache(
+  async (limit: number) => getVendorsUncached(limit),
+  ['catalog-vendors'],
+  { tags: [CACHE_TAGS.vendors, CACHE_TAGS.home], revalidate: 300 }
+)
+
+export async function getVendors(limit = 12) {
+  if (process.env.NODE_ENV === 'test') return getVendorsUncached(limit)
+  return getVendorsCached(limit)
+}
+
+async function getHomeSnapshotUncached() {
   const [featured, categories, vendors, activeProducts, activeVendors, averageVendorRating] = await Promise.all([
     getFeaturedProducts(8),
     getCategories(),
@@ -160,7 +288,18 @@ export async function getHomeSnapshot() {
   }
 }
 
-export async function getVendorBySlug(slug: string) {
+const getHomeSnapshotCached = unstable_cache(
+  async () => getHomeSnapshotUncached(),
+  ['home-snapshot'],
+  { tags: [CACHE_TAGS.home, CACHE_TAGS.catalog, CACHE_TAGS.categories, CACHE_TAGS.vendors], revalidate: 3600 }
+)
+
+export async function getHomeSnapshot() {
+  if (process.env.NODE_ENV === 'test') return getHomeSnapshotUncached()
+  return getHomeSnapshotCached()
+}
+
+async function getVendorBySlugUncached(slug: string) {
   return db.vendor.findUnique({
     where: { slug, status: 'ACTIVE' },
     include: {
@@ -171,4 +310,15 @@ export async function getVendorBySlug(slug: string) {
       },
     },
   })
+}
+
+const getVendorBySlugCached = unstable_cache(
+  async (slug: string) => getVendorBySlugUncached(slug),
+  ['vendor-by-slug'],
+  { tags: [CACHE_TAGS.vendors], revalidate: 300 }
+)
+
+export async function getVendorBySlug(slug: string) {
+  if (process.env.NODE_ENV === 'test') return getVendorBySlugUncached(slug)
+  return getVendorBySlugCached(slug)
 }

@@ -5,14 +5,22 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {}
 function Card({ className, ...props }: CardProps) {
   return (
     <div
-      className={cn('rounded-xl border border-gray-200 bg-white shadow-sm', className)}
+      className={cn(
+        'overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm shadow-black/5 dark:shadow-black/20',
+        className
+      )}
       {...props}
     />
   )
 }
 
 function CardHeader({ className, ...props }: CardProps) {
-  return <div className={cn('border-b border-gray-100 px-5 py-4', className)} {...props} />
+  return (
+    <div
+      className={cn('border-b border-[var(--border)] bg-[var(--surface)] px-5 py-4', className)}
+      {...props}
+    />
+  )
 }
 
 function CardBody({ className, ...props }: CardProps) {
@@ -20,7 +28,12 @@ function CardBody({ className, ...props }: CardProps) {
 }
 
 function CardFooter({ className, ...props }: CardProps) {
-  return <div className={cn('border-t border-gray-100 px-5 py-4', className)} {...props} />
+  return (
+    <div
+      className={cn('border-t border-[var(--border)] bg-[var(--surface)] px-5 py-4', className)}
+      {...props}
+    />
+  )
 }
 
 export { Card, CardHeader, CardBody, CardFooter }

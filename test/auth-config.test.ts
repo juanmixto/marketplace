@@ -1,13 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { authConfig } from '@/lib/auth-config'
+import { UserRole } from '@/generated/prisma/enums'
 
 const callbacks = authConfig.callbacks!
 type AuthorizedParams = Parameters<NonNullable<typeof callbacks.authorized>>[0]
 type JwtParams = Parameters<NonNullable<typeof callbacks.jwt>>[0]
 type SessionParams = Parameters<NonNullable<typeof callbacks.session>>[0]
 
-function buildAuthorizedParams(pathname: string, role?: 'CUSTOMER' | 'VENDOR' | 'ADMIN_FINANCE'): AuthorizedParams {
+function buildAuthorizedParams(pathname: string, role?: UserRole): AuthorizedParams {
   return {
     auth: role
       ? {
@@ -49,10 +50,12 @@ test('authorized allows vendors into vendor routes and blocks non vendors', () =
 
 test('authorized restricts admin routes to admin roles', () => {
   const adminAllowed = callbacks.authorized!(buildAuthorizedParams('/admin/dashboard', 'ADMIN_FINANCE'))
+  const opsAllowed = callbacks.authorized!(buildAuthorizedParams('/admin/dashboard', 'ADMIN_OPS'))
 
   const vendorAllowed = callbacks.authorized!(buildAuthorizedParams('/admin/dashboard', 'VENDOR'))
 
   assert.equal(adminAllowed, true)
+  assert.equal(opsAllowed, true)
   assert.equal(vendorAllowed, false)
 })
 

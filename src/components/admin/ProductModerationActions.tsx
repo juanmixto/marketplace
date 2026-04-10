@@ -48,7 +48,7 @@ export function ProductModerationActions({ productId, productName, status }: Pro
   return (
     <>
       <div className="flex items-center gap-2">
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
         <Button size="sm" isLoading={loading} onClick={handleApprove}>
           Aprobar
         </Button>
@@ -64,11 +64,11 @@ export function ProductModerationActions({ productId, productName, status }: Pro
         size="sm"
       >
         <div className="p-5 space-y-4">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-[var(--foreground-soft)]">
             Rechazar <strong>{productName}</strong>. El productor recibirá el motivo.
           </p>
           <div className="space-y-1.5">
-            <label htmlFor="reason" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="reason" className="block text-sm font-medium text-[var(--foreground)]">
               Motivo (opcional)
             </label>
             <textarea
@@ -76,11 +76,11 @@ export function ProductModerationActions({ productId, productName, status }: Pro
               rows={3}
               value={reason}
               onChange={e => setReason(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-400/20"
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:focus:border-red-300 dark:focus:ring-red-400/25"
               placeholder="Las imágenes no cumplen los requisitos mínimos..."
             />
           </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
           <div className="flex gap-3 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setRejectModal(false)}>
               Cancelar

@@ -41,7 +41,8 @@ test('sanitizeCallbackUrl only keeps safe internal destinations', () => {
 
 test('resolvePostLoginDestination prefers safe callback urls and falls back by role', () => {
   assert.equal(resolvePostLoginDestination('VENDOR', '/vendor/productos'), '/vendor/productos')
-  assert.equal(resolvePostLoginDestination('SUPERADMIN', '/login'), '/admin/dashboard')
+  assert.equal(resolvePostLoginDestination('SUPERADMIN', '/vendor/dashboard'), '/admin/dashboard')
+  assert.equal(resolvePostLoginDestination('CUSTOMER', '/vendor/dashboard'), '/cuenta')
   assert.equal(resolvePostLoginDestination(undefined, '/login'), STOREFRONT_PATH)
 })
 

@@ -24,6 +24,12 @@ function canSuspendVendor(status: string) {
 function canReviewProduct(status: string) {
   return status === 'PENDING_REVIEW'
 }
+function canApproveSettlement(status: string) {
+  return ['DRAFT', 'PENDING_APPROVAL'].includes(status)
+}
+function canMarkSettlementPaid(status: string) {
+  return status === 'APPROVED'
+}
 
 test('vendor approval is only allowed from pending/suspended states', () => {
   assert.equal(canApproveVendor('APPLYING'), true)
@@ -52,4 +58,18 @@ test('product review is only valid when status is PENDING_REVIEW', () => {
   assert.equal(canReviewProduct('ACTIVE'), false)
   assert.equal(canReviewProduct('DRAFT'), false)
   assert.equal(canReviewProduct('REJECTED'), false)
+})
+
+test('settlement approval is only allowed from draft or pending approval', () => {
+  assert.equal(canApproveSettlement('DRAFT'), true)
+  assert.equal(canApproveSettlement('PENDING_APPROVAL'), true)
+  assert.equal(canApproveSettlement('APPROVED'), false)
+  assert.equal(canApproveSettlement('PAID'), false)
+})
+
+test('only approved settlements can be marked as paid', () => {
+  assert.equal(canMarkSettlementPaid('APPROVED'), true)
+  assert.equal(canMarkSettlementPaid('DRAFT'), false)
+  assert.equal(canMarkSettlementPaid('PENDING_APPROVAL'), false)
+  assert.equal(canMarkSettlementPaid('PAID'), false)
 })

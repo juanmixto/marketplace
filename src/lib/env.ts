@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 const baseEnvSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  DATABASE_URL_TEST: z.string().min(1).optional(),
   AUTH_SECRET: z.string().min(1, 'AUTH_SECRET is required').optional(),
   AUTH_URL: z.string().url('AUTH_URL must be a valid URL').optional(),
   NEXT_PUBLIC_APP_URL: z
@@ -33,7 +34,9 @@ export function parseServerEnv(env: NodeJS.ProcessEnv) {
   }
 
   return {
-    databaseUrl: parsed.DATABASE_URL,
+    databaseUrl: env.NODE_ENV === 'test' && parsed.DATABASE_URL_TEST
+      ? parsed.DATABASE_URL_TEST
+      : parsed.DATABASE_URL,
     authSecret: parsed.AUTH_SECRET,
     authUrl: parsed.AUTH_URL,
     appUrl: parsed.NEXT_PUBLIC_APP_URL,

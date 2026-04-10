@@ -117,17 +117,24 @@ model User {
   role          UserRole  @default(CUSTOMER)
   isActive      Boolean   @default(true)
   deletedAt     DateTime?
+  consentAcceptedAt DateTime?
+  passwordResetToken   String?   @unique
+  passwordResetExpires DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts    Account[]
-  sessions    Session[]
-  vendor      Vendor?
-  orders      Order[]
-  cart        Cart?
-  cart_items  CartItem[]
-  addresses   Address[]
-  incidents   Incident[]
+  accounts                  Account[]
+  sessions                  Session[]
+  vendor                    Vendor?
+  orders                    Order[]
+  cart                      Cart?
+  cart_items                CartItem[]
+  addresses                 Address[]
+  incidents                 Incident[]
+  reviews                   Review[]
+  favorites                 Favorite[]
+  emailVerificationTokens   EmailVerificationToken[]
+  passwordResetTokens       PasswordResetToken[]
 
   @@index([email])
   @@index([role])
@@ -197,6 +204,7 @@ model Vendor {
   products     Product[]
   fulfillments VendorFulfillment[]
   settlements  Settlement[]
+  reviews      Review[]
 
   @@index([status])
   @@index([slug])
@@ -236,6 +244,7 @@ model Product {
   compareAtPrice Decimal?      @db.Decimal(10, 2)
   taxRate        Decimal       @default(0.10) @db.Decimal(4, 3)
   unit           String        @default("kg")
+  // Stock base solo se usa como fuente de verdad cuando el producto no define variantes activas.
   stock          Int           @default(0)
   trackStock     Boolean       @default(true)
   minOrderQty    Int           @default(1)
@@ -253,6 +262,8 @@ model Product {
   variants   ProductVariant[]
   orderLines OrderLine[]
   cartItems  CartItem[]
+  reviews    Review[]
+  favorites  Favorite[]
 
   @@index([status, categoryId])
   @@index([vendorId, status])
@@ -266,6 +277,7 @@ model ProductVariant {
   sku           String   @unique
   name          String
   priceModifier Decimal  @default(0) @db.Decimal(10, 2)
+  // Si hay variantes activas y el producto trackea stock, este stock manda sobre Product.stock.
   stock         Int      @default(0)
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
@@ -355,6 +367,7 @@ model Order {
   fulfillments VendorFulfillment[]
   incidents    Incident[]
   events       OrderEvent[]
+  reviews      Review[]
 
   @@index([customerId, status])
   @@index([status, placedAt])
@@ -378,6 +391,27 @@ model OrderLine {
 
   @@index([orderId])
   @@index([vendorId])
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  orderId    String
+  productId  String
+  vendorId   String
+  customerId String
+  rating     Int
+  body       String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  order    Order   @relation(fields: [orderId], references: [id])
+  product  Product @relation(fields: [productId], references: [id])
+  vendor   Vendor  @relation(fields: [vendorId], references: [id])
+  customer User    @relation(fields: [customerId], references: [id])
+
+  @@unique([orderId, productId])
+  @@index([productId])
+  @@index([vendorId])
+  @@index([customerId])
 }
 
 model VendorFulfillment {
@@ -574,4 +608,47 @@ model MarketplaceConfig {
   updatedAt   DateTime @updatedAt
 
   @@index([key])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+}
+
+// ─── Authentication Tokens ────────────────────────────────────────────────────
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique @default(cuid())
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique @default(cuid())
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
 }

@@ -22,6 +22,7 @@ const profileSchema = z.object({
 })
 
 type ProfileFormValues = z.infer<typeof profileSchema>
+type ProfileFormInput = z.input<typeof profileSchema>
 
 interface Props {
   vendor: Vendor
@@ -35,7 +36,7 @@ export function VendorProfileForm({ vendor }: Props) {
     register,
     handleSubmit,
     formState: { errors, isSubmitting, isDirty },
-  } = useForm<ProfileFormValues>({
+  } = useForm<ProfileFormInput, unknown, ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       displayName: vendor.displayName,
@@ -62,8 +63,8 @@ export function VendorProfileForm({ vendor }: Props) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Public info */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 space-y-4">
-        <h2 className="font-semibold text-gray-900">Información pública</h2>
+      <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
+        <h2 className="font-semibold text-[var(--foreground)]">Información pública</h2>
 
         <Input
           label="Nombre del productor"
@@ -72,17 +73,17 @@ export function VendorProfileForm({ vendor }: Props) {
         />
 
         <div className="space-y-1.5">
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="description" className="block text-sm font-medium text-[var(--foreground)]">
             Descripción
           </label>
           <textarea
             id="description"
             rows={4}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
             placeholder="Cuéntanos sobre tu explotación, tus prácticas, tu historia..."
             {...register('description')}
           />
-          {errors.description?.message && <p className="text-xs text-red-600">{errors.description.message}</p>}
+          {errors.description?.message && <p className="text-xs text-red-600 dark:text-red-400">{errors.description.message}</p>}
         </div>
 
         <Input
@@ -94,8 +95,8 @@ export function VendorProfileForm({ vendor }: Props) {
       </section>
 
       {/* Logistics */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 space-y-4">
-        <h2 className="font-semibold text-gray-900">Logística</h2>
+      <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
+        <h2 className="font-semibold text-[var(--foreground)]">Logística</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
             label="Hora de corte de pedidos"
@@ -117,9 +118,9 @@ export function VendorProfileForm({ vendor }: Props) {
       </section>
 
       {/* Banking */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 space-y-4">
-        <h2 className="font-semibold text-gray-900">Datos bancarios</h2>
-        <p className="text-sm text-gray-500">Para recibir tus liquidaciones.</p>
+      <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
+        <h2 className="font-semibold text-[var(--foreground)]">Datos bancarios</h2>
+        <p className="text-sm text-[var(--muted)]">Para recibir tus liquidaciones.</p>
         <Input
           label="IBAN"
           placeholder="ES76 2100 0418 4502 0005 1332"
@@ -136,12 +137,12 @@ export function VendorProfileForm({ vendor }: Props) {
       </section>
 
       {success && (
-        <p className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">
+        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-300">
           Perfil actualizado correctamente.
         </p>
       )}
       {serverError && (
-        <p className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/35 dark:text-red-300">
           {serverError}
         </p>
       )}

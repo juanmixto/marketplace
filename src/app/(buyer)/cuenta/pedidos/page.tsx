@@ -29,14 +29,14 @@ export default async function MisPedidosPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Mis pedidos</h1>
+      <h1 className="text-2xl font-bold text-[var(--foreground)] mb-6">Mis pedidos</h1>
 
       {orders.length === 0 ? (
-        <div className="py-20 text-center">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-6 py-16 text-center shadow-sm">
           <p className="text-4xl mb-3">📦</p>
-          <p className="font-medium text-gray-700">Aún no tienes pedidos</p>
-          <Link href="/productos" className="mt-4 inline-block text-sm font-medium text-emerald-600 hover:underline">
-            Explorar productos →
+          <p className="font-medium text-[var(--foreground-soft)]">Aún no tienes pedidos</p>
+          <Link href="/productos" className="mt-4 inline-flex rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-300 dark:hover:bg-emerald-950/55">
+            Explorar productos
           </Link>
         </div>
       ) : (
@@ -45,24 +45,24 @@ export default async function MisPedidosPage() {
             <Link
               key={order.id}
               href={`/cuenta/pedidos/${order.id}`}
-              className="block rounded-xl border border-gray-200 bg-white p-5 hover:border-emerald-300 hover:shadow-sm transition"
+              className="block rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 transition hover:border-emerald-300 hover:shadow-sm dark:hover:border-emerald-700"
             >
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div>
-                  <p className="font-semibold text-gray-900">{order.orderNumber}</p>
-                  <p className="text-sm text-gray-500">{formatDate(order.placedAt)}</p>
+                  <p className="font-semibold text-[var(--foreground)]">{order.orderNumber}</p>
+                  <p className="text-sm text-[var(--muted)]">{formatDate(order.placedAt)}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <Badge variant={STATUS_VARIANT[order.status] ?? 'default'}>
                     {ORDER_STATUS_LABELS[order.status] ?? order.status}
                   </Badge>
-                  <p className="font-bold text-gray-900">{formatPrice(Number(order.grandTotal))}</p>
+                  <p className="font-bold text-[var(--foreground)]">{formatPrice(Number(order.grandTotal))}</p>
                 </div>
               </div>
 
               <div className="flex gap-2">
                 {order.lines.slice(0, 4).map(line => (
-                  <div key={line.id} className="relative h-12 w-12 overflow-hidden rounded-lg bg-gray-100">
+                  <div key={line.id} className="relative h-12 w-12 overflow-hidden rounded-lg bg-[var(--surface-raised)]">
                     {line.product.images?.[0]
                       ? <Image src={line.product.images[0]} alt={line.product.name} fill className="object-cover" sizes="48px" />
                       : <div className="flex h-full items-center justify-center text-lg">🌿</div>
@@ -70,7 +70,7 @@ export default async function MisPedidosPage() {
                   </div>
                 ))}
                 {order.lines.length > 4 && (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-100 text-xs text-gray-500 font-medium">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[var(--surface-raised)] text-xs text-[var(--muted)] font-medium">
                     +{order.lines.length - 4}
                   </div>
                 )}

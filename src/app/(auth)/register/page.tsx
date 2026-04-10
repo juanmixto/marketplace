@@ -51,8 +51,8 @@ export default function RegisterPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900">Crear cuenta</h1>
-      <p className="mt-1 text-sm text-gray-500">Es gratis. Sin compromisos.</p>
+      <h1 className="text-2xl font-bold text-[var(--foreground)]">Crear cuenta</h1>
+      <p className="mt-1 text-sm text-[var(--muted)]">Es gratis. Sin compromisos.</p>
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-4">
         <div className="grid grid-cols-2 gap-3">
@@ -70,24 +70,26 @@ export default function RegisterPage() {
         />
 
         {error && (
-          <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>
+          <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/35 dark:text-red-300">
+            {error}
+          </p>
         )}
 
         <Button type="submit" className="w-full" isLoading={loading} size="lg">
           Crear cuenta
         </Button>
 
-        <p className="text-center text-xs text-gray-500">
+        <p className="text-center text-xs text-[var(--muted)]">
           Al registrarte aceptas los{' '}
-          <Link href="#" className="text-emerald-600 hover:underline">Términos de uso</Link>
+          <Link href="#" className="rounded-sm text-emerald-600 hover:underline dark:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30">Términos de uso</Link>
           {' '}y la{' '}
-          <Link href="#" className="text-emerald-600 hover:underline">Política de privacidad</Link>
+          <Link href="#" className="rounded-sm text-emerald-600 hover:underline dark:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30">Política de privacidad</Link>
         </p>
       </form>
 
-      <p className="mt-6 text-center text-sm text-gray-500">
+      <p className="mt-6 text-center text-sm text-[var(--muted)]">
         ¿Ya tienes cuenta?{' '}
-        <Link href="/login" className="font-semibold text-emerald-600 hover:underline">
+        <Link href="/login" className="font-semibold text-emerald-600 hover:underline dark:text-emerald-400">
           Inicia sesión
         </Link>
       </p>

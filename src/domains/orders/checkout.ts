@@ -1,8 +1,5 @@
 import { z } from 'zod'
 
-const SHIPPING_THRESHOLD = 35
-const SHIPPING_COST = 4.95
-
 export const addressSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
@@ -21,6 +18,34 @@ export const checkoutSchema = z.object({
 
 export type CheckoutFormData = z.infer<typeof checkoutSchema>
 
+export const orderItemSchema = z.object({
+  productId: z.string().min(1, 'Producto inválido'),
+  variantId: z.string().min(1).optional(),
+  quantity: z.number().int().positive('La cantidad debe ser un entero positivo'),
+})
+
+export const orderItemsSchema = z.array(orderItemSchema)
+  .min(1, 'El carrito no puede estar vacío')
+  .superRefine((items, ctx) => {
+    const seen = new Set<string>()
+
+    for (const [index, item] of items.entries()) {
+      const key = `${item.productId}:${item.variantId ?? ''}`
+      if (seen.has(key)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'No se permiten productos duplicados en el pedido',
+          path: [index],
+        })
+        continue
+      }
+
+      seen.add(key)
+    }
+  })
+
+export type OrderItemInput = z.infer<typeof orderItemSchema>
+
 export interface OrderPricingLine {
   unitPrice: number
   quantity: number
@@ -37,20 +62,35 @@ export function getIncludedTaxAmount(unitPrice: number, quantity: number, taxRat
   return roundCurrency(gross - net)
 }
 
-export function calculateOrderTotals(lines: OrderPricingLine[]) {
+export function calculateOrderPricing(lines: OrderPricingLine[]) {
   const subtotal = roundCurrency(
     lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0)
   )
   const taxAmount = roundCurrency(
     lines.reduce((sum, line) => sum + getIncludedTaxAmount(line.unitPrice, line.quantity, line.taxRate), 0)
   )
-  const shippingCost = subtotal >= SHIPPING_THRESHOLD ? 0 : SHIPPING_COST
+
+  return {
+    subtotal,
+    taxAmount,
+  }
+}
+
+export function calculateOrderTotals(lines: OrderPricingLine[]) {
+  return calculateOrderTotalsWithShippingCost(lines, 4.95)
+}
+
+export function calculateOrderTotalsWithShippingCost(
+  lines: OrderPricingLine[],
+  shippingCost: number
+) {
+  const { subtotal, taxAmount } = calculateOrderPricing(lines)
   const grandTotal = roundCurrency(subtotal + shippingCost)
 
   return {
     subtotal,
     taxAmount,
-    shippingCost,
+    shippingCost: roundCurrency(shippingCost),
     grandTotal,
   }
 }

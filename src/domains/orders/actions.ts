@@ -1,15 +1,25 @@
 'use server'
 
-import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import { generateOrderNumber } from '@/lib/utils'
 import { createPaymentIntent } from '@/domains/payments/provider'
-import { revalidatePath } from 'next/cache'
-import { calculateOrderTotals, checkoutSchema, type CheckoutFormData } from '@/domains/orders/checkout'
-import { shouldApplyPaymentSucceeded } from '@/domains/payments/webhook'
+import {
+  calculateOrderPricing,
+  calculateOrderTotalsWithShippingCost,
+  checkoutSchema,
+  orderItemsSchema,
+  type CheckoutFormData,
+} from '@/domains/orders/checkout'
+import { orderLineSnapshotSchema } from '@/types/order'
+import { assertProviderRefForPaymentStatus, shouldApplyPaymentSucceeded } from '@/domains/payments/webhook'
 import { getServerEnv } from '@/lib/env'
 import { getAvailableProductWhere } from '@/domains/catalog/availability'
+import { getAvailableStockForPurchase, getSelectedVariant, getVariantAdjustedPrice, productRequiresVariantSelection } from '@/domains/catalog/variants'
+import { getShippingCost } from '@/domains/shipping/calculator'
+import { getActionSession } from '@/lib/action-session'
+import { safeRevalidatePath } from '@/lib/revalidate'
+import { createPaymentConfirmedEventPayload } from '@/domains/orders/order-event-payload'
 
 export interface CartItemInput {
   productId: string
@@ -20,56 +30,109 @@ export interface CartItemInput {
 /**
  * Creates an order from the current cart items.
  * Returns a client secret for Stripe (or mock token) to complete payment.
+ *
+ * Security: Price calculation is ALWAYS done server-side
+ * - Client must send only productId, variantId, quantity (no prices)
+ * - Prices are loaded from database (current catalog prices)
+ * - Totals including tax and shipping are calculated server-side
+ * - PaymentIntent amount is derived 100% from server calculations
+ * - Webhook verification ensures the final payment amount matches the calculated total
+ *
+ * This prevents price manipulation attacks where a malicious client could:
+ * - Intercept and lower prices in cart
+ * - Modify prices in transit before payment
+ * - Create orders that bypass pricing rules
+ *
+ * @param items - Cart items with only IDs and quantities (prices NOT accepted)
+ * @param formData - Checkout form data (address, etc)
+ * @returns Order ID, Stripe client secret, and order number for confirmation
+ * @throws Error if items are malformed, stock is insufficient, or validation fails
  */
 export async function createOrder(
   items: CartItemInput[],
   formData: CheckoutFormData
 ): Promise<{ orderId: string; clientSecret: string; orderNumber: string }> {
-  const session = await auth()
+  const session = await getActionSession()
   if (!session) redirect('/login')
 
+  const validatedItems = orderItemsSchema.parse(items)
   const validated = checkoutSchema.parse(formData)
 
   // Load products with current prices
   const products = await db.product.findMany({
-    where: { id: { in: items.map(i => i.productId) }, ...getAvailableProductWhere() },
-    include: { vendor: { select: { id: true, displayName: true } } },
+    where: { id: { in: validatedItems.map(i => i.productId) }, ...getAvailableProductWhere() },
+    include: {
+      vendor: { select: { id: true, displayName: true } },
+      variants: { where: { isActive: true } },
+    },
   })
 
   if (products.length === 0) throw new Error('Carrito vacío o productos no disponibles')
 
-  // Build order lines with price snapshots
-  const lines = items.map(item => {
+  // Build order lines with price snapshots (without stock validation - will be done in transaction)
+  const lines = validatedItems.map(item => {
     const product = products.find(p => p.id === item.productId)
     if (!product) throw new Error(`Producto ${item.productId} no disponible`)
-    if (product.trackStock && product.stock < item.quantity) {
-      throw new Error(`Stock insuficiente para "${product.name}"`)
+
+    const purchasableProduct = {
+      basePrice: Number(product.basePrice),
+      stock: product.stock,
+      trackStock: product.trackStock,
+      variants: product.variants.map(variant => ({
+        id: variant.id,
+        name: variant.name,
+        priceModifier: Number(variant.priceModifier),
+        stock: variant.stock,
+        isActive: variant.isActive,
+      })),
     }
+    const selectedVariant = getSelectedVariant(purchasableProduct, item.variantId)
+
+    if (item.variantId && !selectedVariant) {
+      throw new Error(`La variante seleccionada para "${product.name}" ya no esta disponible`)
+    }
+
+    if (productRequiresVariantSelection(purchasableProduct) && !selectedVariant) {
+      throw new Error(`Debes seleccionar una variante para "${product.name}"`)
+    }
+
+    // NOTE: Stock validation moved to transaction to prevent race condition
+
     return {
       productId: product.id,
       vendorId: product.vendor.id,
-      variantId: item.variantId ?? null,
+      variantId: selectedVariant?.id ?? null,
       quantity: item.quantity,
-      unitPrice: product.basePrice,
+      unitPrice: getVariantAdjustedPrice(Number(product.basePrice), selectedVariant),
       taxRate: product.taxRate,
-      productSnapshot: {
+      productSnapshot: orderLineSnapshotSchema.parse({
         id: product.id,
         name: product.name,
         slug: product.slug,
         images: product.images,
         unit: product.unit,
         vendorName: product.vendor.displayName,
-      },
+        variantName: selectedVariant?.name ?? null,
+      }),
     }
   })
 
   // Calculate totals
-  const { subtotal, taxAmount, shippingCost, grandTotal } = calculateOrderTotals(
+  const pricing = calculateOrderPricing(
     lines.map(line => ({
       unitPrice: Number(line.unitPrice),
       quantity: line.quantity,
       taxRate: Number(line.taxRate),
     }))
+  )
+  const shippingCost = await getShippingCost(validated.address.postalCode, pricing.subtotal)
+  const { subtotal, taxAmount, grandTotal } = calculateOrderTotalsWithShippingCost(
+    lines.map(line => ({
+      unitPrice: Number(line.unitPrice),
+      quantity: line.quantity,
+      taxRate: Number(line.taxRate),
+    })),
+    shippingCost
   )
 
   // Save address if requested
@@ -124,9 +187,54 @@ export async function createOrder(
       },
     })
 
-    // Decrement stock
+    // Validate and decrement stock with pessimistic locking (SELECT FOR UPDATE)
+    // This prevents race conditions where multiple concurrent orders could over-sell
     for (const line of lines) {
-      if (products.find(p => p.id === line.productId)?.trackStock) {
+      const product = products.find(p => p.id === line.productId)
+      if (!product?.trackStock) continue
+
+      if (line.variantId) {
+        // Lock variant row and check stock
+        interface VariantRow {
+          id: string
+          stock: number | null
+        }
+        const [variant] = await (tx.$queryRaw as any)`
+          SELECT id, stock FROM "ProductVariant"
+          WHERE id = ${line.variantId}
+          FOR UPDATE
+        ` as VariantRow[]
+
+        if (!variant) {
+          throw new Error(`Variante "${product.name}" no encontrada`)
+        }
+        if (variant.stock !== null && variant.stock < line.quantity) {
+          throw new Error(`Stock insuficiente para "${product.name}" (variante agotada)`)
+        }
+
+        await tx.productVariant.update({
+          where: { id: line.variantId },
+          data: { stock: variant.stock !== null ? { decrement: line.quantity } : undefined },
+        })
+      } else {
+        // Lock product row and check stock
+        interface ProductRow {
+          id: string
+          stock: number
+        }
+        const [lockedProduct] = await (tx.$queryRaw as any)`
+          SELECT id, stock FROM "Product"
+          WHERE id = ${line.productId}
+          FOR UPDATE
+        ` as ProductRow[]
+
+        if (!lockedProduct) {
+          throw new Error(`Producto "${product.name}" no encontrado`)
+        }
+        if (lockedProduct.stock < line.quantity) {
+          throw new Error(`Stock insuficiente para "${product.name}"`)
+        }
+
         await tx.product.update({
           where: { id: line.productId },
           data: { stock: { decrement: line.quantity } },
@@ -149,19 +257,34 @@ export async function createOrder(
  * Called from the webhook (Stripe) or directly in mock mode.
  */
 export async function confirmOrder(orderId: string, providerRef: string) {
+  const env = getServerEnv()
+  if (env.paymentProvider !== 'mock') {
+    throw new Error('La confirmacion manual solo esta disponible en modo mock')
+  }
+
+  const session = await getActionSession()
+  if (!session) redirect('/login')
+
   const payment = await db.payment.findFirst({
     where: { orderId, providerRef },
     include: { order: true },
   })
 
   if (!payment) return
+  if (payment.order.customerId !== session.user.id) {
+    throw new Error('No puedes confirmar un pedido que no te pertenece')
+  }
+  assertProviderRefForPaymentStatus({
+    providerRef: payment.providerRef,
+    nextStatus: 'SUCCEEDED',
+  })
 
   if (!shouldApplyPaymentSucceeded({
     paymentStatus: payment.status,
     orderPaymentStatus: payment.order.paymentStatus,
     orderStatus: payment.order.status,
   })) {
-    revalidatePath(`/cuenta/pedidos`)
+    safeRevalidatePath(`/cuenta/pedidos`)
     return
   }
 
@@ -183,16 +306,20 @@ export async function confirmOrder(orderId: string, providerRef: string) {
 
     if (paymentUpdate.count > 0 || orderUpdate.count > 0) {
       await tx.orderEvent.create({
-        data: { orderId, type: 'PAYMENT_CONFIRMED', payload: { providerRef, source: 'manual-confirm' } },
+        data: {
+          orderId,
+          type: 'PAYMENT_CONFIRMED',
+          payload: createPaymentConfirmedEventPayload({ providerRef, source: 'manual-confirm' }),
+        },
       })
     }
   })
 
-  revalidatePath(`/cuenta/pedidos`)
+  safeRevalidatePath(`/cuenta/pedidos`)
 }
 
 export async function getMyOrders() {
-  const session = await auth()
+  const session = await getActionSession()
   if (!session) return []
 
   return db.order.findMany({
@@ -207,7 +334,7 @@ export async function getMyOrders() {
 }
 
 export async function getOrderDetail(orderId: string) {
-  const session = await auth()
+  const session = await getActionSession()
   if (!session) return null
 
   return db.order.findFirst({

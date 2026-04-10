@@ -2,6 +2,7 @@
 // Must NOT import Prisma or any Node.js-only module.
 import type { NextAuthConfig } from 'next-auth'
 import type { UserRole } from '@/generated/prisma/enums'
+import { isAdmin, isVendor } from '@/lib/roles'
 
 export const authConfig: NextAuthConfig = {
   pages: {
@@ -18,12 +19,11 @@ export const authConfig: NextAuthConfig = {
       const isBuyerRoute = ['/carrito', '/checkout', '/cuenta'].some(p => pathname.startsWith(p))
 
       if (isAdminRoute) {
-        const role = auth?.user?.role ?? ''
-        return isLoggedIn && (role.startsWith('ADMIN') || role === 'SUPERADMIN')
+        return isLoggedIn && isAdmin(auth?.user?.role)
       }
 
       if (isVendorRoute) {
-        return isLoggedIn && auth?.user?.role === 'VENDOR'
+        return isLoggedIn && isVendor(auth?.user?.role)
       }
 
       if (isBuyerRoute) {

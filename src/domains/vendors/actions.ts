@@ -1,19 +1,20 @@
 'use server'
 
-import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { redirect } from 'next/navigation'
-import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { slugify } from '@/lib/utils'
 import type { FulfillmentStatus } from '@/generated/prisma/enums'
 import { parseExpirationDateInput } from '@/domains/catalog/availability'
+import { getActionSession } from '@/lib/action-session'
+import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
+import { isVendor } from '@/lib/roles'
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 
 async function requireVendor() {
-  const session = await auth()
-  if (!session || session.user.role !== 'VENDOR') redirect('/login')
+  const session = await getActionSession()
+  if (!session || !isVendor(session.user.role)) redirect('/login')
   const vendor = await db.vendor.findUnique({ where: { userId: session.user.id } })
   if (!vendor) redirect('/login')
   return { session, vendor }
@@ -48,6 +49,12 @@ type ProductInput = z.infer<typeof productSchema>
  */
 export async function createProduct(input: ProductInput) {
   const { vendor } = await requireVendor()
+
+  // Check if vendor has Stripe onboarded to accept payment
+  if (!vendor.stripeOnboarded) {
+    throw new Error('Debes configurar Stripe para poder publicar productos')
+  }
+
   const data = productSchema.parse(input)
 
   // Generate unique slug
@@ -68,7 +75,8 @@ export async function createProduct(input: ProductInput) {
     },
   })
 
-  revalidatePath('/vendor/productos')
+  safeRevalidatePath('/vendor/productos')
+  revalidateCatalogExperience({ productSlug: product.slug, vendorSlug: vendor.slug })
   return product
 }
 
@@ -97,8 +105,9 @@ export async function updateProduct(productId: string, input: Partial<ProductInp
     },
   })
 
-  revalidatePath('/vendor/productos')
-  revalidatePath(`/productos/${product.slug}`)
+  safeRevalidatePath('/vendor/productos')
+  safeRevalidatePath(`/productos/${product.slug}`)
+  revalidateCatalogExperience({ productSlug: updated.slug, vendorSlug: vendor.slug })
   return updated
 }
 
@@ -118,7 +127,8 @@ export async function submitForReview(productId: string) {
     data: { status: 'PENDING_REVIEW', rejectionNote: null },
   })
 
-  revalidatePath('/vendor/productos')
+  safeRevalidatePath('/vendor/productos')
+  revalidateCatalogExperience({ productSlug: product.slug, vendorSlug: vendor.slug })
 }
 
 /**
@@ -147,7 +157,8 @@ export async function deleteProduct(productId: string) {
     data: { deletedAt: new Date(), status: 'SUSPENDED' },
   })
 
-  revalidatePath('/vendor/productos')
+  safeRevalidatePath('/vendor/productos')
+  revalidateCatalogExperience({ productSlug: product.slug, vendorSlug: vendor.slug })
 }
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
@@ -197,19 +208,37 @@ export async function advanceFulfillment(
   const nextStatus = VALID_TRANSITIONS[fulfillment.status]
   if (!nextStatus) throw new Error(`No se puede avanzar desde el estado ${fulfillment.status}`)
 
-  await db.vendorFulfillment.update({
-    where: { id: fulfillmentId },
-    data: {
-      status: nextStatus,
-      ...(nextStatus === 'SHIPPED' && {
-        trackingNumber: trackingNumber ?? null,
-        carrier: carrier ?? null,
-        shippedAt: new Date(),
-      }),
-    },
+  await db.$transaction(async tx => {
+    await tx.vendorFulfillment.update({
+      where: { id: fulfillmentId },
+      data: {
+        status: nextStatus,
+        ...(nextStatus === 'SHIPPED' && {
+          trackingNumber: trackingNumber ?? null,
+          carrier: carrier ?? null,
+          shippedAt: new Date(),
+        }),
+      },
+    })
+
+    // When a fulfillment ships, recalculate the parent order status
+    if (nextStatus === 'SHIPPED') {
+      const allFulfillments = await tx.vendorFulfillment.findMany({
+        where: { orderId: fulfillment.orderId },
+        select: { status: true },
+      })
+
+      const allShipped = allFulfillments.every(f => f.status === 'SHIPPED')
+      const newOrderStatus = allShipped ? 'SHIPPED' : 'PARTIALLY_SHIPPED'
+
+      await tx.order.update({
+        where: { id: fulfillment.orderId },
+        data: { status: newOrderStatus },
+      })
+    }
   })
 
-  revalidatePath('/vendor/pedidos')
+  safeRevalidatePath('/vendor/pedidos')
 }
 
 export async function getMyFulfillments(filter?: 'active' | 'urgent' | 'shipped' | 'all') {
@@ -266,7 +295,8 @@ export async function updateVendorProfile(input: z.infer<typeof profileSchema>) 
     data,
   })
 
-  revalidatePath('/vendor/perfil')
+  safeRevalidatePath('/vendor/perfil')
+  revalidateCatalogExperience({ vendorSlug: vendor.slug })
   return updated
 }
 

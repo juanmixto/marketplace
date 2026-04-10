@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+import type { UserRole } from '@/generated/prisma/enums'
+import { isAdmin, isVendor } from '@/lib/roles'
 
 const secret = process.env.AUTH_SECRET
 
-function isAdmin(role: string) {
-  return role.startsWith('ADMIN') || role === 'SUPERADMIN'
+export function createLoginRedirectUrl(request: Pick<NextRequest, 'url' | 'nextUrl'>) {
+  const loginUrl = new URL('/login', request.url)
+  loginUrl.searchParams.set('callbackUrl', `${request.nextUrl.pathname}${request.nextUrl.search}`)
+  return loginUrl
 }
 
 export async function proxy(request: NextRequest) {
@@ -16,12 +20,10 @@ export async function proxy(request: NextRequest) {
     secret,
     secureCookie: forwardedProto === 'https',
   })
-  const role = (token?.role as string) ?? ''
+  const role = (token?.role as UserRole | undefined) ?? undefined
 
   function redirectToLogin() {
-    const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('callbackUrl', pathname)
-    return NextResponse.redirect(loginUrl)
+    return NextResponse.redirect(createLoginRedirectUrl(request))
   }
 
   // Admin routes — need ADMIN or SUPERADMIN
@@ -33,7 +35,7 @@ export async function proxy(request: NextRequest) {
 
   // Vendor portal
   if (pathname.startsWith('/vendor')) {
-    if (!token || role !== 'VENDOR') {
+    if (!token || !isVendor(role)) {
       return redirectToLogin()
     }
   }

@@ -71,17 +71,17 @@ export default async function AdminReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm font-medium text-emerald-700">Analitica</p>
-        <h1 className="text-2xl font-bold text-gray-900">Informes</h1>
-        <p className="mt-1 text-sm text-gray-500">Vista agregada del rendimiento operativo y financiero.</p>
+        <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Analitica</p>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">Informes</h1>
+        <p className="mt-1 text-sm text-[var(--muted)]">Vista agregada del rendimiento operativo y financiero.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {reportCards.map(card => (
-          <div key={card.label} className="rounded-2xl border border-gray-200 bg-white p-5">
-            <p className="text-xs uppercase tracking-wide text-gray-400">{card.label}</p>
-            <p className="mt-3 text-3xl font-bold text-gray-900">{card.value}</p>
-            <p className="mt-2 text-sm text-gray-500">{card.detail}</p>
+          <div key={card.label} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
+            <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">{card.label}</p>
+            <p className="mt-3 text-3xl font-bold text-[var(--foreground)]">{card.value}</p>
+            <p className="mt-2 text-sm text-[var(--muted)]">{card.detail}</p>
           </div>
         ))}
       </div>

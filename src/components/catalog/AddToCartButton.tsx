@@ -8,6 +8,7 @@ import { ShoppingCartIcon, CheckIcon } from '@heroicons/react/24/outline'
 interface Props {
   productId: string
   variantId?: string
+  variantName?: string
   productName: string
   disabled?: boolean
   price?: number
@@ -21,6 +22,7 @@ interface Props {
 export function AddToCartButton({
   productId,
   variantId,
+  variantName,
   productName,
   disabled,
   price = 0,
@@ -34,7 +36,7 @@ export function AddToCartButton({
   const [added, setAdded] = useState(false)
 
   function handleAdd() {
-    addItem({ productId, variantId, name: productName, slug, image, price, unit, vendorId, vendorName })
+    addItem({ productId, variantId, variantName, name: productName, slug, image, price, unit, vendorId, vendorName })
     setAdded(true)
     setTimeout(() => setAdded(false), 2000)
   }
@@ -44,7 +46,7 @@ export function AddToCartButton({
       onClick={handleAdd}
       disabled={disabled}
       size="lg"
-      className="w-full"
+      className="w-full shadow-sm"
       variant={added ? 'secondary' : 'primary'}
     >
       {added ? (

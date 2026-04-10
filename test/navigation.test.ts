@@ -9,9 +9,9 @@ import {
 } from '@/lib/navigation'
 
 test('navigation helpers split available and upcoming sections correctly', () => {
-  assert.equal(getAvailableNavItems(vendorNavItems).length, 4)
-  assert.equal(getUpcomingNavItems(vendorNavItems).length, 1)
-  assert.equal(getAvailableNavItems(adminNavItems).length, 7)
+  assert.equal(getAvailableNavItems(vendorNavItems).length, 5)
+  assert.equal(getUpcomingNavItems(vendorNavItems).length, 0)
+  assert.equal(getAvailableNavItems(adminNavItems).length, 11)
   assert.equal(getUpcomingNavItems(adminNavItems).length, 0)
 })
 
@@ -19,6 +19,9 @@ test('buyer account only exposes implemented links as available', () => {
   const available = getAvailableNavItems(buyerAccountItems)
   const upcoming = getUpcomingNavItems(buyerAccountItems)
 
-  assert.deepEqual(available.map(item => item.href), ['/cuenta/pedidos'])
-  assert.deepEqual(upcoming.map(item => item.href), ['/cuenta/direcciones', '/cuenta/perfil'])
+  assert.deepEqual(
+    available.map(item => item.href),
+    ['/cuenta/pedidos', '/cuenta/direcciones', '/cuenta/favoritos']
+  )
+  assert.deepEqual(upcoming.map(item => item.href), ['/cuenta/perfil'])
 })
