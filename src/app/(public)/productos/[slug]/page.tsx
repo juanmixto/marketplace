@@ -66,6 +66,7 @@ export default async function ProductDetailPage({ params }: Props) {
   if (!product) notFound()
 
   const taxRate = Number(product.taxRate)
+  const basePrice = Number(product.basePrice)
 
   const related = await getProducts({
     categorySlug: product.category?.slug,
@@ -73,8 +74,50 @@ export default async function ProductDetailPage({ params }: Props) {
   }).then(r => r.products.filter(p => p.id !== product.id).slice(0, 4))
   const reviewSummary = await getProductReviews(product.id)
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    description: product.description ?? undefined,
+    image: product.images?.[0] ? [product.images[0]] : undefined,
+    sku: product.id,
+    brand: {
+      '@type': 'Brand',
+      name: product.vendor?.displayName ?? 'Mercado Productor',
+    },
+    offers: {
+      '@type': 'Offer',
+      url: `${appUrl}/productos/${slug}`,
+      priceCurrency: 'EUR',
+      price: basePrice.toFixed(2),
+      priceValidUntil: product.expiresAt ? new Date(product.expiresAt).toISOString().split('T')[0] : undefined,
+      availability:
+        product.trackStock && product.stock === 0
+          ? 'https://schema.org/OutOfStock'
+          : 'https://schema.org/InStock',
+      seller: {
+        '@type': 'Organization',
+        name: product.vendor?.displayName ?? 'Mercado Productor',
+      },
+    },
+    ...(reviewSummary.totalReviews > 0 && reviewSummary.averageRating !== null && {
+      aggregateRating: {
+        '@type': 'AggregateRating',
+        ratingValue: reviewSummary.averageRating.toFixed(1),
+        reviewCount: reviewSummary.totalReviews,
+        bestRating: '5',
+        worstRating: '1',
+      },
+    }),
+  }
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Breadcrumb */}
       <nav className="mb-6 flex items-center gap-2 text-sm text-[var(--muted)]">
         <Link href="/" className="rounded-md hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">Inicio</Link>

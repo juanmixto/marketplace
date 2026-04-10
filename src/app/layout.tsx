@@ -24,6 +24,15 @@ export const metadata: Metadata = {
     shortcut: siteAppearance.faviconPath,
     apple: siteAppearance.faviconPath,
   },
+  openGraph: {
+    siteName: SITE_NAME,
+    locale: 'es_ES',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    site: '@mercadoproductor',
+  },
 }
 
 export const viewport: Viewport = {
