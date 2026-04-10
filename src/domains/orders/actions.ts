@@ -52,7 +52,7 @@ export async function createOrder(
 
   if (products.length === 0) throw new Error('Carrito vacío o productos no disponibles')
 
-  // Build order lines with price snapshots
+  // Build order lines with price snapshots (without stock validation - will be done in transaction)
   const lines = validatedItems.map(item => {
     const product = products.find(p => p.id === item.productId)
     if (!product) throw new Error(`Producto ${item.productId} no disponible`)
@@ -79,10 +79,7 @@ export async function createOrder(
       throw new Error(`Debes seleccionar una variante para "${product.name}"`)
     }
 
-    const availableStock = getAvailableStockForPurchase(purchasableProduct, selectedVariant)
-    if (availableStock != null && availableStock < item.quantity) {
-      throw new Error(`Stock insuficiente para "${product.name}"${selectedVariant ? ` (${selectedVariant.name})` : ''}`)
-    }
+    // NOTE: Stock validation moved to transaction to prevent race condition
 
     return {
       productId: product.id,
@@ -173,29 +170,58 @@ export async function createOrder(
       },
     })
 
-    // Atomically decrement stock: the WHERE condition acts as a lock-free guard.
-    // If another transaction already consumed the stock, count === 0 and we roll back.
+    // Validate and decrement stock with pessimistic locking (SELECT FOR UPDATE)
+    // This prevents race conditions where multiple concurrent orders could over-sell
     for (const line of lines) {
       const product = products.find(p => p.id === line.productId)
       if (!product?.trackStock) continue
 
       if (line.variantId) {
-        const result = await tx.productVariant.updateMany({
-          where: { id: line.variantId, stock: { gte: line.quantity } },
-          data: { stock: { decrement: line.quantity } },
-        })
-        if (result.count === 0) {
+        // Lock variant row and check stock
+        interface VariantRow {
+          id: string
+          stock: number | null
+        }
+        const [variant] = await (tx.$queryRaw as any)`
+          SELECT id, stock FROM "ProductVariant"
+          WHERE id = ${line.variantId}
+          FOR UPDATE
+        ` as VariantRow[]
+
+        if (!variant) {
+          throw new Error(`Variante "${product.name}" no encontrada`)
+        }
+        if (variant.stock !== null && variant.stock < line.quantity) {
           throw new Error(`Stock insuficiente para "${product.name}" (variante agotada)`)
         }
-        continue
-      }
 
-      const result = await tx.product.updateMany({
-        where: { id: line.productId, stock: { gte: line.quantity } },
-        data: { stock: { decrement: line.quantity } },
-      })
-      if (result.count === 0) {
-        throw new Error(`Stock insuficiente para "${product.name}"`)
+        await tx.productVariant.update({
+          where: { id: line.variantId },
+          data: { stock: variant.stock !== null ? { decrement: line.quantity } : undefined },
+        })
+      } else {
+        // Lock product row and check stock
+        interface ProductRow {
+          id: string
+          stock: number
+        }
+        const [lockedProduct] = await (tx.$queryRaw as any)`
+          SELECT id, stock FROM "Product"
+          WHERE id = ${line.productId}
+          FOR UPDATE
+        ` as ProductRow[]
+
+        if (!lockedProduct) {
+          throw new Error(`Producto "${product.name}" no encontrado`)
+        }
+        if (lockedProduct.stock < line.quantity) {
+          throw new Error(`Stock insuficiente para "${product.name}"`)
+        }
+
+        await tx.product.update({
+          where: { id: line.productId },
+          data: { stock: { decrement: line.quantity } },
+        })
       }
     }
 
