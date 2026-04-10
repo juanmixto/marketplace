@@ -28,7 +28,7 @@ export const adminNavItems: AppNavItem[] = [
 
 export const buyerAccountItems: AppNavItem[] = [
   { href: '/cuenta/pedidos', label: 'Mis pedidos', available: true },
-  { href: '/cuenta/direcciones', label: 'Mis direcciones', available: false },
+  { href: '/cuenta/direcciones', label: 'Mis direcciones', available: true },
   { href: '/cuenta/perfil', label: 'Datos personales', available: false },
 ]
 
