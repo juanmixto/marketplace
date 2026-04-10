@@ -122,6 +122,13 @@ jobs:
       - name: Run migrations
         run: npx prisma migrate deploy
 
+      - name: Create .env for seed script
+        run: |
+          echo "DATABASE_URL=$DATABASE_URL" > .env
+          echo "AUTH_SECRET=$AUTH_SECRET" >> .env
+          echo "NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL" >> .env
+          echo "PAYMENT_PROVIDER=$PAYMENT_PROVIDER" >> .env
+
       - name: Seed database
         run: npm run db:seed
 
