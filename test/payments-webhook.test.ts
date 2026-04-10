@@ -1,6 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shouldApplyPaymentFailed, shouldApplyPaymentSucceeded } from '@/domains/payments/webhook'
+import {
+  doesWebhookPaymentMatchStoredPayment,
+  shouldApplyPaymentFailed,
+  shouldApplyPaymentSucceeded,
+} from '@/domains/payments/webhook'
 
 test('shouldApplyPaymentSucceeded returns true for a pending payment', () => {
   assert.equal(
@@ -65,5 +69,66 @@ test('shouldApplyPaymentFailed returns false for an already failed payment', () 
       orderStatus: 'PLACED',
     }),
     false
+  )
+})
+
+test('doesWebhookPaymentMatchStoredPayment returns true for matching amount and currency', () => {
+  assert.equal(
+    doesWebhookPaymentMatchStoredPayment(
+      { amount: 12.34, currency: 'EUR' },
+      { amount: 1234, currency: 'eur' }
+    ),
+    true
+  )
+})
+
+test('doesWebhookPaymentMatchStoredPayment returns false for mismatched amount', () => {
+  assert.equal(
+    doesWebhookPaymentMatchStoredPayment(
+      { amount: 12.34, currency: 'EUR' },
+      { amount: 1200, currency: 'eur' }
+    ),
+    false
+  )
+})
+
+test('doesWebhookPaymentMatchStoredPayment returns false for missing webhook currency', () => {
+  assert.equal(
+    doesWebhookPaymentMatchStoredPayment(
+      { amount: 12.34, currency: 'EUR' },
+      { amount: 1234 }
+    ),
+    false
+  )
+})
+
+test('doesWebhookPaymentMatchStoredPayment returns false for missing webhook amount', () => {
+  assert.equal(
+    doesWebhookPaymentMatchStoredPayment(
+      { amount: 12.34, currency: 'EUR' },
+      { currency: 'eur' }
+    ),
+    false
+  )
+})
+
+test('doesWebhookPaymentMatchStoredPayment returns false for mismatched currency', () => {
+  assert.equal(
+    doesWebhookPaymentMatchStoredPayment(
+      { amount: 12.34, currency: 'EUR' },
+      { amount: 1234, currency: 'usd' }
+    ),
+    false
+  )
+})
+
+test('doesWebhookPaymentMatchStoredPayment handles rounding correctly for amounts with sub-cent precision', () => {
+  // 9.999 euros → 999 cents (floor), not 1000 — must round, not truncate
+  assert.equal(
+    doesWebhookPaymentMatchStoredPayment(
+      { amount: 9.999, currency: 'EUR' },
+      { amount: 1000, currency: 'eur' }
+    ),
+    true
   )
 })
