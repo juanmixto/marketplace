@@ -47,6 +47,13 @@ if (runDbTests) {
     env: childEnv,
     stdio: 'inherit',
   })
+} else {
+  // Provide a placeholder DATABASE_URL so modules that eagerly instantiate
+  // PrismaClient (e.g. auth.ts) can load without throwing during unit tests.
+  // Actual DB connections are never made in these non-db tests.
+  childEnv.DATABASE_URL ??= 'postgresql://placeholder:5432/placeholder'
+  childEnv.NEXT_PUBLIC_APP_URL ??= 'http://localhost:3000'
+  childEnv.PAYMENT_PROVIDER ??= 'mock'
 }
 
 nodeArgs.push('--import', 'tsx', '--test')
