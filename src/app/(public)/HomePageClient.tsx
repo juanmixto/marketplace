@@ -92,7 +92,7 @@ export function HomePageClient({ featured, categories, vendors, heroStats, publi
               </div>
 
               {/* Stats */}
-              <div className="mt-10 grid grid-cols-3 gap-6 border-t border-white/10 pt-8">
+              <div className="mt-10 grid grid-cols-3 gap-3 border-t border-white/10 pt-8 sm:gap-6">
                 {heroStats.map(s => (
                   <div key={s.label}>
                     <p className="text-2xl font-bold text-white">{s.value}</p>
@@ -135,7 +135,7 @@ export function HomePageClient({ featured, categories, vendors, heroStats, publi
       {/* ── Trust bar ────────────────────────────────────────────────────── */}
       <section className="border-b border-[var(--border)] bg-[var(--surface)]">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {([
               { icon: TruckIcon,        textKey: 'trust.shipping' },
               { icon: ShieldCheckIcon,  textKey: 'trust.payment' },

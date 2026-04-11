@@ -100,7 +100,7 @@ export default async function ProductDetailPage({ params }: Props) {
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <JsonLd data={structuredData} />
       {/* Breadcrumb */}
-      <nav className="mb-6 flex items-center gap-2 text-sm text-[var(--muted)]">
+      <nav className="mb-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-[var(--muted)]">
         <Link href="/" className="rounded-md hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">Inicio</Link>
         <span>/</span>
         <Link href="/productos" className="rounded-md hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">Productos</Link>
@@ -113,7 +113,7 @@ export default async function ProductDetailPage({ params }: Props) {
           </>
         )}
         <span>/</span>
-        <span className="text-[var(--foreground)] truncate">{product.name}</span>
+        <span className="min-w-0 truncate text-[var(--foreground)]">{product.name}</span>
       </nav>
 
       <div className="grid gap-10 lg:grid-cols-2">
