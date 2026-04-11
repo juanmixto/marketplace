@@ -45,11 +45,7 @@ jobs:
       - name: Typecheck tests
         run: npm run typecheck:test
 
-      - name: Unit tests
-        run: npm test
-
-      - name: Coverage report (non-blocking)
-        continue-on-error: true
+      - name: Coverage
         run: npm run test:coverage
         timeout-minutes: 5
 
@@ -93,7 +89,7 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Apply migrations
+      - name: Apply Prisma migrations
         run: npx prisma migrate deploy
 
       - name: Build
@@ -137,15 +133,15 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Create .env for app scripts
+      - name: Run DB-backed tests
+        run: npm run test:db
+
+      - name: Create .env for seed script
         run: |
           echo "DATABASE_URL=$DATABASE_URL" > .env
           echo "AUTH_SECRET=$AUTH_SECRET" >> .env
           echo "NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL" >> .env
           echo "PAYMENT_PROVIDER=$PAYMENT_PROVIDER" >> .env
-
-      - name: Run DB-backed tests
-        run: npm run test:db
 
       - name: Seed database
         run: npm run db:seed

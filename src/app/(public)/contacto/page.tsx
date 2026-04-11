@@ -1,10 +1,13 @@
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 import { ContactForm } from './ContactForm'
+import { buildPageMetadata } from '@/lib/seo'
+import { BRAND_CLAIMS } from '@/lib/brand-claims'
 
-export const metadata: Metadata = {
-  title: 'Contacto | Mercado Productor',
+export const metadata: Metadata = buildPageMetadata({
+  title: 'Contacto',
   description: 'Ponte en contacto con el equipo de Mercado Productor. Estamos aquí para ayudarte.',
-}
+  path: '/contacto',
+})
 
 export default function Contacto() {
   return (
@@ -63,7 +66,7 @@ export default function Contacto() {
                 <div className="border-t pt-6">
                   <h3 className="font-semibold text-foreground">Horario de atención</h3>
                   <p className="mt-1 text-foreground-soft">Lunes a viernes, 9:00 - 18:00 (hora peninsular)</p>
-                  <p className="mt-1 text-sm text-muted">Tiempo de respuesta: 24-48 horas laborables</p>
+                  <p className="mt-1 text-sm text-muted">{BRAND_CLAIMS.supportHours.text}</p>
                 </div>
               </div>
             </div>

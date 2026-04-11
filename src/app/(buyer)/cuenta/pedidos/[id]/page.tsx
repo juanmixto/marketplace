@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation'
 import { getOrderDetail } from '@/domains/orders/actions'
 import { canLeaveReview } from '@/domains/reviews/actions'
 import { OrderDetailClient } from './OrderDetailClient'
+import { TrackEventOnView } from '@/components/analytics/TrackEventOnView'
 import type { Metadata } from 'next'
 
 interface Props { params: Promise<{ id: string }>, searchParams: Promise<{ nuevo?: string }> }
@@ -26,10 +27,30 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
   )
 
   return (
-    <OrderDetailClient
-      order={order as Parameters<typeof OrderDetailClient>[0]['order']}
-      nuevo={nuevo === '1'}
-      reviewEligibility={reviewEligibility}
-    />
+    <>
+      {nuevo === '1' && (
+        <TrackEventOnView
+          event="purchase"
+          payload={{
+            transaction_id: order.id,
+            currency: 'EUR',
+            value: Number(order.grandTotal),
+            tax: Number(order.taxAmount),
+            shipping: Number(order.shippingCost),
+            items: order.lines.map(line => ({
+              item_id: line.productId,
+              item_name: line.product.name,
+              price: Number(line.unitPrice),
+              quantity: line.quantity,
+            })),
+          }}
+        />
+      )}
+      <OrderDetailClient
+        order={order as Parameters<typeof OrderDetailClient>[0]['order']}
+        nuevo={nuevo === '1'}
+        reviewEligibility={reviewEligibility}
+      />
+    </>
   )
 }

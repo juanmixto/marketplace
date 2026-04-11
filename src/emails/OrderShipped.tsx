@@ -1,5 +1,7 @@
 import { Button, Container, Head, Hr, Html, Link, Preview, Section, Text } from '@react-email/components'
 
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
 interface OrderShippedEmailProps {
   customerName: string
   orderNumber: string
@@ -63,7 +65,7 @@ export function OrderShippedEmail({
 
         <Section style={{ marginTop: '30px', textAlign: 'center' }}>
           <Button
-            href={`https://marketplace.local/cuenta/pedidos/${orderNumber}`}
+            href={`${appUrl}/cuenta/pedidos/${orderNumber}`}
             style={{
               backgroundColor: '#10b981',
               color: '#fff',
@@ -80,7 +82,7 @@ export function OrderShippedEmail({
         <Hr style={{ margin: '30px 0', borderColor: '#e5e7eb' }} />
 
         <Section style={{ color: '#999', fontSize: '12px', textAlign: 'center' }}>
-          <Text>Si tienes preguntas: support@marketplace.local</Text>
+          <Text>Si tienes preguntas, responde a este correo o usa el formulario de contacto del sitio.</Text>
         </Section>
       </Container>
     </Html>

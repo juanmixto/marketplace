@@ -1,11 +1,13 @@
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowRightIcon, ShoppingBagIcon, TruckIcon, CheckCircleIcon, CreditCardIcon, SparklesIcon } from '@heroicons/react/24/outline'
+import { buildPageMetadata } from '@/lib/seo'
 
-export const metadata: Metadata = {
-  title: 'Cómo Funciona | Mercado Productor',
+export const metadata: Metadata = buildPageMetadata({
+  title: 'Cómo funciona',
   description: 'Descubre cómo funciona Mercado Productor, la plataforma de venta directa de productos locales.',
-}
+  path: '/como-funciona',
+})
 
 const steps = [
   {

@@ -15,6 +15,8 @@ import {
 } from '@/domains/auth/email-verification'
 import { authorizeCredentials } from '@/domains/auth/credentials'
 import { POST as registerUser } from '@/app/api/auth/register/route'
+import { POST as requestPasswordReset } from '@/app/api/auth/forgot-password/route'
+import { POST as resetPassword } from '@/app/api/auth/reset-password/route'
 import bcrypt from 'bcryptjs'
 
 describe('Email Verification and Password Reset (#77)', () => {
@@ -298,6 +300,51 @@ describe('Email Verification and Password Reset (#77)', () => {
       // Old token should be deleted
       expect(oldRecord).toBeNull()
       expect(newRecord).toBeDefined()
+    })
+
+    it('should create password reset token through the modern forgot-password route', async () => {
+      const email = resetTestEmail
+
+      const response = await requestPasswordReset(
+        new Request('http://localhost:3000/api/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ email }),
+        }) as never
+      )
+
+      expect(response.status).toBe(200)
+
+      const tokenRecord = await db.passwordResetToken.findFirst({
+        where: { userId: resetTestUserId },
+      })
+
+      expect(tokenRecord).toBeDefined()
+    })
+
+    it('should reset the password through the modern reset-password route', async () => {
+      const { token } = await createPasswordResetToken(resetTestEmail)
+
+      const response = await resetPassword(
+        new Request('http://localhost:3000/api/auth/reset-password', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            token,
+            password: 'route-new-password-123',
+            passwordConfirm: 'route-new-password-123',
+          }),
+        }) as never
+      )
+
+      expect(response.status).toBe(200)
+
+      const user = await db.user.findUnique({ where: { id: resetTestUserId } })
+      const passwordValid = await bcrypt.compare('route-new-password-123', user?.passwordHash || '')
+      expect(passwordValid).toBe(true)
+
+      const tokenRecord = await db.passwordResetToken.findUnique({ where: { token: token! } })
+      expect(tokenRecord?.usedAt).not.toBeNull()
     })
   })
 

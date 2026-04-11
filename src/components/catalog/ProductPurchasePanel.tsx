@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AddToCartButton } from '@/components/catalog/AddToCartButton'
 import {
   getAvailableStockForPurchase,
@@ -11,6 +11,8 @@ import {
   type ProductVariantOption,
 } from '@/domains/catalog/variants'
 import { formatPrice } from '@/lib/utils'
+import { createAnalyticsItem, trackAnalyticsEvent } from '@/lib/analytics'
+import { MinusIcon, PlusIcon } from '@heroicons/react/24/outline'
 
 interface Props {
   productId: string
@@ -44,6 +46,7 @@ export function ProductPurchasePanel({
   variants,
 }: Props) {
   const [selectedVariantId, setSelectedVariantId] = useState<string>('')
+  const [quantity, setQuantity] = useState(1)
 
   const product = {
     basePrice,
@@ -62,6 +65,32 @@ export function ProductPurchasePanel({
 
   const canAddToCart = !requiresVariantSelection || selectedVariant !== null
   const isOutOfStock = trackStock && availableStock === 0
+  const maxQuantity = trackStock ? Math.max(1, Math.min(availableStock || 1, 99)) : 99
+  const quantityPresets = [1, 3, 6].filter(preset => preset <= maxQuantity)
+
+  function updateQuantity(nextQuantity: number) {
+    setQuantity(Math.max(1, Math.min(maxQuantity, Math.floor(nextQuantity))))
+  }
+
+  useEffect(() => {
+    setQuantity(currentQuantity => Math.min(currentQuantity, maxQuantity))
+  }, [maxQuantity])
+
+  useEffect(() => {
+    trackAnalyticsEvent('view_item', {
+      currency: 'EUR',
+      value: displayPrice,
+      items: [
+        createAnalyticsItem({
+          id: productId,
+          name: productName,
+          price: displayPrice,
+          variant: selectedVariant?.name,
+          brand: vendorName,
+        }),
+      ],
+    })
+  }, [displayPrice, productId, productName, selectedVariant?.name, vendorName])
 
   return (
     <div className="mt-6 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
@@ -150,12 +179,82 @@ export function ProductPurchasePanel({
         </p>
       )}
 
-      <div className="mt-8">
+      <div className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-[var(--foreground)]">Cantidad</p>
+            <p className="text-xs text-[var(--muted)]">Añade varias unidades en un solo toque</p>
+          </div>
+          {trackStock && !isOutOfStock && (
+            <p className="text-xs font-medium text-[var(--muted)]">
+              Máx. {availableStock} {availableStock === 1 ? 'unidad' : 'unidades'}
+            </p>
+          )}
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <div className="inline-flex items-center overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
+            <button
+              type="button"
+              onClick={() => updateQuantity(quantity - 1)}
+              disabled={quantity <= 1}
+              className="p-2 text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Reducir cantidad"
+            >
+              <MinusIcon className="h-4 w-4" />
+            </button>
+            <input
+              id={`quantity-${productId}`}
+              type="number"
+              min={1}
+              max={maxQuantity}
+              inputMode="numeric"
+              value={quantity}
+              onChange={event => {
+                const nextQuantity = Number.parseInt(event.target.value, 10)
+                if (Number.isNaN(nextQuantity)) return
+                updateQuantity(nextQuantity)
+              }}
+              className="w-16 border-x border-[var(--border)] bg-transparent px-2 py-2 text-center text-sm font-semibold text-[var(--foreground)] focus:outline-none"
+              aria-label={`Cantidad de ${productName}`}
+            />
+            <button
+              type="button"
+              onClick={() => updateQuantity(quantity + 1)}
+              disabled={quantity >= maxQuantity}
+              className="p-2 text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Aumentar cantidad"
+            >
+              <PlusIcon className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {quantityPresets.map(preset => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => updateQuantity(preset)}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                  quantity === preset
+                    ? 'bg-emerald-600 text-white dark:bg-emerald-500 dark:text-gray-950'
+                    : 'border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-soft)] hover:border-emerald-300 hover:text-emerald-700 dark:hover:border-emerald-700 dark:hover:text-emerald-300'
+                }`}
+              >
+                {preset} uds.
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6">
         <AddToCartButton
           productId={productId}
           variantId={selectedVariant?.id}
           variantName={selectedVariant?.name}
           disabled={!canAddToCart || isOutOfStock}
+          quantity={quantity}
           productName={productName}
           price={displayPrice}
           slug={slug}

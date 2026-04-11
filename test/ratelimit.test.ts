@@ -85,3 +85,163 @@ test('getClientIP defaults to 127.0.0.1 when no headers', () => {
   const req = new Request('http://localhost')
   assert.equal(getClientIP(req), '127.0.0.1')
 })
+
+test('checkRateLimit strips port from keys so IPv6 bracket notation does not produce distinct entries', async () => {
+  // IPv6-style keys like [::1]:3000 should be cleaned to an empty string for the host part
+  const r1 = await checkRateLimit('rl-ipv6-1', '[::1]:3000', 5, 60)
+  const r2 = await checkRateLimit('rl-ipv6-1', '[::1]:3000', 5, 60)
+
+  assert.equal(r1.success, true)
+  assert.equal(r2.remaining, r1.remaining - 1)
+})
+
+test('checkRateLimit uses Upstash when UPSTASH_REDIS_REST_URL is set', async () => {
+  const originalUrl = process.env.UPSTASH_REDIS_REST_URL
+  const originalToken = process.env.UPSTASH_REDIS_REST_TOKEN
+  const originalFetch = globalThis.fetch
+
+  process.env.UPSTASH_REDIS_REST_URL = 'https://upstash.example.com'
+  process.env.UPSTASH_REDIS_REST_TOKEN = 'test-token'
+
+  let fetchCallCount = 0
+
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = typeof input === 'string' ? input : input.toString()
+    fetchCallCount++
+
+    if (url.includes('/incr/')) {
+      return new Response(JSON.stringify({ result: 1 }), { status: 200 })
+    }
+
+    if (url.includes('/expire/')) {
+      return new Response(JSON.stringify({ result: 1 }), { status: 200 })
+    }
+
+    return new Response('{}', { status: 200 })
+  }) as typeof fetch
+
+  try {
+    const result = await checkRateLimit('upstash-test', '10.5.5.5', 5, 60)
+    assert.equal(result.success, true)
+    assert.equal(result.remaining, 4)
+    assert.ok(fetchCallCount >= 1, 'fetch should have been called at least once')
+  } finally {
+    globalThis.fetch = originalFetch
+    if (originalUrl === undefined) {
+      delete process.env.UPSTASH_REDIS_REST_URL
+    } else {
+      process.env.UPSTASH_REDIS_REST_URL = originalUrl
+    }
+    if (originalToken === undefined) {
+      delete process.env.UPSTASH_REDIS_REST_TOKEN
+    } else {
+      process.env.UPSTASH_REDIS_REST_TOKEN = originalToken
+    }
+  }
+})
+
+test('checkRateLimit Upstash path returns failure when count exceeds limit', async () => {
+  const originalUrl = process.env.UPSTASH_REDIS_REST_URL
+  const originalToken = process.env.UPSTASH_REDIS_REST_TOKEN
+  const originalFetch = globalThis.fetch
+
+  process.env.UPSTASH_REDIS_REST_URL = 'https://upstash.example.com'
+  process.env.UPSTASH_REDIS_REST_TOKEN = 'test-token'
+
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = typeof input === 'string' ? input : input.toString()
+
+    if (url.includes('/incr/')) {
+      return new Response(JSON.stringify({ result: 6 }), { status: 200 })
+    }
+
+    return new Response('{}', { status: 200 })
+  }) as typeof fetch
+
+  try {
+    const result = await checkRateLimit('upstash-overlimit', '10.5.5.6', 5, 60)
+    assert.equal(result.success, false)
+    assert.equal(result.remaining, 0)
+    assert.match(result.message ?? '', /demasiados intentos/i)
+  } finally {
+    globalThis.fetch = originalFetch
+    if (originalUrl === undefined) {
+      delete process.env.UPSTASH_REDIS_REST_URL
+    } else {
+      process.env.UPSTASH_REDIS_REST_URL = originalUrl
+    }
+    if (originalToken === undefined) {
+      delete process.env.UPSTASH_REDIS_REST_TOKEN
+    } else {
+      process.env.UPSTASH_REDIS_REST_TOKEN = originalToken
+    }
+  }
+})
+
+test('checkRateLimit Upstash path fails open when Redis returns non-ok response', async () => {
+  const originalUrl = process.env.UPSTASH_REDIS_REST_URL
+  const originalToken = process.env.UPSTASH_REDIS_REST_TOKEN
+  const originalFetch = globalThis.fetch
+  const originalConsoleError = console.error
+
+  process.env.UPSTASH_REDIS_REST_URL = 'https://upstash.example.com'
+  process.env.UPSTASH_REDIS_REST_TOKEN = 'test-token'
+  console.error = () => undefined
+
+  globalThis.fetch = (async () => {
+    return new Response('Service Unavailable', { status: 503 })
+  }) as typeof fetch
+
+  try {
+    const result = await checkRateLimit('upstash-fail-open', '10.5.5.7', 5, 60)
+    assert.equal(result.success, true)
+    assert.equal(result.remaining, 5)
+  } finally {
+    globalThis.fetch = originalFetch
+    console.error = originalConsoleError
+    if (originalUrl === undefined) {
+      delete process.env.UPSTASH_REDIS_REST_URL
+    } else {
+      process.env.UPSTASH_REDIS_REST_URL = originalUrl
+    }
+    if (originalToken === undefined) {
+      delete process.env.UPSTASH_REDIS_REST_TOKEN
+    } else {
+      process.env.UPSTASH_REDIS_REST_TOKEN = originalToken
+    }
+  }
+})
+
+test('checkRateLimit Upstash path fails open when fetch throws', async () => {
+  const originalUrl = process.env.UPSTASH_REDIS_REST_URL
+  const originalToken = process.env.UPSTASH_REDIS_REST_TOKEN
+  const originalFetch = globalThis.fetch
+  const originalConsoleError = console.error
+
+  process.env.UPSTASH_REDIS_REST_URL = 'https://upstash.example.com'
+  process.env.UPSTASH_REDIS_REST_TOKEN = 'test-token'
+  console.error = () => undefined
+
+  globalThis.fetch = (async () => {
+    throw new Error('Network error')
+  }) as unknown as typeof fetch
+
+  try {
+    const result = await checkRateLimit('upstash-throw', '10.5.5.8', 5, 60)
+    assert.equal(result.success, true)
+    assert.equal(result.remaining, 5)
+  } finally {
+    globalThis.fetch = originalFetch
+    console.error = originalConsoleError
+    if (originalUrl === undefined) {
+      delete process.env.UPSTASH_REDIS_REST_URL
+    } else {
+      process.env.UPSTASH_REDIS_REST_URL = originalUrl
+    }
+    if (originalToken === undefined) {
+      delete process.env.UPSTASH_REDIS_REST_TOKEN
+    } else {
+      process.env.UPSTASH_REDIS_REST_TOKEN = originalToken
+    }
+  }
+})

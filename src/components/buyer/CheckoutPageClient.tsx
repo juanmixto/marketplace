@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useCartStore } from '@/lib/cart-store'
 import { useRouter } from 'next/navigation'
 import { useForm, useWatch } from 'react-hook-form'
@@ -10,13 +10,14 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { createOrder, confirmOrder } from '@/domains/orders/actions'
 import { formatPrice } from '@/lib/utils'
-import Image from 'next/image'
+import { SafeImage } from '@/components/catalog/SafeImage'
 import {
   calculateShippingCostFromTables,
   type ShippingRateLike,
   type ShippingZoneLike,
 } from '@/domains/shipping/shared'
 import { useT } from '@/i18n'
+import { createAnalyticsItem, trackAnalyticsEvent } from '@/lib/analytics'
 
 const schema = z.object({
   firstName: z.string().min(1, 'Requerido'),
@@ -36,9 +37,15 @@ interface Props {
   shippingZones: ShippingZoneLike[]
   shippingRates: ShippingRateLike[]
   fallbackShippingCost: number
+  showDemoNotice: boolean
 }
 
-export function CheckoutPageClient({ shippingZones, shippingRates, fallbackShippingCost }: Props) {
+export function CheckoutPageClient({
+  shippingZones,
+  shippingRates,
+  fallbackShippingCost,
+  showDemoNotice,
+}: Props) {
   const router = useRouter()
   const { items, subtotal, clearCart } = useCartStore()
   const [step, setStep] = useState<'address' | 'payment' | 'processing'>('address')
@@ -65,6 +72,27 @@ export function CheckoutPageClient({ shippingZones, shippingRates, fallbackShipp
       })
     : fallbackShippingCost
   const total = sub + shipping
+  const hasTrackedCheckoutRef = useRef(false)
+
+  useEffect(() => {
+    if (items.length === 0 || hasTrackedCheckoutRef.current) return
+
+    hasTrackedCheckoutRef.current = true
+    trackAnalyticsEvent('begin_checkout', {
+      currency: 'EUR',
+      value: total,
+      items: items.map(item =>
+        createAnalyticsItem({
+          id: item.productId,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          variant: item.variantName,
+          brand: item.vendorName,
+        })
+      ),
+    })
+  }, [items, total])
 
   if (items.length === 0) {
     router.replace('/carrito')
@@ -134,12 +162,14 @@ export function CheckoutPageClient({ shippingZones, shippingRates, fallbackShipp
 
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <h2 className="mb-3 font-semibold text-[var(--foreground)]">{t('checkout.payment')}</h2>
-              <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-700 dark:border-sky-800 dark:bg-sky-950/35 dark:text-sky-300">
-                <p className="font-medium">{t('checkout.demoMode')}</p>
-                <p className="mt-0.5 text-sky-600 dark:text-sky-400">
-                  {t('checkout.demoModeDesc')}
-                </p>
-              </div>
+              {showDemoNotice && (
+                <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-700 dark:border-sky-800 dark:bg-sky-950/35 dark:text-sky-300">
+                  <p className="font-medium">{t('checkout.demoMode')}</p>
+                  <p className="mt-0.5 text-sky-600 dark:text-sky-400">
+                    {t('checkout.demoModeDesc')}
+                  </p>
+                </div>
+              )}
             </div>
 
             {serverError && (
@@ -167,7 +197,7 @@ export function CheckoutPageClient({ shippingZones, shippingRates, fallbackShipp
                 <div key={`${item.productId}-${item.variantId}`} className="flex gap-3">
                   <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[var(--surface-raised)]">
                     {item.image
-                      ? <Image src={item.image} alt={item.name} fill className="object-cover" />
+                      ? <SafeImage src={item.image} alt={item.name} fill className="object-cover" sizes="48px" />
                       : <div className="flex h-full items-center justify-center text-lg">🌿</div>
                     }
                   </div>

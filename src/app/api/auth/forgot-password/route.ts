@@ -10,8 +10,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const data = schema.parse(body)
-
-    const result = await createPasswordResetToken(data.email)
+    await createPasswordResetToken(data.email)
 
     // Always return success to prevent email enumeration
     // In production, would send actual email with reset link

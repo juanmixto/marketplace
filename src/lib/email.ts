@@ -10,9 +10,14 @@ let resend: Resend | null = null
 function getResendClient() {
   const apiKey = process.env.RESEND_API_KEY
 
-  if (!apiKey) return null
+  if (!apiKey) {
+    return null
+  }
 
-  resend ??= new Resend(apiKey)
+  if (!resend) {
+    resend = new Resend(apiKey)
+  }
+
   return resend
 }
 
@@ -25,16 +30,16 @@ export async function sendEmail({
   subject: string
   react: React.ReactElement
 }) {
-  const resendClient = getResendClient()
+  const client = getResendClient()
 
-  if (!resendClient) {
+  if (!client) {
     console.warn('[Email] RESEND_API_KEY not configured, skipping email to:', to)
     return
   }
 
   try {
-    const result = await resendClient.emails.send({
-      from: process.env.EMAIL_FROM || 'noreply@marketplace.local',
+    const result = await client.emails.send({
+      from: process.env.EMAIL_FROM || 'no-reply@example.com',
       to,
       subject,
       react,
