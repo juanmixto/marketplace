@@ -5,6 +5,7 @@ import Image from 'next/image'
 import type { Metadata } from 'next'
 import { FulfillmentActions } from '@/components/vendor/FulfillmentActions'
 import type { BadgeVariant } from '@/domains/catalog/types'
+import { parseOrderAddressSnapshot } from '@/types/order'
 
 export const metadata: Metadata = { title: 'Mis pedidos' }
 
@@ -68,6 +69,7 @@ function FulfillmentList({ fulfillments }: { fulfillments: FulfillmentWithDetail
       {fulfillments.map(f => {
         const statusConfig = STATUS_CONFIG[f.status] ?? { label: f.status, variant: 'default' as BadgeVariant }
         const customer = f.order.customer
+        const shippingAddress = parseOrderAddressSnapshot(f.order.shippingAddressSnapshot) ?? f.order.address
         return (
           <div key={f.id} className="space-y-3 p-4 transition-colors hover:bg-[var(--surface-raised)]/70">
             <div className="flex items-start justify-between gap-4">
@@ -81,9 +83,9 @@ function FulfillmentList({ fulfillments }: { fulfillments: FulfillmentWithDetail
                 <p className="text-sm text-[var(--muted)] mt-0.5">
                   {customer.firstName} {customer.lastName} · {formatDate(f.createdAt)}
                 </p>
-                {f.order.address && (
+                {shippingAddress && (
                   <p className="text-xs text-[var(--muted-light)] mt-0.5">
-                    {f.order.address.line1}, {f.order.address.city} {f.order.address.postalCode}
+                    {shippingAddress.line1}, {shippingAddress.city} {shippingAddress.postalCode}
                   </p>
                 )}
               </div>

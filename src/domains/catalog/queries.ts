@@ -111,6 +111,10 @@ async function getProductsUncached(filters: ProductFilters = {}) {
       createdAt: true,
       vendor: { select: { slug: true, displayName: true, location: true } },
       category: { select: { name: true, slug: true } },
+      variants: {
+        where: { isActive: true },
+        select: { id: true, name: true, priceModifier: true, stock: true, isActive: true },
+      },
     },
   })
 
@@ -213,6 +217,10 @@ async function getFeaturedProductsUncached(limit = 8) {
       createdAt: true,
       vendor: { select: { slug: true, displayName: true, location: true } },
       category: { select: { name: true, slug: true } },
+      variants: {
+        where: { isActive: true },
+        select: { id: true, name: true, priceModifier: true, stock: true, isActive: true },
+      },
     },
   })
 

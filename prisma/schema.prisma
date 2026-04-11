@@ -350,6 +350,7 @@ model Order {
   orderNumber   String        @unique
   customerId    String
   addressId     String?
+  shippingAddressSnapshot Json?
   status        OrderStatus   @default(PLACED)
   paymentStatus PaymentStatus @default(PENDING)
   subtotal      Decimal       @db.Decimal(10, 2)

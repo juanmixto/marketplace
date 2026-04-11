@@ -6,6 +6,7 @@ import {
   createPaymentFailedEventPayload,
   createPaymentMismatchEventPayload,
 } from '@/domains/orders/order-event-payload'
+import { parseOrderAddressSnapshot } from '@/types/order'
 
 test('parseOrderLineSnapshot returns typed snapshot for valid payloads', () => {
   const snapshot = parseOrderLineSnapshot({
@@ -109,4 +110,37 @@ test('parseOrderLineSnapshot rejects payloads with extra forbidden fields gracef
 
   assert.ok(snapshot)
   assert.equal('unknownField' in (snapshot as object), false)
+})
+
+test('parseOrderAddressSnapshot returns typed address for valid payloads', () => {
+  const snapshot = parseOrderAddressSnapshot({
+    firstName: 'Ada',
+    lastName: 'Lovelace',
+    line1: 'Calle Mayor 1',
+    line2: '2A',
+    city: 'Madrid',
+    province: 'Madrid',
+    postalCode: '28001',
+    phone: '600000000',
+  })
+
+  assert.deepEqual(snapshot, {
+    firstName: 'Ada',
+    lastName: 'Lovelace',
+    line1: 'Calle Mayor 1',
+    line2: '2A',
+    city: 'Madrid',
+    province: 'Madrid',
+    postalCode: '28001',
+    phone: '600000000',
+  })
+})
+
+test('parseOrderAddressSnapshot returns null for malformed payloads', () => {
+  const snapshot = parseOrderAddressSnapshot({
+    firstName: 'Ada',
+    city: 'Madrid',
+  })
+
+  assert.equal(snapshot, null)
 })

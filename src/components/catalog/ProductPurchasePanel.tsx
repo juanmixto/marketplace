@@ -5,6 +5,7 @@ import { useLocale } from '@/i18n'
 import { AddToCartButton } from '@/components/catalog/AddToCartButton'
 import {
   getAvailableStockForPurchase,
+  getDefaultVariant,
   getSelectedVariant,
   getVariantAdjustedCompareAtPrice,
   getVariantAdjustedPrice,
@@ -49,7 +50,6 @@ export function ProductPurchasePanel({
 }: Props) {
   const { locale } = useLocale()
   const copy = getCatalogCopy(locale)
-  const [selectedVariantId, setSelectedVariantId] = useState<string>('')
   const [quantity, setQuantity] = useState(1)
 
   const product = {
@@ -60,6 +60,8 @@ export function ProductPurchasePanel({
     variants,
   }
 
+  const defaultVariant = getDefaultVariant(product)
+  const [selectedVariantId, setSelectedVariantId] = useState<string>(defaultVariant?.id ?? '')
   const requiresVariantSelection = productRequiresVariantSelection(product)
   const selectedVariant = getSelectedVariant(product, selectedVariantId)
   const displayPrice = getVariantAdjustedPrice(basePrice, selectedVariant)
@@ -80,6 +82,17 @@ export function ProductPurchasePanel({
   useEffect(() => {
     setQuantity(currentQuantity => Math.min(currentQuantity, maxQuantity))
   }, [maxQuantity])
+
+  useEffect(() => {
+    if (!requiresVariantSelection) {
+      if (selectedVariantId) setSelectedVariantId('')
+      return
+    }
+
+    if (!selectedVariant && defaultVariant && selectedVariantId !== defaultVariant.id) {
+      setSelectedVariantId(defaultVariant.id)
+    }
+  }, [defaultVariant, requiresVariantSelection, selectedVariant, selectedVariantId])
 
   useEffect(() => {
     trackAnalyticsEvent('view_item', {

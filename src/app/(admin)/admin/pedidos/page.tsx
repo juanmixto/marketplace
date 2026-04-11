@@ -14,6 +14,7 @@ import {
 } from '@/domains/admin/orders'
 import { getOrderStatusTone } from '@/domains/admin/overview'
 import { parseOrderLineSnapshot } from '@/domains/orders/order-line-snapshot'
+import { parseOrderAddressSnapshot } from '@/types/order'
 import { ORDER_STATUS_LABELS } from '@/lib/constants'
 import { cn, formatDate, formatPrice, truncate } from '@/lib/utils'
 
@@ -117,6 +118,10 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
   })
 
   const selectedOrder = data.orders.find(order => order.id === params.order) ?? data.orders[0] ?? null
+  const selectedOrderAddress = selectedOrder
+    ? parseOrderAddressSnapshot(selectedOrder.shippingAddressSnapshot) ?? selectedOrder.address
+    : null
+  const selectedOrderCountry = selectedOrder?.address?.country ?? 'ES'
 
   return (
     <div className="space-y-6">
@@ -390,12 +395,12 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
                       <p className="mt-1 text-sm text-[var(--muted)]">{selectedOrder.customer.email}</p>
                     </div>
                     <div className="text-sm text-[var(--foreground-soft)]">
-                      {selectedOrder.address ? (
+                      {selectedOrderAddress ? (
                         <>
-                          <p>{selectedOrder.address.firstName} {selectedOrder.address.lastName}</p>
-                          <p>{selectedOrder.address.line1}{selectedOrder.address.line2 ? `, ${selectedOrder.address.line2}` : ''}</p>
-                          <p>{selectedOrder.address.postalCode} {selectedOrder.address.city}, {selectedOrder.address.province}</p>
-                          <p>{selectedOrder.address.country}{selectedOrder.address.phone ? ` · ${selectedOrder.address.phone}` : ''}</p>
+                          <p>{selectedOrderAddress.firstName} {selectedOrderAddress.lastName}</p>
+                          <p>{selectedOrderAddress.line1}{selectedOrderAddress.line2 ? `, ${selectedOrderAddress.line2}` : ''}</p>
+                          <p>{selectedOrderAddress.postalCode} {selectedOrderAddress.city}, {selectedOrderAddress.province}</p>
+                          <p>{selectedOrderCountry}{selectedOrderAddress.phone ? ` · ${selectedOrderAddress.phone}` : ''}</p>
                         </>
                       ) : (
                         <p className="text-[var(--muted)]">Pedido sin dirección guardada.</p>

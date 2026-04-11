@@ -189,6 +189,10 @@ const en: Record<TranslationKeys, string> = {
   // Checkout
   'checkout.title': 'Complete order',
   'checkout.address': 'Delivery address',
+  'checkout.savedAddresses': 'Saved addresses',
+  'checkout.savedAddressesLoading': 'Loading your saved addresses...',
+  'checkout.savedAddressesError': 'We could not load your saved addresses. You can continue with a new one.',
+  'checkout.useNewAddress': 'Use a new address',
   'checkout.firstName': 'First name',
   'checkout.lastName': 'Last name',
   'checkout.line1': 'Address',

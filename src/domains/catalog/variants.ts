@@ -31,6 +31,12 @@ export function getSelectedVariant(
   return getActiveVariants(product).find(variant => variant.id === variantId) ?? null
 }
 
+export function getDefaultVariant(product: PurchasableProduct) {
+  const activeVariants = getActiveVariants(product)
+
+  return activeVariants.find(variant => !product.trackStock || variant.stock > 0) ?? activeVariants[0] ?? null
+}
+
 export function getVariantAdjustedPrice(
   basePrice: number,
   variant?: Pick<ProductVariantOption, 'priceModifier'> | null

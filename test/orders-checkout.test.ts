@@ -1,6 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { calculateOrderPricing, calculateOrderTotals, calculateOrderTotalsWithShippingCost, checkoutSchema, getIncludedTaxAmount, orderItemsSchema } from '@/domains/orders/checkout'
+import {
+  calculateOrderPricing,
+  calculateOrderTotals,
+  calculateOrderTotalsWithShippingCost,
+  checkoutSchema,
+  getIncludedTaxAmount,
+  getPreferredCheckoutAddress,
+  orderItemsSchema,
+  toCheckoutFormAddress,
+} from '@/domains/orders/checkout'
 import { resolveMarketplaceSettings, toPublicMarketplaceSettings, calculateShippingCost, MARKETPLACE_SETTINGS_DEFAULTS } from '@/lib/marketplace-settings'
 import { calculateShippingCostFromTables, getProvinceFromPostalCode } from '@/domains/shipping/shared'
 
@@ -81,6 +90,60 @@ test('checkoutSchema keeps saveAddress at top level and strips it from address p
     province: 'Madrid',
     postalCode: '28001',
     phone: '600000000',
+  })
+})
+
+test('getPreferredCheckoutAddress prioritizes the default saved address', () => {
+  const preferred = getPreferredCheckoutAddress([
+    {
+      id: 'addr_1',
+      firstName: 'Ana',
+      lastName: 'López',
+      line1: 'Calle A',
+      city: 'Madrid',
+      province: 'Madrid',
+      postalCode: '28001',
+      isDefault: false,
+    },
+    {
+      id: 'addr_2',
+      firstName: 'Luis',
+      lastName: 'Pérez',
+      line1: 'Calle B',
+      city: 'Sevilla',
+      province: 'Sevilla',
+      postalCode: '41001',
+      isDefault: true,
+    },
+  ])
+
+  assert.equal(preferred?.id, 'addr_2')
+})
+
+test('toCheckoutFormAddress maps a saved address into checkout form values', () => {
+  const formAddress = toCheckoutFormAddress({
+    id: 'addr_1',
+    firstName: 'Ana',
+    lastName: 'López',
+    line1: 'Calle Mayor 12',
+    line2: null,
+    city: 'Madrid',
+    province: 'Madrid',
+    postalCode: '28001',
+    phone: null,
+    isDefault: true,
+  })
+
+  assert.deepEqual(formAddress, {
+    firstName: 'Ana',
+    lastName: 'López',
+    line1: 'Calle Mayor 12',
+    line2: '',
+    city: 'Madrid',
+    province: 'Madrid',
+    postalCode: '28001',
+    phone: '',
+    saveAddress: false,
   })
 })
 

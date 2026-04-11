@@ -13,7 +13,7 @@ import {
   orderItemsSchema,
   type CheckoutFormData,
 } from '@/domains/orders/checkout'
-import { orderLineSnapshotSchema } from '@/types/order'
+import { orderAddressSnapshotSchema, orderLineSnapshotSchema } from '@/types/order'
 import { assertProviderRefForPaymentStatus, shouldApplyPaymentSucceeded } from '@/domains/payments/webhook'
 import { getServerEnv } from '@/lib/env'
 import { getAvailableProductWhere } from '@/domains/catalog/availability'
@@ -182,6 +182,11 @@ export async function createOrder(
   const env = getServerEnv()
   const order = await db.$transaction(async tx => {
     let addressId: string | null = null
+    let shippingAddressSnapshot = orderAddressSnapshotSchema.parse({
+      ...validated.address,
+      line2: validated.address.line2 ?? null,
+      phone: validated.address.phone ?? null,
+    })
 
     // Lock and decrement stock before creating the order record.
     // Doing this first reduces the chance of deadlocks when several buyers
@@ -239,7 +244,32 @@ export async function createOrder(
       }
     }
 
-    if (validated.saveAddress) {
+    if (validated.selectedAddressId) {
+      const existingAddress = await tx.address.findFirst({
+        where: {
+          id: validated.selectedAddressId,
+          userId: session.user.id,
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          line1: true,
+          line2: true,
+          city: true,
+          province: true,
+          postalCode: true,
+          phone: true,
+        },
+      })
+
+      if (!existingAddress) {
+        throw new Error('Dirección guardada no encontrada')
+      }
+
+      addressId = existingAddress.id
+      shippingAddressSnapshot = orderAddressSnapshotSchema.parse(existingAddress)
+    } else if (validated.saveAddress) {
       const savedAddress = await tx.address.create({
         data: {
           userId: session.user.id,
@@ -248,6 +278,16 @@ export async function createOrder(
         },
       })
       addressId = savedAddress.id
+      shippingAddressSnapshot = orderAddressSnapshotSchema.parse({
+        firstName: savedAddress.firstName,
+        lastName: savedAddress.lastName,
+        line1: savedAddress.line1,
+        line2: savedAddress.line2,
+        city: savedAddress.city,
+        province: savedAddress.province,
+        postalCode: savedAddress.postalCode,
+        phone: savedAddress.phone,
+      })
     }
 
     return tx.order.create({
@@ -255,6 +295,7 @@ export async function createOrder(
         orderNumber: generateOrderNumber(),
         customerId: session.user.id,
         addressId: addressId ?? null,
+        shippingAddressSnapshot,
         subtotal,
         shippingCost,
         taxAmount,

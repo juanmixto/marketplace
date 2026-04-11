@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { CheckCircleIcon } from '@heroicons/react/24/outline'
 import { requireAuth } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
+import { parseOrderAddressSnapshot } from '@/types/order'
 
 export const metadata: Metadata = {
   title: 'Pedido Confirmado | Mercado Productor',
@@ -59,6 +60,20 @@ export default async function Confirmacion({ searchParams }: ConfirmacionPagePro
       </main>
     )
   }
+  const orderAddress = parseOrderAddressSnapshot(order.shippingAddressSnapshot) ?? (
+    order.address
+      ? {
+          firstName: order.address.firstName,
+          lastName: order.address.lastName,
+          line1: order.address.line1,
+          line2: order.address.line2,
+          city: order.address.city,
+          province: order.address.province,
+          postalCode: order.address.postalCode,
+          phone: order.address.phone,
+        }
+      : null
+  )
 
   const orderDate = new Date(order.placedAt).toLocaleDateString('es-ES', {
     year: 'numeric',
@@ -141,15 +156,15 @@ export default async function Confirmacion({ searchParams }: ConfirmacionPagePro
           </div>
 
           {/* Shipping Address */}
-          {order.address && (
+          {orderAddress && (
             <div className="mb-6 rounded-lg bg-gray-50 p-4">
               <h3 className="mb-2 font-semibold text-gray-900">Dirección de envío</h3>
               <p className="text-sm text-gray-600">
-                {order.address.firstName} {order.address.lastName}<br />
-                {order.address.line1}
-                {order.address.line2 && <><br />{order.address.line2}</> }
+                {orderAddress.firstName} {orderAddress.lastName}<br />
+                {orderAddress.line1}
+                {orderAddress.line2 && <><br />{orderAddress.line2}</> }
                 <br />
-                {order.address.city}, {order.address.province} {order.address.postalCode}
+                {orderAddress.city}, {orderAddress.province} {orderAddress.postalCode}
               </p>
             </div>
           )}

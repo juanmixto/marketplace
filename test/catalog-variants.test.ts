@@ -1,13 +1,19 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import {
   getAvailableStockForPurchase,
+  getDefaultVariant,
   getSelectedVariant,
   getVariantAdjustedCompareAtPrice,
   getVariantAdjustedPrice,
   productRequiresVariantSelection,
   type PurchasableProduct,
 } from '@/domains/catalog/variants'
+
+function readSource(path: string) {
+  return readFileSync(new URL(path, import.meta.url), 'utf8')
+}
 
 const productWithVariants = {
   basePrice: 12,
@@ -28,6 +34,20 @@ test('productRequiresVariantSelection detects active variants', () => {
 test('getSelectedVariant only resolves active variants from the same product', () => {
   assert.equal(getSelectedVariant(productWithVariants, 'large')?.name, 'Caja grande')
   assert.equal(getSelectedVariant(productWithVariants, 'missing'), null)
+})
+
+test('getDefaultVariant prefers the first active in-stock option for default selection', () => {
+  assert.equal(getDefaultVariant(productWithVariants)?.id, 'small')
+  assert.equal(
+    getDefaultVariant({
+      ...productWithVariants,
+      variants: [
+        { id: 'sold-out', name: 'Agotada', priceModifier: 0, stock: 0, isActive: true },
+        { id: 'fallback', name: 'Disponible', priceModifier: 2, stock: 4, isActive: true },
+      ],
+    })?.id,
+    'fallback'
+  )
 })
 
 test('variant pricing adjusts both current and compare-at prices', () => {
@@ -83,4 +103,14 @@ test('getAvailableStockForPurchase: variant selected but product has no active v
     variants: [], // no active variants
   }
   assert.equal(getAvailableStockForPurchase(product, null), 5)
+})
+
+test('variant-aware product UI defaults to a concrete variant before adding to cart', () => {
+  const purchasePanel = readSource('../src/components/catalog/ProductPurchasePanel.tsx')
+  const productCard = readSource('../src/components/catalog/ProductCard.tsx')
+
+  assert.match(purchasePanel, /const defaultVariant = getDefaultVariant\(product\)/)
+  assert.match(purchasePanel, /useState<string>\(defaultVariant\?\.id \?\? ''\)/)
+  assert.match(productCard, /variantId=\{defaultVariant\?\.id\}/)
+  assert.match(productCard, /variantName=\{defaultVariant\?\.name\}/)
 })
