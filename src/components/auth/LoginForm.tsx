@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
+import { useT } from '@/i18n'
 import {
   BuildingStorefrontIcon,
   EyeIcon,
@@ -32,12 +33,13 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showPass, setShowPass] = useState(false)
+  const t = useT()
 
   const portalContent = {
     buyer: {
-      badge: 'Acceso cliente',
-      title: 'Entrar a tu cuenta',
-      description: 'Consulta pedidos, carrito y seguimiento de tus compras.',
+      badge: t('login.portal.buyer.badge'),
+      title: t('login.portal.buyer.title'),
+      description: t('login.portal.buyer.desc'),
       tint: 'from-slate-50 to-white dark:from-slate-900/80 dark:to-slate-950',
       border: 'border-slate-200 dark:border-slate-700/80',
       accent: 'text-slate-700 dark:text-slate-300',
@@ -45,9 +47,9 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
       icon: ShoppingBagIcon,
     },
     vendor: {
-      badge: 'Portal productor',
-      title: 'Entrar como productor',
-      description: 'Gestiona catalogo, stock, pedidos y visibilidad de tu tienda.',
+      badge: t('login.portal.vendor.badge'),
+      title: t('login.portal.vendor.title'),
+      description: t('login.portal.vendor.desc'),
       tint: 'from-emerald-50 to-white dark:from-emerald-950/60 dark:to-slate-950',
       border: 'border-emerald-200 dark:border-emerald-800/70',
       accent: 'text-emerald-700 dark:text-emerald-300',
@@ -55,16 +57,16 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
       icon: BuildingStorefrontIcon,
     },
     admin: {
-      badge: 'Panel admin',
-      title: 'Entrar como administrador',
-      description: 'Supervisa el marketplace, revisiones y operaciones internas.',
+      badge: t('login.portal.admin.badge'),
+      title: t('login.portal.admin.title'),
+      description: t('login.portal.admin.desc'),
       tint: 'from-amber-50 to-white dark:from-amber-950/60 dark:to-slate-950',
       border: 'border-amber-200 dark:border-amber-800/70',
       accent: 'text-amber-700 dark:text-amber-300',
       iconBg: 'bg-white dark:bg-slate-900',
       icon: ShieldCheckIcon,
     },
-  } as const
+  }
 
   const currentPortal = portalContent[portalMode]
   const PortalIcon = currentPortal.icon

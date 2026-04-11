@@ -11,6 +11,7 @@ import { CERTIFICATIONS, TAX_RATES } from '@/lib/constants'
 import { createProduct, updateProduct } from '@/domains/vendors/actions'
 import { formatExpirationDateInput } from '@/domains/catalog/availability'
 import type { Category, Product, ProductVariant } from '@/generated/prisma/client'
+import { useT } from '@/i18n'
 
 const productFormSchema = z.object({
   name: z.string().min(3, 'Mínimo 3 caracteres').max(100),
@@ -58,6 +59,7 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
   const router = useRouter()
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const t = useT()
 
   const {
     register,
@@ -131,18 +133,18 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <Input label="Nombre" error={errors.name?.message} {...register('name')} />
+          <Input label={t('vendor.nameLabel')} error={errors.name?.message} {...register('name')} />
         </div>
 
         <div className="sm:col-span-2 space-y-1.5">
           <label htmlFor="description" className="block text-sm font-medium text-[var(--foreground)]">
-            Descripción
+            {t('vendor.description')}
           </label>
           <textarea
             id="description"
             rows={5}
             className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
-            placeholder="Cuenta qué hace especial a este producto"
+            placeholder={t('vendor.descPlaceholder')}
             {...register('description')}
           />
           {errors.description?.message && <p className="text-xs text-red-600 dark:text-red-400">{errors.description.message}</p>}
@@ -150,14 +152,14 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
 
         <div className="space-y-1.5">
           <label htmlFor="categoryId" className="block text-sm font-medium text-[var(--foreground)]">
-            Categoría
+            {t('vendor.category')}
           </label>
           <select
             id="categoryId"
             className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
             {...register('categoryId')}
           >
-            <option value="">Sin categoría</option>
+            <option value="">{t('vendor.noCategory')}</option>
             {categories.map(category => (
               <option key={category.id} value={category.id}>
                 {category.name}
@@ -168,14 +170,14 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
         </div>
 
         <Input
-          label="Región de origen"
+          label={t('vendor.originRegion')}
           placeholder="Navarra, Jaén, Girona..."
           error={errors.originRegion?.message}
           {...register('originRegion')}
         />
 
         <Input
-          label="Precio base"
+          label={t('vendor.basePrice')}
           type="number"
           min="0"
           step="0.01"
@@ -184,18 +186,18 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
         />
 
         <Input
-          label="Precio comparado"
+          label={t('vendor.compareAtPrice')}
           type="number"
           min="0"
           step="0.01"
-          hint="Opcional, para mostrar oferta"
+          hint={t('vendor.compareAtHint')}
           error={errors.compareAtPrice?.message}
           {...register('compareAtPrice')}
         />
 
         <div className="space-y-1.5">
           <label htmlFor="taxRate" className="block text-sm font-medium text-[var(--foreground)]">
-            IVA
+            {t('vendor.taxRate')}
           </label>
           <select
             id="taxRate"
@@ -209,10 +211,10 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
           {errors.taxRate?.message && <p className="text-xs text-red-600 dark:text-red-400">{errors.taxRate.message}</p>}
         </div>
 
-        <Input label="Unidad" placeholder="kg, caja, docena..." error={errors.unit?.message} {...register('unit')} />
+        <Input label={t('vendor.unit')} placeholder="kg, caja, docena..." error={errors.unit?.message} {...register('unit')} />
 
         <Input
-          label="Stock"
+          label={t('vendor.stock')}
           type="number"
           min="0"
           step="1"
@@ -221,20 +223,20 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
         />
 
         <Input
-          label="Fecha de caducidad"
+          label={t('vendor.expiresAt')}
           type="date"
-          hint="Si llega esta fecha sin venderse, el producto dejará de aparecer en la tienda."
+          hint={t('vendor.expiresAtHint')}
           error={errors.expiresAt?.message}
           {...register('expiresAt')}
         />
 
         <div className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground-soft)]">
           <input id="trackStock" type="checkbox" className="rounded border-[var(--border-strong)] text-emerald-600 accent-emerald-600 dark:accent-emerald-400" {...register('trackStock')} />
-          <label htmlFor="trackStock">Controlar stock</label>
+          <label htmlFor="trackStock">{t('vendor.trackStock')}</label>
         </div>
 
         <div className="space-y-1.5 sm:col-span-2">
-          <p className="block text-sm font-medium text-[var(--foreground)]">Certificaciones</p>
+          <p className="block text-sm font-medium text-[var(--foreground)]">{t('vendor.certifications')}</p>
           <div className="flex flex-wrap gap-2">
             {CERTIFICATIONS.map(certification => {
               const active = selectedCertifications.includes(certification)
@@ -259,13 +261,13 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
 
         <div className="space-y-1.5 sm:col-span-2">
           <label htmlFor="imagesText" className="block text-sm font-medium text-[var(--foreground)]">
-            Imágenes
+            {t('vendor.images')}
           </label>
           <textarea
             id="imagesText"
             rows={4}
             className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-            placeholder="Una URL por línea"
+            placeholder={t('vendor.imagesPlaceholder')}
             {...register('imagesText')}
           />
           {errors.imagesText?.message && <p className="text-xs text-red-600 dark:text-red-400">{errors.imagesText.message}</p>}
@@ -273,17 +275,17 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
 
         <div className="space-y-1.5 sm:col-span-2">
           <label htmlFor="status" className="block text-sm font-medium text-[var(--foreground)]">
-            Estado inicial
+            {t('vendor.statusLabel')}
           </label>
           <select
             id="status"
             className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
             {...register('status')}
           >
-            <option value="DRAFT">Guardar como borrador</option>
-            <option value="PENDING_REVIEW">Enviar a revisión</option>
+            <option value="DRAFT">{t('vendor.saveDraft')}</option>
+            <option value="PENDING_REVIEW">{t('vendor.sendReview')}</option>
           </select>
-          <p className="text-xs text-[var(--muted)]">Puedes editar borradores y reenviar productos rechazados más adelante.</p>
+          <p className="text-xs text-[var(--muted)]">{t('vendor.statusHint')}</p>
         </div>
       </div>
 
@@ -301,10 +303,10 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
 
       <div className="flex flex-wrap items-center justify-end gap-3">
         <Button type="button" variant="secondary" onClick={() => router.push('/vendor/productos')}>
-          Cancelar
+          {t('common.cancel')}
         </Button>
         <Button type="submit" isLoading={isSubmitting}>
-          {isEditing ? 'Guardar cambios' : 'Crear producto'}
+          {isEditing ? t('vendor.saveChanges') : t('vendor.createProduct')}
         </Button>
       </div>
     </form>

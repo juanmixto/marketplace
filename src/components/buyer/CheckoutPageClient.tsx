@@ -16,6 +16,7 @@ import {
   type ShippingRateLike,
   type ShippingZoneLike,
 } from '@/domains/shipping/shared'
+import { useT } from '@/i18n'
 
 const schema = z.object({
   firstName: z.string().min(1, 'Requerido'),
@@ -42,6 +43,7 @@ export function CheckoutPageClient({ shippingZones, shippingRates, fallbackShipp
   const { items, subtotal, clearCart } = useCartStore()
   const [step, setStep] = useState<'address' | 'payment' | 'processing'>('address')
   const [serverError, setServerError] = useState<string | null>(null)
+  const t = useT()
 
   const sub = subtotal()
 
@@ -101,41 +103,41 @@ export function CheckoutPageClient({ shippingZones, shippingRates, fallbackShipp
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="mb-8 text-2xl font-bold text-[var(--foreground)]">Finalizar pedido</h1>
+      <h1 className="mb-8 text-2xl font-bold text-[var(--foreground)]">{t('checkout.title')}</h1>
 
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
-              <h2 className="mb-4 font-semibold text-[var(--foreground)]">Dirección de entrega</h2>
+              <h2 className="mb-4 font-semibold text-[var(--foreground)]">{t('checkout.address')}</h2>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
-                  <Input label="Nombre" error={errors.firstName?.message} {...register('firstName')} />
-                  <Input label="Apellidos" error={errors.lastName?.message} {...register('lastName')} />
+                  <Input label={t('checkout.firstName')} error={errors.firstName?.message} {...register('firstName')} />
+                  <Input label={t('checkout.lastName')} error={errors.lastName?.message} {...register('lastName')} />
                 </div>
-                <Input label="Dirección" placeholder="Calle, número, piso..." error={errors.line1?.message} {...register('line1')} />
-                <Input label="Piso / Apartamento (opcional)" {...register('line2')} />
+                <Input label={t('checkout.line1')} placeholder={t('checkout.line1Placeholder')} error={errors.line1?.message} {...register('line1')} />
+                <Input label={t('checkout.line2')} {...register('line2')} />
                 <div className="grid grid-cols-3 gap-3">
                   <div className="col-span-2">
-                    <Input label="Ciudad" error={errors.city?.message} {...register('city')} />
+                    <Input label={t('checkout.city')} error={errors.city?.message} {...register('city')} />
                   </div>
-                  <Input label="Código postal" placeholder="28001" error={errors.postalCode?.message} {...register('postalCode')} />
+                  <Input label={t('checkout.postalCode')} placeholder={t('checkout.postalCodePlaceholder')} error={errors.postalCode?.message} {...register('postalCode')} />
                 </div>
-                <Input label="Provincia" error={errors.province?.message} {...register('province')} />
-                <Input label="Teléfono (opcional)" type="tel" {...register('phone')} />
+                <Input label={t('checkout.province')} error={errors.province?.message} {...register('province')} />
+                <Input label={t('checkout.phone')} type="tel" {...register('phone')} />
                 <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--foreground-soft)]">
                   <input type="checkbox" {...register('saveAddress')} className="rounded border-[var(--border-strong)] text-emerald-600 accent-emerald-600 dark:accent-emerald-400" />
-                  Guardar esta dirección para futuros pedidos
+                  {t('checkout.saveAddress')}
                 </label>
               </div>
             </div>
 
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
-              <h2 className="mb-3 font-semibold text-[var(--foreground)]">Pago</h2>
+              <h2 className="mb-3 font-semibold text-[var(--foreground)]">{t('checkout.payment')}</h2>
               <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-700 dark:border-sky-800 dark:bg-sky-950/35 dark:text-sky-300">
-                <p className="font-medium">Modo demo activado</p>
+                <p className="font-medium">{t('checkout.demoMode')}</p>
                 <p className="mt-0.5 text-sky-600 dark:text-sky-400">
-                  El pago se simulará automáticamente. En producción se integra Stripe.
+                  {t('checkout.demoModeDesc')}
                 </p>
               </div>
             </div>
@@ -152,14 +154,14 @@ export function CheckoutPageClient({ shippingZones, shippingRates, fallbackShipp
               className="w-full"
               isLoading={isSubmitting || step === 'processing'}
             >
-              {step === 'processing' ? 'Procesando pedido...' : `Confirmar pedido · ${formatPrice(total)}`}
+              {step === 'processing' ? t('checkout.processing') : `${t('checkout.confirm')} · ${formatPrice(total)}`}
             </Button>
           </form>
         </div>
 
         <div>
           <div className="sticky top-24 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
-            <h2 className="mb-4 font-semibold text-[var(--foreground)]">Tu pedido</h2>
+            <h2 className="mb-4 font-semibold text-[var(--foreground)]">{t('checkout.yourOrder')}</h2>
             <div className="max-h-64 space-y-3 overflow-y-auto">
               {items.map(item => (
                 <div key={`${item.productId}-${item.variantId}`} className="flex gap-3">
@@ -185,19 +187,19 @@ export function CheckoutPageClient({ shippingZones, shippingRates, fallbackShipp
 
             <div className="mt-4 space-y-2 border-t border-[var(--border)] pt-4 text-sm">
               <div className="flex justify-between text-[var(--foreground-soft)]">
-                <span>Subtotal</span><span>{formatPrice(sub)}</span>
+                <span>{t('cart.subtotal')}</span><span>{formatPrice(sub)}</span>
               </div>
               <div className="flex justify-between text-[var(--foreground-soft)]">
-                <span>Envío</span>
-                <span>{shipping === 0 ? <span className="text-emerald-600 dark:text-emerald-400">Gratis</span> : formatPrice(shipping)}</span>
+                <span>{t('cart.shipping')}</span>
+                <span>{shipping === 0 ? <span className="text-emerald-600 dark:text-emerald-400">{t('cart.shippingFree')}</span> : formatPrice(shipping)}</span>
               </div>
               {shipping > 0 && (
                 <p className="text-xs text-[var(--muted-light)]">
-                  El coste se ajusta automáticamente según el código postal y la zona de envío.
+                  {t('checkout.shippingHint')}
                 </p>
               )}
               <div className="flex justify-between border-t border-[var(--border)] pt-2 text-base font-bold text-[var(--foreground)]">
-                <span>Total</span><span>{formatPrice(total)}</span>
+                <span>{t('cart.total')}</span><span>{formatPrice(total)}</span>
               </div>
             </div>
           </div>

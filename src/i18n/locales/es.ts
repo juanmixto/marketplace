@@ -1,4 +1,4 @@
-const es: Record<string, string> = {
+const es = {
   // Header
   categories: 'Categorías',
   producers: 'Productores',
@@ -79,7 +79,7 @@ const es: Record<string, string> = {
   maintenanceBanner: 'Estamos realizando tareas de mantenimiento. Algunas funciones pueden tardar más de lo habitual.',
   productsUnit: 'productos',
 
-  // Auth
+  // Auth – login
   'login.title': 'Bienvenido de nuevo',
   'login.subtitle': 'Inicia sesión en tu cuenta',
   'login.email': 'Correo electrónico',
@@ -88,6 +88,19 @@ const es: Record<string, string> = {
   'login.forgot': '¿Olvidaste tu contraseña?',
   'login.noAccount': '¿No tienes cuenta?',
   'login.register': 'Regístrate',
+
+  // Auth – login portal modes
+  'login.portal.buyer.badge': 'Acceso cliente',
+  'login.portal.buyer.title': 'Entrar a tu cuenta',
+  'login.portal.buyer.desc': 'Consulta pedidos, carrito y seguimiento de tus compras.',
+  'login.portal.vendor.badge': 'Portal productor',
+  'login.portal.vendor.title': 'Entrar como productor',
+  'login.portal.vendor.desc': 'Gestiona catálogo, stock, pedidos y visibilidad de tu tienda.',
+  'login.portal.admin.badge': 'Panel admin',
+  'login.portal.admin.title': 'Entrar como administrador',
+  'login.portal.admin.desc': 'Supervisa el marketplace, revisiones y operaciones internas.',
+
+  // Auth – register
   'register.title': 'Crear cuenta',
   'register.subtitle': 'Únete al mercado local',
   'register.name': 'Nombre',
@@ -101,12 +114,155 @@ const es: Record<string, string> = {
   'register.signIn': 'Inicia sesión',
   signOut: 'Cerrar sesión',
 
-  // Vendor
+  // Auth – password recovery
+  'auth.recoverySent': 'Enlace enviado.',
+  'auth.recoverySentDesc': 'Si el email está registrado, recibirás un enlace de recuperación en breve.',
+  'auth.recoveryEmail': 'Email *',
+  'auth.recoveryEmailPlaceholder': 'tu@email.com',
+  'auth.recoverySubmit': 'Enviar enlace de recuperación',
+  'auth.recoverySending': 'Enviando...',
+
+  // Cart
+  'cart.empty': 'Tu carrito está vacío',
+  'cart.emptyDesc': 'Explora nuestros productos y añade los que más te gusten.',
+  'cart.emptyBtn': 'Explorar productos',
+  'cart.title': 'Tu carrito',
+  'cart.clearCart': 'Vaciar carrito',
+  'cart.summary': 'Resumen del pedido',
+  'cart.subtotal': 'Subtotal',
+  'cart.shipping': 'Envío',
+  'cart.shippingFree': 'Gratis',
+  'cart.shippingFrom': 'Envío gratis a partir de',
+  'cart.total': 'Total',
+  'cart.toCheckout': 'Ir al checkout',
+  'cart.continueShopping': 'Seguir comprando',
+
+  // Checkout
+  'checkout.title': 'Finalizar pedido',
+  'checkout.address': 'Dirección de entrega',
+  'checkout.firstName': 'Nombre',
+  'checkout.lastName': 'Apellidos',
+  'checkout.line1': 'Dirección',
+  'checkout.line1Placeholder': 'Calle, número, piso...',
+  'checkout.line2': 'Piso / Apartamento (opcional)',
+  'checkout.city': 'Ciudad',
+  'checkout.postalCode': 'Código postal',
+  'checkout.postalCodePlaceholder': '28001',
+  'checkout.province': 'Provincia',
+  'checkout.phone': 'Teléfono (opcional)',
+  'checkout.saveAddress': 'Guardar esta dirección para futuros pedidos',
+  'checkout.payment': 'Pago',
+  'checkout.demoMode': 'Modo demo activado',
+  'checkout.demoModeDesc': 'El pago se simulará automáticamente. En producción se integra Stripe.',
+  'checkout.confirm': 'Confirmar pedido',
+  'checkout.processing': 'Procesando pedido...',
+  'checkout.yourOrder': 'Tu pedido',
+  'checkout.shippingHint': 'El coste se ajusta automáticamente según el código postal y la zona de envío.',
+
+  // Order detail
+  'order.confirmed': '¡Pedido confirmado!',
+  'order.confirmedDesc': 'Hemos recibido tu pedido. Recibirás actualizaciones por email.',
+  'order.products': 'Productos',
+  'order.shippingStatus': 'Estado del envío',
+  'order.summary': 'Resumen',
+  'order.subtotal': 'Subtotal',
+  'order.shippingCost': 'Envío',
+  'order.free': 'Gratis',
+  'order.total': 'Total',
+  'order.deliveryAddress': 'Dirección de entrega',
+  'order.backToOrders': '← Volver a mis pedidos',
+
+  // Vendor – nav (existing)
   'vendor.dashboard': 'Panel productor',
   'vendor.products': 'Mis productos',
   'vendor.orders': 'Pedidos',
   'vendor.profile': 'Mi perfil',
   'vendor.settings': 'Configuración',
+
+  // Vendor – product catalog page
+  'vendor.myCatalog': 'Mi catálogo',
+  'vendor.newProduct': 'Nuevo producto',
+  'vendor.noProducts': 'Aún no tienes productos',
+  'vendor.addFirstProduct': 'Añadir primer producto',
+  'vendor.expired': 'Caducado',
+  'vendor.expiresToday': 'Caduca hoy',
+  'vendor.expiresSoon': 'Caduca pronto',
+  'vendor.noStock': 'Sin stock',
+  'vendor.inStock': 'en stock',
+
+  // Vendor – product form
+  'vendor.nameLabel': 'Nombre',
+  'vendor.description': 'Descripción',
+  'vendor.descPlaceholder': 'Cuenta qué hace especial a este producto',
+  'vendor.category': 'Categoría',
+  'vendor.noCategory': 'Sin categoría',
+  'vendor.originRegion': 'Región de origen',
+  'vendor.basePrice': 'Precio base',
+  'vendor.compareAtPrice': 'Precio comparado',
+  'vendor.compareAtHint': 'Opcional, para mostrar oferta',
+  'vendor.taxRate': 'IVA',
+  'vendor.unit': 'Unidad',
+  'vendor.stock': 'Stock',
+  'vendor.expiresAt': 'Fecha de caducidad',
+  'vendor.expiresAtHint': 'Si llega esta fecha sin venderse, el producto dejará de aparecer en la tienda.',
+  'vendor.trackStock': 'Controlar stock',
+  'vendor.certifications': 'Certificaciones',
+  'vendor.images': 'Imágenes',
+  'vendor.imagesPlaceholder': 'Una URL por línea',
+  'vendor.statusLabel': 'Estado inicial',
+  'vendor.saveDraft': 'Guardar como borrador',
+  'vendor.sendReview': 'Enviar a revisión',
+  'vendor.statusHint': 'Puedes editar borradores y reenviar productos rechazados más adelante.',
+  'vendor.saveChanges': 'Guardar cambios',
+  'vendor.createProduct': 'Crear producto',
+
+  // Incident
+  'incident.markResolved': 'Marcar como resuelta',
+  'incident.selectOption': 'Selecciona…',
+
+  // Account – GDPR
+  'account.deleteConfirmTitle': 'Confirmación de eliminación de cuenta',
+  'account.deleteIrreversible': 'Esta acción es irreversible. Tu cuenta será anonimizada permanentemente. Tus pedidos se conservarán para cumplir obligaciones fiscales, pero todo dato personal será eliminado.',
+  'account.typeToConfirm': 'Escribe "ELIMINAR" para confirmar:',
+  'account.confirmWord': 'ELIMINAR',
+  'account.confirmWordPlaceholder': 'Escribe ELIMINAR',
+  'account.confirmDeleteBtn': 'Sí, Eliminar Definitivamente',
+  'account.deleting': 'Eliminando...',
+  'account.exportData': 'Descargar Mis Datos',
+  'account.downloading': 'Descargando...',
+  'account.deleteAccount': 'Eliminar Mi Cuenta',
+  'account.privacyPolicy': 'Leer Política de Privacidad',
+
+  // Account – addresses
+  'account.loadingAddresses': 'Cargando direcciones...',
+  'account.editAddress': 'Editar dirección',
+  'account.newAddress': 'Añadir nueva dirección',
+  'account.labelField': 'Etiqueta',
+  'account.labelPlaceholder': 'Casa, Trabajo...',
+  'account.firstName': 'Nombre *',
+  'account.firstNamePlaceholder': 'Juan',
+  'account.lastName': 'Apellidos *',
+  'account.lastNamePlaceholder': 'García',
+  'account.line1': 'Dirección *',
+  'account.line1Placeholder': 'Calle Mayor 1, 2º B',
+  'account.line2Field': 'Piso/Puerta',
+  'account.line2Placeholder': 'Apto 4B',
+  'account.city': 'Ciudad *',
+  'account.cityPlaceholder': 'Madrid',
+  'account.province': 'Provincia *',
+  'account.selectProvince': 'Selecciona provincia...',
+  'account.postalCode': 'Código Postal *',
+  'account.setAsDefault': 'Establecer como predeterminada',
+  'account.update': 'Actualizar',
+  'account.saveAddress': 'Guardar',
+  'account.defaultBadge': 'Predeterminada',
+  'account.noAddresses': 'No tienes direcciones guardadas.',
+  'account.addAddress': '+ Añadir dirección',
+  'account.edit': 'Editar',
+  'account.delete': 'Eliminar',
+
+  // Common
+  'common.cancel': 'Cancelar',
 
   // Admin
   'admin.dashboard': 'Panel admin',
@@ -114,6 +270,7 @@ const es: Record<string, string> = {
   'admin.products': 'Productos',
   'admin.vendors': 'Productores',
   'admin.config': 'Configuración',
-}
+} as const satisfies Record<string, string>
 
 export default es
+export type TranslationKeys = keyof typeof es

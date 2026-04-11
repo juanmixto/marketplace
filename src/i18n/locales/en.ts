@@ -1,4 +1,6 @@
-const en: Record<string, string> = {
+import type { TranslationKeys } from './es'
+
+const en: Record<TranslationKeys, string> = {
   // Header
   categories: 'Categories',
   producers: 'Producers',
@@ -79,7 +81,7 @@ const en: Record<string, string> = {
   maintenanceBanner: 'We are performing maintenance tasks. Some features may take longer than usual.',
   productsUnit: 'products',
 
-  // Auth
+  // Auth – login
   'login.title': 'Welcome back',
   'login.subtitle': 'Sign in to your account',
   'login.email': 'Email address',
@@ -88,6 +90,19 @@ const en: Record<string, string> = {
   'login.forgot': 'Forgot your password?',
   'login.noAccount': "Don't have an account?",
   'login.register': 'Sign up',
+
+  // Auth – login portal modes
+  'login.portal.buyer.badge': 'Customer access',
+  'login.portal.buyer.title': 'Sign in to your account',
+  'login.portal.buyer.desc': 'View orders, cart and tracking for your purchases.',
+  'login.portal.vendor.badge': 'Producer portal',
+  'login.portal.vendor.title': 'Sign in as a producer',
+  'login.portal.vendor.desc': 'Manage catalog, stock, orders and your shop visibility.',
+  'login.portal.admin.badge': 'Admin panel',
+  'login.portal.admin.title': 'Sign in as administrator',
+  'login.portal.admin.desc': 'Oversee the marketplace, reviews and internal operations.',
+
+  // Auth – register
   'register.title': 'Create account',
   'register.subtitle': 'Join the local market',
   'register.name': 'Name',
@@ -101,12 +116,155 @@ const en: Record<string, string> = {
   'register.signIn': 'Sign in',
   signOut: 'Sign out',
 
-  // Vendor
+  // Auth – password recovery
+  'auth.recoverySent': 'Link sent.',
+  'auth.recoverySentDesc': 'If the email is registered, you will receive a recovery link shortly.',
+  'auth.recoveryEmail': 'Email *',
+  'auth.recoveryEmailPlaceholder': 'your@email.com',
+  'auth.recoverySubmit': 'Send recovery link',
+  'auth.recoverySending': 'Sending...',
+
+  // Cart
+  'cart.empty': 'Your cart is empty',
+  'cart.emptyDesc': 'Browse our products and add the ones you like most.',
+  'cart.emptyBtn': 'Explore products',
+  'cart.title': 'Your cart',
+  'cart.clearCart': 'Empty cart',
+  'cart.summary': 'Order summary',
+  'cart.subtotal': 'Subtotal',
+  'cart.shipping': 'Shipping',
+  'cart.shippingFree': 'Free',
+  'cart.shippingFrom': 'Free shipping from',
+  'cart.total': 'Total',
+  'cart.toCheckout': 'Go to checkout',
+  'cart.continueShopping': 'Continue shopping',
+
+  // Checkout
+  'checkout.title': 'Complete order',
+  'checkout.address': 'Delivery address',
+  'checkout.firstName': 'First name',
+  'checkout.lastName': 'Last name',
+  'checkout.line1': 'Address',
+  'checkout.line1Placeholder': 'Street, number, floor...',
+  'checkout.line2': 'Floor / Apartment (optional)',
+  'checkout.city': 'City',
+  'checkout.postalCode': 'Postal code',
+  'checkout.postalCodePlaceholder': '28001',
+  'checkout.province': 'Province',
+  'checkout.phone': 'Phone (optional)',
+  'checkout.saveAddress': 'Save this address for future orders',
+  'checkout.payment': 'Payment',
+  'checkout.demoMode': 'Demo mode enabled',
+  'checkout.demoModeDesc': 'Payment will be simulated automatically. In production, Stripe is integrated.',
+  'checkout.confirm': 'Confirm order',
+  'checkout.processing': 'Processing order...',
+  'checkout.yourOrder': 'Your order',
+  'checkout.shippingHint': 'Cost is adjusted automatically based on the postal code and shipping zone.',
+
+  // Order detail
+  'order.confirmed': 'Order confirmed!',
+  'order.confirmedDesc': 'We have received your order. You will receive updates by email.',
+  'order.products': 'Products',
+  'order.shippingStatus': 'Shipping status',
+  'order.summary': 'Summary',
+  'order.subtotal': 'Subtotal',
+  'order.shippingCost': 'Shipping',
+  'order.free': 'Free',
+  'order.total': 'Total',
+  'order.deliveryAddress': 'Delivery address',
+  'order.backToOrders': '← Back to my orders',
+
+  // Vendor – nav
   'vendor.dashboard': 'Producer Dashboard',
   'vendor.products': 'My Products',
   'vendor.orders': 'Orders',
   'vendor.profile': 'My Profile',
   'vendor.settings': 'Settings',
+
+  // Vendor – product catalog page
+  'vendor.myCatalog': 'My catalog',
+  'vendor.newProduct': 'New product',
+  'vendor.noProducts': 'No products yet',
+  'vendor.addFirstProduct': 'Add first product',
+  'vendor.expired': 'Expired',
+  'vendor.expiresToday': 'Expires today',
+  'vendor.expiresSoon': 'Expires soon',
+  'vendor.noStock': 'Out of stock',
+  'vendor.inStock': 'in stock',
+
+  // Vendor – product form
+  'vendor.nameLabel': 'Name',
+  'vendor.description': 'Description',
+  'vendor.descPlaceholder': 'Tell what makes this product special',
+  'vendor.category': 'Category',
+  'vendor.noCategory': 'No category',
+  'vendor.originRegion': 'Region of origin',
+  'vendor.basePrice': 'Base price',
+  'vendor.compareAtPrice': 'Compare at price',
+  'vendor.compareAtHint': 'Optional, to display a sale',
+  'vendor.taxRate': 'VAT',
+  'vendor.unit': 'Unit',
+  'vendor.stock': 'Stock',
+  'vendor.expiresAt': 'Expiration date',
+  'vendor.expiresAtHint': 'If this date is reached without being sold, the product will stop appearing in the store.',
+  'vendor.trackStock': 'Track stock',
+  'vendor.certifications': 'Certifications',
+  'vendor.images': 'Images',
+  'vendor.imagesPlaceholder': 'One URL per line',
+  'vendor.statusLabel': 'Initial status',
+  'vendor.saveDraft': 'Save as draft',
+  'vendor.sendReview': 'Send for review',
+  'vendor.statusHint': 'You can edit drafts and resubmit rejected products later.',
+  'vendor.saveChanges': 'Save changes',
+  'vendor.createProduct': 'Create product',
+
+  // Incident
+  'incident.markResolved': 'Mark as resolved',
+  'incident.selectOption': 'Select...',
+
+  // Account – GDPR
+  'account.deleteConfirmTitle': 'Confirm account deletion',
+  'account.deleteIrreversible': 'This action is irreversible. Your account will be permanently anonymised. Your orders will be kept to fulfil tax obligations, but all personal data will be deleted.',
+  'account.typeToConfirm': 'Type "DELETE" to confirm:',
+  'account.confirmWord': 'DELETE',
+  'account.confirmWordPlaceholder': 'Type DELETE',
+  'account.confirmDeleteBtn': 'Yes, Delete Permanently',
+  'account.deleting': 'Deleting...',
+  'account.exportData': 'Download My Data',
+  'account.downloading': 'Downloading...',
+  'account.deleteAccount': 'Delete My Account',
+  'account.privacyPolicy': 'Read Privacy Policy',
+
+  // Account – addresses
+  'account.loadingAddresses': 'Loading addresses...',
+  'account.editAddress': 'Edit address',
+  'account.newAddress': 'Add new address',
+  'account.labelField': 'Label',
+  'account.labelPlaceholder': 'Home, Work...',
+  'account.firstName': 'First name *',
+  'account.firstNamePlaceholder': 'John',
+  'account.lastName': 'Last name *',
+  'account.lastNamePlaceholder': 'Smith',
+  'account.line1': 'Address *',
+  'account.line1Placeholder': '1 Main Street, 2nd floor',
+  'account.line2Field': 'Floor / Door',
+  'account.line2Placeholder': 'Apt 4B',
+  'account.city': 'City *',
+  'account.cityPlaceholder': 'Madrid',
+  'account.province': 'Province *',
+  'account.selectProvince': 'Select province...',
+  'account.postalCode': 'Postal Code *',
+  'account.setAsDefault': 'Set as default',
+  'account.update': 'Update',
+  'account.saveAddress': 'Save',
+  'account.defaultBadge': 'Default',
+  'account.noAddresses': 'You have no saved addresses.',
+  'account.addAddress': '+ Add address',
+  'account.edit': 'Edit',
+  'account.delete': 'Delete',
+
+  // Common
+  'common.cancel': 'Cancel',
 
   // Admin
   'admin.dashboard': 'Admin Dashboard',

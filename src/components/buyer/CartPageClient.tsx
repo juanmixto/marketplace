@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { formatPrice } from '@/lib/utils'
 import { TrashIcon, MinusIcon, PlusIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
 import { calculateShippingCost, type PublicMarketplaceSettings } from '@/lib/marketplace-settings'
+import { useT } from '@/i18n'
 
 interface Props {
   shippingSettings: Pick<PublicMarketplaceSettings, 'FREE_SHIPPING_THRESHOLD' | 'FLAT_SHIPPING_COST'>
@@ -14,16 +15,17 @@ interface Props {
 
 export function CartPageClient({ shippingSettings }: Props) {
   const { items, removeItem, updateQty, subtotal, clearCart } = useCartStore()
+  const t = useT()
 
   if (items.length === 0) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-24">
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center shadow-sm">
           <ShoppingBagIcon className="mx-auto mb-4 h-16 w-16 text-[var(--muted)]" />
-          <h1 className="text-2xl font-bold text-[var(--foreground)]">Tu carrito está vacío</h1>
-          <p className="mt-2 text-[var(--muted)]">Explora nuestros productos y añade los que más te gusten.</p>
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">{t('cart.empty')}</h1>
+          <p className="mt-2 text-[var(--muted)]">{t('cart.emptyDesc')}</p>
           <Link href="/productos" className="mt-6 inline-flex rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white shadow-sm shadow-emerald-950/10 hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400">
-            Explorar productos
+            {t('cart.emptyBtn')}
           </Link>
         </div>
       </div>
@@ -36,7 +38,7 @@ export function CartPageClient({ shippingSettings }: Props) {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="mb-8 text-2xl font-bold text-[var(--foreground)]">Tu carrito ({items.length})</h1>
+      <h1 className="mb-8 text-2xl font-bold text-[var(--foreground)]">{t('cart.title')} ({items.length})</h1>
 
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="space-y-3 lg:col-span-2">
@@ -86,37 +88,37 @@ export function CartPageClient({ shippingSettings }: Props) {
             </div>
           ))}
           <button onClick={clearCart} className="mt-2 text-sm text-[var(--muted)] hover:text-red-600 dark:hover:text-red-400">
-            Vaciar carrito
+            {t('cart.clearCart')}
           </button>
         </div>
 
         <div>
           <div className="sticky top-24 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
-            <h2 className="mb-4 font-semibold text-[var(--foreground)]">Resumen del pedido</h2>
+            <h2 className="mb-4 font-semibold text-[var(--foreground)]">{t('cart.summary')}</h2>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-[var(--foreground-soft)]">
-                <span>Subtotal</span>
+                <span>{t('cart.subtotal')}</span>
                 <span>{formatPrice(sub)}</span>
               </div>
               <div className="flex justify-between text-[var(--foreground-soft)]">
-                <span>Envío</span>
-                <span>{shipping === 0 ? <span className="text-emerald-600 dark:text-emerald-400">Gratis</span> : formatPrice(shipping)}</span>
+                <span>{t('cart.shipping')}</span>
+                <span>{shipping === 0 ? <span className="text-emerald-600 dark:text-emerald-400">{t('cart.shippingFree')}</span> : formatPrice(shipping)}</span>
               </div>
               {shipping > 0 && (
                 <p className="text-xs text-[var(--muted-light)]">
-                  Envío gratis a partir de {formatPrice(shippingSettings.FREE_SHIPPING_THRESHOLD)}
+                  {t('cart.shippingFrom')} {formatPrice(shippingSettings.FREE_SHIPPING_THRESHOLD)}
                 </p>
               )}
               <div className="flex justify-between border-t border-[var(--border)] pt-2 text-base font-bold text-[var(--foreground)]">
-                <span>Total</span>
+                <span>{t('cart.total')}</span>
                 <span>{formatPrice(total)}</span>
               </div>
             </div>
             <Link href="/checkout">
-              <Button className="mt-4 w-full" size="lg">Ir al checkout</Button>
+              <Button className="mt-4 w-full" size="lg">{t('cart.toCheckout')}</Button>
             </Link>
             <Link href="/productos" className="mt-3 block text-center text-sm text-[var(--muted)] hover:text-emerald-600 dark:hover:text-emerald-400">
-              Seguir comprando
+              {t('cart.continueShopping')}
             </Link>
           </div>
         </div>

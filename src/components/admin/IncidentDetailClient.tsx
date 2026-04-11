@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { UserCircleIcon } from '@heroicons/react/24/outline'
 import { formatDate } from '@/lib/utils'
+import { useT } from '@/i18n'
 
 // Mirror the Prisma IncidentResolution enum values
 const RESOLUTION_OPTIONS = [
@@ -49,6 +50,7 @@ export function IncidentDetailClient({ incidentId, status, messages: initial }: 
   const [busy, setBusy]                   = useState(false)
   const [error, setError]                 = useState<string | null>(null)
   const [resolved, setResolved]           = useState(status === 'RESOLVED' || status === 'CLOSED')
+  const t = useT()
 
   const msgForm = useForm<MessageInput>({ resolver: zodResolver(messageSchema) })
   const resForm = useForm<ResolutionInput>({ resolver: zodResolver(resolutionSchema) })
@@ -167,7 +169,7 @@ export function IncidentDetailClient({ incidentId, status, messages: initial }: 
           <h2 className="mb-4 font-semibold text-[var(--foreground)]">Resolver incidencia</h2>
 
           {!showResolve ? (
-            <Button onClick={() => setShowResolve(true)}>Marcar como resuelta</Button>
+            <Button onClick={() => setShowResolve(true)}>{t('incident.markResolved')}</Button>
           ) : (
             <form onSubmit={resForm.handleSubmit(onResolve)} className="space-y-4">
               <div>
@@ -175,7 +177,7 @@ export function IncidentDetailClient({ incidentId, status, messages: initial }: 
                   Tipo de resolución *
                 </label>
                 <select {...resForm.register('resolution')} className={inputCls}>
-                  <option value="">Selecciona…</option>
+                  <option value="">{t('incident.selectOption')}</option>
                   {RESOLUTION_OPTIONS.map(o => (
                     <option key={o.value} value={o.value}>{o.label}</option>
                   ))}

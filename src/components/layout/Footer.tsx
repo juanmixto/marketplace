@@ -3,11 +3,12 @@
 import Link from 'next/link'
 import { SITE_NAME } from '@/lib/constants'
 import { useT } from '@/i18n'
+import type { TranslationKeys } from '@/i18n'
 
 export function Footer() {
   const t = useT()
 
-  const links = {
+  const links: Record<string, { href: string; labelKey: TranslationKeys }[]> = {
     comprar: [
       { href: '/productos',             labelKey: 'allProducts' },
       { href: '/productores',           labelKey: 'producers' },
@@ -89,10 +90,10 @@ export function Footer() {
           </p>
           <div className="flex gap-4">
             {[
-              { labelKey: 'legal',   href: '/aviso-legal' },
-              { labelKey: 'privacy', href: '/privacidad' },
-              { labelKey: 'cookies', href: '/cookies' },
-              { labelKey: 'terms',   href: '/terminos' },
+              { labelKey: 'legal'   as TranslationKeys,  href: '/aviso-legal' },
+              { labelKey: 'privacy' as TranslationKeys, href: '/privacidad' },
+              { labelKey: 'cookies' as TranslationKeys, href: '/cookies' },
+              { labelKey: 'terms'   as TranslationKeys, href: '/terminos' },
             ].map(link => (
               <Link key={link.href} href={link.href} className="rounded-md text-xs text-[var(--muted)] transition-colors hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
                 {t(link.labelKey)}

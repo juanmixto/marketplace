@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { TrashIcon, PencilIcon, CheckIcon } from '@heroicons/react/24/outline'
+import { useT } from '@/i18n'
 
 const addressSchema = z.object({
   label: z.string().max(50).optional(),
@@ -42,6 +43,7 @@ export function DireccionesClient() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const t = useT()
 
   const {
     register,
@@ -148,7 +150,7 @@ export function DireccionesClient() {
   }
 
   if (loading) {
-    return <div className="text-center text-[var(--muted)]">Cargando direcciones...</div>
+    return <div className="text-center text-[var(--muted)]">{t('account.loadingAddresses')}</div>
   }
 
   return (
@@ -163,17 +165,17 @@ export function DireccionesClient() {
       {showForm && (
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
           <h2 className="mb-4 text-lg font-semibold text-[var(--foreground)]">
-            {editingId ? 'Editar dirección' : 'Añadir nueva dirección'}
+            {editingId ? t('account.editAddress') : t('account.newAddress')}
           </h2>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               {/* Label */}
               <div>
-                <label className="block text-sm font-medium text-[var(--foreground)]">Etiqueta</label>
+                <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.labelField')}</label>
                 <input
                   {...register('label')}
-                  placeholder="Casa, Trabajo..."
+                  placeholder={t('account.labelPlaceholder')}
                   className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
                 {errors.label && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.label.message}</p>}
@@ -181,10 +183,10 @@ export function DireccionesClient() {
 
               {/* FirstName */}
               <div>
-                <label className="block text-sm font-medium text-[var(--foreground)]">Nombre *</label>
+                <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.firstName')}</label>
                 <input
                   {...register('firstName')}
-                  placeholder="Juan"
+                  placeholder={t('account.firstNamePlaceholder')}
                   className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
                 {errors.firstName && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.firstName.message}</p>}
@@ -192,10 +194,10 @@ export function DireccionesClient() {
 
               {/* LastName */}
               <div>
-                <label className="block text-sm font-medium text-[var(--foreground)]">Apellidos *</label>
+                <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.lastName')}</label>
                 <input
                   {...register('lastName')}
-                  placeholder="García"
+                  placeholder={t('account.lastNamePlaceholder')}
                   className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
                 {errors.lastName && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.lastName.message}</p>}
@@ -203,10 +205,10 @@ export function DireccionesClient() {
 
               {/* Line1 */}
               <div>
-                <label className="block text-sm font-medium text-[var(--foreground)]">Dirección *</label>
+                <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.line1')}</label>
                 <input
                   {...register('line1')}
-                  placeholder="Calle Mayor 1, 2º B"
+                  placeholder={t('account.line1Placeholder')}
                   className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
                 {errors.line1 && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.line1.message}</p>}
@@ -214,10 +216,10 @@ export function DireccionesClient() {
 
               {/* Line2 */}
               <div>
-                <label className="block text-sm font-medium text-[var(--foreground)]">Piso/Puerta</label>
+                <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.line2Field')}</label>
                 <input
                   {...register('line2')}
-                  placeholder="Apto 4B"
+                  placeholder={t('account.line2Placeholder')}
                   className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
                 {errors.line2 && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.line2.message}</p>}
@@ -225,10 +227,10 @@ export function DireccionesClient() {
 
               {/* City */}
               <div>
-                <label className="block text-sm font-medium text-[var(--foreground)]">Ciudad *</label>
+                <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.city')}</label>
                 <input
                   {...register('city')}
-                  placeholder="Madrid"
+                  placeholder={t('account.cityPlaceholder')}
                   className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
                 {errors.city && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.city.message}</p>}
@@ -236,12 +238,12 @@ export function DireccionesClient() {
 
               {/* Province */}
               <div>
-                <label className="block text-sm font-medium text-[var(--foreground)]">Provincia *</label>
+                <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.province')}</label>
                 <select
                   {...register('province')}
                   className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 >
-                  <option value="">Selecciona provincia...</option>
+                  <option value="">{t('account.selectProvince')}</option>
                   {SPANISH_PROVINCES.map(p => (
                     <option key={p} value={p}>{p}</option>
                   ))}
@@ -251,7 +253,7 @@ export function DireccionesClient() {
 
               {/* PostalCode */}
               <div>
-                <label className="block text-sm font-medium text-[var(--foreground)]">Código Postal *</label>
+                <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.postalCode')}</label>
                 <input
                   {...register('postalCode')}
                   placeholder="28001"
@@ -269,7 +271,7 @@ export function DireccionesClient() {
                   className="h-4 w-4 rounded border-[var(--border)] accent-emerald-600"
                 />
                 <label htmlFor="isDefault" className="text-sm font-medium text-[var(--foreground)]">
-                  Establecer como predeterminada
+                  {t('account.setAsDefault')}
                 </label>
               </div>
             </div>
@@ -279,7 +281,7 @@ export function DireccionesClient() {
                 type="submit"
                 className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 transition"
               >
-                {editingId ? 'Actualizar' : 'Guardar'}
+                {editingId ? t('account.update') : t('account.saveAddress')}
               </button>
               <button
                 type="button"
@@ -290,7 +292,7 @@ export function DireccionesClient() {
                 }}
                 className="rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-4 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface)] transition"
               >
-                Cancelar
+                {t('common.cancel')}
               </button>
             </div>
           </form>
@@ -311,7 +313,7 @@ export function DireccionesClient() {
                     {address.isDefault && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
                         <CheckIcon className="h-3 w-3" />
-                        Predeterminada
+                        {t('account.defaultBadge')}
                       </span>
                     )}
                   </div>
@@ -333,14 +335,14 @@ export function DireccionesClient() {
                   className="inline-flex items-center gap-1 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
                 >
                   <PencilIcon className="h-4 w-4" />
-                  Editar
+                  {t('account.edit')}
                 </button>
                 {!address.isDefault && (
                   <button
                     onClick={() => handleSetDefault(address.id)}
                     className="inline-flex items-center gap-1 text-sm font-medium text-[var(--muted)] hover:text-[var(--foreground)]"
                   >
-                    Establecer como predeterminada
+                    {t('account.setAsDefault')}
                   </button>
                 )}
                 <button
@@ -349,7 +351,7 @@ export function DireccionesClient() {
                   className="ml-auto inline-flex items-center gap-1 text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 disabled:opacity-50"
                 >
                   <TrashIcon className="h-4 w-4" />
-                  Eliminar
+                  {t('account.delete')}
                 </button>
               </div>
             </div>
@@ -360,7 +362,7 @@ export function DireccionesClient() {
       {/* Empty State */}
       {!showForm && addresses.length === 0 && (
         <div className="rounded-lg border-2 border-dashed border-[var(--border)] bg-[var(--surface-raised)] p-8 text-center shadow-sm">
-          <p className="text-[var(--muted)]">No tienes direcciones guardadas.</p>
+          <p className="text-[var(--muted)]">{t('account.noAddresses')}</p>
         </div>
       )}
 
@@ -373,7 +375,7 @@ export function DireccionesClient() {
           }}
           className="rounded-lg bg-emerald-600 dark:bg-emerald-500 px-4 py-2 font-medium text-white hover:bg-emerald-700 dark:hover:bg-emerald-600 transition"
         >
-          + Añadir dirección
+          {t('account.addAddress')}
         </button>
       )}
     </div>

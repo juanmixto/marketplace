@@ -10,6 +10,7 @@ import { publicPortalLinks } from '@/lib/portals'
 import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import { CheckBadgeIcon, TruckIcon, ShieldCheckIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
 import { useT } from '@/i18n'
+import type { TranslationKeys } from '@/i18n'
 
 interface HomePageClientProps {
   featured: ProductWithVendor[]
@@ -22,7 +23,7 @@ interface HomePageClientProps {
 export function HomePageClient({ featured, categories, vendors, heroStats, publicConfig }: HomePageClientProps) {
   const t = useT()
 
-  const STEPS = [
+  const STEPS: { step: string; titleKey: TranslationKeys; descKey: TranslationKeys }[] = [
     { step: '01', titleKey: 'steps.01.title', descKey: 'steps.01.desc' },
     { step: '02', titleKey: 'steps.02.title', descKey: 'steps.02.desc' },
     { step: '03', titleKey: 'steps.03.title', descKey: 'steps.03.desc' },
@@ -135,11 +136,11 @@ export function HomePageClient({ featured, categories, vendors, heroStats, publi
       <section className="border-b border-[var(--border)] bg-[var(--surface)]">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            {[
+            {([
               { icon: TruckIcon,        textKey: 'trust.shipping' },
               { icon: ShieldCheckIcon,  textKey: 'trust.payment' },
               { icon: CheckBadgeIcon,   textKey: 'trust.verified' },
-            ].map(({ icon: Icon, textKey }) => (
+            ] as { icon: typeof TruckIcon; textKey: TranslationKeys }[]).map(({ icon: Icon, textKey }) => (
               <div key={textKey} className="flex items-center gap-2.5 text-sm text-[var(--foreground-soft)]">
                 <Icon className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                 {t(textKey)}

@@ -1,15 +1,19 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import es from './locales/es'
-import en from './locales/en'
+import { es, en } from './locales'
+import type { TranslationKeys } from './locales'
 
 export type Locale = 'es' | 'en'
+export type { TranslationKeys }
 
 const STORAGE_KEY = 'locale'
 const DEFAULT_LOCALE: Locale = 'es'
 
-const dictionaries: Record<Locale, Record<string, string>> = { es, en }
+// To add a new locale: create src/i18n/locales/fr.ts (must satisfy
+// Record<TranslationKeys, string>), export it from locales/index.ts,
+// add the key here and to the Locale union type above.
+const dictionaries: Record<Locale, Record<TranslationKeys, string>> = { es, en }
 
 interface LocaleContextValue {
   locale: Locale
@@ -29,7 +33,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored === 'en' || stored === 'es') {
-      setLocaleState(stored)
+      setLocaleState(stored as Locale)
     }
   }, [])
 
@@ -52,7 +56,7 @@ export function useLocale() {
 export function useT() {
   const { locale } = useLocale()
   const dict = dictionaries[locale]
-  return function t(key: string): string {
-    return dict[key] ?? key
+  return function t(key: TranslationKeys): string {
+    return dict[key]
   }
 }
