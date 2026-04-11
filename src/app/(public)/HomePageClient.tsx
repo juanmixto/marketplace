@@ -300,16 +300,16 @@ export function HomePageClient({ featured, categories, vendors, heroStats, publi
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-900 to-teal-800 dark:from-gray-950 dark:to-emerald-950" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(52,211,153,0.15),transparent_50%)]" />
-        <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 text-center">
+        <div className="relative mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 lg:px-8">
           <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400 mb-3">{t('sectionLabelForProducers')}</p>
-          <h2 className="text-3xl font-bold text-white sm:text-4xl">{t('sections.ctaTitle')}</h2>
-          <p className="mt-4 text-lg text-emerald-100/80 max-w-xl mx-auto leading-relaxed">
+          <h2 className="text-2xl font-bold text-white sm:text-3xl">{t('sections.ctaTitle')}</h2>
+          <p className="mt-4 mx-auto max-w-xl text-base leading-relaxed text-emerald-100/80 sm:text-lg">
             {t('sections.ctaSubtitle')}
           </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-4">
+          <div className="mt-7 flex flex-wrap justify-center gap-4">
             <Link
               href="/register?rol=productor"
-              className="inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 font-semibold text-emerald-950 shadow-md transition-all hover:-translate-y-0.5 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-900"
+              className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 font-semibold text-emerald-950 shadow-md transition-all hover:-translate-y-0.5 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-900"
             >
               {t('sections.ctaBtn')}
               <ArrowRightIcon className="h-4 w-4" />

@@ -34,7 +34,11 @@ export async function createStripeConnectLink(): Promise<string> {
   }
 
   // Crear link de onboarding
-  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+  const baseUrl =
+    process.env.AUTH_URL ||
+    process.env.NEXTAUTH_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    'http://localhost:3000'
   const accountLink = await stripe.accountLinks.create({
     account: accountId,
     refresh_url: `${baseUrl}/vendor/perfil?stripe=refresh`,
