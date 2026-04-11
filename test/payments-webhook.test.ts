@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import {
   assertProviderRefForPaymentStatus,
   doesWebhookPaymentMatchStoredPayment,
+  isRetryableWebhookError,
+  retryWebhookOperation,
   shouldApplyPaymentFailed,
   shouldApplyPaymentSucceeded,
 } from '@/domains/payments/webhook'
@@ -152,4 +154,37 @@ test('doesWebhookPaymentMatchStoredPayment handles rounding correctly for amount
     ),
     true
   )
+})
+
+test('isRetryableWebhookError detects transient database failures', () => {
+  const error = Object.assign(new Error('database timeout'), { code: 'P1002' })
+  assert.equal(isRetryableWebhookError(error), true)
+  assert.equal(isRetryableWebhookError(new Error('invalid signature')), false)
+})
+
+test('retryWebhookOperation retries transient failures with exponential backoff', async () => {
+  const delays: number[] = []
+  let attempts = 0
+
+  const result = await retryWebhookOperation(
+    async () => {
+      attempts += 1
+      if (attempts < 3) {
+        const error = Object.assign(new Error('temporary database timeout'), { code: 'P1002' })
+        throw error
+      }
+
+      return 'ok'
+    },
+    {
+      operationName: 'test retry',
+      sleep: async delayMs => {
+        delays.push(delayMs)
+      },
+    }
+  )
+
+  assert.equal(result, 'ok')
+  assert.equal(attempts, 3)
+  assert.deepEqual(delays, [100, 200])
 })
