@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { getProductBySlug, getProducts } from '@/domains/catalog/queries'
 import { Badge } from '@/components/ui/badge'
 import { ProductPurchasePanel } from '@/components/catalog/ProductPurchasePanel'
+import { AutoTranslatedBadge } from '@/components/catalog/AutoTranslatedBadge'
 import { StarRating } from '@/components/reviews/StarRating'
 import type { ProductWithVendor } from '@/domains/catalog/types'
 import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
@@ -14,6 +15,9 @@ import { db } from '@/lib/db'
 import { getAvailableProductWhere } from '@/domains/catalog/availability'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { absoluteUrl, buildPageMetadata } from '@/lib/seo'
+import { getCatalogCopy, getLocalizedCertificationCopy, getLocalizedProductCopy } from '@/i18n/catalog-copy'
+import { getServerLocale } from '@/i18n/server'
+import { translateCategoryLabel } from '@/lib/portals'
 
 export const revalidate = 300
 
@@ -22,20 +26,28 @@ interface Props {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const locale = await getServerLocale()
+  const copy = getCatalogCopy(locale)
   const { slug } = await params
   const product = await getProductBySlug(slug)
   if (!product) {
     return buildPageMetadata({
-      title: 'Producto no encontrado',
-      description: 'No hemos podido encontrar este producto.',
+      title: copy.page.productNotFoundTitle,
+      description: copy.page.productNotFoundDescription,
       path: `/productos/${slug}`,
       noindex: true,
     })
   }
 
+  const localizedProduct = getLocalizedProductCopy(product, locale)
+
   return buildPageMetadata({
-    title: product.name,
-    description: product.description ?? `Compra ${product.name} directamente al productor.`,
+    title: localizedProduct.name,
+    description:
+      localizedProduct.description ??
+      (locale === 'en'
+        ? `Buy ${localizedProduct.name} directly from the producer.`
+        : `Compra ${localizedProduct.name} directamente al productor.`),
     path: `/productos/${product.slug}`,
     imagePath: product.images[0] ?? '/opengraph-image',
   })
@@ -61,10 +73,13 @@ const CERT_COLORS: Record<string, 'green' | 'blue' | 'purple' | 'amber'> = {
 }
 
 export default async function ProductDetailPage({ params }: Props) {
+  const locale = await getServerLocale()
+  const copy = getCatalogCopy(locale)
   const { slug } = await params
   const product = await getProductBySlug(slug)
   if (!product) notFound()
 
+  const localizedProduct = getLocalizedProductCopy(product, locale)
   const taxRate = Number(product.taxRate)
 
   const related = await getProducts({
@@ -75,8 +90,8 @@ export default async function ProductDetailPage({ params }: Props) {
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'Product',
-    name: product.name,
-    description: product.description ?? undefined,
+    name: localizedProduct.name,
+    description: localizedProduct.description ?? undefined,
     image: product.images.map(image => absoluteUrl(image)),
     sku: product.slug,
     brand: {
@@ -101,19 +116,19 @@ export default async function ProductDetailPage({ params }: Props) {
       <JsonLd data={structuredData} />
       {/* Breadcrumb */}
       <nav className="mb-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-[var(--muted)]">
-        <Link href="/" className="rounded-md hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">Inicio</Link>
+        <Link href="/" className="rounded-md hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">{copy.breadcrumbs.home}</Link>
         <span>/</span>
-        <Link href="/productos" className="rounded-md hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">Productos</Link>
+        <Link href="/productos" className="rounded-md hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">{copy.breadcrumbs.products}</Link>
         {product.category && (
           <>
             <span>/</span>
             <Link href={`/productos?categoria=${product.category.slug}`} className="rounded-md hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
-              {product.category.name}
+              {translateCategoryLabel(product.category.slug, product.category.name, locale)}
             </Link>
           </>
         )}
         <span>/</span>
-        <span className="min-w-0 truncate text-[var(--foreground)]">{product.name}</span>
+        <span className="min-w-0 truncate text-[var(--foreground)]">{localizedProduct.name}</span>
       </nav>
 
       <div className="grid gap-10 lg:grid-cols-2">
@@ -123,7 +138,7 @@ export default async function ProductDetailPage({ params }: Props) {
             {product.images?.[0] ? (
               <Image
                 src={product.images[0]}
-                alt={product.name}
+                alt={localizedProduct.name}
                 fill
                 className="object-cover"
                 sizes="(max-width: 1024px) 100vw, 50vw"
@@ -136,7 +151,7 @@ export default async function ProductDetailPage({ params }: Props) {
             <div className="flex gap-2 overflow-x-auto">
               {product.images.map((img, i) => (
                 <div key={i} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] shadow-sm">
-                  <Image src={img} alt={`${product.name} imagen ${i + 1}`} fill className="object-cover" sizes="80px" />
+                  <Image src={img} alt={`${localizedProduct.name} ${locale === 'en' ? 'image' : 'imagen'} ${i + 1}`} fill className="object-cover" sizes="80px" />
                 </div>
               ))}
             </div>
@@ -149,12 +164,17 @@ export default async function ProductDetailPage({ params }: Props) {
           {product.certifications.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-3">
               {product.certifications.map(cert => (
-                <Badge key={cert} variant={CERT_COLORS[cert] ?? 'default'}>{cert}</Badge>
+                <Badge key={cert} variant={CERT_COLORS[cert] ?? 'default'}>
+                  {getLocalizedCertificationCopy(cert, locale).label}
+                </Badge>
               ))}
             </div>
           )}
 
-          <h1 className="text-3xl font-bold text-[var(--foreground)]">{product.name}</h1>
+          <h1 className="text-3xl font-bold text-[var(--foreground)]">{localizedProduct.name}</h1>
+          <div className="mt-3">
+            <AutoTranslatedBadge translation={localizedProduct.translation} className="text-xs" />
+          </div>
 
           {/* Vendor */}
           <Link
@@ -179,16 +199,16 @@ export default async function ProductDetailPage({ params }: Props) {
           </Link>
 
           {/* Description */}
-          {product.description && (
-            <p className="mt-6 text-[var(--foreground-soft)] leading-relaxed">{product.description}</p>
+          {localizedProduct.description && (
+            <p className="mt-6 text-[var(--foreground-soft)] leading-relaxed">{localizedProduct.description}</p>
           )}
 
           <ProductPurchasePanel
             productId={product.id}
-            productName={product.name}
+            productName={localizedProduct.name}
             slug={product.slug}
             image={product.images[0]}
-            unit={product.unit}
+            unit={localizedProduct.unit}
             vendorId={product.vendor.id}
             vendorName={product.vendor.displayName}
             basePrice={Number(product.basePrice)}
@@ -223,7 +243,7 @@ export default async function ProductDetailPage({ params }: Props) {
                   href={`/productores/${product.vendor.slug}`}
                   className="mt-2 inline-block rounded-md text-sm font-medium text-emerald-600 underline-offset-4 hover:underline dark:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
                 >
-                  Ver todos sus productos →
+                  {copy.actions.viewVendorProducts}
                 </Link>
               </div>
             </div>
@@ -234,9 +254,9 @@ export default async function ProductDetailPage({ params }: Props) {
       <section className="mt-16 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm sm:p-8">
         <div className="flex flex-col gap-6 border-b border-[var(--border)] pb-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-[var(--foreground)]">Reseñas del producto</h2>
+            <h2 className="text-2xl font-bold text-[var(--foreground)]">{copy.reviews.title}</h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
-              Opiniones verificadas de compradores que ya recibieron este producto.
+              {copy.reviews.description}
             </p>
           </div>
           <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 dark:border-amber-900/40 dark:bg-amber-950/30">
@@ -244,10 +264,10 @@ export default async function ProductDetailPage({ params }: Props) {
               <StarRating rating={reviewSummary.averageRating ?? 0} />
               <div>
                 <p className="text-lg font-bold text-[var(--foreground)]">
-                  {reviewSummary.averageRating ? reviewSummary.averageRating.toFixed(1) : 'Sin nota'}
+                  {reviewSummary.averageRating ? reviewSummary.averageRating.toFixed(1) : copy.reviews.unrated}
                 </p>
                 <p className="text-sm text-[var(--muted)]">
-                  {reviewSummary.totalReviews} reseña{reviewSummary.totalReviews === 1 ? '' : 's'}
+                  {copy.reviews.count(reviewSummary.totalReviews)}
                 </p>
               </div>
             </div>
@@ -256,7 +276,7 @@ export default async function ProductDetailPage({ params }: Props) {
 
         {reviewSummary.reviews.length === 0 ? (
           <div className="py-10 text-center text-sm text-[var(--muted)]">
-            Aún no hay reseñas para este producto.
+            {copy.reviews.empty}
           </div>
         ) : (
           <div className="mt-6 space-y-4">
@@ -271,7 +291,7 @@ export default async function ProductDetailPage({ params }: Props) {
                       <StarRating rating={review.rating} size="sm" />
                     </div>
                     <p className="mt-1 text-xs text-[var(--muted-light)]">
-                      {new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium' }).format(review.createdAt)}
+                      {new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'es-ES', { dateStyle: 'medium' }).format(review.createdAt)}
                     </p>
                   </div>
                 </div>
@@ -287,10 +307,10 @@ export default async function ProductDetailPage({ params }: Props) {
       {/* Related */}
       {related.length > 0 && (
         <section className="mt-16">
-          <h2 className="text-xl font-bold text-[var(--foreground)] mb-6">Productos relacionados</h2>
+          <h2 className="text-xl font-bold text-[var(--foreground)] mb-6">{copy.reviews.relatedProducts}</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {related.map(p => (
-              <ProductCard key={p.id} product={p as ProductWithVendor} />
+              <ProductCard key={p.id} product={p as ProductWithVendor} locale={locale} />
             ))}
           </div>
         </section>

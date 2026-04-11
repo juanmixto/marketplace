@@ -11,6 +11,7 @@ import { THEME_COLORS } from '@/lib/theme'
 import { SITE_METADATA_BASE } from '@/lib/seo'
 import { SessionProvider } from '@/components/SessionProvider'
 import { LanguageProvider } from '@/i18n'
+import { getServerLocale } from '@/i18n/server'
 
 const geist = Geist({
   variable: '--font-geist-sans',
@@ -56,17 +57,19 @@ export const viewport: Viewport = {
   colorScheme: 'light dark',
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = await getServerLocale()
+
   return (
     <html
-      lang="es"
+      lang={locale}
       className={`${geist.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col bg-[var(--background)] text-[var(--foreground)]">
         <SessionProvider>
           <ThemeProvider>
-            <LanguageProvider>
+            <LanguageProvider initialLocale={locale}>
               <Suspense fallback={null}>
                 <AnalyticsProvider />
               </Suspense>

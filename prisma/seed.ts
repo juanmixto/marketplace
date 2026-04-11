@@ -1,6 +1,7 @@
 import { PrismaPg } from '@prisma/adapter-pg'
 import bcrypt from 'bcryptjs'
 import { PrismaClient } from '../src/generated/prisma/client'
+import { getDemoProductImages } from '../src/lib/demo-product-images'
 import { getServerEnv } from '../src/lib/env'
 
 const adapter = new PrismaPg({ connectionString: getServerEnv().databaseUrl })
@@ -62,7 +63,7 @@ const vendorBlueprints = [
         slug: 'tomates-cherry-ecologicos',
         description: 'Tomates cherry cultivados sin pesticidas en invernadero solar. Dulces, firmes y recogidos en el día.',
         images: [
-          'https://images.unsplash.com/photo-1546470427-e26264be0b0d?w=1200',
+          'https://images.unsplash.com/photo-1542838132-92c53300491e?w=1200',
           'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=1200',
         ],
         status: 'ACTIVE' as const,
@@ -81,7 +82,7 @@ const vendorBlueprints = [
         slug: 'calabacin-tierno-temporada',
         description: 'Pieza fina, piel suave y sabor delicado. Ideal para plancha, cremas y cocina rápida.',
         images: [
-          'https://images.unsplash.com/photo-1603048719539-9ecb4f18ba90?w=1200',
+          'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=1200',
         ],
         status: 'ACTIVE' as const,
         basePrice: 2.9,
@@ -210,7 +211,7 @@ const vendorBlueprints = [
         slug: 'lechuga-romana-fresca',
         description: 'Lechuga de hoja crujiente preparada para venta rápida. El lote de demo aparece caducado para probar alertas internas.',
         images: [
-          'https://images.unsplash.com/photo-1622205313162-be1d5712a43d?w=1200',
+          'https://images.unsplash.com/photo-1502741338009-cac2772e18bc?w=1200',
         ],
         status: 'ACTIVE' as const,
         basePrice: 1.9,
@@ -374,7 +375,7 @@ const vendorBlueprints = [
         slug: 'mantequilla-artesana-salada',
         description: 'Batida lentamente y con un punto de sal marina. Untuosa, intensa y perfecta para tostas o cocina.',
         images: [
-          'https://images.unsplash.com/photo-1589985270958-b3f6d0d4d04f?w=1200',
+          'https://images.unsplash.com/photo-1514996937319-344454492b37?w=1200',
         ],
         status: 'ACTIVE' as const,
         basePrice: 4.4,
@@ -457,7 +458,7 @@ const vendorBlueprints = [
         slug: 'pimientos-asados-conserva',
         description: 'Pimientos rojos asados al fuego, pelados a mano y conservados con un aliño suave.',
         images: [
-          'https://images.unsplash.com/photo-1598514982841-7f4df73d1c4c?w=1200',
+          'https://images.unsplash.com/photo-1508747703725-719777637510?w=1200',
         ],
         status: 'ACTIVE' as const,
         basePrice: 6.1,
@@ -517,7 +518,7 @@ const vendorBlueprints = [
         slug: 'croissants-mantequilla',
         description: 'Hojaldre ligero, interior alveolado y mantequilla con sabor limpio. Recién hechos cada mañana.',
         images: [
-          'https://images.unsplash.com/photo-1555507036-ab794f4ade0a?w=1200',
+          'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?w=1200',
         ],
         status: 'ACTIVE' as const,
         basePrice: 6.8,
@@ -739,15 +740,19 @@ async function main() {
     })
 
     for (const product of blueprint.products) {
+      const images = getDemoProductImages(product.slug, product.images)
+
       await db.product.upsert({
         where: { slug: product.slug },
         update: {
           ...product,
           vendorId: vendor.id,
+          images,
         },
         create: {
           ...product,
           vendorId: vendor.id,
+          images,
         },
       })
     }

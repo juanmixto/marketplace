@@ -1,22 +1,25 @@
 'use client'
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useLocale } from '@/i18n'
+import { getCatalogCopy } from '@/i18n/catalog-copy'
 
 interface Props {
   current?: string
 }
 
-const OPTIONS = [
-  { value: 'newest',     label: 'Más recientes' },
-  { value: 'price_asc',  label: 'Precio: menor a mayor' },
-  { value: 'price_desc', label: 'Precio: mayor a menor' },
-  { value: 'popular',    label: 'Más populares' },
-]
-
 export function SortSelect({ current }: Props) {
+  const { locale } = useLocale()
+  const copy = getCatalogCopy(locale)
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const options = [
+    { value: 'newest', label: copy.sort.newest },
+    { value: 'price_asc', label: copy.sort.priceAsc },
+    { value: 'price_desc', label: copy.sort.priceDesc },
+    { value: 'popular', label: copy.sort.popular },
+  ]
 
   const updateSort = (value: string) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -27,9 +30,9 @@ export function SortSelect({ current }: Props) {
 
   return (
     <label className="relative block">
-      <span className="sr-only">Ordenar productos</span>
+      <span className="sr-only">{copy.sort.ariaLabel}</span>
       <select
-        aria-label="Ordenar productos"
+        aria-label={copy.sort.ariaLabel}
         name="orden"
         defaultValue={current ?? 'newest'}
         onChange={e => updateSort(e.target.value)}
@@ -40,7 +43,7 @@ export function SortSelect({ current }: Props) {
           'dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20',
         ].join(' ')}
       >
-        {OPTIONS.map(o => (
+        {options.map(o => (
           <option key={o.value} value={o.value}>{o.label}</option>
         ))}
       </select>

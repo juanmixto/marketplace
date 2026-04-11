@@ -51,6 +51,13 @@ const en: Record<TranslationKeys, string> = {
   myAccount: 'My Account',
   myOrders: 'My Orders',
   signIn: 'Sign In',
+  market_local: 'Local market',
+  admin_panel: 'Admin panel',
+  vendor_panel: 'Producer panel',
+  portal_shop_label: 'Shop',
+  portal_shop_desc: 'Browse the public catalogue and shop as a customer.',
+  portal_vendor_label: 'Producer portal',
+  portal_admin_desc: 'Access the admin dashboard with an authorized account.',
   // Footer
   tagline: 'We connect small producers with consumers who value quality and local sourcing.',
   buy: 'Buy',
@@ -86,11 +93,15 @@ const en: Record<TranslationKeys, string> = {
 
   // Sections
   'sections.browseByCat': 'Browse by category',
+  'sections.browseByCatDesc': 'Browse the catalogue by product family and jump straight to what you need.',
   'sections.featured': 'Featured products',
+  'sections.featuredDesc': 'A curated selection of products with strong availability and active producers.',
   'sections.seeAll': 'See all',
   'sections.howItWorks': 'How it works',
   'sections.featuredVendors': 'Featured producers',
+  'sections.featuredVendorsDesc': 'Profiles with active catalogues, strong ratings and a differentiated offer in the marketplace.',
   'sections.seeAllVendors': 'See all',
+  'sections.vendorCardCta': 'View profile',
   'sections.ctaTitle': 'Are you a producer?',
   'sections.ctaSubtitle': 'Sell directly to consumers. No middlemen. Manage your catalog, orders and payments from a simple dashboard.',
   'sections.ctaBtn': 'Start for free',
@@ -108,6 +119,7 @@ const en: Record<TranslationKeys, string> = {
   // Home misc
   producerPortalDesc: 'Enter your dashboard to manage catalog, orders and payments.',
   quickAccessTitle: 'Sign in as your profile',
+  quickAccessDesc: 'Jump straight to the area of the marketplace you need with clear next steps.',
   sectionLabelSelection: 'Selection',
   sectionLabelProcess: 'The process',
   sectionLabelOrigin: 'Origin',
@@ -250,6 +262,7 @@ const en: Record<TranslationKeys, string> = {
   'vendor.saveDraft': 'Save as draft',
   'vendor.sendReview': 'Send for review',
   'vendor.statusHint': 'You can edit drafts and resubmit rejected products later.',
+  'vendor.autoTranslateHint': 'Product text is translated automatically for the storefront in the other language. Shoppers will see a badge when they are viewing an automatic translation.',
   'vendor.saveChanges': 'Save changes',
   'vendor.createProduct': 'Create product',
 

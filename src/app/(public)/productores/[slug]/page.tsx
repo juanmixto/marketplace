@@ -8,6 +8,7 @@ import { db } from '@/lib/db'
 import { VendorReviewsSection } from './VendorReviewsSection'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { absoluteUrl, buildPageMetadata } from '@/lib/seo'
+import { getServerLocale } from '@/i18n/server'
 
 interface Props { params: Promise<{ slug: string }> }
 
@@ -35,6 +36,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function VendorPublicPage({ params }: Props) {
   const { slug } = await params
+  const locale = await getServerLocale()
   const vendor = await getVendorBySlug(slug)
   if (!vendor) notFound()
 
@@ -129,6 +131,7 @@ export default async function VendorPublicPage({ params }: Props) {
           {vendor.products.map(p => (
             <ProductCard
               key={p.id}
+              locale={locale}
               product={{
                 ...p,
                 vendor: {

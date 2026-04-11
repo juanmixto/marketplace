@@ -26,28 +26,70 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
     )
   )
 
+  const serializedOrder = {
+    id: order.id,
+    orderNumber: order.orderNumber,
+    status: order.status,
+    placedAt: order.placedAt.toISOString(),
+    subtotal: Number(order.subtotal),
+    shippingCost: Number(order.shippingCost),
+    grandTotal: Number(order.grandTotal),
+    lines: order.lines.map(line => ({
+      id: line.id,
+      productId: line.productId,
+      quantity: line.quantity,
+      unitPrice: Number(line.unitPrice),
+      productSnapshot: line.productSnapshot,
+      product: {
+        name: line.product.name,
+        images: line.product.images,
+        slug: line.product.slug,
+        unit: line.product.unit,
+      },
+    })),
+    fulfillments: order.fulfillments.map(fulfillment => ({
+      id: fulfillment.id,
+      status: fulfillment.status,
+      trackingNumber: fulfillment.trackingNumber,
+      vendor: {
+        displayName: fulfillment.vendor.displayName,
+      },
+    })),
+    address: order.address
+      ? {
+          firstName: order.address.firstName,
+          lastName: order.address.lastName,
+          line1: order.address.line1,
+          line2: order.address.line2,
+          postalCode: order.address.postalCode,
+          city: order.address.city,
+          province: order.address.province,
+        }
+      : null,
+  }
+
   return (
     <>
       {nuevo === '1' && (
         <TrackEventOnView
           event="purchase"
           payload={{
-            transaction_id: order.id,
+            transaction_id: serializedOrder.id,
             currency: 'EUR',
-            value: Number(order.grandTotal),
+            value: serializedOrder.grandTotal,
             tax: Number(order.taxAmount),
-            shipping: Number(order.shippingCost),
-            items: order.lines.map(line => ({
+            shipping: serializedOrder.shippingCost,
+            items: serializedOrder.lines.map(line => ({
               item_id: line.productId,
               item_name: line.product.name,
-              price: Number(line.unitPrice),
+              price: line.unitPrice,
               quantity: line.quantity,
             })),
           }}
         />
       )}
       <OrderDetailClient
-        order={order as Parameters<typeof OrderDetailClient>[0]['order']}
+        order={serializedOrder}
         nuevo={nuevo === '1'}
         reviewEligibility={reviewEligibility}
       />

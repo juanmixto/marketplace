@@ -1,4 +1,6 @@
 import type { UserRole } from '@/generated/prisma/enums'
+import type { Locale, TranslationKeys } from '@/i18n/locales'
+import { defaultLocale, locales } from '@/i18n/locales'
 import { isAdmin, isVendor } from '@/lib/roles'
 
 export interface PortalLink {
@@ -14,23 +16,47 @@ const DEFAULT_ACCOUNT_PATH = '/cuenta'
 const LOGIN_PATH = '/login'
 const REGISTER_PATH = '/register'
 
-export const publicPortalLinks: PortalLink[] = [
-  {
-    href: '/productos',
-    label: 'Comprar',
-    description: 'Explora el catálogo público y compra como cliente.',
-  },
-  {
-    href: '/login?callbackUrl=%2Fvendor%2Fdashboard',
-    label: 'Soy productor',
-    description: 'Entra a tu panel para gestionar catálogo, pedidos y cobros.',
-  },
-  {
-    href: '/login?callbackUrl=%2Fadmin%2Fdashboard',
-    label: 'Admin',
-    description: 'Accede al dashboard administrativo con un usuario autorizado.',
-  },
-]
+const CATEGORY_TRANSLATION_KEYS: Partial<Record<string, TranslationKeys>> = {
+  verduras: 'cat_verduras',
+  frutas: 'cat_frutas',
+  lacteos: 'cat_lacteos',
+  carnicos: 'cat_carnicos',
+  aceites: 'cat_aceites',
+  panaderia: 'cat_panaderia',
+  vinos: 'cat_vinos',
+  miel: 'cat_miel',
+}
+
+export function getPublicPortalLinks(locale: Locale = defaultLocale): PortalLink[] {
+  const copy = locales[locale] ?? locales[defaultLocale]
+
+  return [
+    {
+      href: '/productos',
+      label: copy.portal_shop_label,
+      description: copy.portal_shop_desc,
+    },
+    {
+      href: '/login?callbackUrl=%2Fvendor%2Fdashboard',
+      label: copy.portal_vendor_label,
+      description: copy.producerPortalDesc,
+    },
+    {
+      href: '/login?callbackUrl=%2Fadmin%2Fdashboard',
+      label: copy.admin_panel,
+      description: copy.portal_admin_desc,
+    },
+  ]
+}
+
+export const publicPortalLinks: PortalLink[] = getPublicPortalLinks()
+
+export function translateCategoryLabel(slug: string, fallback: string, locale: Locale = defaultLocale) {
+  const key = CATEGORY_TRANSLATION_KEYS[slug]
+  if (!key) return fallback
+
+  return locales[locale][key] ?? fallback
+}
 
 export function getPrimaryPortalHref(role?: UserRole) {
   if (isVendor(role)) return '/vendor/dashboard'
@@ -38,10 +64,12 @@ export function getPrimaryPortalHref(role?: UserRole) {
   return DEFAULT_ACCOUNT_PATH
 }
 
-export function getPortalLabel(role?: UserRole) {
-  if (isVendor(role)) return 'Panel productor'
-  if (isAdmin(role)) return 'Panel admin'
-  return 'Mi cuenta'
+export function getPortalLabel(role?: UserRole, locale: Locale = defaultLocale) {
+  const copy = locales[locale] ?? locales[defaultLocale]
+
+  if (isVendor(role)) return copy.vendor_panel
+  if (isAdmin(role)) return copy.admin_panel
+  return copy.myAccount
 }
 
 function getPortalModeForRole(role?: UserRole): LoginPortalMode {

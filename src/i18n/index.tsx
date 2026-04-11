@@ -6,6 +6,7 @@ import type { Locale, TranslationKeys } from './locales'
 export type { TranslationKeys } from './locales'
 
 const STORAGE_KEYS = ['mp_locale', 'locale'] as const
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 
 interface I18nContextValue {
   locale: Locale
@@ -33,21 +34,31 @@ function readStoredLocale(): Locale | null {
 function persistLocale(next: Locale) {
   for (const key of STORAGE_KEYS) {
     localStorage.setItem(key, next)
+    document.cookie = `${key}=${next}; path=/; max-age=${COOKIE_MAX_AGE}; samesite=lax`
   }
 
   document.documentElement.lang = next
 }
 
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(defaultLocale)
+export function LanguageProvider({
+  children,
+  initialLocale = defaultLocale,
+}: {
+  children: React.ReactNode
+  initialLocale?: Locale
+}) {
+  const [locale, setLocaleState] = useState<Locale>(initialLocale)
 
   useEffect(() => {
     const stored = readStoredLocale()
     if (stored) {
       setLocaleState(stored)
-      document.documentElement.lang = stored
+      persistLocale(stored)
+      return
     }
-  }, [])
+
+    persistLocale(initialLocale)
+  }, [initialLocale])
 
   const setLocale = (next: Locale) => {
     setLocaleState(next)

@@ -7,6 +7,8 @@ import { TrackEventOnView } from '@/components/analytics/TrackEventOnView'
 import { SortSelect } from '@/components/catalog/SortSelect'
 import { parseProductSort, type ProductWithVendor } from '@/domains/catalog/types'
 import Link from 'next/link'
+import { getCatalogCopy } from '@/i18n/catalog-copy'
+import { getServerLocale } from '@/i18n/server'
 import { buildPageMetadata } from '@/lib/seo'
 
 interface Props {
@@ -20,33 +22,37 @@ interface Props {
 }
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  const locale = await getServerLocale()
+  const copy = getCatalogCopy(locale)
   const params = await searchParams
   const query = params.q?.trim() || ''
 
   return buildPageMetadata({
-    title: query ? `Buscar: ${query}` : 'Buscar',
+    title: query ? copy.page.searchTitleWithQuery(query) : copy.page.searchTitle,
     description: query
-      ? `Resultados de búsqueda para "${query}" en Mercado Productor.`
-      : 'Busca productos, productores y categorías en Mercado Productor.',
+      ? copy.page.searchDescriptionWithQuery(query)
+      : copy.page.searchDescription,
     path: '/buscar',
     noindex: true,
   })
 }
 
 export default async function BuscarPage({ searchParams }: Props) {
+  const locale = await getServerLocale()
+  const copy = getCatalogCopy(locale)
   const params = await searchParams
 
   if (!params.q || params.q.trim() === '') {
     return (
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="rounded-lg bg-surface-raised p-8 text-center">
-          <p className="text-lg font-semibold text-foreground">¿Qué estás buscando?</p>
-          <p className="mt-2 text-foreground-soft">Usa el campo de búsqueda para encontrar productos</p>
+          <p className="text-lg font-semibold text-foreground">{copy.page.searchPromptTitle}</p>
+          <p className="mt-2 text-foreground-soft">{copy.page.searchPromptDescription}</p>
           <Link
             href="/productos"
             className="mt-4 inline-block text-accent hover:underline"
           >
-            Ver todos los productos
+            {copy.page.browseAllProducts}
           </Link>
         </div>
       </div>
@@ -90,10 +96,10 @@ export default async function BuscarPage({ searchParams }: Props) {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-2xl font-bold text-[var(--foreground)]">
-                Resultados para "{params.q}"
+                {copy.page.searchResultsFor(params.q)}
               </h1>
               <p className="text-sm text-[var(--muted)] mt-0.5">
-                {products.length} resultado{products.length !== 1 ? 's' : ''}{hasNext ? '+' : ''}
+                {copy.page.results(products.length, hasNext)}
               </p>
             </div>
             <Suspense fallback={null}>
@@ -105,23 +111,23 @@ export default async function BuscarPage({ searchParams }: Props) {
             <div className="py-24 text-center">
               <p className="text-5xl mb-4">🔍</p>
               <p className="font-semibold text-[var(--foreground)]">
-                No encontramos productos para "{params.q}"
+                {copy.page.noProductsFor(params.q)}
               </p>
               <p className="text-sm text-[var(--muted)] mt-1 mb-6">
-                Prueba con otros términos de búsqueda o explora por categoría
+                {copy.page.searchTryAgain}
               </p>
               <div className="flex flex-col gap-3 sm:flex-row justify-center">
                 <Link
                   href="/productos"
                   className="inline-block rounded-lg bg-accent px-6 py-2 font-semibold text-white hover:bg-accent-hover"
                 >
-                  Ver todos los productos
+                  {copy.page.browseAllProducts}
                 </Link>
                 <Link
                   href="/productos?categoria=frutas"
                   className="inline-block rounded-lg border-2 border-accent px-6 py-2 font-semibold text-accent hover:bg-accent-soft"
                 >
-                  Explorar por categoría
+                  {copy.page.browseByCategory}
                 </Link>
               </div>
             </div>
@@ -129,7 +135,7 @@ export default async function BuscarPage({ searchParams }: Props) {
             <>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
                 {products.map(p => (
-                  <ProductCard key={p.id} product={p as ProductWithVendor} />
+                  <ProductCard key={p.id} product={p as ProductWithVendor} locale={locale} />
                 ))}
               </div>
 
@@ -141,7 +147,7 @@ export default async function BuscarPage({ searchParams }: Props) {
                       href={`?q=${encodeURIComponent(params.q || '')}${params.categoria ? `&categoria=${params.categoria}` : ''}${params.orden ? `&orden=${params.orden}` : ''}`}
                       className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-raised"
                     >
-                      ← Anterior
+                      ← {copy.page.previous}
                     </a>
                   )}
                   {hasNext && (
@@ -149,7 +155,7 @@ export default async function BuscarPage({ searchParams }: Props) {
                       href={`?q=${encodeURIComponent(params.q || '')}&cursor=${nextCursor}${params.categoria ? `&categoria=${params.categoria}` : ''}${params.orden ? `&orden=${params.orden}` : ''}`}
                       className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
                     >
-                      Siguiente →
+                      {copy.page.next} →
                     </a>
                   )}
                 </div>

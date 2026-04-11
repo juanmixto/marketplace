@@ -13,12 +13,13 @@ import {
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import { SITE_NAME } from '@/lib/constants'
-import { getPortalLabel, getPrimaryPortalHref } from '@/lib/portals'
+import { useCartStore } from '@/lib/cart-store'
+import { getPortalLabel, getPrimaryPortalHref, translateCategoryLabel } from '@/lib/portals'
 import type { UserRole } from '@/generated/prisma/enums'
 import { SignOutButton } from '@/components/auth/SignOutButton'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { LanguageToggle } from '@/components/LanguageToggle'
-import { useT } from '@/i18n'
+import { useLocale, useT } from '@/i18n'
 import { useSession } from 'next-auth/react'
 
 const CATEGORIES = [
@@ -43,10 +44,21 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
   const [mobileOpen,  setMobileOpen]  = useState(false)
   const [catOpen,     setCatOpen]     = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
-  const pathname   = usePathname()
-  const portalHref = getPrimaryPortalHref(currentUser?.role)
-  const portalLabel = getPortalLabel(currentUser?.role)
+  const pathname = usePathname()
+  const { locale } = useLocale()
   const t = useT()
+  const liveCartCount = useCartStore(state => state.items.reduce((sum, item) => sum + item.quantity, 0))
+  const effectiveCartCount = Math.max(cartCount, liveCartCount)
+  const cartHasItems = effectiveCartCount > 0
+  const cartCountLabel =
+    effectiveCartCount === 1
+      ? t('cart_items_one')
+      : t('cart_items_other').replace('{count}', String(effectiveCartCount))
+  const portalHref = getPrimaryPortalHref(currentUser?.role)
+  const portalLabel = getPortalLabel(currentUser?.role, locale)
+  const cartAriaLabel = cartHasItems
+    ? `${t('cart')}, ${cartCountLabel}`
+    : t('cart')
 
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur-md supports-[backdrop-filter]:bg-[var(--surface)]/90">
@@ -60,7 +72,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
             </span>
             <span className="hidden sm:block leading-none">
               <span className="block text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-600 dark:text-emerald-400">
-                Mercado local
+                {t('market_local')}
               </span>
               <span className="block text-base font-bold text-[var(--foreground)]">{SITE_NAME}</span>
             </span>
@@ -89,7 +101,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                         className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
                       >
                         <span className="text-base">{cat.icon}</span>
-                        {cat.name}
+                        {translateCategoryLabel(cat.slug, cat.name, locale)}
                       </Link>
                     ))}
                   </div>
@@ -211,13 +223,21 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
             {/* Cart */}
             <Link
               href="/carrito"
-              aria-label={`Ver carrito${cartCount > 0 ? `, ${cartCount} artículo${cartCount === 1 ? '' : 's'}` : ''}`}
-              className="relative rounded-xl p-2 text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
+              aria-label={cartAriaLabel}
+              className={cn(
+                'relative flex items-center gap-2 rounded-xl border px-2.5 py-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]',
+                cartHasItems
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm hover:bg-emerald-100 dark:border-emerald-800/80 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/50'
+                  : 'border-transparent text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]'
+              )}
             >
-              <ShoppingCartIcon className="h-5 w-5" />
-              {cartCount > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white shadow-sm dark:bg-emerald-500">
-                  {cartCount > 9 ? '9+' : cartCount}
+              <ShoppingCartIcon className={cn('h-5 w-5', cartHasItems && 'stroke-[2.2]')} />
+              {cartHasItems && (
+                <span className="hidden text-xs font-semibold sm:inline">{cartCountLabel}</span>
+              )}
+              {cartHasItems && (
+                <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1 text-[10px] font-bold text-white shadow-sm ring-2 ring-[var(--surface)] dark:bg-emerald-500">
+                  {effectiveCartCount > 9 ? '9+' : effectiveCartCount}
                 </span>
               )}
             </Link>
@@ -226,7 +246,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
             <button
               onClick={() => setMobileOpen(v => !v)}
               aria-expanded={mobileOpen}
-              aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'}
+              aria-label={mobileOpen ? t('close_menu') : t('open_menu')}
               className="rounded-xl p-2 text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] md:hidden"
             >
               {mobileOpen ? <XMarkIcon className="h-5 w-5" /> : <Bars3Icon className="h-5 w-5" />}
@@ -262,7 +282,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                 className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
               >
                 <span className="text-base">{cat.icon}</span>
-                {cat.name}
+                {translateCategoryLabel(cat.slug, cat.name, locale)}
               </Link>
             ))}
 

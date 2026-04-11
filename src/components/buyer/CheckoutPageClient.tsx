@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { createOrder, confirmOrder } from '@/domains/orders/actions'
+import { createCheckoutOrder } from '@/domains/orders/actions'
 import { formatPrice } from '@/lib/utils'
 import { SafeImage } from '@/components/catalog/SafeImage'
 import {
@@ -110,13 +110,20 @@ export function CheckoutPageClient({
         quantity: i.quantity,
       }))
 
-      const { orderId, clientSecret } = await createOrder(cartItems, {
+      const result = await createCheckoutOrder(cartItems, {
         address: data,
         saveAddress: data.saveAddress,
       })
 
+      if (!result.ok) {
+        setServerError(result.error)
+        setStep('address')
+        return
+      }
+
+      const { orderId, clientSecret } = result
+
       if (clientSecret.startsWith('mock_')) {
-        await confirmOrder(orderId, clientSecret.replace('_secret', ''))
         clearCart()
         router.push(`/cuenta/pedidos/${orderId}?nuevo=1`)
         return

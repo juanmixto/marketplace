@@ -28,7 +28,7 @@ if [ "$RESET" = true ]; then
   npm run db:reset
 else
   echo "▶ Aplicando migraciones pendientes..."
-  npx prisma migrate deploy
+  node --env-file=.env --env-file-if-exists=.env.local ./node_modules/prisma/build/index.js migrate deploy
 
   echo "▶ Comprobando si la BD tiene datos..."
   HAS_DATA=$(docker exec mercadoproductor_postgres_1 psql -U mp_user -d marketplace -tAc \
