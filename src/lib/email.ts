@@ -5,7 +5,21 @@
 
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+let resend: Resend | null = null
+
+function getResendClient() {
+  const apiKey = process.env.RESEND_API_KEY
+
+  if (!apiKey) {
+    return null
+  }
+
+  if (!resend) {
+    resend = new Resend(apiKey)
+  }
+
+  return resend
+}
 
 export async function sendEmail({
   to,
@@ -16,13 +30,15 @@ export async function sendEmail({
   subject: string
   react: React.ReactElement
 }) {
-  if (!process.env.RESEND_API_KEY) {
+  const client = getResendClient()
+
+  if (!client) {
     console.warn('[Email] RESEND_API_KEY not configured, skipping email to:', to)
     return
   }
 
   try {
-    const result = await resend.emails.send({
+    const result = await client.emails.send({
       from: process.env.EMAIL_FROM || 'no-reply@example.com',
       to,
       subject,
