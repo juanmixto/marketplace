@@ -24,6 +24,10 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   return {
     title: `Buscar: ${query} | Mercado Productor`,
     description: `Resultados de búsqueda para "${query}" en Mercado Productor`,
+    robots: {
+      index: false,
+      follow: true,
+    },
   }
 }
 
