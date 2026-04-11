@@ -90,7 +90,7 @@ function InnerStripeCheckoutForm({ orderId, orderNumber, grandTotal, returnUrl, 
     }
 
     if (result.paymentIntent?.status === 'succeeded' || result.paymentIntent?.status === 'processing') {
-      router.push(`/cuenta/pedidos/${orderId}?nuevo=1`)
+      router.push(`/checkout/confirmacion?orderNumber=${encodeURIComponent(orderNumber)}`)
       router.refresh()
       return
     }
@@ -119,7 +119,7 @@ function InnerStripeCheckoutForm({ orderId, orderNumber, grandTotal, returnUrl, 
       ) : null}
 
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-[var(--muted)]">Stripe procesará el pago y te devolveremos al detalle del pedido.</p>
+        <p className="text-sm text-[var(--muted)]">Stripe procesará el pago y te llevaremos a la pantalla de confirmación del pedido.</p>
         <Button type="submit" size="lg" isLoading={isSubmitting || !stripe || !elements}>
           Pagar {formatPrice(grandTotal)}
         </Button>
@@ -140,7 +140,7 @@ export function StripeCheckoutForm(props: StripeCheckoutFormProps) {
     )
   }
 
-  const returnUrl = `${props.appUrl}/cuenta/pedidos/${props.orderId}?nuevo=1`
+  const returnUrl = `${props.appUrl}/checkout/confirmacion?orderNumber=${encodeURIComponent(props.orderNumber)}`
 
   return (
     <Elements stripe={stripePromise} options={{ clientSecret: props.clientSecret, appearance }}>
