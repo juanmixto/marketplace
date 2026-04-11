@@ -48,12 +48,17 @@ test('createOrder creates order, lines and fulfillments for valid items', async 
     where: { id: created.orderId },
     include: { lines: true, fulfillments: true, payments: true },
   })
+  const refreshedProduct = await db.product.findUnique({
+    where: { id: product.id },
+    select: { stock: true },
+  })
 
   assert.ok(order)
   assert.equal(order?.lines.length, 1)
   assert.equal(order?.fulfillments.length, 1)
   assert.equal(order?.payments.length, 1)
   assert.equal(order?.paymentStatus, 'PENDING')
+  assert.equal(refreshedProduct?.stock, 3)
 })
 
 test('createOrder stores a shipping address snapshot even when the address is not saved', async () => {
@@ -197,6 +202,108 @@ test('createOrder reuses the selected saved address instead of creating a duplic
   assert.equal(order?.addressId, existingAddress.id)
   assert.equal(addresses.length, 1)
   assert.equal(addresses[0]?.id, existingAddress.id)
+})
+
+test('createOrder falls back to the submitted address when a saved address goes stale', async () => {
+  const { vendor } = await createVendorUser()
+  const customer = await createUser('CUSTOMER')
+  const product = await createActiveProduct(vendor.id, { stock: 4 })
+  useTestSession(buildSession(customer.id, 'CUSTOMER'))
+
+  const created = await createOrder(
+    [{ productId: product.id, quantity: 1 }],
+    {
+      address: {
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        line1: 'Calle Mayor 1',
+        line2: '2A',
+        city: 'Madrid',
+        province: 'Madrid',
+        postalCode: '28001',
+        phone: '600000000',
+      },
+      saveAddress: false,
+      selectedAddressId: 'addr_missing',
+    }
+  )
+
+  const order = await db.order.findUnique({
+    where: { id: created.orderId },
+    select: { addressId: true, shippingAddressSnapshot: true },
+  })
+
+  assert.equal(order?.addressId, null)
+  assert.deepEqual(order?.shippingAddressSnapshot, {
+    firstName: 'Ada',
+    lastName: 'Lovelace',
+    line1: 'Calle Mayor 1',
+    line2: '2A',
+    city: 'Madrid',
+    province: 'Madrid',
+    postalCode: '28001',
+    phone: '600000000',
+  })
+})
+
+test('createOrder auto-assigns the default variant when the cart item arrives without variantId', async () => {
+  const { vendor } = await createVendorUser()
+  const customer = await createUser('CUSTOMER')
+  const product = await createActiveProduct(vendor.id, {
+    name: 'Tomates cherry ecológicos',
+    stock: 12,
+  })
+  useTestSession(buildSession(customer.id, 'CUSTOMER'))
+
+  await db.productVariant.create({
+    data: {
+      productId: product.id,
+      sku: `sku-${product.id}-agotada`,
+      name: 'Caja agotada',
+      priceModifier: 0,
+      stock: 0,
+      isActive: true,
+    },
+  })
+  const defaultVariant = await db.productVariant.create({
+    data: {
+      productId: product.id,
+      sku: `sku-${product.id}-bandeja-500`,
+      name: 'Bandeja 500 g',
+      priceModifier: 1.5,
+      stock: 8,
+      isActive: true,
+    },
+  })
+
+  const created = await createOrder(
+    [{ productId: product.id, quantity: 2 }],
+    {
+      address: {
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        line1: 'Calle Mayor 1',
+        city: 'Madrid',
+        province: 'Madrid',
+        postalCode: '28001',
+      },
+      saveAddress: false,
+    }
+  )
+
+  const order = await db.order.findUnique({
+    where: { id: created.orderId },
+    include: { lines: true },
+  })
+  const refreshedVariant = await db.productVariant.findUnique({
+    where: { id: defaultVariant.id },
+    select: { stock: true },
+  })
+
+  assert.equal(order?.lines[0]?.variantId, defaultVariant.id)
+  assert.equal((order?.lines[0]?.productSnapshot as { variantName?: string } | undefined)?.variantName, 'Bandeja 500 g')
+  assert.equal(Number(order?.lines[0]?.unitPrice ?? 0), 13.5)
+  assert.equal(refreshedVariant?.stock, 6)
 })
 
 test('confirmOrder marks payment as succeeded', async () => {

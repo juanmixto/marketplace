@@ -40,7 +40,7 @@ export default async function CheckoutPaymentPage({ searchParams }: Props) {
   }
 
   if (payment.status === 'SUCCEEDED') {
-    redirect(`/cuenta/pedidos/${order.id}?nuevo=1`)
+    redirect(`/checkout/confirmacion?orderNumber=${encodeURIComponent(order.orderNumber)}`)
   }
 
   return (

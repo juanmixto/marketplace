@@ -17,10 +17,16 @@ import { orderAddressSnapshotSchema, orderLineSnapshotSchema } from '@/types/ord
 import { assertProviderRefForPaymentStatus, shouldApplyPaymentSucceeded } from '@/domains/payments/webhook'
 import { getServerEnv } from '@/lib/env'
 import { getAvailableProductWhere } from '@/domains/catalog/availability'
-import { getAvailableStockForPurchase, getSelectedVariant, getVariantAdjustedPrice, productRequiresVariantSelection } from '@/domains/catalog/variants'
+import {
+  getAvailableStockForPurchase,
+  getDefaultVariant,
+  getSelectedVariant,
+  getVariantAdjustedPrice,
+  productRequiresVariantSelection,
+} from '@/domains/catalog/variants'
 import { getShippingCost } from '@/domains/shipping/calculator'
 import { getActionSession } from '@/lib/action-session'
-import { safeRevalidatePath } from '@/lib/revalidate'
+import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { createPaymentConfirmedEventPayload } from '@/domains/orders/order-event-payload'
 
 export interface CartItemInput {
@@ -41,6 +47,11 @@ export type CreateCheckoutOrderResult =
     error: string
   }
 
+function isMissingShippingAddressSnapshotColumnError(error: unknown) {
+  return error instanceof Error
+    && /P2022|column .*does not exist|shippingAddressSnapshot/i.test(error.message)
+}
+
 function getCheckoutErrorMessage(error: unknown) {
   if (error instanceof ZodError) {
     return error.issues[0]?.message ?? 'Revisa los datos de la dirección y vuelve a intentarlo.'
@@ -51,6 +62,18 @@ function getCheckoutErrorMessage(error: unknown) {
 
     if (/stock insuficiente|carrito vac[íi]o|no disponible|ya no esta disponible|ya no está disponible|debes seleccionar una variante|c[óo]digo postal|requerid/i.test(message)) {
       return message
+    }
+
+    if (/direcci[óo]n guardada|no encontrada/i.test(message)) {
+      return 'Tu dirección guardada ya no estaba disponible. Hemos mantenido los datos del formulario para que puedas completar la compra igualmente.'
+    }
+
+    if (isMissingShippingAddressSnapshotColumnError(error)) {
+      return 'Estamos terminando una actualización interna del checkout. Recarga la página y vuelve a intentarlo.'
+    }
+
+    if (/payment intent|payment_intent|stripe|temporarily unavailable|timeout|timed out|deadlock|closed the connection|ECONN|network/i.test(message)) {
+      return 'Ha habido un problema temporal al iniciar el pago. Inténtalo de nuevo en unos segundos.'
     }
 
     if (/no autorizado|unauthorized|iniciar sesi[óo]n|login/i.test(message)) {
@@ -88,6 +111,7 @@ export async function createOrder(
 ): Promise<{ orderId: string; clientSecret: string; orderNumber: string }> {
   const session = await getActionSession()
   if (!session) redirect('/login')
+  const sessionUserId = session.user.id
 
   const validatedItems = orderItemsSchema.parse(items)
   const validated = checkoutSchema.parse(formData)
@@ -96,7 +120,7 @@ export async function createOrder(
   const products = await db.product.findMany({
     where: { id: { in: validatedItems.map(i => i.productId) }, ...getAvailableProductWhere() },
     include: {
-      vendor: { select: { id: true, displayName: true } },
+      vendor: { select: { id: true, slug: true, displayName: true } },
       variants: { where: { isActive: true } },
     },
   })
@@ -120,7 +144,8 @@ export async function createOrder(
         isActive: variant.isActive,
       })),
     }
-    const selectedVariant = getSelectedVariant(purchasableProduct, item.variantId)
+    const fallbackVariant = getDefaultVariant(purchasableProduct)
+    const selectedVariant = getSelectedVariant(purchasableProduct, item.variantId) ?? (!item.variantId ? fallbackVariant : null)
 
     if (item.variantId && !selectedVariant) {
       throw new Error(`La variante seleccionada para "${product.name}" ya no esta disponible`)
@@ -172,7 +197,7 @@ export async function createOrder(
   // Create payment intent (mock or Stripe)
   const payment = await createPaymentIntent(
     Math.round(grandTotal * 100), // cents
-    { userId: session.user.id }
+    { userId: sessionUserId }
   )
 
   // Determine unique vendors
@@ -180,144 +205,189 @@ export async function createOrder(
 
   // Create order in transaction
   const env = getServerEnv()
-  const order = await db.$transaction(async tx => {
-    let addressId: string | null = null
-    let shippingAddressSnapshot = orderAddressSnapshotSchema.parse({
-      ...validated.address,
-      line2: validated.address.line2 ?? null,
-      phone: validated.address.phone ?? null,
-    })
 
-    // Lock and decrement stock before creating the order record.
-    // Doing this first reduces the chance of deadlocks when several buyers
-    // try to checkout the same product at the same time.
-    for (const line of lines) {
-      const product = products.find(p => p.id === line.productId)
-      if (!product?.trackStock) continue
-
-      if (line.variantId) {
-        // Lock variant row and check stock
-        interface VariantRow {
-          id: string
-          stock: number | null
-        }
-        const [variant] = await (tx.$queryRaw as any)`
-          SELECT id, stock FROM "ProductVariant"
-          WHERE id = ${line.variantId}
-          FOR UPDATE
-        ` as VariantRow[]
-
-        if (!variant) {
-          throw new Error(`Variante "${product.name}" no encontrada`)
-        }
-        if (variant.stock !== null && variant.stock < line.quantity) {
-          throw new Error(`Stock insuficiente para "${product.name}" (variante agotada)`)
-        }
-
-        await tx.productVariant.update({
-          where: { id: line.variantId },
-          data: { stock: variant.stock !== null ? { decrement: line.quantity } : undefined },
-        })
-      } else {
-        // Lock product row and check stock
-        interface ProductRow {
-          id: string
-          stock: number
-        }
-        const [lockedProduct] = await (tx.$queryRaw as any)`
-          SELECT id, stock FROM "Product"
-          WHERE id = ${line.productId}
-          FOR UPDATE
-        ` as ProductRow[]
-
-        if (!lockedProduct) {
-          throw new Error(`Producto "${product.name}" no encontrado`)
-        }
-        if (lockedProduct.stock < line.quantity) {
-          throw new Error(`Stock insuficiente para "${product.name}"`)
-        }
-
-        await tx.product.update({
-          where: { id: line.productId },
-          data: { stock: { decrement: line.quantity } },
-        })
-      }
-    }
-
-    if (validated.selectedAddressId) {
-      const existingAddress = await tx.address.findFirst({
-        where: {
-          id: validated.selectedAddressId,
-          userId: session.user.id,
-        },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          line1: true,
-          line2: true,
-          city: true,
-          province: true,
-          postalCode: true,
-          phone: true,
-        },
+  async function createOrderRecord(includeShippingAddressSnapshot: boolean) {
+    return db.$transaction(async tx => {
+      let addressId: string | null = null
+      let shouldSaveNewAddress = Boolean(validated.saveAddress)
+      let shippingAddressSnapshot = orderAddressSnapshotSchema.parse({
+        ...validated.address,
+        line2: validated.address.line2 ?? null,
+        phone: validated.address.phone ?? null,
       })
 
-      if (!existingAddress) {
-        throw new Error('Dirección guardada no encontrada')
+      // Lock and decrement stock before creating the order record.
+      // Doing this first reduces the chance of deadlocks when several buyers
+      // try to checkout the same product at the same time.
+      for (const line of lines) {
+        const product = products.find(p => p.id === line.productId)
+        if (!product?.trackStock) continue
+
+        if (line.variantId) {
+          // Lock variant row and check stock
+          interface VariantRow {
+            id: string
+            stock: number | null
+          }
+          const [variant] = await (tx.$queryRaw as any)`
+            SELECT id, stock FROM "ProductVariant"
+            WHERE id = ${line.variantId}
+            FOR UPDATE
+          ` as VariantRow[]
+
+          if (!variant) {
+            throw new Error(`Variante "${product.name}" no encontrada`)
+          }
+          if (variant.stock !== null && variant.stock < line.quantity) {
+            throw new Error(`Stock insuficiente para "${product.name}" (variante agotada)`)
+          }
+
+          await tx.productVariant.update({
+            where: { id: line.variantId },
+            data: { stock: variant.stock !== null ? { decrement: line.quantity } : undefined },
+          })
+        } else {
+          // Lock product row and check stock
+          interface ProductRow {
+            id: string
+            stock: number
+          }
+          const [lockedProduct] = await (tx.$queryRaw as any)`
+            SELECT id, stock FROM "Product"
+            WHERE id = ${line.productId}
+            FOR UPDATE
+          ` as ProductRow[]
+
+          if (!lockedProduct) {
+            throw new Error(`Producto "${product.name}" no encontrado`)
+          }
+          if (lockedProduct.stock < line.quantity) {
+            throw new Error(`Stock insuficiente para "${product.name}"`)
+          }
+
+          await tx.product.update({
+            where: { id: line.productId },
+            data: { stock: { decrement: line.quantity } },
+          })
+        }
       }
 
-      addressId = existingAddress.id
-      shippingAddressSnapshot = orderAddressSnapshotSchema.parse(existingAddress)
-    } else if (validated.saveAddress) {
-      const savedAddress = await tx.address.create({
+      if (validated.selectedAddressId) {
+        const existingAddress = await tx.address.findFirst({
+          where: {
+            id: validated.selectedAddressId,
+            userId: sessionUserId,
+          },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            line1: true,
+            line2: true,
+            city: true,
+            province: true,
+            postalCode: true,
+            phone: true,
+          },
+        })
+
+        if (existingAddress) {
+          addressId = existingAddress.id
+          shouldSaveNewAddress = false
+          shippingAddressSnapshot = orderAddressSnapshotSchema.parse(existingAddress)
+        } else {
+          console.warn('[checkout] saved address not found, falling back to submitted address', {
+            userId: sessionUserId,
+            selectedAddressId: validated.selectedAddressId,
+          })
+        }
+      }
+
+      if (!addressId && shouldSaveNewAddress) {
+        try {
+          const savedAddress = await tx.address.create({
+            data: {
+              userId: sessionUserId,
+              ...validated.address,
+              isDefault: false,
+            },
+          })
+          addressId = savedAddress.id
+          shippingAddressSnapshot = orderAddressSnapshotSchema.parse({
+            firstName: savedAddress.firstName,
+            lastName: savedAddress.lastName,
+            line1: savedAddress.line1,
+            line2: savedAddress.line2,
+            city: savedAddress.city,
+            province: savedAddress.province,
+            postalCode: savedAddress.postalCode,
+            phone: savedAddress.phone,
+          })
+        } catch (error) {
+          console.error('[checkout] failed to save address, continuing without persisting it', {
+            userId: sessionUserId,
+            error,
+          })
+        }
+      }
+
+      return tx.order.create({
         data: {
-          userId: session.user.id,
-          ...validated.address,
-          isDefault: false,
-        },
-      })
-      addressId = savedAddress.id
-      shippingAddressSnapshot = orderAddressSnapshotSchema.parse({
-        firstName: savedAddress.firstName,
-        lastName: savedAddress.lastName,
-        line1: savedAddress.line1,
-        line2: savedAddress.line2,
-        city: savedAddress.city,
-        province: savedAddress.province,
-        postalCode: savedAddress.postalCode,
-        phone: savedAddress.phone,
-      })
-    }
-
-    return tx.order.create({
-      data: {
-        orderNumber: generateOrderNumber(),
-        customerId: session.user.id,
-        addressId: addressId ?? null,
-        shippingAddressSnapshot,
-        subtotal,
-        shippingCost,
-        taxAmount,
-        grandTotal,
-        status: 'PLACED',
-        paymentStatus: 'PENDING',
-        lines: { create: lines },
-        payments: {
-          create: {
-            provider: env.paymentProvider === 'mock' ? 'mock' : 'stripe',
-            providerRef: payment.id,
-            amount: grandTotal,
-            currency: 'EUR',
-            status: 'PENDING',
+          orderNumber: generateOrderNumber(),
+          customerId: sessionUserId,
+          addressId: addressId ?? null,
+          ...(includeShippingAddressSnapshot ? { shippingAddressSnapshot } : {}),
+          subtotal,
+          shippingCost,
+          taxAmount,
+          grandTotal,
+          status: 'PLACED',
+          paymentStatus: 'PENDING',
+          lines: { create: lines },
+          payments: {
+            create: {
+              provider: env.paymentProvider === 'mock' ? 'mock' : 'stripe',
+              providerRef: payment.id,
+              amount: grandTotal,
+              currency: 'EUR',
+              status: 'PENDING',
+            },
+          },
+          fulfillments: {
+            create: vendorIds.map(vendorId => ({ vendorId, status: 'PENDING' })),
           },
         },
-        fulfillments: {
-          create: vendorIds.map(vendorId => ({ vendorId, status: 'PENDING' })),
-        },
-      },
+      })
     })
+  }
+
+  let order
+  try {
+    order = await createOrderRecord(true)
+  } catch (error) {
+    if (!isMissingShippingAddressSnapshotColumnError(error)) {
+      throw error
+    }
+
+    console.error('[checkout] shippingAddressSnapshot column missing, retrying without snapshot persistence', {
+      error,
+    })
+
+    order = await createOrderRecord(false)
+  }
+
+  const affectedProductSlugs = [...new Set(products.map(product => product.slug))]
+  const affectedVendorSlugs = [...new Set(products.map(product => product.vendor.slug))]
+
+  revalidateCatalogExperience()
+  affectedProductSlugs.forEach(productSlug => {
+    safeRevalidatePath(`/productos/${productSlug}`)
   })
+  affectedVendorSlugs.forEach(vendorSlug => {
+    safeRevalidatePath(`/productores/${vendorSlug}`)
+  })
+  safeRevalidatePath('/buscar')
+  safeRevalidatePath('/carrito')
 
   return {
     orderId: order.id,
@@ -334,7 +404,14 @@ export async function createCheckoutOrder(
     const created = await createOrder(items, formData)
 
     if (created.clientSecret.startsWith('mock_')) {
-      await confirmOrder(created.orderId, created.clientSecret.replace('_secret', ''))
+      try {
+        await confirmOrder(created.orderId, created.clientSecret.replace('_secret', ''))
+      } catch (error) {
+        console.error('[checkout] mock confirmation failed after order creation', {
+          orderId: created.orderId,
+          error,
+        })
+      }
     }
 
     return {
@@ -345,6 +422,13 @@ export async function createCheckoutOrder(
     if (isRedirectError(error)) {
       throw error
     }
+
+    console.error('[checkout] order creation failed', {
+      itemCount: items.length,
+      selectedAddressId: formData.selectedAddressId ?? null,
+      saveAddress: Boolean(formData.saveAddress),
+      error,
+    })
 
     return {
       ok: false,
@@ -416,7 +500,10 @@ export async function confirmOrder(orderId: string, providerRef: string) {
     }
   })
 
+  revalidateCatalogExperience()
   safeRevalidatePath(`/cuenta/pedidos`)
+  safeRevalidatePath(`/cuenta/pedidos/${orderId}`)
+  safeRevalidatePath('/carrito')
 }
 
 export async function getMyOrders() {

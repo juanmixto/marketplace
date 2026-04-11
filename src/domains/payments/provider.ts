@@ -24,17 +24,33 @@ export async function createPaymentIntent(
 
   const Stripe = (await import('stripe')).default
   const stripe = new Stripe(env.stripeSecretKey!)
-  const intent = await stripe.paymentIntents.create({
-    amount: amountCents,
-    currency: 'eur',
-    metadata,
-    automatic_payment_methods: { enabled: true },
-  })
-  return {
-    id: intent.id,
-    clientSecret: intent.client_secret!,
-    amount: intent.amount,
+
+  let lastError: unknown = null
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const intent = await stripe.paymentIntents.create({
+        amount: amountCents,
+        currency: 'eur',
+        metadata,
+        automatic_payment_methods: { enabled: true },
+      })
+
+      return {
+        id: intent.id,
+        clientSecret: intent.client_secret!,
+        amount: intent.amount,
+      }
+    } catch (error) {
+      lastError = error
+      console.error('[checkout] stripe payment intent creation failed', {
+        amountCents,
+        attempt,
+        error,
+      })
+    }
   }
+
+  throw lastError instanceof Error ? lastError : new Error('No se pudo iniciar el pago con Stripe')
 }
 
 export async function confirmMockPayment(paymentIntentId: string): Promise<void> {
