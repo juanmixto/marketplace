@@ -61,6 +61,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: marketplace
+          POSTGRES_USER: mp_user
+          POSTGRES_PASSWORD: mp_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mp_user -d marketplace"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 15
+
     steps:
       - uses: actions/checkout@v5
 
@@ -73,6 +88,9 @@ jobs:
 
       - name: Generate Prisma client
         run: npx prisma generate
+
+      - name: Apply Prisma migrations
+        run: npx prisma migrate deploy
 
       - name: Build
         run: npm run build
