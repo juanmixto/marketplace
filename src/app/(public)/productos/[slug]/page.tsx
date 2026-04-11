@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import { getProductBySlug, getProducts } from '@/domains/catalog/queries'
 import { Badge } from '@/components/ui/badge'
 import { ProductPurchasePanel } from '@/components/catalog/ProductPurchasePanel'
@@ -8,6 +7,7 @@ import { AutoTranslatedBadge } from '@/components/catalog/AutoTranslatedBadge'
 import { StarRating } from '@/components/reviews/StarRating'
 import type { ProductWithVendor } from '@/domains/catalog/types'
 import { MapPinIcon, StarIcon, CheckBadgeIcon, TruckIcon, ShieldCheckIcon } from '@heroicons/react/24/solid'
+import { ProductImageGallery } from '@/components/catalog/ProductImageGallery'
 import { ProductCard } from '@/components/catalog/ProductCard'
 import { getProductReviews } from '@/domains/reviews/actions'
 import type { Metadata } from 'next'
@@ -133,30 +133,7 @@ export default async function ProductDetailPage({ params }: Props) {
 
       <div className="grid gap-10 lg:grid-cols-2">
         {/* Gallery */}
-        <div className="space-y-3">
-          <div className="relative aspect-square overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] shadow-sm">
-            {product.images?.[0] ? (
-              <Image
-                src={product.images[0]}
-                alt={localizedProduct.name}
-                fill
-                className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 50vw"
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center text-8xl">🌿</div>
-            )}
-          </div>
-          {product.images.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto">
-              {product.images.map((img, i) => (
-                <div key={i} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] shadow-sm">
-                  <Image src={img} alt={`${localizedProduct.name} ${locale === 'en' ? 'image' : 'imagen'} ${i + 1}`} fill className="object-cover" sizes="80px" />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <ProductImageGallery images={product.images} alt={localizedProduct.name} />
 
         {/* Info */}
         <div>

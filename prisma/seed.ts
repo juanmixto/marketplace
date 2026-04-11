@@ -63,8 +63,10 @@ const vendorBlueprints = [
         slug: 'tomates-cherry-ecologicos',
         description: 'Tomates cherry cultivados sin pesticidas en invernadero solar. Dulces, firmes y recogidos en el día.',
         images: [
-          'https://images.unsplash.com/photo-1542838132-92c53300491e?w=1200',
-          'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=1200',
+          'https://images.unsplash.com/photo-1561136994-1b34e37bba15?w=1200&q=80', // cherry tomatoes on vine
+          'https://images.unsplash.com/photo-1542838132-92c53300491e?w=1200&q=80', // bowl of cherry tomatoes
+          'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=1200&q=80', // tomatoes closeup
+          'https://images.unsplash.com/photo-1546094096-0df4bcabd337?w=1200&q=80', // fresh tomatoes
         ],
         status: 'ACTIVE' as const,
         basePrice: 3.5,
@@ -82,7 +84,9 @@ const vendorBlueprints = [
         slug: 'calabacin-tierno-temporada',
         description: 'Pieza fina, piel suave y sabor delicado. Ideal para plancha, cremas y cocina rápida.',
         images: [
-          'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=1200',
+          'https://images.unsplash.com/photo-1572453800999-e8d2d1589b7c?w=1200&q=80', // zucchini whole
+          'https://images.unsplash.com/photo-1617093727343-374698b1b08d?w=1200&q=80', // zucchini sliced
+          'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=1200&q=80', // green vegetables
         ],
         status: 'ACTIVE' as const,
         basePrice: 2.9,
@@ -100,7 +104,10 @@ const vendorBlueprints = [
         slug: 'huevos-gallinas-camperas',
         description: 'Huevos de gallinas criadas en libertad. Categoría A, clase L, con yema intensa y fresca.',
         images: [
-          'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=1200',
+          'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=1200&q=80', // eggs in carton
+          'https://images.unsplash.com/photo-1569288063643-5d29ad3a9f2a?w=1200&q=80', // eggs in nest
+          'https://images.unsplash.com/photo-1614181716519-4de4f63ff9fa?w=1200&q=80', // farm eggs
+          'https://images.unsplash.com/photo-1491524062933-cb0289261700?w=1200&q=80', // fresh eggs close
         ],
         status: 'ACTIVE' as const,
         basePrice: 4.8,
@@ -118,7 +125,10 @@ const vendorBlueprints = [
         slug: 'mermelada-artesana-fresa',
         description: 'Elaborada en pequeños lotes con fruta madura y cocción lenta para conservar textura y aroma.',
         images: [
-          'https://images.unsplash.com/photo-1514996937319-344454492b37?w=1200',
+          'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=1200&q=80', // strawberries
+          'https://images.unsplash.com/photo-1543158081-b7a65a5e43b4?w=1200&q=80', // strawberry jam jar
+          'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=1200&q=80', // jam on toast
+          'https://images.unsplash.com/photo-1514996937319-344454492b37?w=1200&q=80', // preserve jar
         ],
         status: 'ACTIVE' as const,
         basePrice: 5.4,
@@ -137,7 +147,9 @@ const vendorBlueprints = [
         slug: 'pimientos-padron-ecologicos',
         description: 'Caja corta de pimientos verdes con calibre pequeño y textura fina. Muy demandados en fin de semana.',
         images: [
-          'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=1200',
+          'https://images.unsplash.com/photo-1506084868230-bb9d95c24759?w=1200&q=80', // padrón peppers plate
+          'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=1200&q=80', // green peppers
+          'https://images.unsplash.com/photo-1564325724739-bae0bd08762c?w=1200&q=80', // peppers in pan
         ],
         status: 'ACTIVE' as const,
         basePrice: 3.9,
@@ -155,7 +167,10 @@ const vendorBlueprints = [
         slug: 'cesta-mixta-huerta',
         description: 'Selección semanal con tomates, calabacín, hojas tiernas y producto sorpresa de temporada.',
         images: [
-          'https://images.unsplash.com/photo-1542838132-92c53300491e?w=1200',
+          'https://images.unsplash.com/photo-1466637574441-749b8f19452f?w=1200&q=80', // vegetable basket
+          'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=1200&q=80', // farmers market
+          'https://images.unsplash.com/photo-1498654896293-37aacf113fd9?w=1200&q=80', // fresh vegetables
+          'https://images.unsplash.com/photo-1540420773-d62dd8d08c36?w=1200&q=80', // mixed produce
         ],
         status: 'ACTIVE' as const,
         basePrice: 14.5,
@@ -174,7 +189,8 @@ const vendorBlueprints = [
         slug: 'patata-roja-lavada',
         description: 'Patata firme para asado y guiso, lavada en origen y calibrada para cocina diaria.',
         images: [
-          'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=1200',
+          'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=1200&q=80', // red potatoes
+          'https://images.unsplash.com/photo-1508747703725-719777637510?w=1200&q=80', // potatoes pile
         ],
         status: 'PENDING_REVIEW' as const,
         basePrice: 2.6,
@@ -192,7 +208,7 @@ const vendorBlueprints = [
         slug: 'cebolla-dulce-seleccionada',
         description: 'Lote de cebolla dulce para horno y sofritos largos. Producto pausado por etiquetado incompleto.',
         images: [
-          'https://images.unsplash.com/photo-1508747703725-719777637510?w=1200',
+          'https://images.unsplash.com/photo-1508747703725-719777637510?w=1200&q=80', // onions
         ],
         status: 'REJECTED' as const,
         basePrice: 2.2,
@@ -211,7 +227,9 @@ const vendorBlueprints = [
         slug: 'lechuga-romana-fresca',
         description: 'Lechuga de hoja crujiente preparada para venta rápida. El lote de demo aparece caducado para probar alertas internas.',
         images: [
-          'https://images.unsplash.com/photo-1502741338009-cac2772e18bc?w=1200',
+          'https://images.unsplash.com/photo-1524179091875-bf99a9a6af57?w=1200&q=80', // romaine lettuce
+          'https://images.unsplash.com/photo-1502741338009-cac2772e18bc?w=1200&q=80', // lettuce
+          'https://images.unsplash.com/photo-1607305387299-a3d9611cd469?w=1200&q=80', // salad leaves
         ],
         status: 'ACTIVE' as const,
         basePrice: 1.9,
@@ -258,8 +276,10 @@ const vendorBlueprints = [
         slug: 'naranjas-mesa-premium',
         description: 'Naranjas dulces, piel fina y calibre homogéneo. Recolectadas a mano y sin cámara.',
         images: [
-          'https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b?w=1200',
-          'https://images.unsplash.com/photo-1502741338009-cac2772e18bc?w=1200',
+          'https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b?w=1200&q=80', // oranges pile
+          'https://images.unsplash.com/photo-1537735880260-5a5e0f254ebe?w=1200&q=80', // oranges halved
+          'https://images.unsplash.com/photo-1546630392-6f00e1b64741?w=1200&q=80', // citrus fruits
+          'https://images.unsplash.com/photo-1505252585461-dcc75a9ced3a?w=1200&q=80', // orange grove
         ],
         status: 'ACTIVE' as const,
         basePrice: 3.2,
@@ -278,7 +298,10 @@ const vendorBlueprints = [
         slug: 'fresas-dulces-bandeja',
         description: 'Fresas aromáticas con maduración natural. Lote corto para mantener frescura y sabor.',
         images: [
-          'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=1200',
+          'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=1200&q=80', // strawberries
+          'https://images.unsplash.com/photo-1587393855524-087f83d95bc9?w=1200&q=80', // strawberries bowl
+          'https://images.unsplash.com/photo-1543158081-b7a65a5e43b4?w=1200&q=80', // strawberries close
+          'https://images.unsplash.com/photo-1579954115545-a95591f28d1d?w=1200&q=80', // strawberries field
         ],
         status: 'ACTIVE' as const,
         basePrice: 4.1,
@@ -296,7 +319,10 @@ const vendorBlueprints = [
         slug: 'miel-cruda-azahar',
         description: 'Miel sin pasteurizar con notas florales y textura sedosa. Procede de colmenas cercanas a floración de cítrico.',
         images: [
-          'https://images.unsplash.com/photo-1587049352851-8d4e89133924?w=1200',
+          'https://images.unsplash.com/photo-1587049352851-8d4e89133924?w=1200&q=80', // honey jar
+          'https://images.unsplash.com/photo-1601004890-c40040b3c6c8?w=1200&q=80', // honey dripping
+          'https://images.unsplash.com/photo-1558642891-54be180ea339?w=1200&q=80', // honeycomb
+          'https://images.unsplash.com/photo-1532819924-46e43dafa25a?w=1200&q=80', // honey spoon
         ],
         status: 'ACTIVE' as const,
         basePrice: 8.9,
@@ -338,7 +364,10 @@ const vendorBlueprints = [
         slug: 'queso-cabra-curado',
         description: 'Pasta compacta y sabor persistente. Curación de 90 días, ideal para tabla o rallado fino.',
         images: [
-          'https://images.unsplash.com/photo-1452195100486-9cc805987862?w=1200',
+          'https://images.unsplash.com/photo-1452195100486-9cc805987862?w=1200&q=80', // goat cheese wheel
+          'https://images.unsplash.com/photo-1484557052118-f32bd25a319f?w=1200&q=80', // cheese board
+          'https://images.unsplash.com/photo-1557142046-c704a3adf364?w=1200&q=80', // artisan cheese
+          'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=1200&q=80', // cheese variety
         ],
         status: 'ACTIVE' as const,
         basePrice: 9.5,
@@ -357,7 +386,9 @@ const vendorBlueprints = [
         slug: 'yogur-oveja-natural',
         description: 'Yogur cremoso y ligeramente ácido, elaborado con fermentos propios y sin azúcares añadidos.',
         images: [
-          'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=1200',
+          'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=1200&q=80', // yogurt bowl
+          'https://images.unsplash.com/photo-1505252585461-dcc75a9ced3a?w=1200&q=80', // yogurt jar
+          'https://images.unsplash.com/photo-1571212515416-fef01fc43637?w=1200&q=80', // creamy yogurt
         ],
         status: 'ACTIVE' as const,
         basePrice: 3.6,
@@ -375,7 +406,9 @@ const vendorBlueprints = [
         slug: 'mantequilla-artesana-salada',
         description: 'Batida lentamente y con un punto de sal marina. Untuosa, intensa y perfecta para tostas o cocina.',
         images: [
-          'https://images.unsplash.com/photo-1514996937319-344454492b37?w=1200',
+          'https://images.unsplash.com/photo-1535540878298-a75abb54a9eb?w=1200&q=80', // artisan butter
+          'https://images.unsplash.com/photo-1589985270958-bf087b2543f1?w=1200&q=80', // butter on bread
+          'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=1200&q=80', // butter close
         ],
         status: 'ACTIVE' as const,
         basePrice: 4.4,
@@ -420,7 +453,10 @@ const vendorBlueprints = [
         slug: 'aceite-oliva-virgen-extra',
         description: 'AOVE de primera prensada en frío. Variedad Cornicabra, equilibrado y con final ligeramente picante.',
         images: [
-          'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=1200',
+          'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=1200&q=80', // olive oil bottle
+          'https://images.unsplash.com/photo-1606923829579-0af1fada3a65?w=1200&q=80', // olive oil pour
+          'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1200&q=80', // olives and oil
+          'https://images.unsplash.com/photo-1534483509719-3fed31c94b4e?w=1200&q=80', // olive harvest
         ],
         status: 'ACTIVE' as const,
         basePrice: 12,
@@ -439,7 +475,10 @@ const vendorBlueprints = [
         slug: 'vino-tinto-joven-tempranillo',
         description: 'Vino joven con fruta roja, paso amable y acidez viva. Muy fácil de beber y perfecto para compartir.',
         images: [
-          'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=1200',
+          'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=1200&q=80', // wine bottle
+          'https://images.unsplash.com/photo-1568213816-afbc9ac74c26?w=1200&q=80', // wine cellar bottles
+          'https://images.unsplash.com/photo-1510076857166-f424b5ede7b6?w=1200&q=80', // wine glass red
+          'https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?w=1200&q=80', // vineyard
         ],
         status: 'ACTIVE' as const,
         basePrice: 8.7,
@@ -458,7 +497,9 @@ const vendorBlueprints = [
         slug: 'pimientos-asados-conserva',
         description: 'Pimientos rojos asados al fuego, pelados a mano y conservados con un aliño suave.',
         images: [
-          'https://images.unsplash.com/photo-1508747703725-719777637510?w=1200',
+          'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=1200&q=80', // roasted red peppers
+          'https://images.unsplash.com/photo-1508747703725-719777637510?w=1200&q=80', // jarred peppers
+          'https://images.unsplash.com/photo-1625938145744-533726dfeab1?w=1200&q=80', // preserved vegetables
         ],
         status: 'ACTIVE' as const,
         basePrice: 6.1,
@@ -500,7 +541,10 @@ const vendorBlueprints = [
         slug: 'pan-pueblo-masa-madre',
         description: 'Hogaza de corteza crujiente y miga húmeda. Fermentación larga y harina molida a piedra.',
         images: [
-          'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=1200',
+          'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=1200&q=80', // sourdough loaf
+          'https://images.unsplash.com/photo-1574448559980-e7f87ad0ded9?w=1200&q=80', // bread crust closeup
+          'https://images.unsplash.com/photo-1549413788-a4b6d71b45b7?w=1200&q=80', // artisan bread sliced
+          'https://images.unsplash.com/photo-1486893296994-5e74ac968f4f?w=1200&q=80', // sourdough crumb
         ],
         status: 'ACTIVE' as const,
         basePrice: 4.9,
@@ -518,7 +562,10 @@ const vendorBlueprints = [
         slug: 'croissants-mantequilla',
         description: 'Hojaldre ligero, interior alveolado y mantequilla con sabor limpio. Recién hechos cada mañana.',
         images: [
-          'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?w=1200',
+          'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?w=1200&q=80', // croissants
+          'https://images.unsplash.com/photo-1571196990389-8df3f6b1a83c?w=1200&q=80', // croissant layers
+          'https://images.unsplash.com/photo-1481391319531-67b71f39fdb7?w=1200&q=80', // croissant closeup
+          'https://images.unsplash.com/photo-1504540458-ea29cf73a338?w=1200&q=80', // pastry basket
         ],
         status: 'ACTIVE' as const,
         basePrice: 6.8,
@@ -536,7 +583,9 @@ const vendorBlueprints = [
         slug: 'galletas-avena-miel',
         description: 'Crujientes por fuera, tiernas por dentro y con dulzor suave. Perfectas para café o merienda.',
         images: [
-          'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?w=1200',
+          'https://images.unsplash.com/photo-1548958856-a9e99f95f35d?w=1200&q=80', // oat cookies
+          'https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=1200&q=80', // homemade cookies
+          'https://images.unsplash.com/photo-1506224772180-d75b3efbe9be?w=1200&q=80', // cookie jar
         ],
         status: 'ACTIVE' as const,
         basePrice: 5.1,
