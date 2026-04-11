@@ -33,3 +33,25 @@ test('buyer account metadata covers every account link to avoid runtime crashes 
     buyerAccountItems.map(item => item.href).sort()
   )
 })
+
+test('buyer account metadata exposes labelKey and descKey for every entry', () => {
+  for (const [href, meta] of Object.entries(buyerAccountMeta)) {
+    assert.ok('labelKey' in meta, `${href} is missing labelKey`)
+    assert.ok('descKey' in meta, `${href} is missing descKey`)
+    assert.ok(typeof meta.labelKey === 'string' && meta.labelKey.length > 0, `${href}.labelKey is empty`)
+    assert.ok(typeof meta.descKey === 'string' && meta.descKey.length > 0, `${href}.descKey is empty`)
+  }
+})
+
+test('buyerAccountMeta i18n keys exist in both locales', async () => {
+  const { locales } = await import('@/i18n/locales')
+
+  for (const meta of Object.values(buyerAccountMeta)) {
+    const lk = meta.labelKey as string
+    const dk = meta.descKey as string
+    assert.ok(lk in locales.es, `Spanish locale missing key: ${lk}`)
+    assert.ok(lk in locales.en, `English locale missing key: ${lk}`)
+    assert.ok(dk in locales.es, `Spanish locale missing key: ${dk}`)
+    assert.ok(dk in locales.en, `English locale missing key: ${dk}`)
+  }
+})

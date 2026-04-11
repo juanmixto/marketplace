@@ -7,12 +7,16 @@ import { SignOutButton } from '@/components/auth/SignOutButton'
 import type { Metadata } from 'next'
 import { buyerAccountItems, buyerAccountMeta } from '@/lib/navigation'
 import { GDPRActions } from './GDPRActions'
+import { getServerT } from '@/i18n/server'
+import type { TranslationKeys } from '@/i18n/locales'
 
 export const metadata: Metadata = { title: 'Mi cuenta' }
 
 export default async function CuentaPage() {
   const session = await auth()
   if (!session) redirect('/login')
+
+  const t = await getServerT()
 
   const initial = session.user.name?.[0]?.toUpperCase() ?? '?'
 
@@ -30,45 +34,44 @@ export default async function CuentaPage() {
       </div>
 
       <div className="space-y-2">
-        {buyerAccountItems.map(({ href, label, available }) => {
-          const meta = buyerAccountMeta[href as keyof typeof buyerAccountMeta] ?? {
-            icon: UserCircleIcon,
-            desc: 'Accede a esta sección de tu cuenta',
-          }
-          const Icon = meta.icon
+        {buyerAccountItems.map(({ href, available }) => {
+          const meta = buyerAccountMeta[href as keyof typeof buyerAccountMeta]
+          const Icon = meta?.icon ?? UserCircleIcon
+          const label = t(meta.labelKey as TranslationKeys)
+          const desc = t(meta.descKey as TranslationKeys)
 
           if (!available) {
-              return (
-                <div
-                  key={href}
-                  className="flex items-center gap-4 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-raised)] p-4"
-                >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface)]">
-                    <Icon className="h-5 w-5 text-[var(--muted)]" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-[var(--foreground-soft)]">{label}</p>
-                    <p className="text-sm text-[var(--muted)]">{meta.desc}</p>
-                  </div>
-                  <span className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--muted)]">
-                    Próximamente
-                  </span>
-                </div>
-              )
-            }
-
             return (
-              <Link
+              <div
                 key={href}
-                href={href}
-                className="flex items-center gap-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 transition hover:border-emerald-300 hover:shadow-sm dark:hover:border-emerald-700"
+                className="flex items-center gap-4 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-raised)] p-4"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-raised)]">
-                  <Icon className="h-5 w-5 text-[var(--foreground-soft)]" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface)]">
+                  <Icon className="h-5 w-5 text-[var(--muted)]" />
                 </div>
+                <div className="flex-1">
+                  <p className="font-medium text-[var(--foreground-soft)]">{label}</p>
+                  <p className="text-sm text-[var(--muted)]">{desc}</p>
+                </div>
+                <span className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--muted)]">
+                  {t('account.comingSoon')}
+                </span>
+              </div>
+            )
+          }
+
+          return (
+            <Link
+              key={href}
+              href={href}
+              className="flex items-center gap-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 transition hover:border-emerald-300 hover:shadow-sm dark:hover:border-emerald-700"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-raised)]">
+                <Icon className="h-5 w-5 text-[var(--foreground-soft)]" />
+              </div>
               <div className="flex-1">
                 <p className="font-medium text-[var(--foreground)]">{label}</p>
-                <p className="text-sm text-[var(--muted)]">{meta.desc}</p>
+                <p className="text-sm text-[var(--muted)]">{desc}</p>
               </div>
               <ChevronRightIcon className="h-5 w-5 text-[var(--muted)]" />
             </Link>
@@ -78,10 +81,8 @@ export default async function CuentaPage() {
 
       {/* GDPR Privacy Section */}
       <div className="mt-8 space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--foreground)]">Privacidad y Datos</h2>
-        <p className="text-sm text-[var(--muted)]">
-          De conformidad con el RGPD, tienes derecho a acceder, exportar o eliminar tus datos personales.
-        </p>
+        <h2 className="text-lg font-semibold text-[var(--foreground)]">{t('account.gdpr.title')}</h2>
+        <p className="text-sm text-[var(--muted)]">{t('account.gdpr.desc')}</p>
         <GDPRActions />
       </div>
 

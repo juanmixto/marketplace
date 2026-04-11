@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
-import { defaultLocale } from './locales'
-import type { Locale } from './locales'
+import { defaultLocale, locales } from './locales'
+import type { Locale, TranslationKeys } from './locales'
 
 export const LOCALE_COOKIE_KEYS = ['mp_locale', 'locale'] as const
 
@@ -19,4 +19,10 @@ export async function getServerLocale(): Promise<Locale> {
   }
 
   return defaultLocale
+}
+
+export async function getServerT() {
+  const locale = await getServerLocale()
+  return (key: TranslationKeys): string =>
+    locales[locale][key] ?? locales[defaultLocale][key] ?? key
 }
