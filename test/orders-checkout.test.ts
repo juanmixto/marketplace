@@ -186,7 +186,6 @@ test('DireccionesClient clears isDefault on sibling addresses when a new default
 test('DireccionesClient skips the map pass when saved address is not default', () => {
   const src = readSource('../src/app/(buyer)/cuenta/direcciones/DireccionesClient.tsx')
 
-  // Pattern: const base = savedAddress.isDefault ? addresses.map(...) : addresses
   assert.match(src, /savedAddress\.isDefault[\s\S]{0,60}addresses\.map/, 'must only map when isDefault is true')
 })
 
