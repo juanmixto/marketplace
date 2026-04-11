@@ -41,7 +41,7 @@ export function CartPageClient({ shippingSettings }: Props) {
       <h1 className="mb-8 text-2xl font-bold text-[var(--foreground)]">{t('cart.title')} ({itemCount()})</h1>
 
       <div className="grid gap-8 lg:grid-cols-3">
-        <div className="space-y-3 lg:col-span-2">
+        <div className="order-last space-y-3 lg:order-first lg:col-span-2">
           {items.map(item => (
             <div key={`${item.productId}-${item.variantId}`}
               className="flex gap-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4"
@@ -121,7 +121,7 @@ export function CartPageClient({ shippingSettings }: Props) {
           </button>
         </div>
 
-        <div>
+        <div className="order-first lg:order-last">
           <div className="sticky top-24 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
             <h2 className="mb-4 font-semibold text-[var(--foreground)]">{t('cart.summary')}</h2>
             <div className="space-y-2 text-sm">

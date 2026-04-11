@@ -136,7 +136,7 @@ export function ProductCard({ product }: ProductCardProps) {
         <div className="flex items-center gap-2">
           <Link
             href={`/productos/${product.slug}`}
-            className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] px-3 text-sm font-semibold text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
+            className="hidden h-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] px-3 text-sm font-semibold text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] sm:inline-flex"
           >
             Ver detalle
           </Link>

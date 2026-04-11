@@ -8,9 +8,10 @@ import { cn } from '@/lib/utils'
 
 interface Props {
   categories: CategoryWithCount[]
+  onClose?: () => void
 }
 
-export function ProductFiltersPanel({ categories }: Props) {
+export function ProductFiltersPanel({ categories, onClose }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -21,7 +22,8 @@ export function ProductFiltersPanel({ categories }: Props) {
     else p.set(key, value)
     p.delete('pagina')
     router.push(`${pathname}?${p.toString()}`)
-  }, [router, pathname, searchParams])
+    onClose?.()
+  }, [router, pathname, searchParams, onClose])
 
   const toggleCert = (cert: string) => {
     const current = searchParams.getAll('cert')
@@ -34,6 +36,7 @@ export function ProductFiltersPanel({ categories }: Props) {
     }
     p.delete('pagina')
     router.push(`${pathname}?${p.toString()}`)
+    onClose?.()
   }
 
   const currentCat   = searchParams.get('categoria')
@@ -47,7 +50,7 @@ export function ProductFiltersPanel({ categories }: Props) {
         {hasFilters && (
           <button
             type="button"
-            onClick={() => router.push(pathname)}
+            onClick={() => { router.push(pathname); onClose?.() }}
             aria-label="Limpiar todos los filtros"
             className="rounded-md text-xs text-emerald-600 underline-offset-2 hover:underline dark:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
           >
