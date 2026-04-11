@@ -1,28 +1,32 @@
+'use client'
+
 import Link from 'next/link'
 import { SITE_NAME } from '@/lib/constants'
-
-const LINKS = {
-  comprar: [
-    { href: '/productos',           label: 'Todos los productos' },
-    { href: '/productores',         label: 'Productores' },
-    { href: '/productos?cert=ECO-ES', label: 'Ecológico' },
-    { href: '/productos?cert=KM0',  label: 'Km0' },
-  ],
-  vender: [
-    { href: '/register?rol=productor', label: 'Hazte productor' },
-    { href: '/vendor/dashboard',       label: 'Portal productor' },
-    { href: '/como-funciona',          label: 'Cómo funciona' },
-    { href: '/como-vender',            label: 'Por qué vender con nosotros' },
-  ],
-  ayuda: [
-    { href: '/faq',          label: 'Preguntas frecuentes' },
-    { href: '/contacto',     label: 'Contacto' },
-    { href: '/sobre-nosotros', label: 'Sobre nosotros' },
-    { href: '/contacto',     label: 'Soporte' },
-  ],
-}
+import { useT } from '@/i18n'
 
 export function Footer() {
+  const t = useT()
+
+  const LINKS = {
+    comprar: [
+      { href: '/productos',             label: t('all_products') },
+      { href: '/productores',           label: t('producers') },
+      { href: '/productos?cert=ECO-ES', label: t('ecological') },
+      { href: '/productos?cert=KM0',    label: t('km0') },
+    ],
+    vender: [
+      { href: '/register?rol=productor', label: t('become_producer') },
+      { href: '/vendor/dashboard',       label: t('producer_portal') },
+      { href: '/como-funciona',          label: t('how_it_works') },
+      { href: '/como-vender',            label: t('why_sell') },
+    ],
+    ayuda: [
+      { href: '/faq',            label: t('faq') },
+      { href: '/contacto',       label: t('contact') },
+      { href: '/sobre-nosotros', label: t('about_us') },
+      { href: '/contacto',       label: t('support') },
+    ],
+  }
   return (
     <footer className="mt-16 border-t border-[var(--border)] bg-[var(--surface)]">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -31,13 +35,13 @@ export function Footer() {
           <div className="col-span-2 md:col-span-1">
             <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{SITE_NAME}</p>
             <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
-              Conectamos pequeños productores con consumidores que valoran la calidad y la proximidad.
+              {t('footer_tagline')}
             </p>
           </div>
 
           {/* Comprar */}
           <div>
-            <h3 className="text-sm font-semibold text-[var(--foreground)]">Comprar</h3>
+            <h3 className="text-sm font-semibold text-[var(--foreground)]">{t('footer_buy')}</h3>
             <ul className="mt-3 space-y-2">
               {LINKS.comprar.map(l => (
                 <li key={l.href}>
@@ -51,7 +55,7 @@ export function Footer() {
 
           {/* Vender */}
           <div>
-            <h3 className="text-sm font-semibold text-[var(--foreground)]">Vender</h3>
+            <h3 className="text-sm font-semibold text-[var(--foreground)]">{t('footer_sell')}</h3>
             <ul className="mt-3 space-y-2">
               {LINKS.vender.map(l => (
                 <li key={l.label}>
@@ -65,7 +69,7 @@ export function Footer() {
 
           {/* Ayuda */}
           <div>
-            <h3 className="text-sm font-semibold text-[var(--foreground)]">Ayuda</h3>
+            <h3 className="text-sm font-semibold text-[var(--foreground)]">{t('footer_help')}</h3>
             <ul className="mt-3 space-y-2">
               {LINKS.ayuda.map(l => (
                 <li key={l.label}>
@@ -80,14 +84,14 @@ export function Footer() {
 
         <div className="mt-10 flex flex-col gap-3 border-t border-[var(--border)] pt-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-[var(--muted)]">
-            © {new Date().getFullYear()} {SITE_NAME}. Todos los derechos reservados.
+            © {new Date().getFullYear()} {SITE_NAME}. {t('footer_rights')}
           </p>
           <div className="flex gap-4">
             {[
-              { label: 'Aviso legal', href: '/aviso-legal' },
-              { label: 'Privacidad', href: '/privacidad' },
-              { label: 'Cookies', href: '/cookies' },
-              { label: 'Términos', href: '/terminos' },
+              { label: t('legal_notice'), href: '/aviso-legal' },
+              { label: t('privacy'),      href: '/privacidad' },
+              { label: t('cookies'),      href: '/cookies' },
+              { label: t('terms'),        href: '/terminos' },
             ].map(link => (
               <Link key={link.label} href={link.href} className="rounded-md text-xs text-[var(--muted)] transition-colors hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
                 {link.label}
