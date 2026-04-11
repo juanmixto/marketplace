@@ -391,6 +391,7 @@ model OrderLine {
 
   @@index([orderId])
   @@index([vendorId])
+  @@index([vendorId, createdAt])
 }
 
 model Review {
@@ -411,6 +412,7 @@ model Review {
   @@unique([orderId, productId])
   @@index([productId])
   @@index([vendorId])
+  @@index([vendorId, createdAt])
   @@index([customerId])
 }
 
