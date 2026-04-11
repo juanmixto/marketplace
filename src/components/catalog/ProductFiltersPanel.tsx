@@ -46,7 +46,9 @@ export function ProductFiltersPanel({ categories }: Props) {
         <h3 className="font-semibold text-[var(--foreground)]">Filtros</h3>
         {hasFilters && (
           <button
+            type="button"
             onClick={() => router.push(pathname)}
+            aria-label="Limpiar todos los filtros"
             className="rounded-md text-xs text-emerald-600 underline-offset-2 hover:underline dark:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
           >
             Limpiar todo
@@ -59,7 +61,9 @@ export function ProductFiltersPanel({ categories }: Props) {
         <h4 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Categoría</h4>
         <div className="space-y-0.5">
           <button
+            type="button"
             onClick={() => setParam('categoria', null)}
+            aria-pressed={!currentCat}
             className={cn(
               'w-full rounded-xl px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset',
               !currentCat
@@ -72,7 +76,9 @@ export function ProductFiltersPanel({ categories }: Props) {
           {categories.map(cat => (
             <button
               key={cat.slug}
+              type="button"
               onClick={() => setParam('categoria', currentCat === cat.slug ? null : cat.slug)}
+              aria-pressed={currentCat === cat.slug}
               className={cn(
                 'flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset',
                 currentCat === cat.slug

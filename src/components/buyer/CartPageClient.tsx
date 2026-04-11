@@ -1,9 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { useCartStore } from '@/lib/cart-store'
 import { Button } from '@/components/ui/button'
+import { SafeImage } from '@/components/catalog/SafeImage'
 import { formatPrice } from '@/lib/utils'
 import { TrashIcon, MinusIcon, PlusIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
 import { calculateShippingCost, type PublicMarketplaceSettings } from '@/lib/marketplace-settings'
@@ -13,7 +13,7 @@ interface Props {
 }
 
 export function CartPageClient({ shippingSettings }: Props) {
-  const { items, removeItem, updateQty, subtotal, clearCart } = useCartStore()
+  const { items, removeItem, updateQty, subtotal, clearCart, itemCount } = useCartStore()
 
   if (items.length === 0) {
     return (
@@ -36,7 +36,7 @@ export function CartPageClient({ shippingSettings }: Props) {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="mb-8 text-2xl font-bold text-[var(--foreground)]">Tu carrito ({items.length})</h1>
+      <h1 className="mb-8 text-2xl font-bold text-[var(--foreground)]">Tu carrito ({itemCount()})</h1>
 
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="space-y-3 lg:col-span-2">
@@ -46,7 +46,7 @@ export function CartPageClient({ shippingSettings }: Props) {
             >
               <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-[var(--surface-raised)]">
                 {item.image ? (
-                  <Image src={item.image} alt={item.name} fill className="object-cover" />
+                  <SafeImage src={item.image} alt={item.name} fill className="object-cover" sizes="80px" />
                 ) : (
                   <div className="flex h-full items-center justify-center text-2xl">🌿</div>
                 )}
@@ -64,18 +64,42 @@ export function CartPageClient({ shippingSettings }: Props) {
                 </p>
                 <div className="mt-1 flex items-center gap-3">
                   <div className="flex items-center gap-1 rounded-lg border border-[var(--border)]">
-                  <button onClick={() => updateQty(item.productId, item.quantity - 1, item.variantId)}
-                    className="rounded-l-lg p-1.5 hover:bg-[var(--surface-raised)]">
+                    <button
+                      type="button"
+                      onClick={() => updateQty(item.productId, item.quantity - 1, item.variantId)}
+                      aria-label={`Reducir cantidad de ${item.name}`}
+                      className="rounded-l-lg p-1.5 hover:bg-[var(--surface-raised)]"
+                    >
                       <MinusIcon className="h-3.5 w-3.5 text-[var(--foreground-soft)]" />
                     </button>
-                    <span className="w-8 text-center text-sm font-medium text-[var(--foreground)]">{item.quantity}</span>
-                    <button onClick={() => updateQty(item.productId, item.quantity + 1, item.variantId)}
-                      className="rounded-r-lg p-1.5 hover:bg-[var(--surface-raised)]">
+                    <input
+                      type="number"
+                      min={1}
+                      inputMode="numeric"
+                      value={item.quantity}
+                      onChange={event => {
+                        const nextQuantity = Number.parseInt(event.target.value, 10)
+                        if (Number.isNaN(nextQuantity)) return
+                        updateQty(item.productId, nextQuantity, item.variantId)
+                      }}
+                      className="w-12 bg-transparent text-center text-sm font-medium text-[var(--foreground)] focus:outline-none"
+                      aria-label={`Cantidad de ${item.name}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => updateQty(item.productId, item.quantity + 1, item.variantId)}
+                      aria-label={`Aumentar cantidad de ${item.name}`}
+                      className="rounded-r-lg p-1.5 hover:bg-[var(--surface-raised)]"
+                    >
                       <PlusIcon className="h-3.5 w-3.5 text-[var(--foreground-soft)]" />
                     </button>
                   </div>
-                  <button onClick={() => removeItem(item.productId, item.variantId)}
-                    className="text-[var(--muted)] hover:text-red-600 dark:hover:text-red-400">
+                  <button
+                    type="button"
+                    onClick={() => removeItem(item.productId, item.variantId)}
+                    aria-label={`Eliminar ${item.name} del carrito`}
+                    className="text-[var(--muted)] hover:text-red-600 dark:hover:text-red-400"
+                  >
                     <TrashIcon className="h-4 w-4" />
                   </button>
                 </div>
@@ -85,7 +109,12 @@ export function CartPageClient({ shippingSettings }: Props) {
               </div>
             </div>
           ))}
-          <button onClick={clearCart} className="mt-2 text-sm text-[var(--muted)] hover:text-red-600 dark:hover:text-red-400">
+          <button
+            type="button"
+            onClick={clearCart}
+            aria-label="Vaciar carrito"
+            className="mt-2 text-sm text-[var(--muted)] hover:text-red-600 dark:hover:text-red-400"
+          >
             Vaciar carrito
           </button>
         </div>

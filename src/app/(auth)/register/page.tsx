@@ -83,9 +83,9 @@ export default function RegisterPage() {
 
         <p className="text-center text-xs text-[var(--muted)]">
           Al registrarte aceptas los{' '}
-          <Link href="#" className="rounded-sm text-emerald-600 hover:underline dark:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30">Términos de uso</Link>
+          <Link href="/terminos" className="rounded-sm text-emerald-600 hover:underline dark:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30">Términos de uso</Link>
           {' '}y la{' '}
-          <Link href="#" className="rounded-sm text-emerald-600 hover:underline dark:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30">Política de privacidad</Link>
+          <Link href="/privacidad" className="rounded-sm text-emerald-600 hover:underline dark:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30">Política de privacidad</Link>
         </p>
       </form>
 

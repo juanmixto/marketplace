@@ -12,6 +12,7 @@ const baseEnvSchema = z.object({
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().min(1).optional(),
   STRIPE_SECRET_KEY: z.string().min(1).optional(),
   STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
+  CONTACT_EMAIL: z.string().email().optional(),
   PAYMENT_PROVIDER: z.enum(['mock', 'stripe']).default('mock'),
 })
 
@@ -44,6 +45,7 @@ export function parseServerEnv(env: NodeJS.ProcessEnv) {
     stripeSecretKey: parsed.STRIPE_SECRET_KEY,
     stripeWebhookSecret: parsed.STRIPE_WEBHOOK_SECRET,
     stripePublishableKey: parsed.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+    contactEmail: parsed.CONTACT_EMAIL,
   }
 }
 

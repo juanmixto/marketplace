@@ -6,6 +6,8 @@ import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import type { Metadata } from 'next'
 import { db } from '@/lib/db'
 import { VendorReviewsSection } from './VendorReviewsSection'
+import { JsonLd } from '@/components/seo/JsonLd'
+import { absoluteUrl, buildPageMetadata } from '@/lib/seo'
 
 interface Props { params: Promise<{ slug: string }> }
 
@@ -14,8 +16,21 @@ export const revalidate = 300
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const vendor = await getVendorBySlug(slug)
-  if (!vendor) return { title: 'Productor no encontrado' }
-  return { title: vendor.displayName, description: vendor.description ?? undefined }
+  if (!vendor) {
+    return buildPageMetadata({
+      title: 'Productor no encontrado',
+      description: 'No hemos podido encontrar este productor.',
+      path: `/productores/${slug}`,
+      noindex: true,
+    })
+  }
+
+  return buildPageMetadata({
+    title: vendor.displayName,
+    description: vendor.description ?? `Conoce a ${vendor.displayName}, productor local en Mercado Productor.`,
+    path: `/productores/${vendor.slug}`,
+    imagePath: vendor.logo ?? '/opengraph-image',
+  })
 }
 
 export default async function VendorPublicPage({ params }: Props) {
@@ -53,9 +68,32 @@ export default async function VendorPublicPage({ params }: Props) {
       _count: { _all: true },
     }),
   ])
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: vendor.displayName,
+    description: vendor.description ?? undefined,
+    url: absoluteUrl(`/productores/${vendor.slug}`),
+    image: vendor.logo ? [absoluteUrl(vendor.logo)] : undefined,
+    address: vendor.location
+      ? {
+          '@type': 'PostalAddress',
+          addressLocality: vendor.location,
+          addressCountry: 'ES',
+        }
+      : undefined,
+    aggregateRating: vendor.avgRating
+      ? {
+          '@type': 'AggregateRating',
+          ratingValue: Number(vendor.avgRating).toFixed(1),
+          reviewCount: vendor.totalReviews,
+        }
+      : undefined,
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <JsonLd data={structuredData} />
       {/* Header */}
       <div className="mb-8 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
         <div className="flex items-start gap-5">

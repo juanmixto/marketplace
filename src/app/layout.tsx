@@ -4,8 +4,12 @@ import { Geist } from 'next/font/google'
 import './globals.css'
 import { SITE_NAME, SITE_DESCRIPTION } from '@/lib/constants'
 import { siteAppearance } from '@/lib/brand'
+import { Suspense } from 'react'
 import { ThemeProvider } from '@/components/ThemeProvider'
+import { AnalyticsProvider } from '@/components/analytics/AnalyticsProvider'
 import { THEME_COLORS } from '@/lib/theme'
+import { SITE_METADATA_BASE } from '@/lib/seo'
+import { SessionProvider } from '@/components/SessionProvider'
 
 const geist = Geist({
   variable: '--font-geist-sans',
@@ -18,6 +22,24 @@ export const metadata: Metadata = {
     template: `%s | ${SITE_NAME}`,
   },
   description: SITE_DESCRIPTION,
+  metadataBase: SITE_METADATA_BASE,
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    url: '/',
+    siteName: SITE_NAME,
+    type: 'website',
+    images: ['/opengraph-image'],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    images: ['/twitter-image'],
+  },
   icons: {
     icon: siteAppearance.faviconPath,
     shortcut: siteAppearance.faviconPath,
@@ -41,9 +63,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col bg-[var(--background)] text-[var(--foreground)]">
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+        <SessionProvider>
+          <ThemeProvider>
+            <Suspense fallback={null}>
+              <AnalyticsProvider />
+            </Suspense>
+            {children}
+          </ThemeProvider>
+        </SessionProvider>
       </body>
     </html>
   )

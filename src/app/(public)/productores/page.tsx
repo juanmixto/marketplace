@@ -1,9 +1,14 @@
 import Link from 'next/link'
+import type { Metadata } from 'next'
 import { getVendors } from '@/domains/catalog/queries'
 import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
-import type { Metadata } from 'next'
+import { buildPageMetadata } from '@/lib/seo'
 
-export const metadata: Metadata = { title: 'Productores' }
+export const metadata: Metadata = buildPageMetadata({
+  title: 'Productores',
+  description: 'Conoce a los productores locales que venden en Mercado Productor.',
+  path: '/productores',
+})
 export const revalidate = 60
 
 export default async function ProductoresPage() {

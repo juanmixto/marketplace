@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { sendEmail } from '@/lib/email'
+import { createElement } from 'react'
+import { Text } from '@react-email/components'
 
 const contactSchema = z.object({
   nombre: z.string().min(2).max(100),
@@ -16,24 +19,25 @@ export async function POST(req: NextRequest) {
     // Validate with Zod
     const validated = contactSchema.parse(body)
 
-    // Log the message (in production, send email)
-    console.log('📩 New contact form submission:', {
-      nombrecliente: validated.nombre,
-      email: validated.email,
-      asunto: validated.asunto,
-      mensaje: validated.mensaje,
-      timestamp: new Date().toISOString(),
-    })
+    const contactEmail = process.env.CONTACT_EMAIL
 
-    // TODO: In production, send email to the appropriate address
-    // based on validated.asunto
-    // const emailMap = {
-    //   pedido: 'soporte@mercadoproductor.es',
-    //   productores: 'productores@mercadoproductor.es',
-    //   tecnico: 'soporte@mercadoproductor.es',
-    //   general: 'hola@mercadoproductor.es',
-    //   otros: 'hola@mercadoproductor.es',
-    // }
+    if (contactEmail) {
+      await sendEmail({
+        to: contactEmail,
+        subject: `[Contacto] ${validated.asunto} - ${validated.nombre}`,
+        react: createElement(
+          'div',
+          null,
+          createElement(Text, null, 'Nuevo mensaje desde el formulario de contacto.'),
+          createElement(Text, null, `Nombre: ${validated.nombre}`),
+          createElement(Text, null, `Email: ${validated.email}`),
+          createElement(Text, null, `Asunto: ${validated.asunto}`),
+          createElement(Text, null, `Mensaje: ${validated.mensaje}`)
+        ),
+      })
+    } else {
+      console.warn('[Contact] CONTACT_EMAIL not configured; storing submission as log only')
+    }
 
     return NextResponse.json(
       {

@@ -3,9 +3,11 @@ import type { Metadata } from 'next'
 import { getProducts, getCategories } from '@/domains/catalog/queries'
 import { ProductCard } from '@/components/catalog/ProductCard'
 import { ProductFiltersPanel } from '@/components/catalog/ProductFiltersPanel'
+import { TrackEventOnView } from '@/components/analytics/TrackEventOnView'
 import { SortSelect } from '@/components/catalog/SortSelect'
 import { parseProductSort, type ProductWithVendor } from '@/domains/catalog/types'
 import Link from 'next/link'
+import { buildPageMetadata } from '@/lib/seo'
 
 interface Props {
   searchParams: Promise<{
@@ -19,16 +21,16 @@ interface Props {
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const params = await searchParams
-  const query = params.q || ''
+  const query = params.q?.trim() || ''
 
-  return {
-    title: `Buscar: ${query} | Mercado Productor`,
-    description: `Resultados de búsqueda para "${query}" en Mercado Productor`,
-    robots: {
-      index: false,
-      follow: true,
-    },
-  }
+  return buildPageMetadata({
+    title: query ? `Buscar: ${query}` : 'Buscar',
+    description: query
+      ? `Resultados de búsqueda para "${query}" en Mercado Productor.`
+      : 'Busca productos, productores y categorías en Mercado Productor.',
+    path: '/buscar',
+    noindex: true,
+  })
 }
 
 export default async function BuscarPage({ searchParams }: Props) {
@@ -67,6 +69,14 @@ export default async function BuscarPage({ searchParams }: Props) {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <TrackEventOnView
+        event="search"
+        payload={{
+          search_term: params.q.trim(),
+          results_count: products.length,
+          has_results: products.length > 0,
+        }}
+      />
       <div className="flex gap-8">
         {/* Sidebar filters */}
         <aside className="hidden w-56 shrink-0 lg:block">

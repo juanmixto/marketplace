@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import type { Metadata } from 'next'
 import { getHomeSnapshot } from '@/domains/catalog/queries'
 import { buildHomeStats } from '@/domains/catalog/home'
 import { ProductCard } from '@/components/catalog/ProductCard'
@@ -8,16 +9,62 @@ import { publicPortalLinks } from '@/lib/portals'
 import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import { CheckBadgeIcon, TruckIcon, ShieldCheckIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
 import { getPublicMarketplaceConfig } from '@/lib/config'
+import { SITE_DESCRIPTION, SITE_NAME } from '@/lib/constants'
+import { SITE_METADATA_BASE, absoluteUrl } from '@/lib/seo'
+import { JsonLd } from '@/components/seo/JsonLd'
+import { BRAND_CLAIMS } from '@/lib/brand-claims'
 
 export const revalidate = 3600
+
+export const metadata: Metadata = {
+  title: { absolute: SITE_NAME },
+  description: SITE_DESCRIPTION,
+  metadataBase: SITE_METADATA_BASE,
+  alternates: { canonical: '/' },
+  openGraph: {
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    url: '/',
+    siteName: SITE_NAME,
+    type: 'website',
+    images: ['/opengraph-image'],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    images: ['/twitter-image'],
+  },
+}
 
 export default async function HomePage() {
   const { featured, categories, vendors, stats } = await getHomeSnapshot()
   const heroStats = buildHomeStats(stats)
   const publicConfig = await getPublicMarketplaceConfig()
+  const structuredData = [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'Organization',
+      name: SITE_NAME,
+      url: absoluteUrl('/'),
+      description: SITE_DESCRIPTION,
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: SITE_NAME,
+      url: absoluteUrl('/'),
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: `${absoluteUrl('/buscar')}?q={search_term_string}`,
+        'query-input': 'required name=search_term_string',
+      },
+    },
+  ]
 
   return (
     <div>
+      <JsonLd data={structuredData} />
       {/* Banners */}
       {publicConfig.MAINTENANCE_MODE && (
         <div className="border-b border-rose-200 bg-rose-50 dark:border-rose-900/50 dark:bg-rose-950/50">
@@ -58,7 +105,7 @@ export default async function HomePage() {
               </h1>
 
               <p className="mt-5 text-lg leading-relaxed text-emerald-100/80">
-                Un marketplace de proximidad para descubrir alimentos frescos, productores verificados y compra directa.
+                Un marketplace de proximidad para descubrir alimentos frescos y compra directa.
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3">
@@ -123,9 +170,9 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             {[
-              { icon: TruckIcon,        text: 'Envío a toda la península' },
-              { icon: ShieldCheckIcon,  text: 'Pago seguro garantizado' },
-              { icon: CheckBadgeIcon,   text: 'Productores verificados' },
+              { icon: TruckIcon,        text: BRAND_CLAIMS.shippingCoverage.text },
+              { icon: ShieldCheckIcon,  text: BRAND_CLAIMS.paymentSecurity.text },
+              { icon: CheckBadgeIcon,   text: BRAND_CLAIMS.vendorReview.text },
             ].map(({ icon: Icon, text }) => (
               <div key={text} className="flex items-center gap-2.5 text-sm text-[var(--foreground-soft)]">
                 <Icon className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />

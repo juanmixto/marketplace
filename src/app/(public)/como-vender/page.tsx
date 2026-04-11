@@ -1,17 +1,21 @@
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { CheckCircleIcon, SparklesIcon, BanknotesIcon, UserGroupIcon, ShieldCheckIcon, ClockIcon } from '@heroicons/react/24/outline'
+import { buildPageMetadata } from '@/lib/seo'
+import { DEFAULT_COMMISSION_RATE } from '@/lib/constants'
+import { BRAND_CLAIMS } from '@/lib/brand-claims'
 
-export const metadata: Metadata = {
-  title: 'Vende tus productos | Mercado Productor',
+export const metadata: Metadata = buildPageMetadata({
+  title: 'Vende tus productos',
   description: 'Únete a Mercado Productor y vende tus productos directamente a consumidores locales. Sin intermediarios, cobro semanal, gestión sencilla.',
-}
+  path: '/como-vender',
+})
 
 const benefits = [
   {
     icon: BanknotesIcon,
     title: 'Cobra más por tu trabajo',
-    description: 'Sin intermediarios, el precio lo pones tú. Sólo 12% de comisión por venta.',
+    description: `Sin intermediarios, el precio lo pones tú. Comisión base del ${Math.round(DEFAULT_COMMISSION_RATE * 100)}% por venta.`,
   },
   {
     icon: SparklesIcon,
@@ -20,13 +24,13 @@ const benefits = [
   },
   {
     icon: ClockIcon,
-    title: 'Cobro semanal garantizado',
-    description: 'Liquidaciones cada lunes a tu cuenta bancaria, sin retenciones.',
+    title: 'Cobro semanal programado',
+    description: 'Liquidaciones semanales según el calendario operativo publicado.',
   },
   {
     icon: UserGroupIcon,
     title: 'Alcance nacional',
-    description: 'Llega a compradores de toda España sin invertir en marketing.',
+    description: 'Llega a compradores de todo el país según la cobertura de cada productor.',
   },
   {
     icon: ShieldCheckIcon,
@@ -49,7 +53,7 @@ const steps = [
   {
     num: 2,
     title: 'Verificación rápida',
-    desc: '24-48 horas, nuestro equipo revisa tu solicitud',
+    desc: 'Nuestro equipo revisa tu solicitud en el siguiente ciclo operativo.',
   },
   {
     num: 3,
@@ -83,7 +87,7 @@ export default function ComoVender() {
             Vende tus productos directamente
           </h1>
           <p className="mb-8 text-xl text-foreground-soft">
-            Únete a +150 productores que ya cobran <strong>sin intermediarios</strong>. En Mercado Productor, tú fijas los precios.
+            Únete al marketplace de productores locales y vende directamente a clientes finales. En Mercado Productor, tú fijas los precios.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Link
@@ -109,7 +113,7 @@ export default function ComoVender() {
             ¿Por qué Mercado Productor?
           </h2>
           <p className="mb-12 text-center text-lg text-foreground-soft">
-            6 razones por las que +150 productores locales han elegido vender con nosotros
+            6 razones para vender con un flujo claro, sin cuotas mensuales y con reglas operativas transparentes
           </p>
 
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
@@ -227,7 +231,7 @@ export default function ComoVender() {
             ¿Listo para empezar?
           </h2>
           <p className="mb-8 text-xl text-foreground-soft">
-            Regístrate hoy, sin compromisos. La verificación toma 24-48 horas.
+            Regístrate hoy, sin compromisos. La revisión de tu solicitud sigue el proceso manual publicado.
           </p>
           <Link
             href="/register?rol=productor"
