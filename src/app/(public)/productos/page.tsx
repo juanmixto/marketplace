@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { getProducts, getCategories } from '@/domains/catalog/queries'
 import { ProductCard } from '@/components/catalog/ProductCard'
 import { ProductFiltersPanel } from '@/components/catalog/ProductFiltersPanel'
+import { MobileFilters } from '@/components/catalog/MobileFilters'
 import { SortSelect } from '@/components/catalog/SortSelect'
 import { parseProductSort, type ProductWithVendor } from '@/domains/catalog/types'
 import { getCatalogCopy } from '@/i18n/catalog-copy'
@@ -69,14 +70,19 @@ export default async function ProductosPage({ searchParams }: Props) {
 
         {/* Main */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-2xl font-bold text-[var(--foreground)]">{pageTitle}</h1>
-              <p className="text-sm text-[var(--muted)] mt-0.5">{copy.page.results(products.length, hasNext)}</p>
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate text-2xl font-bold text-[var(--foreground)]">{pageTitle}</h1>
+              <p className="mt-0.5 text-sm text-[var(--muted)]">{copy.page.results(products.length, hasNext)}</p>
             </div>
-            <Suspense fallback={null}>
-              <SortSelect current={params.orden} />
-            </Suspense>
+            <div className="flex items-center gap-2">
+              <Suspense fallback={null}>
+                <MobileFilters categories={categories} />
+              </Suspense>
+              <Suspense fallback={null}>
+                <SortSelect current={params.orden} />
+              </Suspense>
+            </div>
           </div>
 
           {products.length === 0 ? (

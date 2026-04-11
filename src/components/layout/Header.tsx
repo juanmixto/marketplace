@@ -147,7 +147,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
 
           {/* Right actions */}
           <div className="ml-auto flex items-center gap-1">
-            <LanguageToggle />
+            <LanguageToggle className="hidden sm:flex" />
             <ThemeToggle />
 
             {currentUser ? (
@@ -333,6 +333,13 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                 </div>
               </div>
             )}
+
+            {/* Language toggle in mobile menu */}
+            <div className="mx-0 my-2 border-t border-[var(--border)] sm:hidden" />
+            <div className="flex items-center justify-between px-1 pt-1 sm:hidden">
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">{t('language')}</span>
+              <LanguageToggle />
+            </div>
           </div>
         </div>
       )}
