@@ -187,6 +187,10 @@ const es = {
   // Checkout
   'checkout.title': 'Finalizar pedido',
   'checkout.address': 'Dirección de entrega',
+  'checkout.savedAddresses': 'Direcciones guardadas',
+  'checkout.savedAddressesLoading': 'Cargando tus direcciones guardadas...',
+  'checkout.savedAddressesError': 'No hemos podido cargar tus direcciones guardadas. Puedes seguir con una nueva.',
+  'checkout.useNewAddress': 'Usar una dirección nueva',
   'checkout.firstName': 'Nombre',
   'checkout.lastName': 'Apellidos',
   'checkout.line1': 'Dirección',

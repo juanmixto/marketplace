@@ -14,9 +14,41 @@ export const addressSchema = z.object({
 export const checkoutSchema = z.object({
   address: addressSchema,
   saveAddress: z.boolean().optional(),
+  selectedAddressId: z.string().min(1).optional(),
 })
 
 export type CheckoutFormData = z.infer<typeof checkoutSchema>
+
+export interface SavedCheckoutAddress {
+  id: string
+  firstName: string
+  lastName: string
+  line1: string
+  line2?: string | null
+  city: string
+  province: string
+  postalCode: string
+  phone?: string | null
+  isDefault: boolean
+}
+
+export function getPreferredCheckoutAddress<T extends SavedCheckoutAddress>(addresses: T[]) {
+  return addresses.find(address => address.isDefault) ?? addresses[0] ?? null
+}
+
+export function toCheckoutFormAddress(address: SavedCheckoutAddress) {
+  return {
+    firstName: address.firstName,
+    lastName: address.lastName,
+    line1: address.line1,
+    line2: address.line2 ?? '',
+    city: address.city,
+    province: address.province,
+    postalCode: address.postalCode,
+    phone: address.phone ?? '',
+    saveAddress: false,
+  }
+}
 
 export const orderItemSchema = z.object({
   productId: z.string().min(1, 'Producto inválido'),

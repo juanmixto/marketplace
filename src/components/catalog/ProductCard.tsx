@@ -5,6 +5,12 @@ import { Tooltip } from '@/components/ui/tooltip'
 import { formatPrice } from '@/lib/utils'
 import { AddToCartButton } from '@/components/catalog/AddToCartButton'
 import { AutoTranslatedBadge } from '@/components/catalog/AutoTranslatedBadge'
+import {
+  getAvailableStockForPurchase,
+  getDefaultVariant,
+  getVariantAdjustedCompareAtPrice,
+  getVariantAdjustedPrice,
+} from '@/domains/catalog/variants'
 import type { BadgeVariant, ProductWithVendor } from '@/domains/catalog/types'
 import type { Locale } from '@/i18n/locales'
 import { getCatalogCopy, getLocalizedCertificationCopy, getLocalizedProductCopy } from '@/i18n/catalog-copy'
@@ -28,10 +34,25 @@ export function ProductCard({ product, locale = 'es' }: ProductCardProps) {
   const localizedProduct = getLocalizedProductCopy(product, locale)
   const price = Number(product.basePrice)
   const compareAt = product.compareAtPrice ? Number(product.compareAtPrice) : null
-  const hasDiscount = compareAt !== null && compareAt > price
-  const discount = hasDiscount ? Math.round(((compareAt! - price) / compareAt!) * 100) : 0
-  const isLowStock = product.trackStock && product.stock > 0 && product.stock <= 5
-  const isOutOfStock = product.trackStock && product.stock === 0
+  const variantOptions = (product.variants ?? []).map(variant => ({
+    ...variant,
+    priceModifier: Number(variant.priceModifier),
+  }))
+  const purchasableProduct = {
+    basePrice: price,
+    compareAtPrice: compareAt,
+    stock: product.stock,
+    trackStock: product.trackStock,
+    variants: variantOptions,
+  }
+  const defaultVariant = getDefaultVariant(purchasableProduct)
+  const displayPrice = getVariantAdjustedPrice(price, defaultVariant)
+  const displayCompareAt = getVariantAdjustedCompareAtPrice(compareAt, defaultVariant)
+  const hasDiscount = displayCompareAt !== null && displayCompareAt > displayPrice
+  const discount = hasDiscount ? Math.round(((displayCompareAt! - displayPrice) / displayCompareAt!) * 100) : 0
+  const availableStock = getAvailableStockForPurchase(purchasableProduct, defaultVariant)
+  const isLowStock = product.trackStock && (availableStock ?? 0) > 0 && (availableStock ?? 0) <= 5
+  const isOutOfStock = product.trackStock && availableStock === 0
 
   return (
     <article
@@ -123,16 +144,16 @@ export function ProductCard({ product, locale = 'es' }: ProductCardProps) {
           <div className="mt-auto pt-2.5 flex items-end justify-between gap-2">
             <div className="min-w-0">
               <div className="flex items-baseline gap-1.5 flex-wrap">
-                <span className="text-base font-bold text-[var(--foreground)]">{formatPrice(price)}</span>
+                <span className="text-base font-bold text-[var(--foreground)]">{formatPrice(displayPrice)}</span>
                 <span className="text-xs text-[var(--muted)]">/ {localizedProduct.unit}</span>
               </div>
-              {hasDiscount && (
-                <span className="text-xs text-[var(--muted-light)] line-through">{formatPrice(compareAt!)}</span>
+              {hasDiscount && displayCompareAt !== null && (
+                <span className="text-xs text-[var(--muted-light)] line-through">{formatPrice(displayCompareAt)}</span>
               )}
             </div>
             {isLowStock && (
               <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                {copy.actions.onlyLeft(product.stock)}
+                {copy.actions.onlyLeft(availableStock ?? 0)}
               </span>
             )}
           </div>
@@ -149,10 +170,12 @@ export function ProductCard({ product, locale = 'es' }: ProductCardProps) {
           </Link>
           <AddToCartButton
             productId={product.id}
+            variantId={defaultVariant?.id}
+            variantName={defaultVariant?.name}
             productName={localizedProduct.name}
             disabled={isOutOfStock}
             disabledLabel={copy.actions.outOfStock}
-            price={price}
+            price={displayPrice}
             slug={product.slug}
             image={product.images?.[0]}
             unit={localizedProduct.unit}

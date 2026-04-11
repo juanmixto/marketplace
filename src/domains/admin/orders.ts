@@ -42,6 +42,8 @@ function buildOrderWhere(filters: AdminOrderFilters): Prisma.OrderWhereInput {
       { customer: { is: { lastName: { contains: q, mode: 'insensitive' } } } },
       { address: { is: { city: { contains: q, mode: 'insensitive' } } } },
       { address: { is: { postalCode: { contains: q, mode: 'insensitive' } } } },
+      { shippingAddressSnapshot: { path: ['city'], string_contains: q } },
+      { shippingAddressSnapshot: { path: ['postalCode'], string_contains: q } },
       { lines: { some: { product: { is: { name: { contains: q, mode: 'insensitive' } } } } } },
       { fulfillments: { some: { vendor: { is: { displayName: { contains: q, mode: 'insensitive' } } } } } },
     ]

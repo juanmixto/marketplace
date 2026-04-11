@@ -56,6 +56,47 @@ test('createOrder creates order, lines and fulfillments for valid items', async 
   assert.equal(order?.paymentStatus, 'PENDING')
 })
 
+test('createOrder stores a shipping address snapshot even when the address is not saved', async () => {
+  const { vendor } = await createVendorUser()
+  const customer = await createUser('CUSTOMER')
+  const product = await createActiveProduct(vendor.id, { stock: 5 })
+  useTestSession(buildSession(customer.id, 'CUSTOMER'))
+
+  const created = await createOrder(
+    [{ productId: product.id, quantity: 1 }],
+    {
+      address: {
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        line1: 'Calle Mayor 1',
+        line2: '2A',
+        city: 'Madrid',
+        province: 'Madrid',
+        postalCode: '28001',
+        phone: '600000000',
+      },
+      saveAddress: false,
+    }
+  )
+
+  const order = await db.order.findUnique({
+    where: { id: created.orderId },
+    select: { addressId: true, shippingAddressSnapshot: true },
+  })
+
+  assert.equal(order?.addressId, null)
+  assert.deepEqual(order?.shippingAddressSnapshot, {
+    firstName: 'Ada',
+    lastName: 'Lovelace',
+    line1: 'Calle Mayor 1',
+    line2: '2A',
+    city: 'Madrid',
+    province: 'Madrid',
+    postalCode: '28001',
+    phone: '600000000',
+  })
+})
+
 test('createOrder rejects products without enough stock', async () => {
   const { vendor } = await createVendorUser()
   const customer = await createUser('CUSTOMER')
@@ -107,6 +148,55 @@ test('createCheckoutOrder returns a friendly stock error and avoids saving the a
 
   const savedAddresses = await db.address.findMany({ where: { userId: customer.id } })
   assert.equal(savedAddresses.length, 0)
+})
+
+test('createOrder reuses the selected saved address instead of creating a duplicate', async () => {
+  const { vendor } = await createVendorUser()
+  const customer = await createUser('CUSTOMER')
+  const product = await createActiveProduct(vendor.id, { stock: 4 })
+  useTestSession(buildSession(customer.id, 'CUSTOMER'))
+
+  const existingAddress = await db.address.create({
+    data: {
+      userId: customer.id,
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      line1: 'Calle Mayor 1',
+      city: 'Madrid',
+      province: 'Madrid',
+      postalCode: '28001',
+      isDefault: true,
+    },
+  })
+
+  const created = await createOrder(
+    [{ productId: product.id, quantity: 1 }],
+    {
+      address: {
+        firstName: existingAddress.firstName,
+        lastName: existingAddress.lastName,
+        line1: existingAddress.line1,
+        city: existingAddress.city,
+        province: existingAddress.province,
+        postalCode: existingAddress.postalCode,
+      },
+      saveAddress: true,
+      selectedAddressId: existingAddress.id,
+    }
+  )
+
+  const order = await db.order.findUnique({
+    where: { id: created.orderId },
+    select: { addressId: true },
+  })
+  const addresses = await db.address.findMany({
+    where: { userId: customer.id },
+    orderBy: { createdAt: 'asc' },
+  })
+
+  assert.equal(order?.addressId, existingAddress.id)
+  assert.equal(addresses.length, 1)
+  assert.equal(addresses[0]?.id, existingAddress.id)
 })
 
 test('confirmOrder marks payment as succeeded', async () => {

@@ -16,6 +16,11 @@ import {
   type ShippingRateLike,
   type ShippingZoneLike,
 } from '@/domains/shipping/shared'
+import {
+  getPreferredCheckoutAddress,
+  toCheckoutFormAddress,
+  type SavedCheckoutAddress,
+} from '@/domains/orders/checkout'
 import { useT } from '@/i18n'
 import { createAnalyticsItem, trackAnalyticsEvent } from '@/lib/analytics'
 
@@ -29,6 +34,7 @@ const schema = z.object({
   postalCode: z.string().regex(/^\d{5}$/, 'Código postal inválido (5 dígitos)'),
   phone: z.string().optional(),
   saveAddress: z.boolean().optional(),
+  selectedAddressId: z.string().optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -50,6 +56,10 @@ export function CheckoutPageClient({
   const { items, subtotal, clearCart } = useCartStore()
   const [step, setStep] = useState<'address' | 'payment' | 'processing'>('address')
   const [serverError, setServerError] = useState<string | null>(null)
+  const [savedAddresses, setSavedAddresses] = useState<SavedCheckoutAddress[]>([])
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null)
+  const [loadingAddresses, setLoadingAddresses] = useState(true)
+  const [addressLoadError, setAddressLoadError] = useState<string | null>(null)
   const t = useT()
 
   const sub = subtotal()
@@ -58,6 +68,7 @@ export function CheckoutPageClient({
     register,
     handleSubmit,
     control,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({ resolver: zodResolver(schema) })
   const watchedPostalCode = useWatch({ control, name: 'postalCode' }) ?? ''
@@ -94,9 +105,70 @@ export function CheckoutPageClient({
     })
   }, [items, total])
 
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadSavedAddresses() {
+      try {
+        setLoadingAddresses(true)
+        setAddressLoadError(null)
+
+        const response = await fetch('/api/direcciones')
+        if (!response.ok) {
+          throw new Error('No se pudieron cargar las direcciones')
+        }
+
+        const addresses = await response.json() as SavedCheckoutAddress[]
+        if (cancelled) return
+
+        setSavedAddresses(addresses)
+
+        const preferredAddress = getPreferredCheckoutAddress(addresses)
+        if (preferredAddress) {
+          setSelectedAddressId(preferredAddress.id)
+          reset(toCheckoutFormAddress(preferredAddress))
+        }
+      } catch (error) {
+        if (cancelled) return
+        setAddressLoadError(error instanceof Error ? error.message : 'No se pudieron cargar las direcciones')
+      } finally {
+        if (!cancelled) {
+          setLoadingAddresses(false)
+        }
+      }
+    }
+
+    void loadSavedAddresses()
+
+    return () => {
+      cancelled = true
+    }
+  }, [reset])
+
   if (items.length === 0) {
     router.replace('/carrito')
     return null
+  }
+
+  function handleUseSavedAddress(address: SavedCheckoutAddress) {
+    setSelectedAddressId(address.id)
+    reset(toCheckoutFormAddress(address))
+  }
+
+  function handleUseNewAddress() {
+    setSelectedAddressId(null)
+    reset({
+      firstName: '',
+      lastName: '',
+      line1: '',
+      line2: '',
+      city: '',
+      province: '',
+      postalCode: '',
+      phone: '',
+      saveAddress: savedAddresses.length === 0,
+      selectedAddressId: undefined,
+    })
   }
 
   async function onSubmit(data: FormData) {
@@ -113,6 +185,7 @@ export function CheckoutPageClient({
       const result = await createCheckoutOrder(cartItems, {
         address: data,
         saveAddress: data.saveAddress,
+        selectedAddressId: selectedAddressId ?? undefined,
       })
 
       if (!result.ok) {
@@ -145,6 +218,62 @@ export function CheckoutPageClient({
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <h2 className="mb-4 font-semibold text-[var(--foreground)]">{t('checkout.address')}</h2>
+              {loadingAddresses && (
+                <p className="mb-4 text-sm text-[var(--muted)]">{t('checkout.savedAddressesLoading')}</p>
+              )}
+              {!loadingAddresses && savedAddresses.length > 0 && (
+                <div className="mb-5 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-medium text-[var(--foreground)]">{t('checkout.savedAddresses')}</p>
+                    <button
+                      type="button"
+                      onClick={handleUseNewAddress}
+                      className="text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline dark:text-emerald-400 dark:hover:text-emerald-300"
+                    >
+                      {t('checkout.useNewAddress')}
+                    </button>
+                  </div>
+                  <div className="grid gap-3">
+                    {savedAddresses.map(address => {
+                      const isSelected = selectedAddressId === address.id
+                      return (
+                        <button
+                          key={address.id}
+                          type="button"
+                          onClick={() => handleUseSavedAddress(address)}
+                          className={`rounded-lg border p-3 text-left transition ${
+                            isSelected
+                              ? 'border-emerald-500 bg-emerald-50/70 dark:border-emerald-400 dark:bg-emerald-950/20'
+                              : 'border-[var(--border)] bg-[var(--surface-raised)] hover:border-emerald-300 dark:hover:border-emerald-700'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="font-medium text-[var(--foreground)]">
+                              {address.firstName} {address.lastName}
+                            </p>
+                            {address.isDefault && (
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                {t('account.defaultBadge')}
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-1 text-sm text-[var(--foreground-soft)]">
+                            {address.line1}{address.line2 ? `, ${address.line2}` : ''}
+                          </p>
+                          <p className="text-sm text-[var(--muted)]">
+                            {address.postalCode} {address.city}, {address.province}
+                          </p>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+              {addressLoadError && (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                  {t('checkout.savedAddressesError')}
+                </div>
+              )}
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <Input label={t('checkout.firstName')} error={errors.firstName?.message} {...register('firstName')} />
@@ -160,6 +289,7 @@ export function CheckoutPageClient({
                 </div>
                 <Input label={t('checkout.province')} error={errors.province?.message} {...register('province')} />
                 <Input label={t('checkout.phone')} type="tel" {...register('phone')} />
+                <input type="hidden" value={selectedAddressId ?? ''} {...register('selectedAddressId')} />
                 <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--foreground-soft)]">
                   <input type="checkbox" {...register('saveAddress')} className="rounded border-[var(--border-strong)] text-emerald-600 accent-emerald-600 dark:accent-emerald-400" />
                   {t('checkout.saveAddress')}

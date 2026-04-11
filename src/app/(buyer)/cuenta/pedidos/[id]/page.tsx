@@ -5,6 +5,7 @@ import { canLeaveReview } from '@/domains/reviews/actions'
 import { OrderDetailClient } from './OrderDetailClient'
 import { TrackEventOnView } from '@/components/analytics/TrackEventOnView'
 import type { Metadata } from 'next'
+import { parseOrderAddressSnapshot } from '@/types/order'
 
 interface Props { params: Promise<{ id: string }>, searchParams: Promise<{ nuevo?: string }> }
 
@@ -18,6 +19,20 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
   const { nuevo } = await searchParams
   const order = await getOrderDetail(id)
   if (!order) notFound()
+  const orderAddress = parseOrderAddressSnapshot(order.shippingAddressSnapshot) ?? (
+    order.address
+      ? {
+          firstName: order.address.firstName,
+          lastName: order.address.lastName,
+          line1: order.address.line1,
+          line2: order.address.line2,
+          postalCode: order.address.postalCode,
+          city: order.address.city,
+          province: order.address.province,
+          phone: order.address.phone,
+        }
+      : null
+  )
 
   // Convert to plain object for serializable client component props
   const reviewEligibility = Object.fromEntries(
@@ -55,15 +70,15 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
         displayName: fulfillment.vendor.displayName,
       },
     })),
-    address: order.address
+    address: orderAddress
       ? {
-          firstName: order.address.firstName,
-          lastName: order.address.lastName,
-          line1: order.address.line1,
-          line2: order.address.line2,
-          postalCode: order.address.postalCode,
-          city: order.address.city,
-          province: order.address.province,
+          firstName: orderAddress.firstName,
+          lastName: orderAddress.lastName,
+          line1: orderAddress.line1,
+          line2: orderAddress.line2 ?? null,
+          postalCode: orderAddress.postalCode,
+          city: orderAddress.city,
+          province: orderAddress.province,
         }
       : null,
   }

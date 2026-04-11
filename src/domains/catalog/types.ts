@@ -19,9 +19,12 @@ type ProductCardFields = Pick<
   | 'createdAt'
 >
 
+type ProductCardVariantFields = Pick<ProductVariant, 'id' | 'name' | 'priceModifier' | 'stock' | 'isActive'>
+
 export type ProductWithVendor = ProductCardFields & {
   vendor: Pick<Vendor, 'slug' | 'displayName' | 'location'>
   category: Pick<Category, 'name' | 'slug'> | null
+  variants?: ProductCardVariantFields[]
 }
 
 export type ProductDetail = Product & {
