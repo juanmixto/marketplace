@@ -17,6 +17,7 @@ import { getPortalLabel, getPrimaryPortalHref } from '@/lib/portals'
 import type { UserRole } from '@/generated/prisma/enums'
 import { SignOutButton } from '@/components/auth/SignOutButton'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { useSession } from 'next-auth/react'
 
 const CATEGORIES = [
   { name: 'Verduras y Hortalizas', slug: 'verduras', icon: '🥦' },
@@ -35,12 +36,14 @@ interface HeaderProps {
 }
 
 export function Header({ user, cartCount = 0 }: HeaderProps) {
+  const { data: session } = useSession()
+  const currentUser = user ?? session?.user ?? null
   const [mobileOpen,  setMobileOpen]  = useState(false)
   const [catOpen,     setCatOpen]     = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
   const pathname   = usePathname()
-  const portalHref = getPrimaryPortalHref(user?.role)
-  const portalLabel = getPortalLabel(user?.role)
+  const portalHref = getPrimaryPortalHref(currentUser?.role)
+  const portalLabel = getPortalLabel(currentUser?.role)
 
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur-md supports-[backdrop-filter]:bg-[var(--surface)]/90">
@@ -99,12 +102,12 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
             Productores
           </Link>
 
-          {!user && (
-            <Link
-              href="/login?callbackUrl=%2Fvendor%2Fdashboard"
-              className="hidden rounded-lg px-2 py-1 text-sm font-medium text-[var(--foreground-soft)] transition-colors hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] lg:block"
-            >
-              Portal productor
+            {!currentUser && (
+              <Link
+                href="/login?callbackUrl=%2Fvendor%2Fdashboard"
+                className="hidden rounded-lg px-2 py-1 text-sm font-medium text-[var(--foreground-soft)] transition-colors hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] lg:block"
+              >
+                Portal productor
             </Link>
           )}
 
@@ -131,7 +134,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
           <div className="ml-auto flex items-center gap-1">
             <ThemeToggle />
 
-            {user ? (
+            {currentUser ? (
               <>
                 <Link
                   href={portalHref}
@@ -146,7 +149,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                     className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
                   >
                     <UserCircleIcon className="h-5 w-5" />
-                    {user.name?.split(' ')[0] ?? 'Cuenta'}
+                    {currentUser.name?.split(' ')[0] ?? 'Cuenta'}
                     <ChevronDownIcon className={cn('h-3.5 w-3.5 text-[var(--muted)] transition-transform', accountOpen && 'rotate-180')} />
                   </button>
                   {accountOpen && (
@@ -204,6 +207,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
             {/* Cart */}
             <Link
               href="/carrito"
+              aria-label={`Ver carrito${cartCount > 0 ? `, ${cartCount} artículo${cartCount === 1 ? '' : 's'}` : ''}`}
               className="relative rounded-xl p-2 text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
             >
               <ShoppingCartIcon className="h-5 w-5" />
@@ -218,6 +222,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
             <button
               onClick={() => setMobileOpen(v => !v)}
               aria-expanded={mobileOpen}
+              aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'}
               className="rounded-xl p-2 text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] md:hidden"
             >
               {mobileOpen ? <XMarkIcon className="h-5 w-5" /> : <Bars3Icon className="h-5 w-5" />}

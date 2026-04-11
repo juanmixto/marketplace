@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
-import Image from 'next/image'
 import Link from 'next/link'
+import Image from 'next/image'
 import { getProductBySlug, getProducts } from '@/domains/catalog/queries'
 import { Badge } from '@/components/ui/badge'
 import { ProductPurchasePanel } from '@/components/catalog/ProductPurchasePanel'
@@ -12,6 +12,8 @@ import { getProductReviews } from '@/domains/reviews/actions'
 import type { Metadata } from 'next'
 import { db } from '@/lib/db'
 import { getAvailableProductWhere } from '@/domains/catalog/availability'
+import { JsonLd } from '@/components/seo/JsonLd'
+import { absoluteUrl, buildPageMetadata } from '@/lib/seo'
 
 export const revalidate = 300
 
@@ -22,11 +24,21 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const product = await getProductBySlug(slug)
-  if (!product) return { title: 'Producto no encontrado' }
-  return {
-    title: product.name,
-    description: product.description ?? undefined,
+  if (!product) {
+    return buildPageMetadata({
+      title: 'Producto no encontrado',
+      description: 'No hemos podido encontrar este producto.',
+      path: `/productos/${slug}`,
+      noindex: true,
+    })
   }
+
+  return buildPageMetadata({
+    title: product.name,
+    description: product.description ?? `Compra ${product.name} directamente al productor.`,
+    path: `/productos/${product.slug}`,
+    imagePath: product.images[0] ?? '/opengraph-image',
+  })
 }
 
 export async function generateStaticParams() {
@@ -64,9 +76,33 @@ export default async function ProductDetailPage({ params }: Props) {
     limit: 4,
   }).then(r => r.products.filter(p => p.id !== product.id).slice(0, 4))
   const reviewSummary = await getProductReviews(product.id)
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    description: product.description ?? undefined,
+    image: product.images.map(image => absoluteUrl(image)),
+    sku: product.slug,
+    brand: {
+      '@type': 'Organization',
+      name: product.vendor.displayName,
+      url: absoluteUrl(`/productores/${product.vendor.slug}`),
+    },
+    offers: {
+      '@type': 'Offer',
+      url: absoluteUrl(`/productos/${product.slug}`),
+      priceCurrency: 'EUR',
+      price: Number(product.basePrice).toFixed(2),
+      availability: product.stock > 0
+        ? 'https://schema.org/InStock'
+        : 'https://schema.org/OutOfStock',
+      itemCondition: 'https://schema.org/NewCondition',
+    },
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <JsonLd data={structuredData} />
       {/* Breadcrumb */}
       <nav className="mb-6 flex items-center gap-2 text-sm text-[var(--muted)]">
         <Link href="/" className="rounded-md hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">Inicio</Link>
@@ -94,7 +130,6 @@ export default async function ProductDetailPage({ params }: Props) {
                 alt={product.name}
                 fill
                 className="object-cover"
-                priority
                 sizes="(max-width: 1024px) 100vw, 50vw"
               />
             ) : (
@@ -105,7 +140,7 @@ export default async function ProductDetailPage({ params }: Props) {
             <div className="flex gap-2 overflow-x-auto">
               {product.images.map((img, i) => (
                 <div key={i} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] shadow-sm">
-                  <Image src={img} alt="" fill className="object-cover" />
+                  <Image src={img} alt={`${product.name} imagen ${i + 1}`} fill className="object-cover" sizes="80px" />
                 </div>
               ))}
             </div>

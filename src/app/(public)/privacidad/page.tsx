@@ -1,17 +1,26 @@
-/**
- * Política de Privacidad
- */
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import { SITE_NAME } from '@/lib/constants'
+import { buildPageMetadata } from '@/lib/seo'
+
+const LEGAL_REVIEW_DATE = '11 de abril de 2026'
+
+export const metadata: Metadata = buildPageMetadata({
+  title: 'Política de privacidad',
+  description: `Política de privacidad y protección de datos de ${SITE_NAME}.`,
+  path: '/privacidad',
+})
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-surface py-12 px-4 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-3xl">
-        <h1 className="text-3xl font-bold text-foreground mb-4">Política de Privacidad</h1>
-        <p className="text-foreground-soft text-sm mb-8">
-          Última actualización: {new Date().toLocaleDateString('es-ES')}
+    <div className="bg-[var(--background)] px-4 py-12 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-3xl rounded-3xl border border-[var(--border)] bg-[var(--surface)] px-6 py-8 shadow-sm sm:px-8">
+        <h1 className="text-3xl font-bold text-[var(--foreground)] mb-4">Política de Privacidad</h1>
+        <p className="text-[var(--muted)] text-sm mb-8">
+          Última actualización: {LEGAL_REVIEW_DATE}
         </p>
 
-        <div className="prose prose-sm max-w-none space-y-8">
+        <div className="space-y-8 text-sm leading-6 text-[var(--foreground-soft)]">
           {/* Introducción */}
           <section>
             <h2 className="text-2xl font-semibold text-foreground mb-4">
@@ -188,22 +197,26 @@ export default function PrivacyPage() {
             <p className="text-foreground-soft mb-3">
               Si tienes preguntas sobre privacidad o deseas ejercer tus derechos RGPD:
             </p>
-            <div className="bg-surface-raised p-4 rounded-lg">
-              <p className="text-foreground font-semibold">Responsable de Protección de Datos</p>
-              <p className="text-[var(--foreground-soft)] text-sm mt-2">
-                Email: privacy@marketplace.local
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+              <p className="font-semibold text-[var(--foreground)]">Responsable de Protección de Datos</p>
+              <p className="mt-2 text-[var(--foreground-soft)]">
+                Si necesitas ejercer tus derechos, usa el{' '}
+                <Link href="/contacto" className="text-[var(--accent)] underline-offset-2 hover:underline">
+                  formulario de contacto
+                </Link>
+                {' '}indicando que es una solicitud RGPD.
               </p>
-              <p className="text-[var(--foreground-soft)] text-sm">
-                Disponible en tu cuenta: Privacidad y Datos
+              <p className="mt-2 text-[var(--foreground-soft)]">
+                También puedes revisar tus datos desde la sección de privacidad de tu cuenta.
               </p>
             </div>
           </section>
 
           {/* Nota legal */}
           <section>
-            <p className="text-foreground-soft text-sm border-t pt-6 mt-8">
+            <p className="border-t pt-6 mt-8 text-sm text-[var(--foreground-soft)]">
               Esta política está diseñada para cumplir con RGPD (UE), LOPDGDD (España) y otras
-              regulaciones de protección de datos. Última revisión: {new Date().toLocaleDateString('es-ES')}
+              regulaciones de protección de datos. Última revisión: {LEGAL_REVIEW_DATE}
             </p>
           </section>
         </div>

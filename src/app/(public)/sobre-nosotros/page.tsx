@@ -1,10 +1,12 @@
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 import Link from 'next/link'
+import { buildPageMetadata } from '@/lib/seo'
 
-export const metadata: Metadata = {
-  title: 'Sobre Nosotros | Mercado Productor',
+export const metadata: Metadata = buildPageMetadata({
+  title: 'Sobre nosotros',
   description: 'Conoce la historia de Mercado Productor, la plataforma que conecta productores locales con consumidores conscientes.',
-}
+  path: '/sobre-nosotros',
+})
 
 export default function SobreNosotros() {
   return (
@@ -118,7 +120,7 @@ export default function SobreNosotros() {
             </p>
 
             <p>
-              Hoy, Mercado Productor conecta a más de 150 productores con miles de consumidores en España. Cada compra es un voto de confianza en la agricultura local y sostenible.
+              Hoy, Mercado Productor conecta a productores con consumidores que valoran la agricultura local y sostenible. Cada compra es un voto de confianza en ese modelo.
             </p>
 
             <p>
@@ -128,22 +130,29 @@ export default function SobreNosotros() {
         </div>
       </section>
 
-      {/* Números */}
+      {/* Principios */}
       <section className="bg-accent px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl">
-          <div className="grid gap-8 text-center md:grid-cols-3">
-            <div>
-              <p className="mb-2 text-4xl font-bold text-white">150+</p>
-              <p className="text-accent-soft">Productores</p>
-            </div>
-            <div>
-              <p className="mb-2 text-4xl font-bold text-white">10k+</p>
-              <p className="text-accent-soft">Clientes activos</p>
-            </div>
-            <div>
-              <p className="mb-2 text-4xl font-bold text-white">€2M+</p>
-              <p className="text-accent-soft">Volumen anual</p>
-            </div>
+        <div className="mx-auto max-w-4xl">
+          <div className="grid gap-6 md:grid-cols-3">
+            {[
+              {
+                title: 'Transparencia',
+                text: 'Mostramos la información operativa y comercial que necesitamos para tomar decisiones con claridad.',
+              },
+              {
+                title: 'Proximidad',
+                text: 'Ponemos en contacto a compradores y productores sin capas innecesarias en medio.',
+              },
+              {
+                title: 'Mejora continua',
+                text: 'Actualizamos el producto a partir de feedback real, no de cifras de escaparate.',
+              },
+            ].map(item => (
+              <div key={item.title} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 text-[var(--foreground)] shadow-sm">
+                <p className="mb-2 text-lg font-semibold text-[var(--foreground)]">{item.title}</p>
+                <p className="text-sm leading-6 text-[var(--foreground-soft)]">{item.text}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>

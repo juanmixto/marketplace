@@ -1,12 +1,17 @@
 import { Suspense } from 'react'
+import type { Metadata } from 'next'
 import { getProducts, getCategories } from '@/domains/catalog/queries'
 import { ProductCard } from '@/components/catalog/ProductCard'
 import { ProductFiltersPanel } from '@/components/catalog/ProductFiltersPanel'
 import { SortSelect } from '@/components/catalog/SortSelect'
 import { parseProductSort, type ProductWithVendor } from '@/domains/catalog/types'
-import type { Metadata } from 'next'
+import { buildPageMetadata } from '@/lib/seo'
 
-export const metadata: Metadata = { title: 'Productos' }
+export const metadata: Metadata = buildPageMetadata({
+  title: 'Productos',
+  description: 'Explora el catálogo de productos locales disponibles en Mercado Productor.',
+  path: '/productos',
+})
 
 interface Props {
   searchParams: Promise<{

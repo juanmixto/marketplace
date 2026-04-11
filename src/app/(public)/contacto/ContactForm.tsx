@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { trackAnalyticsEvent } from '@/lib/analytics'
 
 const contactSchema = z.object({
   nombre: z.string().min(2, 'El nombre es demasiado corto').max(100),
@@ -57,6 +58,10 @@ export function ContactForm() {
       }
 
       setSuccess(true)
+      trackAnalyticsEvent('contact_submit', {
+        contact_subject: data.asunto,
+        has_privacy_consent: data.privacidad,
+      })
       reset()
 
       // Auto-hide success message after 5 seconds

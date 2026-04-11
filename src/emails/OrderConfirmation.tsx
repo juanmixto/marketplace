@@ -1,5 +1,7 @@
 import { Button, Container, Head, Hr, Html, Img, Link, Preview, Row, Section, Text } from '@react-email/components'
 
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
 interface OrderConfirmationEmailProps {
   orderNumber: string
   customerName: string
@@ -83,7 +85,7 @@ export function OrderConfirmationEmail({
 
         <Section style={{ marginTop: '30px', textAlign: 'center' }}>
           <Button
-            href={`https://marketplace.local/cuenta/pedidos`}
+            href={`${appUrl}/cuenta/pedidos`}
             style={{
               backgroundColor: '#10b981',
               color: '#fff',
@@ -100,9 +102,9 @@ export function OrderConfirmationEmail({
         <Hr style={{ margin: '30px 0', borderColor: '#e5e7eb' }} />
 
         <Section style={{ color: '#999', fontSize: '12px', textAlign: 'center' }}>
-          <Text>Si tienes preguntas, contáctanos: support@marketplace.local</Text>
+          <Text>Si tienes preguntas, responde a este correo o usa el formulario de contacto del sitio.</Text>
           <Text>
-            <Link href="https://marketplace.local" style={{ color: '#10b981', textDecoration: 'none' }}>
+            <Link href={appUrl} style={{ color: '#10b981', textDecoration: 'none' }}>
               Visita nuestro sitio
             </Link>
           </Text>

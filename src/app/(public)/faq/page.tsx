@@ -1,10 +1,14 @@
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 import Link from 'next/link'
+import { buildPageMetadata } from '@/lib/seo'
+import { DEFAULT_COMMISSION_RATE } from '@/lib/constants'
+import { BRAND_CLAIMS } from '@/lib/brand-claims'
 
-export const metadata: Metadata = {
-  title: 'Preguntas Frecuentes | Mercado Productor',
+export const metadata: Metadata = buildPageMetadata({
+  title: 'Preguntas frecuentes',
   description: 'Resuelve tus dudas sobre cómo funciona Mercado Productor, pagos, entregas y más.',
-}
+  path: '/faq',
+})
 
 const faqs = [
   {
@@ -37,7 +41,7 @@ const faqs = [
       },
       {
         q: '¿A qué zonas entregan?',
-        a: 'Actualmente entregamos en toda España. Algunos productores pueden tener limitaciones por ubicación. Comprueba la disponibilidad en el carrito.',
+        a: 'La cobertura depende de cada productor. Comprueba la disponibilidad en el carrito antes de finalizar la compra.',
       },
       {
         q: '¿Hay costes de envío?',
@@ -45,7 +49,7 @@ const faqs = [
       },
       {
         q: '¿Qué pasa si mi pedido llega dañado?',
-        a: 'Contacta a nuestro equipo de soporte en contacto@mercadoproductor.es en el plazo de 24 horas. Gestionaremos un reembolso o reenvío.',
+        a: `Contacta a nuestro equipo de soporte dentro del plazo indicado en la página de contacto. Gestionaremos un reembolso o reenvío.`,
       },
     ],
   },
@@ -58,7 +62,7 @@ const faqs = [
       },
       {
         q: '¿Cuál es la política de reembolsos?',
-        a: 'Si hay un problema con tu pedido (no coincide con la descripción, está dañado), contacta en 24 horas. Procesaremos un reembolso o reenvío.',
+        a: 'Si hay un problema con tu pedido (no coincide con la descripción, está dañado), contacta dentro del plazo indicado en la página de contacto. Procesaremos un reembolso o reenvío.',
       },
       {
         q: '¿Cuánto tiempo tarda el reembolso?',
@@ -92,15 +96,15 @@ const faqs = [
       },
       {
         q: '¿Cuál es la comisión?',
-        a: 'La comisión es del 12% sobre el precio de venta. Esto significa que si vendes un producto por €10, recibirás €8,80. Sin costes ocultos ni cuotas mensuales.',
+        a: `La comisión base es del ${Math.round(DEFAULT_COMMISSION_RATE * 100)}% sobre el precio de venta. Sin costes ocultos ni cuotas mensuales.`,
       },
       {
         q: '¿Cuándo recibo mis pagos?',
-        a: 'Recibirás liquidaciones cada lunes a tu cuenta bancaria por los ventas de la semana anterior (lunes-domingo).',
+        a: 'Recibirás liquidaciones semanales según el calendario operativo publicado en la plataforma.',
       },
       {
         q: '¿Cómo empiezo a vender?',
-        a: 'Regístrate en nuestro portal de productores, completa la verificación (24-48h), vincula tu cuenta bancaria y comienza a subir productos. Aquí encontrarás más detalles.',
+        a: `Regístrate en nuestro portal de productores, completa la ${BRAND_CLAIMS.verificationProcess.text.toLowerCase()}, vincula tu cuenta bancaria y comienza a subir productos.`,
       },
     ],
   },
@@ -109,7 +113,7 @@ const faqs = [
     questions: [
       {
         q: '¿Cómo contacto con soporte?',
-        a: 'Puedes contactarnos a través del formulario de contacto en nuestra web, por email (hola@mercadoproductor.es) o visitando nuestro formulario de contacto. Respondemos en 24-48 horas.',
+        a: 'Puedes contactarnos a través del formulario de contacto en nuestra web o en las direcciones publicadas en la página de contacto. Respondemos en horario laboral.',
       },
       {
         q: '¿Ofrecen experiencias o talleres?',

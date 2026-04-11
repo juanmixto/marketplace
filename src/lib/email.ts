@@ -23,7 +23,7 @@ export async function sendEmail({
 
   try {
     const result = await resend.emails.send({
-      from: process.env.EMAIL_FROM || 'noreply@marketplace.local',
+      from: process.env.EMAIL_FROM || 'no-reply@example.com',
       to,
       subject,
       react,

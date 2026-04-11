@@ -10,6 +10,9 @@ import { Button } from '@/components/ui/button'
 import { CERTIFICATIONS, TAX_RATES } from '@/lib/constants'
 import { createProduct, updateProduct } from '@/domains/vendors/actions'
 import { formatExpirationDateInput } from '@/domains/catalog/availability'
+import { parseAndValidateImages } from '@/lib/image-validation'
+import { ImagePreview } from '@/components/vendor/ImagePreview'
+import { ImageValidationErrors } from '@/components/vendor/ImageValidationErrors'
 import type { Category, Product, ProductVariant } from '@/generated/prisma/client'
 
 const productFormSchema = z.object({
@@ -26,7 +29,14 @@ const productFormSchema = z.object({
   trackStock: z.boolean(),
   certifications: z.array(z.string()).default([]),
   originRegion: z.string().max(100).optional(),
-  imagesText: z.string().optional(),
+  imagesText: z.string().optional().refine(
+    value => {
+      if (!value) return true
+      const { invalid } = parseAndValidateImages(value)
+      return invalid.length === 0
+    },
+    'Una o más URLs son inválidas o no están permitidas'
+  ),
   expiresAt: z
     .union([z.string().date('Fecha inválida'), z.literal(''), z.null(), z.undefined()])
     .transform(value => (value === '' || value == null ? undefined : value)),
@@ -46,13 +56,6 @@ interface ProductFormProps {
   initialData?: EditableProduct
 }
 
-function parseImages(value?: string) {
-  if (!value) return []
-  return value
-    .split('\n')
-    .map(item => item.trim())
-    .filter(Boolean)
-}
 
 export function ProductForm({ categories, initialData }: ProductFormProps) {
   const router = useRouter()
@@ -90,16 +93,20 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
 
   const selectedCertifications = watch('certifications') ?? []
   const isEditing = Boolean(initialData)
+  const imagesTextValue = watch('imagesText')
+  const { valid: validImages, invalid: invalidImages } = parseAndValidateImages(imagesTextValue)
 
   async function onSubmit(values: ProductFormValues) {
     setServerError(null)
+
+    const { valid: images } = parseAndValidateImages(values.imagesText)
 
     const payload = {
       ...values,
       categoryId: values.categoryId || undefined,
       description: values.description?.trim() || undefined,
       originRegion: values.originRegion?.trim() || undefined,
-      images: parseImages(values.imagesText),
+      images,
       compareAtPrice: values.compareAtPrice ?? undefined,
       expiresAt: values.expiresAt ?? undefined,
     }
@@ -257,18 +264,65 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
           </div>
         </div>
 
-        <div className="space-y-1.5 sm:col-span-2">
-          <label htmlFor="imagesText" className="block text-sm font-medium text-[var(--foreground)]">
-            Imágenes
-          </label>
+        <div className="space-y-3 sm:col-span-2">
+          <div className="flex items-center justify-between">
+            <label htmlFor="imagesText" className="block text-sm font-semibold text-[var(--foreground)]">
+              📸 Imágenes del producto
+            </label>
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
+              {validImages.length} válidas
+            </span>
+          </div>
+
+          <div className="rounded-lg border border-emerald-200/50 bg-emerald-50/30 p-3 dark:border-emerald-900/30 dark:bg-emerald-950/20">
+            <p className="text-xs text-emerald-700 dark:text-emerald-400">
+              💡 <strong>Consejo:</strong> Sube tus imágenes a Cloudinary o UploadThing y copia las URLs aquí. Una URL por línea.
+            </p>
+          </div>
+
           <textarea
             id="imagesText"
             rows={4}
-            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-            placeholder="Una URL por línea"
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition"
+            placeholder={`Ejemplo:
+https://res.cloudinary.com/tu-cuenta/image/upload/v123/producto-1.jpg
+https://res.cloudinary.com/tu-cuenta/image/upload/v123/producto-2.jpg`}
             {...register('imagesText')}
           />
-          {errors.imagesText?.message && <p className="text-xs text-red-600 dark:text-red-400">{errors.imagesText.message}</p>}
+
+          {errors.imagesText?.message && (
+            <div className="flex gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400">
+              <span className="shrink-0 text-lg">⚠️</span>
+              <span>{errors.imagesText.message}</span>
+            </div>
+          )}
+
+          {validImages.length > 0 && (
+            <div className="space-y-2">
+              <ImagePreview
+                urls={validImages}
+                onRemove={(url) => {
+                  const updated = validImages.filter(u => u !== url).join('\n')
+                  setValue('imagesText', updated, { shouldValidate: true })
+                }}
+              />
+            </div>
+          )}
+
+          <ImageValidationErrors invalidUrls={invalidImages} />
+
+          <div className="flex items-start gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
+            <span className="shrink-0 text-sm">✅</span>
+            <div>
+              <p className="font-semibold text-gray-700 dark:text-gray-300">Dominios permitidos:</p>
+              <ul className="mt-1.5 space-y-1 list-disc list-inside">
+                <li><code className="text-[11px] bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">cloudinary.com</code> (recomendado)</li>
+                <li><code className="text-[11px] bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">uploadthing.com</code> (alternativa)</li>
+                <li><code className="text-[11px] bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">unsplash.com</code> (demos)</li>
+              </ul>
+              <p className="mt-2 text-gray-500 dark:text-gray-500">Solo se aceptan URLs HTTPS.</p>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-1.5 sm:col-span-2">
