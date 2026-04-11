@@ -17,19 +17,19 @@ import { getPortalLabel, getPrimaryPortalHref } from '@/lib/portals'
 import type { UserRole } from '@/generated/prisma/enums'
 import { SignOutButton } from '@/components/auth/SignOutButton'
 import { ThemeToggle } from '@/components/ThemeToggle'
-import { LanguageSwitcher } from '@/components/LanguageSwitcher'
-import { useSession } from 'next-auth/react'
+import { LanguageToggle } from '@/components/LanguageToggle'
 import { useT } from '@/i18n'
+import { useSession } from 'next-auth/react'
 
 const CATEGORIES = [
-  { nameKey: 'cat_verduras' as const, slug: 'verduras', icon: '🥦' },
-  { nameKey: 'cat_frutas'   as const, slug: 'frutas',   icon: '🍎' },
-  { nameKey: 'cat_lacteos'  as const, slug: 'lacteos',  icon: '🧀' },
-  { nameKey: 'cat_carnicos' as const, slug: 'carnicos', icon: '🥩' },
-  { nameKey: 'cat_aceites'  as const, slug: 'aceites',  icon: '🫒' },
-  { nameKey: 'cat_panaderia'as const, slug: 'panaderia',icon: '🍞' },
-  { nameKey: 'cat_vinos'    as const, slug: 'vinos',    icon: '🍷' },
-  { nameKey: 'cat_miel'     as const, slug: 'miel',     icon: '🍯' },
+  { name: 'Verduras y Hortalizas', slug: 'verduras', icon: '🥦' },
+  { name: 'Frutas',                slug: 'frutas',   icon: '🍎' },
+  { name: 'Lácteos y Huevos',      slug: 'lacteos',  icon: '🧀' },
+  { name: 'Cárnicos',              slug: 'carnicos', icon: '🥩' },
+  { name: 'Aceites y Conservas',   slug: 'aceites',  icon: '🫒' },
+  { name: 'Panadería y Repostería',slug: 'panaderia',icon: '🍞' },
+  { name: 'Vinos y Bebidas',       slug: 'vinos',    icon: '🍷' },
+  { name: 'Miel y Mermeladas',     slug: 'miel',     icon: '🍯' },
 ]
 
 interface HeaderProps {
@@ -39,7 +39,6 @@ interface HeaderProps {
 
 export function Header({ user, cartCount = 0 }: HeaderProps) {
   const { data: session } = useSession()
-  const t = useT()
   const currentUser = user ?? session?.user ?? null
   const [mobileOpen,  setMobileOpen]  = useState(false)
   const [catOpen,     setCatOpen]     = useState(false)
@@ -47,6 +46,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
   const pathname   = usePathname()
   const portalHref = getPrimaryPortalHref(currentUser?.role)
   const portalLabel = getPortalLabel(currentUser?.role)
+  const t = useT()
 
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur-md supports-[backdrop-filter]:bg-[var(--surface)]/90">
@@ -89,7 +89,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                         className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
                       >
                         <span className="text-base">{cat.icon}</span>
-                        {t(cat.nameKey)}
+                        {cat.name}
                       </Link>
                     ))}
                   </div>
@@ -105,12 +105,12 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
             {t('producers')}
           </Link>
 
-            {!currentUser && (
-              <Link
-                href="/login?callbackUrl=%2Fvendor%2Fdashboard"
-                className="hidden rounded-lg px-2 py-1 text-sm font-medium text-[var(--foreground-soft)] transition-colors hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] lg:block"
-              >
-                {t('producer_portal')}
+          {!currentUser && (
+            <Link
+              href="/login?callbackUrl=%2Fvendor%2Fdashboard"
+              className="hidden rounded-lg px-2 py-1 text-sm font-medium text-[var(--foreground-soft)] transition-colors hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] lg:block"
+            >
+              {t('producerPortal')}
             </Link>
           )}
 
@@ -121,7 +121,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
               <input
                 name="q"
                 type="search"
-                placeholder={t('search_placeholder')}
+                placeholder={t('search')}
                 className={[
                   'w-full rounded-xl border border-[var(--border)] bg-[var(--surface-raised)]',
                   'py-2 pl-9 pr-4 text-sm text-[var(--foreground)]',
@@ -135,7 +135,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
 
           {/* Right actions */}
           <div className="ml-auto flex items-center gap-1">
-            <LanguageSwitcher />
+            <LanguageToggle />
             <ThemeToggle />
 
             {currentUser ? (
@@ -153,7 +153,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                     className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
                   >
                     <UserCircleIcon className="h-5 w-5" />
-                    {currentUser.name?.split(' ')[0] ?? t('my_account')}
+                    {currentUser.name?.split(' ')[0] ?? t('myAccount')}
                     <ChevronDownIcon className={cn('h-3.5 w-3.5 text-[var(--muted)] transition-transform', accountOpen && 'rotate-180')} />
                   </button>
                   {accountOpen && (
@@ -165,14 +165,14 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                           onClick={() => setAccountOpen(false)}
                           className="block rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
                         >
-                          {t('my_account')}
+                          {t('myAccount')}
                         </Link>
                         <Link
                           href="/cuenta/pedidos"
                           onClick={() => setAccountOpen(false)}
                           className="block rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
                         >
-                          {t('my_orders')}
+                          {t('myOrders')}
                         </Link>
                         <Link
                           href={portalHref}
@@ -197,7 +197,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                     pathname === '/login' && 'bg-[var(--surface-raised)]'
                   )}
                 >
-                  {t('login')}
+                  {t('signIn')}
                 </Link>
                 <Link
                   href="/register"
@@ -211,7 +211,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
             {/* Cart */}
             <Link
               href="/carrito"
-              aria-label={`${t('cart')}${cartCount > 0 ? `, ${cartCount === 1 ? t('cart_items_one') : t('cart_items_other').replace('{count}', String(cartCount))}` : ''}`}
+              aria-label={`Ver carrito${cartCount > 0 ? `, ${cartCount} artículo${cartCount === 1 ? '' : 's'}` : ''}`}
               className="relative rounded-xl p-2 text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
             >
               <ShoppingCartIcon className="h-5 w-5" />
@@ -226,7 +226,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
             <button
               onClick={() => setMobileOpen(v => !v)}
               aria-expanded={mobileOpen}
-              aria-label={mobileOpen ? t('close_menu') : t('open_menu')}
+              aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'}
               className="rounded-xl p-2 text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] md:hidden"
             >
               {mobileOpen ? <XMarkIcon className="h-5 w-5" /> : <Bars3Icon className="h-5 w-5" />}
@@ -246,7 +246,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                 <input
                   name="q"
                   type="search"
-                  placeholder={t('search_placeholder_short')}
+                  placeholder={t('searchMobile')}
                   className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] py-2.5 pl-9 pr-4 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
                 />
               </div>
@@ -262,7 +262,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                 className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
               >
                 <span className="text-base">{cat.icon}</span>
-                {t(cat.nameKey)}
+                {cat.name}
               </Link>
             ))}
 
@@ -282,14 +282,14 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                   onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
                 >
-                  <UserCircleIcon className="h-5 w-5" /> {t('my_account')}
+                  <UserCircleIcon className="h-5 w-5" /> {t('myAccount')}
                 </Link>
                 <Link
                   href="/cuenta/pedidos"
                   onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
                 >
-                  {t('my_orders')}
+                  {t('myOrders')}
                 </Link>
                 <div className="pt-1">
                   <SignOutButton compact />
@@ -301,11 +301,11 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                   href="/login?callbackUrl=%2Fvendor%2Fdashboard"
                   className="block rounded-xl border border-[var(--border)] px-4 py-2.5 text-center text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
                 >
-                  {t('producer_portal')}
+                  {t('producerPortal')}
                 </Link>
                 <div className="flex gap-2">
                   <Link href="/login" className="flex-1 rounded-xl border border-[var(--border)] px-4 py-2.5 text-center text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
-                    {t('login')}
+                    {t('signIn')}
                   </Link>
                   <Link href="/register" className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
                     {t('register')}

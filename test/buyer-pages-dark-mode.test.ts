@@ -90,7 +90,10 @@ describe('DireccionesClient — structure', () => {
   const content = read('src/app/(buyer)/cuenta/direcciones/DireccionesClient.tsx')
 
   test('renders an add-address button', () => {
-    assert.ok(content.includes('Añadir dirección'), 'should have an "Añadir dirección" control')
+    assert.ok(
+      content.includes('Añadir dirección') || content.includes('account.addAddress'),
+      'should have an "Añadir dirección" control'
+    )
   })
 
   test('includes all required address fields', () => {

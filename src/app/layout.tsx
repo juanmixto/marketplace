@@ -10,7 +10,7 @@ import { AnalyticsProvider } from '@/components/analytics/AnalyticsProvider'
 import { THEME_COLORS } from '@/lib/theme'
 import { SITE_METADATA_BASE } from '@/lib/seo'
 import { SessionProvider } from '@/components/SessionProvider'
-import { I18nProvider } from '@/i18n'
+import { LanguageProvider } from '@/i18n'
 
 const geist = Geist({
   variable: '--font-geist-sans',
@@ -65,14 +65,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="flex min-h-full flex-col bg-[var(--background)] text-[var(--foreground)]">
         <SessionProvider>
-          <I18nProvider>
-            <ThemeProvider>
+          <ThemeProvider>
+            <LanguageProvider>
               <Suspense fallback={null}>
                 <AnalyticsProvider />
               </Suspense>
               {children}
-            </ThemeProvider>
-          </I18nProvider>
+            </LanguageProvider>
+          </ThemeProvider>
         </SessionProvider>
       </body>
     </html>

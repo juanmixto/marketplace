@@ -89,6 +89,7 @@ async function getProductsUncached(filters: ProductFilters = {}) {
     ...(cursor && { cursor: { id: cursor }, skip: 1 }),
     select: {
       id: true,
+      vendorId: true,
       slug: true,
       name: true,
       images: true,
@@ -188,6 +189,7 @@ async function getFeaturedProductsUncached(limit = 8) {
     take: limit,
     select: {
       id: true,
+      vendorId: true,
       slug: true,
       name: true,
       images: true,

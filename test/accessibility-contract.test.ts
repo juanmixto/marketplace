@@ -19,7 +19,7 @@ test('Cart page exposes labels for quantity and removal controls', () => {
   assert.match(source, /aria-label=\{`Reducir cantidad de \$\{item\.name\}`\}/)
   assert.match(source, /aria-label=\{`Aumentar cantidad de \$\{item\.name\}`\}/)
   assert.match(source, /aria-label=\{`Eliminar \$\{item\.name\} del carrito`\}/)
-  assert.match(source, /aria-label="Vaciar carrito"/)
+  assert.match(source, /aria-label=\{t\('cart\.clearCart'\)\}|aria-label="Vaciar carrito"/)
 })
 
 test('Filters and modal expose the right interactive semantics', () => {

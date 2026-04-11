@@ -1,11 +1,11 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { locales, defaultLocale } from './locales'
-import type { Locale } from './locales'
-import type { TranslationKeys } from './locales/es'
+import { defaultLocale, locales } from './locales'
+import type { Locale, TranslationKeys } from './locales'
+export type { TranslationKeys } from './locales'
 
-const STORAGE_KEY = 'mp_locale'
+const STORAGE_KEYS = ['mp_locale', 'locale'] as const
 
 interface I18nContextValue {
   locale: Locale
@@ -15,12 +15,35 @@ interface I18nContextValue {
 
 const I18nContext = createContext<I18nContextValue | null>(null)
 
-export function I18nProvider({ children }: { children: React.ReactNode }) {
+function readStoredLocale(): Locale | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  for (const key of STORAGE_KEYS) {
+    const stored = localStorage.getItem(key)
+    if (stored === 'es' || stored === 'en') {
+      return stored
+    }
+  }
+
+  return null
+}
+
+function persistLocale(next: Locale) {
+  for (const key of STORAGE_KEYS) {
+    localStorage.setItem(key, next)
+  }
+
+  document.documentElement.lang = next
+}
+
+export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(defaultLocale)
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY) as Locale | null
-    if (stored && stored in locales) {
+    const stored = readStoredLocale()
+    if (stored) {
       setLocaleState(stored)
       document.documentElement.lang = stored
     }
@@ -28,22 +51,24 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   const setLocale = (next: Locale) => {
     setLocaleState(next)
-    localStorage.setItem(STORAGE_KEY, next)
-    document.documentElement.lang = next
+    persistLocale(next)
   }
 
-  const t = (key: TranslationKeys): string => locales[locale][key]
+  const t = (key: TranslationKeys): string => locales[locale][key] ?? locales[defaultLocale][key] ?? key
 
   return <I18nContext.Provider value={{ locale, setLocale, t }}>{children}</I18nContext.Provider>
 }
 
-export function useI18n(): I18nContextValue {
+export const I18nProvider = LanguageProvider
+
+export function useLocale(): I18nContextValue {
   const ctx = useContext(I18nContext)
-  if (!ctx) throw new Error('useI18n must be used inside <I18nProvider>')
+  if (!ctx) throw new Error('useLocale must be used inside <LanguageProvider>')
   return ctx
 }
 
-/** Convenience hook — returns the translation function directly. */
+export const useI18n = useLocale
+
 export function useT(): (key: TranslationKeys) => string {
-  return useI18n().t
+  return useLocale().t
 }
