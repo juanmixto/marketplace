@@ -71,6 +71,13 @@ const es: Record<string, string> = {
   // Home misc
   producerPortalDesc: 'Entra a tu panel para gestionar catálogo, pedidos y cobros.',
   quickAccessTitle: 'Entra según tu perfil',
+  sectionLabelSelection: 'Selección',
+  sectionLabelProcess: 'El proceso',
+  sectionLabelOrigin: 'Origen',
+  sectionLabelForProducers: 'Para productores',
+  comingSoon: 'Próximamente...',
+  maintenanceBanner: 'Estamos realizando tareas de mantenimiento. Algunas funciones pueden tardar más de lo habitual.',
+  productsUnit: 'productos',
 
   // Auth
   'login.title': 'Bienvenido de nuevo',

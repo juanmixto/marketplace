@@ -71,6 +71,13 @@ const en: Record<string, string> = {
   // Home misc
   producerPortalDesc: 'Enter your dashboard to manage catalog, orders and payments.',
   quickAccessTitle: 'Sign in as your profile',
+  sectionLabelSelection: 'Selection',
+  sectionLabelProcess: 'The process',
+  sectionLabelOrigin: 'Origin',
+  sectionLabelForProducers: 'For producers',
+  comingSoon: 'Coming soon...',
+  maintenanceBanner: 'We are performing maintenance tasks. Some features may take longer than usual.',
+  productsUnit: 'products',
 
   // Auth
   'login.title': 'Welcome back',

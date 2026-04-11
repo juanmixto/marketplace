@@ -35,7 +35,7 @@ export function HomePageClient({ featured, categories, vendors, heroStats, publi
       {publicConfig.MAINTENANCE_MODE && (
         <div className="border-b border-rose-200 bg-rose-50 dark:border-rose-900/50 dark:bg-rose-950/50">
           <div className="mx-auto max-w-7xl px-4 py-3 text-sm font-medium text-rose-800 dark:text-rose-300 sm:px-6 lg:px-8">
-            Estamos realizando tareas de mantenimiento. Algunas funciones pueden tardar más de lo habitual.
+            {t('maintenanceBanner')}
           </div>
         </div>
       )}
@@ -205,7 +205,7 @@ export function HomePageClient({ featured, categories, vendors, heroStats, publi
       <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Selección</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">{t('sectionLabelSelection')}</p>
             <h2 className="text-2xl font-bold text-[var(--foreground)]">{t('sections.featured')}</h2>
           </div>
           <Link href="/productos" className="rounded-md text-sm font-medium text-emerald-600 underline-offset-4 hover:underline dark:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
@@ -219,7 +219,7 @@ export function HomePageClient({ featured, categories, vendors, heroStats, publi
             ))}
           </div>
         ) : (
-          <p className="py-12 text-center text-sm text-[var(--muted)]">Próximamente...</p>
+          <p className="py-12 text-center text-sm text-[var(--muted)]">{t('comingSoon')}</p>
         )}
       </section>
 
@@ -227,7 +227,7 @@ export function HomePageClient({ featured, categories, vendors, heroStats, publi
       <section className="border-y border-[var(--border)] bg-[var(--surface)]">
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
           <div className="text-center mb-10">
-            <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">El proceso</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">{t('sectionLabelProcess')}</p>
             <h2 className="mt-1 text-2xl font-bold text-[var(--foreground)]">{t('sections.howItWorks')}</h2>
           </div>
           <div className="grid gap-8 sm:grid-cols-4">
@@ -254,7 +254,7 @@ export function HomePageClient({ featured, categories, vendors, heroStats, publi
         <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Origen</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">{t('sectionLabelOrigin')}</p>
               <h2 className="text-2xl font-bold text-[var(--foreground)]">{t('sections.featuredVendors')}</h2>
             </div>
             <Link href="/productores" className="flex items-center gap-1 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:underline underline-offset-4">
@@ -286,7 +286,7 @@ export function HomePageClient({ featured, categories, vendors, heroStats, publi
                         <StarIcon className="h-3 w-3" /> {Number(v.avgRating).toFixed(1)}
                       </span>
                     )}
-                    <span className="text-xs text-[var(--muted)]">{v._count.products} productos</span>
+                    <span className="text-xs text-[var(--muted)]">{v._count.products} {t('productsUnit')}</span>
                   </div>
                 </div>
               </Link>
@@ -300,7 +300,7 @@ export function HomePageClient({ featured, categories, vendors, heroStats, publi
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-900 to-teal-800 dark:from-gray-950 dark:to-emerald-950" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(52,211,153,0.15),transparent_50%)]" />
         <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 text-center">
-          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400 mb-3">Para productores</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400 mb-3">{t('sectionLabelForProducers')}</p>
           <h2 className="text-3xl font-bold text-white sm:text-4xl">{t('sections.ctaTitle')}</h2>
           <p className="mt-4 text-lg text-emerald-100/80 max-w-xl mx-auto leading-relaxed">
             {t('sections.ctaSubtitle')}
