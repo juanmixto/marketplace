@@ -272,6 +272,19 @@ const es = {
   'incident.markResolved': 'Marcar como resuelta',
   'incident.selectOption': 'Selecciona…',
 
+  // Account – nav menu
+  'account.nav.orders.label': 'Mis pedidos',
+  'account.nav.orders.desc': 'Consulta y gestiona tus pedidos',
+  'account.nav.addresses.label': 'Mis direcciones',
+  'account.nav.addresses.desc': 'Gestiona tus direcciones de entrega',
+  'account.nav.favorites.label': 'Mis favoritos',
+  'account.nav.favorites.desc': 'Guarda productos para volver a comprarlos cuando quieras',
+  'account.nav.profile.label': 'Datos personales',
+  'account.nav.profile.desc': 'Actualiza tu nombre, email y contraseña',
+  'account.comingSoon': 'Próximamente',
+  'account.gdpr.title': 'Privacidad y Datos',
+  'account.gdpr.desc': 'De conformidad con el RGPD, tienes derecho a acceder, exportar o eliminar tus datos personales.',
+
   // Account – GDPR
   'account.deleteConfirmTitle': 'Confirmación de eliminación de cuenta',
   'account.deleteIrreversible': 'Esta acción es irreversible. Tu cuenta será anonimizada permanentemente. Tus pedidos se conservarán para cumplir obligaciones fiscales, pero todo dato personal será eliminado.',

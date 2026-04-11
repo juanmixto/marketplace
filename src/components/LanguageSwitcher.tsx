@@ -42,8 +42,8 @@ export function LanguageSwitcher({ className }: { className?: string }) {
         className
       )}
     >
-      <span aria-hidden="true">{FLAGS[locale]}</span>
-      <span>{LABELS[locale]}</span>
+      <span aria-hidden="true">{FLAGS[next]}</span>
+      <span>{LABELS[next]}</span>
     </button>
   )
 }

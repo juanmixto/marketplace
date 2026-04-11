@@ -92,9 +92,15 @@ export function DireccionesClient() {
       const savedAddress = await res.json()
 
       if (editingId) {
-        setAddresses(addresses.map(a => a.id === editingId ? savedAddress : a))
+        setAddresses(addresses.map(a => {
+          if (a.id === editingId) return savedAddress
+          return savedAddress.isDefault ? { ...a, isDefault: false } : a
+        }))
       } else {
-        setAddresses([...addresses, savedAddress])
+        const base = savedAddress.isDefault
+          ? addresses.map(a => ({ ...a, isDefault: false }))
+          : addresses
+        setAddresses([...base, savedAddress])
       }
 
       reset()

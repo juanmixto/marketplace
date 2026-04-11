@@ -1,4 +1,4 @@
-import { revalidatePath, revalidateTag } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 
 export function safeRevalidatePath(path: string) {
@@ -8,7 +8,7 @@ export function safeRevalidatePath(path: string) {
 
 export function safeRevalidateTag(tag: string) {
   if (process.env.NODE_ENV === 'test') return
-  revalidateTag(tag, 'max')
+  updateTag(tag)
 }
 
 export function revalidateCatalogExperience(input: {

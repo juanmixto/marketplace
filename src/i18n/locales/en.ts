@@ -274,6 +274,19 @@ const en: Record<TranslationKeys, string> = {
   'incident.markResolved': 'Mark as resolved',
   'incident.selectOption': 'Select...',
 
+  // Account – nav menu
+  'account.nav.orders.label': 'My orders',
+  'account.nav.orders.desc': 'View and manage your orders',
+  'account.nav.addresses.label': 'My addresses',
+  'account.nav.addresses.desc': 'Manage your delivery addresses',
+  'account.nav.favorites.label': 'My favourites',
+  'account.nav.favorites.desc': 'Save products to buy again later',
+  'account.nav.profile.label': 'Personal data',
+  'account.nav.profile.desc': 'Update your name, email and password',
+  'account.comingSoon': 'Coming soon',
+  'account.gdpr.title': 'Privacy and Data',
+  'account.gdpr.desc': 'In accordance with GDPR, you have the right to access, export or delete your personal data.',
+
   // Account – GDPR
   'account.deleteConfirmTitle': 'Confirm account deletion',
   'account.deleteIrreversible': 'This action is irreversible. Your account will be permanently anonymised. Your orders will be kept to fulfil tax obligations, but all personal data will be deleted.',

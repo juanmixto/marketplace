@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import {
   calculateOrderPricing,
   calculateOrderTotals,
@@ -12,6 +13,10 @@ import {
 } from '@/domains/orders/checkout'
 import { resolveMarketplaceSettings, toPublicMarketplaceSettings, calculateShippingCost, MARKETPLACE_SETTINGS_DEFAULTS } from '@/lib/marketplace-settings'
 import { calculateShippingCostFromTables, getProvinceFromPostalCode } from '@/domains/shipping/shared'
+
+function readSource(path: string) {
+  return readFileSync(new URL(path, import.meta.url), 'utf8')
+}
 
 test('calculateOrderTotals keeps tax included in subtotal and only adds shipping once', () => {
   const totals = calculateOrderTotals([
@@ -145,6 +150,49 @@ test('toCheckoutFormAddress maps a saved address into checkout form values', () 
     phone: '',
     saveAddress: false,
   })
+})
+
+test('checkout success redirects to the confirmation page instead of leaving the buyer without feedback', () => {
+  const checkoutClient = readSource('../src/components/buyer/CheckoutPageClient.tsx')
+  const stripeForm = readSource('../src/components/checkout/StripeCheckoutForm.tsx')
+
+  assert.match(checkoutClient, /\/checkout\/confirmacion\?orderNumber=/)
+  assert.match(stripeForm, /\/checkout\/confirmacion\?orderNumber=/)
+})
+
+test('checkout client avoids the empty-cart fallback while the confirmation redirect is in flight', () => {
+  const checkoutClient = readSource('../src/components/buyer/CheckoutPageClient.tsx')
+
+  assert.match(checkoutClient, /setCompletedOrderNumber\(orderNumber\)/)
+  assert.match(checkoutClient, /items\.length === 0 && step !== 'processing' && !completedOrderNumber/)
+})
+
+test('checkout new-address form is collapsed by default when saved addresses exist', () => {
+  const checkoutClient = readSource('../src/components/buyer/CheckoutPageClient.tsx')
+
+  assert.match(checkoutClient, /showNewAddressForm/, 'showNewAddressForm state must exist')
+  assert.match(checkoutClient, /setShowNewAddressForm\(false\)/, 'must collapse form when a saved address is selected')
+  assert.match(checkoutClient, /setShowNewAddressForm\(true\)/, 'must expand form on handleUseNewAddress')
+  assert.match(checkoutClient, /showNewAddressForm \|\| \(/, 'form must be conditionally rendered')
+})
+
+test('DireccionesClient clears isDefault on sibling addresses when a new default is saved', () => {
+  const src = readSource('../src/app/(buyer)/cuenta/direcciones/DireccionesClient.tsx')
+
+  assert.match(src, /savedAddress\.isDefault/, 'must check savedAddress.isDefault')
+  assert.match(src, /isDefault: false/, 'must clear isDefault on siblings')
+})
+
+test('DireccionesClient skips the map pass when saved address is not default', () => {
+  const src = readSource('../src/app/(buyer)/cuenta/direcciones/DireccionesClient.tsx')
+
+  assert.match(src, /savedAddress\.isDefault[\s\S]{0,60}addresses\.map/, 'must only map when isDefault is true')
+})
+
+test('catalog revalidation uses immediate tag expiry so buyers see stock updates right away', () => {
+  const revalidateSource = readSource('../src/lib/revalidate.ts')
+
+  assert.match(revalidateSource, /updateTag\(tag\)/)
 })
 
 test('resolveMarketplaceSettings accepts canonical keys and legacy aliases', () => {

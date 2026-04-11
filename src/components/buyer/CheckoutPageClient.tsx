@@ -60,6 +60,8 @@ export function CheckoutPageClient({
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null)
   const [loadingAddresses, setLoadingAddresses] = useState(true)
   const [addressLoadError, setAddressLoadError] = useState<string | null>(null)
+  const [showNewAddressForm, setShowNewAddressForm] = useState(false)
+  const [completedOrderNumber, setCompletedOrderNumber] = useState<string | null>(null)
   const t = useT()
 
   const sub = subtotal()
@@ -127,6 +129,8 @@ export function CheckoutPageClient({
         if (preferredAddress) {
           setSelectedAddressId(preferredAddress.id)
           reset(toCheckoutFormAddress(preferredAddress))
+        } else {
+          setShowNewAddressForm(true)
         }
       } catch (error) {
         if (cancelled) return
@@ -145,18 +149,28 @@ export function CheckoutPageClient({
     }
   }, [reset])
 
-  if (items.length === 0) {
+  useEffect(() => {
+    if (!completedOrderNumber) return
+
+    clearCart()
+    router.replace(`/checkout/confirmacion?orderNumber=${encodeURIComponent(completedOrderNumber)}`)
+    router.refresh()
+  }, [clearCart, completedOrderNumber, router])
+
+  if (items.length === 0 && step !== 'processing' && !completedOrderNumber) {
     router.replace('/carrito')
     return null
   }
 
   function handleUseSavedAddress(address: SavedCheckoutAddress) {
     setSelectedAddressId(address.id)
+    setShowNewAddressForm(false)
     reset(toCheckoutFormAddress(address))
   }
 
   function handleUseNewAddress() {
     setSelectedAddressId(null)
+    setShowNewAddressForm(true)
     reset({
       firstName: '',
       lastName: '',
@@ -194,11 +208,10 @@ export function CheckoutPageClient({
         return
       }
 
-      const { orderId, clientSecret } = result
+      const { orderId, orderNumber, clientSecret } = result
 
       if (clientSecret.startsWith('mock_')) {
-        clearCart()
-        router.push(`/cuenta/pedidos/${orderId}?nuevo=1`)
+        setCompletedOrderNumber(orderNumber)
         return
       }
 
@@ -225,13 +238,15 @@ export function CheckoutPageClient({
                 <div className="mb-5 space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-medium text-[var(--foreground)]">{t('checkout.savedAddresses')}</p>
-                    <button
-                      type="button"
-                      onClick={handleUseNewAddress}
-                      className="text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline dark:text-emerald-400 dark:hover:text-emerald-300"
-                    >
-                      {t('checkout.useNewAddress')}
-                    </button>
+                    {!showNewAddressForm && (
+                      <button
+                        type="button"
+                        onClick={handleUseNewAddress}
+                        className="text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline dark:text-emerald-400 dark:hover:text-emerald-300"
+                      >
+                        {t('checkout.useNewAddress')}
+                      </button>
+                    )}
                   </div>
                   <div className="grid gap-3">
                     {savedAddresses.map(address => {
@@ -274,27 +289,29 @@ export function CheckoutPageClient({
                   {t('checkout.savedAddressesError')}
                 </div>
               )}
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <Input label={t('checkout.firstName')} error={errors.firstName?.message} {...register('firstName')} />
-                  <Input label={t('checkout.lastName')} error={errors.lastName?.message} {...register('lastName')} />
-                </div>
-                <Input label={t('checkout.line1')} placeholder={t('checkout.line1Placeholder')} error={errors.line1?.message} {...register('line1')} />
-                <Input label={t('checkout.line2')} {...register('line2')} />
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="col-span-2">
-                    <Input label={t('checkout.city')} error={errors.city?.message} {...register('city')} />
+              <input type="hidden" value={selectedAddressId ?? ''} {...register('selectedAddressId')} />
+              {(showNewAddressForm || (!loadingAddresses && savedAddresses.length === 0)) && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input label={t('checkout.firstName')} error={errors.firstName?.message} {...register('firstName')} />
+                    <Input label={t('checkout.lastName')} error={errors.lastName?.message} {...register('lastName')} />
                   </div>
-                  <Input label={t('checkout.postalCode')} placeholder={t('checkout.postalCodePlaceholder')} error={errors.postalCode?.message} {...register('postalCode')} />
+                  <Input label={t('checkout.line1')} placeholder={t('checkout.line1Placeholder')} error={errors.line1?.message} {...register('line1')} />
+                  <Input label={t('checkout.line2')} {...register('line2')} />
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-2">
+                      <Input label={t('checkout.city')} error={errors.city?.message} {...register('city')} />
+                    </div>
+                    <Input label={t('checkout.postalCode')} placeholder={t('checkout.postalCodePlaceholder')} error={errors.postalCode?.message} {...register('postalCode')} />
+                  </div>
+                  <Input label={t('checkout.province')} error={errors.province?.message} {...register('province')} />
+                  <Input label={t('checkout.phone')} type="tel" {...register('phone')} />
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--foreground-soft)]">
+                    <input type="checkbox" {...register('saveAddress')} className="rounded border-[var(--border-strong)] text-emerald-600 accent-emerald-600 dark:accent-emerald-400" />
+                    {t('checkout.saveAddress')}
+                  </label>
                 </div>
-                <Input label={t('checkout.province')} error={errors.province?.message} {...register('province')} />
-                <Input label={t('checkout.phone')} type="tel" {...register('phone')} />
-                <input type="hidden" value={selectedAddressId ?? ''} {...register('selectedAddressId')} />
-                <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--foreground-soft)]">
-                  <input type="checkbox" {...register('saveAddress')} className="rounded border-[var(--border-strong)] text-emerald-600 accent-emerald-600 dark:accent-emerald-400" />
-                  {t('checkout.saveAddress')}
-                </label>
-              </div>
+              )}
             </div>
 
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">

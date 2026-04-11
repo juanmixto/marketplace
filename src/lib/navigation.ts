@@ -38,19 +38,23 @@ export const buyerAccountItems: AppNavItem[] = [
 export const buyerAccountMeta = {
   '/cuenta/pedidos': {
     icon: ShoppingBagIcon,
-    desc: 'Consulta y gestiona tus pedidos',
+    labelKey: 'account.nav.orders.label',
+    descKey:  'account.nav.orders.desc',
   },
   '/cuenta/direcciones': {
     icon: MapPinIcon,
-    desc: 'Gestiona tus direcciones de entrega',
+    labelKey: 'account.nav.addresses.label',
+    descKey:  'account.nav.addresses.desc',
   },
   '/cuenta/favoritos': {
     icon: HeartIcon,
-    desc: 'Guarda productos para volver a comprarlos cuando quieras',
+    labelKey: 'account.nav.favorites.label',
+    descKey:  'account.nav.favorites.desc',
   },
   '/cuenta/perfil': {
     icon: UserCircleIcon,
-    desc: 'Actualiza tu nombre, email y contraseña',
+    labelKey: 'account.nav.profile.label',
+    descKey:  'account.nav.profile.desc',
   },
 } as const
 
