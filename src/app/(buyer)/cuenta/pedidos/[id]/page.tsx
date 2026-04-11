@@ -18,6 +18,7 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
   const order = await getOrderDetail(id)
   if (!order) notFound()
 
+  // Convert to plain object for serializable client component props
   const reviewEligibility = Object.fromEntries(
     await Promise.all(
       order.lines.map(async line => [line.productId, await canLeaveReview(order.id, line.productId)] as const)
