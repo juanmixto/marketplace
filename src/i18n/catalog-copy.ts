@@ -103,6 +103,16 @@ type CatalogCopy = {
     originalLanguageHint: (language: string) => string
   }
   certifications: Record<string, CertificationCopy>
+  product: {
+    ratingLabel: (rating: string, count: number) => string
+    originTitle: string
+    originFrom: string
+    trustDirectPurchase: string
+    trustNoIntermediaries: string
+    trustQuality: string
+    aboutProducer: string
+    viewProducerProfile: string
+  }
 }
 
 const ES_CATALOG_COPY: CatalogCopy = {
@@ -214,6 +224,16 @@ const ES_CATALOG_COPY: CatalogCopy = {
       description: 'Elaborado en pequeños lotes con un proceso tradicional y cuidado artesanal.',
     },
   },
+  product: {
+    ratingLabel: (rating, count) => `${rating} · ${count} valoracion${count === 1 ? '' : 'es'}`,
+    originTitle: 'Origen del producto',
+    originFrom: 'Producido en',
+    trustDirectPurchase: 'Compra directa al productor',
+    trustNoIntermediaries: 'Sin intermediarios',
+    trustQuality: 'Calidad garantizada',
+    aboutProducer: 'Conoce al productor',
+    viewProducerProfile: 'Ver perfil completo',
+  },
 }
 
 const EN_CATALOG_COPY: CatalogCopy = {
@@ -324,6 +344,16 @@ const EN_CATALOG_COPY: CatalogCopy = {
       label: 'ARTISAN',
       description: 'Made in small batches using a careful traditional process.',
     },
+  },
+  product: {
+    ratingLabel: (rating, count) => `${rating} · ${count} review${count === 1 ? '' : 's'}`,
+    originTitle: 'Product origin',
+    originFrom: 'Produced in',
+    trustDirectPurchase: 'Direct from the producer',
+    trustNoIntermediaries: 'No intermediaries',
+    trustQuality: 'Quality guaranteed',
+    aboutProducer: 'Meet the producer',
+    viewProducerProfile: 'View full profile',
   },
 }
 
