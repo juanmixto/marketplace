@@ -6,6 +6,7 @@ import { SITE_NAME, SITE_DESCRIPTION } from '@/lib/constants'
 import { siteAppearance } from '@/lib/brand'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { THEME_COLORS } from '@/lib/theme'
+import { LanguageProvider } from '@/i18n'
 
 const geist = Geist({
   variable: '--font-geist-sans',
@@ -42,7 +43,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="flex min-h-full flex-col bg-[var(--background)] text-[var(--foreground)]">
         <ThemeProvider>
-          {children}
+          <LanguageProvider>
+            {children}
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>

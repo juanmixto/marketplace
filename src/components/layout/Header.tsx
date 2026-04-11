@@ -17,6 +17,8 @@ import { getPortalLabel, getPrimaryPortalHref } from '@/lib/portals'
 import type { UserRole } from '@/generated/prisma/enums'
 import { SignOutButton } from '@/components/auth/SignOutButton'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { LanguageToggle } from '@/components/LanguageToggle'
+import { useT } from '@/i18n'
 
 const CATEGORIES = [
   { name: 'Verduras y Hortalizas', slug: 'verduras', icon: '🥦' },
@@ -41,6 +43,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
   const pathname   = usePathname()
   const portalHref = getPrimaryPortalHref(user?.role)
   const portalLabel = getPortalLabel(user?.role)
+  const t = useT()
 
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur-md supports-[backdrop-filter]:bg-[var(--surface)]/90">
@@ -67,7 +70,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
               aria-expanded={catOpen}
               className="flex items-center gap-1 rounded-xl px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
             >
-              Categorías
+              {t('categories')}
               <ChevronDownIcon className={cn('h-3.5 w-3.5 transition-transform', catOpen && 'rotate-180')} />
             </button>
             {catOpen && (
@@ -96,7 +99,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
             href="/productores"
             className="hidden rounded-lg px-2 py-1 text-sm font-medium text-[var(--foreground-soft)] transition-colors hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] md:block"
           >
-            Productores
+            {t('producers')}
           </Link>
 
           {!user && (
@@ -104,7 +107,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
               href="/login?callbackUrl=%2Fvendor%2Fdashboard"
               className="hidden rounded-lg px-2 py-1 text-sm font-medium text-[var(--foreground-soft)] transition-colors hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] lg:block"
             >
-              Portal productor
+              {t('producerPortal')}
             </Link>
           )}
 
@@ -115,7 +118,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
               <input
                 name="q"
                 type="search"
-                placeholder="Buscar productos, productores..."
+                placeholder={t('search')}
                 className={[
                   'w-full rounded-xl border border-[var(--border)] bg-[var(--surface-raised)]',
                   'py-2 pl-9 pr-4 text-sm text-[var(--foreground)]',
@@ -129,6 +132,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
 
           {/* Right actions */}
           <div className="ml-auto flex items-center gap-1">
+            <LanguageToggle />
             <ThemeToggle />
 
             {user ? (
@@ -146,7 +150,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                     className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
                   >
                     <UserCircleIcon className="h-5 w-5" />
-                    {user.name?.split(' ')[0] ?? 'Cuenta'}
+                    {user.name?.split(' ')[0] ?? t('myAccount')}
                     <ChevronDownIcon className={cn('h-3.5 w-3.5 text-[var(--muted)] transition-transform', accountOpen && 'rotate-180')} />
                   </button>
                   {accountOpen && (
@@ -158,14 +162,14 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                           onClick={() => setAccountOpen(false)}
                           className="block rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
                         >
-                          Mi cuenta
+                          {t('myAccount')}
                         </Link>
                         <Link
                           href="/cuenta/pedidos"
                           onClick={() => setAccountOpen(false)}
                           className="block rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
                         >
-                          Mis pedidos
+                          {t('myOrders')}
                         </Link>
                         <Link
                           href={portalHref}
@@ -190,13 +194,13 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                     pathname === '/login' && 'bg-[var(--surface-raised)]'
                   )}
                 >
-                  Entrar
+                  {t('signIn')}
                 </Link>
                 <Link
                   href="/register"
                   className="hidden rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] md:block"
                 >
-                  Registrarse
+                  {t('register')}
                 </Link>
               </>
             )}
@@ -237,14 +241,14 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                 <input
                   name="q"
                   type="search"
-                  placeholder="Buscar..."
+                  placeholder={t('searchMobile')}
                   className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] py-2.5 pl-9 pr-4 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
                 />
               </div>
             </form>
 
             {/* Categories */}
-            <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">Categorías</p>
+            <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">{t('categories')}</p>
             {CATEGORIES.map(cat => (
               <Link
                 key={cat.slug}
@@ -273,14 +277,14 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                   onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
                 >
-                  <UserCircleIcon className="h-5 w-5" /> Mi cuenta
+                  <UserCircleIcon className="h-5 w-5" /> {t('myAccount')}
                 </Link>
                 <Link
                   href="/cuenta/pedidos"
                   onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
                 >
-                  Mis pedidos
+                  {t('myOrders')}
                 </Link>
                 <div className="pt-1">
                   <SignOutButton compact />
@@ -292,14 +296,14 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                   href="/login?callbackUrl=%2Fvendor%2Fdashboard"
                   className="block rounded-xl border border-[var(--border)] px-4 py-2.5 text-center text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
                 >
-                  Portal productor
+                  {t('producerPortal')}
                 </Link>
                 <div className="flex gap-2">
                   <Link href="/login" className="flex-1 rounded-xl border border-[var(--border)] px-4 py-2.5 text-center text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
-                    Entrar
+                    {t('signIn')}
                   </Link>
                   <Link href="/register" className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
-                    Registrarse
+                    {t('register')}
                   </Link>
                 </div>
               </div>
