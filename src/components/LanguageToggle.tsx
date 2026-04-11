@@ -28,7 +28,7 @@ export function LanguageToggle({ className }: { className?: string }) {
     <button
       type="button"
       onClick={() => setLocale(next)}
-      title={`Language: ${locale.toUpperCase()}`}
+      title={`Switch to ${next.toUpperCase()}`}
       aria-label={`Switch language. Current: ${locale.toUpperCase()}. Next: ${next.toUpperCase()}`}
       className={cn(
         'flex h-9 w-9 items-center justify-center rounded-lg text-[var(--muted)]',

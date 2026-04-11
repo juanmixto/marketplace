@@ -22,6 +22,8 @@ const LocaleContext = createContext<LocaleContextValue>({
 })
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
+  // Start with DEFAULT_LOCALE so server and initial client render match (avoids
+  // hydration mismatch). After mount we read localStorage and update if needed.
   const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE)
 
   useEffect(() => {
