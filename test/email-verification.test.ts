@@ -13,6 +13,10 @@ import {
   completePasswordReset,
   isEmailVerified,
 } from '@/domains/auth/email-verification'
+import { authorizeCredentials } from '@/domains/auth/credentials'
+import { POST as registerUser } from '@/app/api/auth/register/route'
+import { POST as requestPasswordReset } from '@/app/api/auth/forgot-password/route'
+import { POST as resetPassword } from '@/app/api/auth/reset-password/route'
 import bcrypt from 'bcryptjs'
 
 describe('Email Verification and Password Reset (#77)', () => {
@@ -112,6 +116,78 @@ describe('Email Verification and Password Reset (#77)', () => {
       expect(await isEmailVerified(newUser.id)).toBe(true)
 
       await db.user.delete({ where: { id: newUser.id } })
+    })
+
+    it('should register users unverified and block login until email verification completes', async () => {
+      const email = `register-flow-${Date.now()}@example.com`
+      const password = 'test-password-123'
+      const originalResendKey = process.env.RESEND_API_KEY
+      let createdUserId: string | undefined
+      delete process.env.RESEND_API_KEY
+
+      try {
+        const response = await registerUser(
+          new Request('http://localhost:3000/api/auth/register', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              'x-forwarded-for': `203.0.113.${Math.floor(Date.now() % 200) + 1}`,
+            },
+            body: JSON.stringify({
+              firstName: 'Register',
+              lastName: 'Flow',
+              email,
+              password,
+            }),
+          }) as never
+        )
+
+        expect(response.status).toBe(201)
+
+        const createdUser = await db.user.findUnique({
+          where: { email },
+        })
+
+        expect(createdUser).toBeDefined()
+        expect(createdUser?.emailVerified).toBeNull()
+        createdUserId = createdUser?.id
+
+        const tokenRecord = await db.emailVerificationToken.findFirst({
+          where: { userId: createdUser!.id },
+        })
+
+        expect(tokenRecord).toBeDefined()
+
+        const blockedLogin = await authorizeCredentials({ email, password })
+        expect(blockedLogin).toBeNull()
+
+        const verificationResult = await verifyEmailToken(tokenRecord!.token)
+        expect(verificationResult.success).toBe(true)
+
+        const allowedLogin = await authorizeCredentials({ email, password })
+        expect(allowedLogin).toBeDefined()
+        expect(allowedLogin?.email).toBe(email)
+      } finally {
+        if (originalResendKey === undefined) {
+          delete process.env.RESEND_API_KEY
+        } else {
+          process.env.RESEND_API_KEY = originalResendKey
+        }
+
+        if (createdUserId) {
+          await db.emailVerificationToken.deleteMany({
+            where: { userId: createdUserId },
+          }).catch(() => {})
+
+          await db.user.deleteMany({
+            where: { id: createdUserId },
+          }).catch(() => {})
+        } else {
+          await db.user.deleteMany({
+            where: { email },
+          }).catch(() => {})
+        }
+      }
     })
   })
 
@@ -224,6 +300,51 @@ describe('Email Verification and Password Reset (#77)', () => {
       // Old token should be deleted
       expect(oldRecord).toBeNull()
       expect(newRecord).toBeDefined()
+    })
+
+    it('should create password reset token through the modern forgot-password route', async () => {
+      const email = resetTestEmail
+
+      const response = await requestPasswordReset(
+        new Request('http://localhost:3000/api/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ email }),
+        }) as never
+      )
+
+      expect(response.status).toBe(200)
+
+      const tokenRecord = await db.passwordResetToken.findFirst({
+        where: { userId: resetTestUserId },
+      })
+
+      expect(tokenRecord).toBeDefined()
+    })
+
+    it('should reset the password through the modern reset-password route', async () => {
+      const { token } = await createPasswordResetToken(resetTestEmail)
+
+      const response = await resetPassword(
+        new Request('http://localhost:3000/api/auth/reset-password', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            token,
+            password: 'route-new-password-123',
+            passwordConfirm: 'route-new-password-123',
+          }),
+        }) as never
+      )
+
+      expect(response.status).toBe(200)
+
+      const user = await db.user.findUnique({ where: { id: resetTestUserId } })
+      const passwordValid = await bcrypt.compare('route-new-password-123', user?.passwordHash || '')
+      expect(passwordValid).toBe(true)
+
+      const tokenRecord = await db.passwordResetToken.findUnique({ where: { token: token! } })
+      expect(tokenRecord?.usedAt).not.toBeNull()
     })
   })
 

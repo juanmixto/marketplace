@@ -36,7 +36,7 @@ export default async function Nueva({ searchParams }: NuevaPageProps) {
               El enlace de recuperación no es válido. Por favor, solicita uno nuevo.
             </p>
             <Link
-              href="/recuperar-contrasena"
+              href="/forgot-password"
               className="inline-block rounded-lg bg-emerald-600 px-6 py-2 font-semibold text-white transition-colors hover:bg-emerald-700"
             >
               Solicitar nuevo enlace

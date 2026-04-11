@@ -9,7 +9,6 @@
  * preventing silent bugs from checking the wrong field.
  */
 
-import { db } from '@/lib/db'
 import type { Product, ProductVariant } from '@/generated/prisma/client'
 
 export interface StockInfo {
@@ -68,6 +67,7 @@ export async function getEffectiveStock(
   productId: string,
   variantId?: string
 ): Promise<StockInfo> {
+  const { db } = await import('@/lib/db')
   const product = await db.product.findUniqueOrThrow({
     where: { id: productId },
     include: {

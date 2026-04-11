@@ -42,18 +42,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export async function generateStaticParams() {
-  try {
-    const products = await db.product.findMany({
-      where: getAvailableProductWhere(),
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-      select: { slug: true },
-    })
-    return products.map(product => ({ slug: product.slug }))
-  } catch {
-    // No DB available at build time (CI without DB)
-    return []
-  }
+  const products = await db.product.findMany({
+    where: getAvailableProductWhere(),
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+    select: { slug: true },
+  })
+
+  return products.map(product => ({ slug: product.slug }))
 }
 
 const CERT_COLORS: Record<string, 'green' | 'blue' | 'purple' | 'amber'> = {

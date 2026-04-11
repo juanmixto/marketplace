@@ -1,6 +1,5 @@
 import type { Prisma } from '@/generated/prisma/client'
 import type { FulfillmentStatus, IncidentStatus, OrderStatus, PaymentStatus } from '@/generated/prisma/enums'
-import { db } from '@/lib/db'
 
 export interface AdminOrderFilters {
   q?: string
@@ -55,6 +54,7 @@ function buildOrderWhere(filters: AdminOrderFilters): Prisma.OrderWhereInput {
 }
 
 export async function getAdminOrdersPageData(filters: AdminOrderFilters) {
+  const { db } = await import('@/lib/db')
   const where = buildOrderWhere(filters)
   const pageSize = Math.min(Math.max(filters.pageSize ?? 24, 1), 100)
   const page = Math.max(filters.page ?? 1, 1)

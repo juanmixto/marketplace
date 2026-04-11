@@ -140,7 +140,7 @@ export default function ComoVender() {
           <h2 className="mb-4 text-center text-3xl font-bold text-foreground">
             Precios y comisiones
           </h2>
-          <p className="mb-8 text-center text-[var(--muted)]">
+          <p className="mb-8 text-center text-foreground-soft">
             Transparentes y justos. Solo pagas cuando vendes.
           </p>
 
@@ -159,14 +159,14 @@ export default function ComoVender() {
                   <span>-€1,20</span>
                 </div>
               </div>
-              <div className="border-t-2 border-[var(--foreground)] pt-2">
+              <div className="border-t-2 border-border-strong pt-2">
                 <div className="flex justify-between">
                   <strong>Tú recibes</strong>
                   <strong className="text-accent">€8,80</strong>
                 </div>
               </div>
             </div>
-            <p className="mt-6 text-sm text-[var(--muted)]">
+            <p className="mt-6 text-sm text-foreground-soft">
               Sin cuotas mensuales. Sin costes ocultos.
             </p>
           </div>
@@ -188,7 +188,7 @@ export default function ComoVender() {
                 </div>
                 <div className="flex flex-col justify-center">
                   <h3 className="font-semibold text-foreground">{step.title}</h3>
-                  <p className="text-sm text-[var(--muted)]">{step.desc}</p>
+                  <p className="text-sm text-foreground-soft">{step.desc}</p>
                 </div>
               </div>
             ))}
@@ -206,19 +206,19 @@ export default function ComoVender() {
           <div className="space-y-4">
             <div className="flex gap-4">
               <CheckCircleIcon className="h-6 w-6 flex-shrink-0 text-accent" />
-              <p className="text-[var(--foreground-soft)]">Ser productor/agricultor registrado en España</p>
+              <p className="text-foreground-soft">Ser productor/agricultor registrado en España</p>
             </div>
             <div className="flex gap-4">
               <CheckCircleIcon className="h-6 w-6 flex-shrink-0 text-accent" />
-              <p className="text-[var(--foreground-soft)]">Tener cuenta bancaria española (IBAN) para cobrar</p>
+              <p className="text-foreground-soft">Tener cuenta bancaria española (IBAN) para cobrar</p>
             </div>
             <div className="flex gap-4">
               <CheckCircleIcon className="h-6 w-6 flex-shrink-0 text-accent" />
-              <p className="text-[var(--foreground-soft)]">Productos alimentarios con origen verificable</p>
+              <p className="text-foreground-soft">Productos alimentarios con origen verificable</p>
             </div>
             <div className="flex gap-4">
               <CheckCircleIcon className="h-6 w-6 flex-shrink-0 text-accent" />
-              <p className="text-[var(--foreground-soft)]">Cumplimiento de normativa sanitaria aplicable</p>
+              <p className="text-foreground-soft">Cumplimiento de normativa sanitaria aplicable</p>
             </div>
           </div>
         </div>
@@ -239,7 +239,7 @@ export default function ComoVender() {
           >
             Crear cuenta de productor
           </Link>
-          <p className="mt-6 text-sm text-[var(--muted)]">
+          <p className="mt-6 text-sm text-foreground-soft">
             ¿Dudas? Consulta nuestro <Link href="/faq" className="font-semibold text-accent hover:underline">FAQ</Link> o{' '}
             <Link href="/contacto" className="font-semibold text-accent hover:underline">
               contacta

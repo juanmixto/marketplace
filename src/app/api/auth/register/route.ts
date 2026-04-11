@@ -3,6 +3,11 @@ import { db } from '@/lib/db'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 import { checkRateLimit, getClientIP } from '@/lib/ratelimit'
+import { createEmailVerificationToken } from '@/domains/auth/email-verification'
+import { sendEmail } from '@/lib/email'
+import { getServerEnv } from '@/lib/env'
+import { EmailVerificationEmail } from '@/emails/EmailVerification'
+import { createElement } from 'react'
 
 const schema = z.object({
   firstName: z.string().min(1).max(50),
@@ -12,6 +17,8 @@ const schema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+  let createdUser: { id: string; firstName: string; email: string } | null = null
+
   try {
     // Rate limiting: 3 registrations per IP per hour
     const clientIP = getClientIP(req)
@@ -42,7 +49,7 @@ export async function POST(req: NextRequest) {
 
     const passwordHash = await bcrypt.hash(data.password, 12)
 
-    await db.user.create({
+    createdUser = await db.user.create({
       data: {
         firstName: data.firstName,
         lastName: data.lastName,
@@ -53,15 +60,32 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // TODO: Create EmailVerificationToken and send verification email
-    // For now, auto-verify to allow testing
-    await db.user.update({
-      where: { email: data.email },
-      data: { emailVerified: new Date() },
+    const token = await createEmailVerificationToken(createdUser.id)
+    const verificationLink = new URL('/api/auth/verify-email', getServerEnv().appUrl)
+    verificationLink.searchParams.set('token', token)
+
+    await sendEmail({
+      to: createdUser.email,
+      subject: 'Verifica tu email en Marketplace',
+      react: createElement(EmailVerificationEmail, {
+        userName: createdUser.firstName,
+        verificationLink: verificationLink.toString(),
+      }),
     })
 
-    return NextResponse.json({ success: true }, { status: 201 })
+    return NextResponse.json(
+      {
+        success: true,
+        message: 'Te hemos enviado un email de verificación. Revisa tu bandeja antes de iniciar sesión.',
+      },
+      { status: 201 }
+    )
   } catch (err) {
+    if (createdUser) {
+      await db.emailVerificationToken.deleteMany({ where: { userId: createdUser.id } }).catch(() => {})
+      await db.user.delete({ where: { id: createdUser.id } }).catch(() => {})
+    }
+
     if (err instanceof z.ZodError) {
       return NextResponse.json({ message: 'Datos inválidos', issues: err.issues }, { status: 400 })
     }

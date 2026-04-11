@@ -1,20 +1,19 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { signIn } from 'next-auth/react'
 
 export default function RegisterPage() {
-  const router = useRouter()
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
+    setSuccessMessage(null)
     setLoading(true)
 
     const data = new FormData(e.currentTarget)
@@ -38,15 +37,9 @@ export default function RegisterPage() {
       return
     }
 
-    // Auto-login after register
-    await signIn('credentials', {
-      email: body.email as string,
-      password: body.password as string,
-      redirect: false,
-    })
-
-    router.push('/')
-    router.refresh()
+    const result = await res.json()
+    setSuccessMessage(result.message || 'Cuenta creada. Revisa tu email para verificar tu cuenta.')
+    setLoading(false)
   }
 
   return (
@@ -72,6 +65,15 @@ export default function RegisterPage() {
         {error && (
           <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/35 dark:text-red-300">
             {error}
+          </p>
+        )}
+
+        {successMessage && (
+          <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-200">
+            {successMessage}{' '}
+            <Link href="/login" className="font-semibold underline underline-offset-2">
+              Ir a iniciar sesión
+            </Link>
           </p>
         )}
 

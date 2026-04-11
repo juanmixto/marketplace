@@ -24,6 +24,45 @@ test('extractAuditIp falls back to x-real-ip when forwarding chain is absent', (
   assert.equal(ip, '198.51.100.24')
 })
 
+test('extractAuditIp falls back to cf-connecting-ip when x-real-ip is absent', () => {
+  const ip = extractAuditIp({
+    get(name: string) {
+      if (name === 'cf-connecting-ip') return '198.51.100.50'
+      return null
+    },
+  })
+
+  assert.equal(ip, '198.51.100.50')
+})
+
+test('extractAuditIp falls back to x-vercel-forwarded-for as last resort', () => {
+  const ip = extractAuditIp({
+    get(name: string) {
+      if (name === 'x-vercel-forwarded-for') return '198.51.100.99'
+      return null
+    },
+  })
+
+  assert.equal(ip, '198.51.100.99')
+})
+
+test('extractAuditIp returns null when no IP headers are present', () => {
+  const ip = extractAuditIp({ get: () => null })
+
+  assert.equal(ip, null)
+})
+
+test('extractAuditIp handles x-forwarded-for with single IP', () => {
+  const ip = extractAuditIp({
+    get(name: string) {
+      if (name === 'x-forwarded-for') return '10.0.0.5'
+      return null
+    },
+  })
+
+  assert.equal(ip, '10.0.0.5')
+})
+
 test('createAuditLog swallows persistence failures so admin actions keep running', async () => {
   let calls = 0
   const originalConsoleError = console.error
@@ -59,6 +98,66 @@ test('createAuditLog swallows persistence failures so admin actions keep running
   assert.equal(calls, 1)
 })
 
+test('createAuditLog writes the record when client is available', async () => {
+  const written: unknown[] = []
+
+  await createAuditLog(
+    {
+      action: 'PRODUCT_APPROVED',
+      entityType: 'Product',
+      entityId: 'prod_1',
+      before: { status: 'PENDING_REVIEW' },
+      after: { status: 'ACTIVE' },
+      actorId: 'admin_2',
+      actorRole: 'ADMIN_CATALOG',
+      ip: '10.0.0.1',
+    },
+    {
+      auditLog: {
+        async create(args) {
+          written.push(args.data)
+          return {}
+        },
+      },
+    }
+  )
+
+  assert.equal(written.length, 1)
+  const record = written[0] as Record<string, unknown>
+  assert.equal(record.action, 'PRODUCT_APPROVED')
+  assert.equal(record.entityType, 'Product')
+  assert.equal(record.entityId, 'prod_1')
+  assert.equal(record.actorId, 'admin_2')
+  assert.equal(record.actorRole, 'ADMIN_CATALOG')
+  assert.equal(record.ip, '10.0.0.1')
+})
+
+test('createAuditLog defaults ip to null when not provided', async () => {
+  const written: unknown[] = []
+
+  await createAuditLog(
+    {
+      action: 'SETTINGS_UPDATED',
+      entityType: 'Settings',
+      entityId: 'settings_1',
+      actorId: 'admin_3',
+      actorRole: 'SUPERADMIN',
+    },
+    {
+      auditLog: {
+        async create(args) {
+          written.push(args.data)
+          return {}
+        },
+      },
+    }
+  )
+
+  assert.equal(written.length, 1)
+  const record = written[0] as Record<string, unknown>
+  assert.equal(record.ip, null)
+})
+
 test('readAuditPayload returns typed before/after snapshots', () => {
   const payload = readAuditPayload<{ status: string }, { status: string; reviewer: string }>({
     before: { status: 'APPLYING' },
@@ -68,4 +167,11 @@ test('readAuditPayload returns typed before/after snapshots', () => {
   assert.equal(payload.before?.status, 'APPLYING')
   assert.equal(payload.after?.status, 'ACTIVE')
   assert.equal(payload.after?.reviewer, 'admin_1')
+})
+
+test('readAuditPayload returns null for missing before/after fields', () => {
+  const payload = readAuditPayload({ before: null, after: undefined })
+
+  assert.equal(payload.before, null)
+  assert.equal(payload.after, null)
 })
