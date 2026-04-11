@@ -1,6 +1,6 @@
 import test, { afterEach, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { confirmOrder, createOrder } from '@/domains/orders/actions'
+import { confirmOrder, createCheckoutOrder, createOrder } from '@/domains/orders/actions'
 import { db } from '@/lib/db'
 import { resetServerEnvCache } from '@/lib/env'
 import {
@@ -79,6 +79,34 @@ test('createOrder rejects products without enough stock', async () => {
     ),
     /stock insuficiente/i
   )
+})
+
+test('createCheckoutOrder returns a friendly stock error and avoids saving the address when checkout fails', async () => {
+  const { vendor } = await createVendorUser()
+  const customer = await createUser('CUSTOMER')
+  const product = await createActiveProduct(vendor.id, { stock: 1 })
+  useTestSession(buildSession(customer.id, 'CUSTOMER'))
+
+  const result = await createCheckoutOrder(
+    [{ productId: product.id, quantity: 3 }],
+    {
+      address: {
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        line1: 'Calle Mayor 1',
+        city: 'Madrid',
+        province: 'Madrid',
+        postalCode: '28001',
+      },
+      saveAddress: true,
+    }
+  )
+
+  assert.equal(result.ok, false)
+  assert.match(result.error, /stock insuficiente/i)
+
+  const savedAddresses = await db.address.findMany({ where: { userId: customer.id } })
+  assert.equal(savedAddresses.length, 0)
 })
 
 test('confirmOrder marks payment as succeeded', async () => {

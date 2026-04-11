@@ -2,8 +2,11 @@
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { useCallback } from 'react'
+import { useLocale } from '@/i18n'
 import type { CategoryWithCount } from '@/domains/catalog/types'
 import { CERTIFICATIONS } from '@/lib/constants'
+import { translateCategoryLabel } from '@/lib/portals'
+import { getCatalogCopy } from '@/i18n/catalog-copy'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -11,6 +14,8 @@ interface Props {
 }
 
 export function ProductFiltersPanel({ categories }: Props) {
+  const { locale } = useLocale()
+  const copy = getCatalogCopy(locale)
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -43,22 +48,22 @@ export function ProductFiltersPanel({ categories }: Props) {
   return (
     <div className="sticky top-24 space-y-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-[var(--foreground)]">Filtros</h3>
+        <h3 className="font-semibold text-[var(--foreground)]">{copy.filters.title}</h3>
         {hasFilters && (
           <button
             type="button"
             onClick={() => router.push(pathname)}
-            aria-label="Limpiar todos los filtros"
+            aria-label={copy.filters.clearAllAria}
             className="rounded-md text-xs text-emerald-600 underline-offset-2 hover:underline dark:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
           >
-            Limpiar todo
+            {copy.filters.clearAll}
           </button>
         )}
       </div>
 
       {/* Categories */}
       <div>
-        <h4 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Categoría</h4>
+        <h4 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">{copy.filters.category}</h4>
         <div className="space-y-0.5">
           <button
             type="button"
@@ -71,7 +76,7 @@ export function ProductFiltersPanel({ categories }: Props) {
                 : 'text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]'
             )}
           >
-            Todas
+            {copy.filters.all}
           </button>
           {categories.map(cat => (
             <button
@@ -88,7 +93,7 @@ export function ProductFiltersPanel({ categories }: Props) {
             >
               <span className="flex items-center gap-2">
                 {cat.icon && <span>{cat.icon}</span>}
-                {cat.name}
+                {translateCategoryLabel(cat.slug, cat.name, locale)}
               </span>
               <span className="text-xs text-[var(--muted)]">{cat._count.products}</span>
             </button>
@@ -98,7 +103,7 @@ export function ProductFiltersPanel({ categories }: Props) {
 
       {/* Certifications */}
       <div>
-        <h4 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Certificaciones</h4>
+        <h4 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">{copy.filters.certifications}</h4>
         <div className="space-y-2">
           {CERTIFICATIONS.map(cert => (
             <label key={cert} className="flex cursor-pointer items-center gap-2.5">

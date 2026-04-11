@@ -6,11 +6,12 @@ import { ProductCard } from '@/components/catalog/ProductCard'
 import type { ProductWithVendor, CategoryWithCount, VendorWithCount } from '@/domains/catalog/types'
 import type { HomeStat } from '@/domains/catalog/home'
 import type { PublicMarketplaceSettings } from '@/lib/marketplace-settings'
-import { publicPortalLinks } from '@/lib/portals'
+import { getPublicPortalLinks, translateCategoryLabel } from '@/lib/portals'
 import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import { CheckBadgeIcon, TruckIcon, ShieldCheckIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
-import { useT } from '@/i18n'
+import { useLocale, useT } from '@/i18n'
 import type { TranslationKeys } from '@/i18n'
+import { getVendorHeroImage, getVendorVisualLabel } from '@/lib/vendor-visuals'
 
 interface HomePageClientProps {
   featured: ProductWithVendor[]
@@ -21,7 +22,9 @@ interface HomePageClientProps {
 }
 
 export function HomePageClient({ featured, categories, vendors, heroStats, publicConfig }: HomePageClientProps) {
+  const { locale } = useLocale()
   const t = useT()
+  const portalLinks = getPublicPortalLinks(locale)
 
   const STEPS: { step: string; titleKey: TranslationKeys; descKey: TranslationKeys }[] = [
     { step: '01', titleKey: 'steps.01.title', descKey: 'steps.01.desc' },
@@ -152,25 +155,34 @@ export function HomePageClient({ featured, categories, vendors, heroStats, publi
 
       {/* ── Quick access ─────────────────────────────────────────────────── */}
       <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] via-emerald-50/40 to-teal-50/30 p-6 shadow-sm dark:from-[var(--surface)] dark:via-emerald-950/20 dark:to-teal-950/10">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="rounded-3xl border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] via-emerald-50/35 to-teal-50/20 p-6 shadow-sm dark:from-[var(--surface)] dark:via-emerald-950/20 dark:to-teal-950/10 sm:p-7">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">{t('hero.quickAccess')}</p>
               <h2 className="mt-1 text-xl font-bold text-[var(--foreground)]">{t('quickAccessTitle')}</h2>
+              <p className="mt-2 max-w-2xl text-sm text-[var(--muted)]">{t('quickAccessDesc')}</p>
             </div>
-            <Link href="/login" className="rounded-md text-sm font-medium text-emerald-600 underline-offset-4 hover:underline dark:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
+            <Link href="/login" className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground-soft)] transition hover:border-emerald-300 hover:text-emerald-700 dark:hover:border-emerald-700 dark:hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
               {t('hero.loginCta')}
+              <ArrowRightIcon className="h-4 w-4" />
             </Link>
           </div>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
-            {publicPortalLinks.map(link => (
+            {portalLinks.map(link => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="group rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md dark:hover:border-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
+                className="group rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md dark:hover:border-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
               >
-                <p className="font-semibold text-[var(--foreground)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{link.label}</p>
-                <p className="mt-1 text-sm text-[var(--muted)]">{link.description}</p>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-[var(--foreground)] transition-colors group-hover:text-emerald-600 dark:group-hover:text-emerald-400">{link.label}</p>
+                    <p className="mt-1 text-sm text-[var(--muted)]">{link.description}</p>
+                  </div>
+                  <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-raised)] text-[var(--muted)] transition-colors group-hover:border-emerald-200 group-hover:text-emerald-700 dark:group-hover:border-emerald-800 dark:group-hover:text-emerald-300">
+                    <ArrowRightIcon className="h-4 w-4" />
+                  </span>
+                </div>
               </Link>
             ))}
           </div>
@@ -179,44 +191,65 @@ export function HomePageClient({ featured, categories, vendors, heroStats, publi
 
       {/* ── Categories ───────────────────────────────────────────────────── */}
       <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
-        <div className="flex items-end justify-between gap-4 mb-6">
+        <div className="mb-6 flex items-end justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">{t('categories')}</p>
             <h2 className="text-2xl font-bold text-[var(--foreground)]">{t('sections.browseByCat')}</h2>
+            <p className="mt-2 max-w-2xl text-sm text-[var(--muted)]">
+              {t('sections.browseByCatDesc')}
+            </p>
           </div>
         </div>
-        <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-8">
-          {categories.map(cat => (
-            <Link
-              key={cat.slug}
-              href={`/productos?categoria=${cat.slug}`}
-              className="group flex flex-col items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 text-center transition-all hover:-translate-y-0.5 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:border-emerald-600 dark:hover:bg-emerald-950/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
-            >
-              <span className="text-2xl">{cat.icon ?? '🌿'}</span>
-              <span className="text-[11px] font-medium leading-tight text-[var(--foreground-soft)] group-hover:text-emerald-700 dark:group-hover:text-emerald-300">{cat.name}</span>
-              {cat._count.products > 0 && (
-                <span className="text-[10px] text-[var(--muted)]">{cat._count.products}</span>
-              )}
-            </Link>
-          ))}
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {categories.map(cat => {
+            const label = translateCategoryLabel(cat.slug, cat.name, locale)
+            const countLabel = cat._count.products > 0 ? `${cat._count.products} ${t('productsUnit')}` : t('comingSoon')
+
+            return (
+              <Link
+                key={cat.slug}
+                href={`/productos?categoria=${cat.slug}`}
+                aria-label={`${label} · ${countLabel}`}
+                className="group rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md dark:hover:border-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-emerald-100 bg-emerald-50 text-lg shadow-inner dark:border-emerald-900/40 dark:bg-emerald-950/30">
+                      {cat.icon ?? '🌿'}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold leading-tight text-[var(--foreground)] transition-colors group-hover:text-emerald-700 dark:group-hover:text-emerald-300">
+                        {label}
+                      </p>
+                      <p className="mt-1 text-xs text-[var(--muted)]">{countLabel}</p>
+                    </div>
+                  </div>
+                  <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-raised)] text-[var(--muted)] transition-colors group-hover:border-emerald-200 group-hover:text-emerald-700 dark:group-hover:border-emerald-800 dark:group-hover:text-emerald-300">
+                    <ArrowRightIcon className="h-4 w-4" />
+                  </span>
+                </div>
+              </Link>
+            )
+          })}
         </div>
       </section>
 
       {/* ── Featured products ────────────────────────────────────────────── */}
       <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6 flex flex-col gap-4 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">{t('sectionLabelSelection')}</p>
-            <h2 className="text-2xl font-bold text-[var(--foreground)]">{t('sections.featured')}</h2>
+            <h2 className="mt-1 text-2xl font-bold text-[var(--foreground)]">{t('sections.featured')}</h2>
+            <p className="mt-2 max-w-2xl text-sm text-[var(--muted)]">{t('sections.featuredDesc')}</p>
           </div>
-          <Link href="/productos" className="rounded-md text-sm font-medium text-emerald-600 underline-offset-4 hover:underline dark:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
+          <Link href="/productos" className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-raised)] px-4 py-2 text-sm font-semibold text-[var(--foreground-soft)] transition hover:border-emerald-300 hover:text-emerald-700 dark:hover:border-emerald-700 dark:hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
             {t('sections.seeAll')} <ArrowRightIcon className="h-3.5 w-3.5" />
           </Link>
         </div>
         {featured.length > 0 ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {featured.map(p => (
-              <ProductCard key={p.id} product={p} />
+              <ProductCard key={p.id} product={p} locale={locale} />
             ))}
           </div>
         ) : (
@@ -253,45 +286,80 @@ export function HomePageClient({ featured, categories, vendors, heroStats, publi
       {/* ── Featured vendors ─────────────────────────────────────────────── */}
       {vendors.length > 0 && (
         <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between mb-6">
+          <div className="mb-6 flex flex-col gap-4 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">{t('sectionLabelOrigin')}</p>
-              <h2 className="text-2xl font-bold text-[var(--foreground)]">{t('sections.featuredVendors')}</h2>
+              <h2 className="mt-1 text-2xl font-bold text-[var(--foreground)]">{t('sections.featuredVendors')}</h2>
+              <p className="mt-2 max-w-2xl text-sm text-[var(--muted)]">{t('sections.featuredVendorsDesc')}</p>
             </div>
-            <Link href="/productores" className="flex items-center gap-1 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:underline underline-offset-4">
+            <Link href="/productores" className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-raised)] px-4 py-2 text-sm font-semibold text-[var(--foreground-soft)] transition hover:border-emerald-300 hover:text-emerald-700 dark:hover:border-emerald-700 dark:hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
               {t('sections.seeAllVendors')} <ArrowRightIcon className="h-3.5 w-3.5" />
             </Link>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {vendors.map(v => (
-              <Link
-                key={v.slug}
-                href={`/productores/${v.slug}`}
-                className="group flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md dark:hover:border-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
-              >
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-2xl">
-                  🌾
-                </div>
-                <div className="min-w-0">
-                  <p className="font-semibold text-[var(--foreground)] truncate group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors">
-                    {v.displayName}
-                  </p>
-                  {v.location && (
-                    <p className="flex items-center gap-1 text-xs text-[var(--muted)] mt-0.5">
-                      <MapPinIcon className="h-3 w-3 shrink-0" /> {v.location}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-2 mt-1">
-                    {v.avgRating && (
-                      <span className="flex items-center gap-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
-                        <StarIcon className="h-3 w-3" /> {Number(v.avgRating).toFixed(1)}
-                      </span>
-                    )}
-                    <span className="text-xs text-[var(--muted)]">{v._count.products} {t('productsUnit')}</span>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {vendors.map(v => {
+              const heroImage = getVendorHeroImage(v)
+              const visualLabel = getVendorVisualLabel(v)
+
+              return (
+                <Link
+                  key={v.slug}
+                  href={`/productores/${v.slug}`}
+                  className="group rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md dark:hover:border-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
+                >
+                  <div className="relative mb-4 aspect-[16/10] overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-900">
+                    <Image
+                      src={heroImage}
+                      alt={`Foto de ${v.displayName}`}
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                      className="object-cover transition duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-950/15 to-transparent" />
+
+                    <span className="absolute left-3 top-3 inline-flex items-center rounded-full bg-white/92 px-2.5 py-1 text-[11px] font-semibold text-slate-800 shadow-sm">
+                      {visualLabel}
+                    </span>
+
+                    <span className="absolute bottom-3 right-3 rounded-full bg-emerald-400/90 px-2.5 py-1 text-[11px] font-semibold text-slate-950 shadow-sm">
+                      {v._count.products} {t('productsUnit')}
+                    </span>
                   </div>
-                </div>
-              </Link>
-            ))}
+
+                  <div className="min-w-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-[var(--foreground)] transition-colors group-hover:text-emerald-700 dark:group-hover:text-emerald-300">
+                          {v.displayName}
+                        </p>
+                        {v.location && (
+                          <p className="mt-1 flex items-center gap-1 text-xs text-[var(--muted)]">
+                            <MapPinIcon className="h-3 w-3 shrink-0" /> {v.location}
+                          </p>
+                        )}
+                      </div>
+                      {v.avgRating && (
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+                          <StarIcon className="h-3 w-3" /> {Number(v.avgRating).toFixed(1)}
+                        </span>
+                      )}
+                    </div>
+
+                    {v.description && (
+                      <p className="mt-3 line-clamp-2 text-sm text-[var(--foreground-soft)]">{v.description}</p>
+                    )}
+
+                    <div className="mt-4 flex items-center justify-between gap-3">
+                      <span className="text-xs font-medium text-[var(--muted)]">{v._count.products} {t('productsUnit')}</span>
+                      <span className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 transition-colors group-hover:text-emerald-800 dark:text-emerald-300 dark:group-hover:text-emerald-200">
+                        {t('sections.vendorCardCta')}
+                        <ArrowRightIcon className="h-4 w-4" />
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              )
+            })}
           </div>
         </section>
       )}

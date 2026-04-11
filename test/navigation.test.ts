@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   adminNavItems,
   buyerAccountItems,
+  buyerAccountMeta,
   getAvailableNavItems,
   getUpcomingNavItems,
   vendorNavItems,
@@ -24,4 +25,11 @@ test('buyer account only exposes implemented links as available', () => {
     ['/cuenta/pedidos', '/cuenta/direcciones', '/cuenta/favoritos']
   )
   assert.deepEqual(upcoming.map(item => item.href), ['/cuenta/perfil'])
+})
+
+test('buyer account metadata covers every account link to avoid runtime crashes in /cuenta', () => {
+  assert.deepEqual(
+    Object.keys(buyerAccountMeta).sort(),
+    buyerAccountItems.map(item => item.href).sort()
+  )
 })

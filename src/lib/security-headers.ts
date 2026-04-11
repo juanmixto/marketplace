@@ -19,19 +19,19 @@ function shouldEnforceHttpsHeaders() {
   })
 }
 
-export function buildContentSecurityPolicy() {
+export function buildContentSecurityPolicy(isDevelopment = process.env.NODE_ENV === 'development') {
   const directives = [
     "default-src 'self'",
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
     // Stripe Elements injects inline scripts/styles as part of its hosted integration.
-    "script-src 'self' 'unsafe-inline' https://js.stripe.com",
+    `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ''} https://js.stripe.com`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     'font-src \'self\' data:',
     "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
-    "connect-src 'self' https://api.stripe.com https://js.stripe.com",
+    `connect-src 'self'${isDevelopment ? ' ws: wss:' : ''} https://api.stripe.com https://js.stripe.com`,
     "object-src 'none'",
     "media-src 'self' blob:",
     "worker-src 'self' blob:",

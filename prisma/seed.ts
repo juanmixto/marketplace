@@ -1,6 +1,7 @@
 import { PrismaPg } from '@prisma/adapter-pg'
 import bcrypt from 'bcryptjs'
 import { PrismaClient } from '../src/generated/prisma/client'
+import { getDemoProductImages } from '../src/lib/demo-product-images'
 import { getServerEnv } from '../src/lib/env'
 
 const adapter = new PrismaPg({ connectionString: getServerEnv().databaseUrl })
@@ -739,15 +740,19 @@ async function main() {
     })
 
     for (const product of blueprint.products) {
+      const images = getDemoProductImages(product.slug, product.images)
+
       await db.product.upsert({
         where: { slug: product.slug },
         update: {
           ...product,
           vendorId: vendor.id,
+          images,
         },
         create: {
           ...product,
           vendorId: vendor.id,
+          images,
         },
       })
     }

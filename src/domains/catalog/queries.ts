@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { PAGINATION_DEFAULTS } from '@/lib/constants'
 import { getAvailableProductWhere } from '@/domains/catalog/availability'
 import { CACHE_TAGS } from '@/lib/cache-tags'
+import { getDemoProductImages } from '@/lib/demo-product-images'
 
 export interface ProductFilters {
   categorySlug?: string
@@ -40,6 +41,13 @@ function normalizeProductFilters(filters: ProductFilters = {}) {
     sort,
     cursor,
     limit,
+  }
+}
+
+function withDemoProductImages<T extends { slug: string; images: string[] }>(product: T): T {
+  return {
+    ...product,
+    images: getDemoProductImages(product.slug, product.images),
   }
 }
 
@@ -112,7 +120,7 @@ async function getProductsUncached(filters: ProductFilters = {}) {
   const nextCursor = hasNextPage ? products[products.length - 1]?.id ?? null : null
 
   return {
-    products,
+    products: products.map(withDemoProductImages),
     nextCursor,
     hasNext: hasNextPage,
     hasPrev: !!cursor,
@@ -132,7 +140,7 @@ export async function getProducts(filters: ProductFilters = {}) {
 }
 
 async function getProductBySlugUncached(slug: string) {
-  return db.product.findFirst({
+  const product = await db.product.findFirst({
     where: { slug, ...getAvailableProductWhere() },
     select: {
       id: true,
@@ -166,6 +174,8 @@ async function getProductBySlugUncached(slug: string) {
       variants: { where: { isActive: true } },
     },
   })
+
+  return product ? withDemoProductImages(product) : null
 }
 
 const getProductBySlugCached = unstable_cache(
@@ -183,7 +193,7 @@ export async function getProductBySlug(slug: string) {
 type ProductDetail = Awaited<ReturnType<typeof getProductBySlugUncached>>
 
 async function getFeaturedProductsUncached(limit = 8) {
-  return db.product.findMany({
+  const products = await db.product.findMany({
     where: getAvailableProductWhere(),
     orderBy: { createdAt: 'desc' },
     take: limit,
@@ -205,6 +215,8 @@ async function getFeaturedProductsUncached(limit = 8) {
       category: { select: { name: true, slug: true } },
     },
   })
+
+  return products.map(withDemoProductImages)
 }
 
 const getFeaturedProductsCached = unstable_cache(

@@ -1,3 +1,5 @@
+import { HeartIcon, MapPinIcon, ShoppingBagIcon, UserCircleIcon } from '@heroicons/react/24/outline'
+
 export interface AppNavItem {
   href: string
   label: string
@@ -32,6 +34,25 @@ export const buyerAccountItems: AppNavItem[] = [
   { href: '/cuenta/favoritos', label: 'Mis favoritos', available: true },
   { href: '/cuenta/perfil', label: 'Datos personales', available: false },
 ]
+
+export const buyerAccountMeta = {
+  '/cuenta/pedidos': {
+    icon: ShoppingBagIcon,
+    desc: 'Consulta y gestiona tus pedidos',
+  },
+  '/cuenta/direcciones': {
+    icon: MapPinIcon,
+    desc: 'Gestiona tus direcciones de entrega',
+  },
+  '/cuenta/favoritos': {
+    icon: HeartIcon,
+    desc: 'Guarda productos para volver a comprarlos cuando quieras',
+  },
+  '/cuenta/perfil': {
+    icon: UserCircleIcon,
+    desc: 'Actualiza tu nombre, email y contraseña',
+  },
+} as const
 
 export function getAvailableNavItems(items: AppNavItem[]) {
   return items.filter(item => item.available)

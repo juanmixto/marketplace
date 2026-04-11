@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { ORDER_STATUS_LABELS } from '@/lib/constants'
 import { Badge } from '@/components/ui/badge'
+import { RepeatOrderButton } from '@/components/buyer/RepeatOrderButton'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Mis pedidos' }
@@ -29,7 +30,12 @@ export default async function MisPedidosPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="text-2xl font-bold text-[var(--foreground)] mb-6">Mis pedidos</h1>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">Mis pedidos</h1>
+        <p className="mt-2 text-sm text-[var(--muted)]">
+          Repite compras anteriores en un clic o entra al detalle para revisar el pedido.
+        </p>
+      </div>
 
       {orders.length === 0 ? (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-6 py-16 text-center shadow-sm">
@@ -42,40 +48,70 @@ export default async function MisPedidosPage() {
       ) : (
         <div className="space-y-4">
           {orders.map(order => (
-            <Link
+            <article
               key={order.id}
-              href={`/cuenta/pedidos/${order.id}`}
-              className="block rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 transition hover:border-emerald-300 hover:shadow-sm dark:hover:border-emerald-700"
+              className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 transition hover:border-emerald-300 hover:shadow-sm dark:hover:border-emerald-700"
             >
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <div>
-                  <p className="font-semibold text-[var(--foreground)]">{order.orderNumber}</p>
-                  <p className="text-sm text-[var(--muted)]">{formatDate(order.placedAt)}</p>
+              <Link
+                href={`/cuenta/pedidos/${order.id}`}
+                className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
+              >
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-[var(--foreground)]">{order.orderNumber}</p>
+                    <p className="text-sm text-[var(--muted)]">{formatDate(order.placedAt)}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <Badge variant={STATUS_VARIANT[order.status] ?? 'default'}>
+                      {ORDER_STATUS_LABELS[order.status] ?? order.status}
+                    </Badge>
+                    <p className="font-bold text-[var(--foreground)]">{formatPrice(Number(order.grandTotal))}</p>
+                  </div>
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  <Badge variant={STATUS_VARIANT[order.status] ?? 'default'}>
-                    {ORDER_STATUS_LABELS[order.status] ?? order.status}
-                  </Badge>
-                  <p className="font-bold text-[var(--foreground)]">{formatPrice(Number(order.grandTotal))}</p>
-                </div>
-              </div>
 
-              <div className="flex gap-2">
-                {order.lines.slice(0, 4).map(line => (
-                  <div key={line.id} className="relative h-12 w-12 overflow-hidden rounded-lg bg-[var(--surface-raised)]">
-                    {line.product.images?.[0]
-                      ? <Image src={line.product.images[0]} alt={line.product.name} fill className="object-cover" sizes="48px" />
-                      : <div className="flex h-full items-center justify-center text-lg">🌿</div>
-                    }
-                  </div>
-                ))}
-                {order.lines.length > 4 && (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[var(--surface-raised)] text-xs text-[var(--muted)] font-medium">
-                    +{order.lines.length - 4}
-                  </div>
-                )}
+                <div className="flex gap-2">
+                  {order.lines.slice(0, 4).map(line => (
+                    <div key={line.id} className="relative h-12 w-12 overflow-hidden rounded-lg bg-[var(--surface-raised)]">
+                      {line.product.images?.[0]
+                        ? <Image src={line.product.images[0]} alt={line.product.name} fill className="object-cover" sizes="48px" />
+                        : <div className="flex h-full items-center justify-center text-lg">🌿</div>
+                      }
+                    </div>
+                  ))}
+                  {order.lines.length > 4 && (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[var(--surface-raised)] text-xs font-medium text-[var(--muted)]">
+                      +{order.lines.length - 4}
+                    </div>
+                  )}
+                </div>
+              </Link>
+
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-3">
+                <Link
+                  href={`/cuenta/pedidos/${order.id}`}
+                  className="text-sm font-medium text-emerald-700 underline-offset-4 hover:underline dark:text-emerald-400"
+                >
+                  Ver detalle
+                </Link>
+                <RepeatOrderButton
+                  orderNumber={order.orderNumber}
+                  lines={order.lines.map(line => ({
+                    id: line.id,
+                    productId: line.productId,
+                    vendorId: line.vendorId,
+                    variantId: line.variantId,
+                    quantity: line.quantity,
+                    unitPrice: Number(line.unitPrice),
+                    product: {
+                      name: line.product.name,
+                      slug: line.product.slug,
+                      images: line.product.images,
+                    },
+                    productSnapshot: line.productSnapshot,
+                  }))}
+                />
               </div>
-            </Link>
+            </article>
           ))}
         </div>
       )}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { FAVORITES_UNAVAILABLE_MESSAGE, isFavoritesTableMissingError } from '@/lib/favorites'
 
 interface RouteParams {
   params: Promise<{ productId: string }>
@@ -43,6 +44,13 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
+    if (isFavoritesTableMissingError(error)) {
+      return NextResponse.json(
+        { error: FAVORITES_UNAVAILABLE_MESSAGE },
+        { status: 503 }
+      )
+    }
+
     console.error('DELETE /api/favoritos/[productId] error:', error)
     return NextResponse.json(
       { error: 'Error al eliminar favorito' },

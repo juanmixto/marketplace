@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import { useLocale } from '@/i18n'
 import { useCartStore } from '@/lib/cart-store'
 import { Button, type ButtonProps } from '@/components/ui/button'
 import { createAnalyticsItem, trackAnalyticsEvent } from '@/lib/analytics'
+import { getCatalogCopy } from '@/i18n/catalog-copy'
 import { ShoppingCartIcon, CheckIcon } from '@heroicons/react/24/outline'
 
 interface Props {
@@ -43,6 +45,8 @@ export function AddToCartButton({
   size = 'lg',
   className,
 }: Props) {
+  const { locale } = useLocale()
+  const copy = getCatalogCopy(locale)
   const addItem = useCartStore(s => s.addItem)
   const [added, setAdded] = useState(false)
   const quantityToAdd = Number.isFinite(quantity) && quantity > 0 ? Math.floor(quantity) : 1
@@ -81,16 +85,16 @@ export function AddToCartButton({
 
   const idleLabel = compact
     ? quantityToAdd > 1
-      ? `Añadir ${quantityToAdd}`
-      : 'Añadir'
+      ? copy.actions.addCompact(quantityToAdd)
+      : copy.actions.add
     : quantityToAdd > 1
-      ? `Añadir ${quantityToAdd} unidades`
-      : 'Añadir al carrito'
+      ? copy.actions.addMany(quantityToAdd)
+      : copy.actions.addToCart
   const successLabel = compact
-    ? 'Añadido'
+    ? copy.actions.added
     : quantityToAdd > 1
-      ? `${quantityToAdd} unidades añadidas`
-      : 'Añadido al carrito'
+      ? copy.actions.addedMany(quantityToAdd)
+      : copy.actions.addedToCart
 
   return (
     <Button

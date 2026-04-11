@@ -5,18 +5,28 @@ import {
   getPrimaryPortalHref,
   getLoginPortalMode,
   normalizeAuthRedirectUrl,
-  publicPortalLinks,
+  getPublicPortalLinks,
   resolvePostLoginDestination,
   sanitizeCallbackUrl,
   STOREFRONT_PATH,
+  translateCategoryLabel,
 } from '@/lib/portals'
 
-test('publicPortalLinks exposes direct access routes for buyer, vendor and admin', () => {
-  assert.equal(publicPortalLinks.length, 3)
-  assert.deepEqual(
-    publicPortalLinks.map(link => link.label),
-    ['Comprar', 'Soy productor', 'Admin']
-  )
+test('public portal links are localized for Spanish and English home quick-access cards', () => {
+  const esLinks = getPublicPortalLinks('es')
+  const enLinks = getPublicPortalLinks('en')
+
+  assert.equal(esLinks.length, 3)
+  assert.deepEqual(esLinks.map(link => link.label), ['Comprar', 'Soy productor', 'Panel admin'])
+  assert.deepEqual(enLinks.map(link => link.label), ['Shop', 'Producer portal', 'Admin panel'])
+  assert.match(enLinks[0]?.description ?? '', /catalog|shop/i)
+  assert.match(enLinks[1]?.description ?? '', /dashboard|catalog/i)
+})
+
+test('translateCategoryLabel uses English i18n names but falls back safely for unknown slugs', () => {
+  assert.equal(translateCategoryLabel('verduras', 'Verduras y Hortalizas', 'en'), 'Vegetables & Greens')
+  assert.equal(translateCategoryLabel('miel', 'Miel y Mermeladas', 'en'), 'Honey & Jams')
+  assert.equal(translateCategoryLabel('desconocida', 'Nombre libre', 'en'), 'Nombre libre')
 })
 
 test('getPrimaryPortalHref resolves role-aware destinations', () => {

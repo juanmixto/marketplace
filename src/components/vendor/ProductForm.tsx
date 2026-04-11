@@ -138,6 +138,10 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
+      <div className="rounded-xl border border-sky-200 bg-sky-50/70 px-4 py-3 text-sm text-sky-800 dark:border-sky-900/50 dark:bg-sky-950/20 dark:text-sky-200">
+        <p>🌐 {t('vendor.autoTranslateHint')}</p>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <Input label={t('vendor.nameLabel')} error={errors.name?.message} {...register('name')} />

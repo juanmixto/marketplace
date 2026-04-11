@@ -6,11 +6,15 @@ function readSource(path: string) {
   return readFileSync(new URL(path, import.meta.url), 'utf8')
 }
 
-test('Header exposes accessible names for icon-only actions', () => {
+test('Header exposes localized accessible names for icon-only actions', () => {
   const source = readSource('../src/components/layout/Header.tsx')
 
-  assert.match(source, /aria-label=\{`Ver carrito/)
-  assert.match(source, /aria-label=\{mobileOpen \? 'Cerrar menú' : 'Abrir menú'\}/)
+  assert.match(source, /const liveCartCount = useCartStore/)
+  assert.match(source, /const effectiveCartCount = Math\.max\(cartCount, liveCartCount\)/)
+  assert.match(source, /const cartAriaLabel =/)
+  assert.match(source, /t\('cart'\)/)
+  assert.match(source, /t\('close_menu'\)/)
+  assert.match(source, /t\('open_menu'\)/)
 })
 
 test('Cart page exposes labels for quantity and removal controls', () => {
@@ -26,7 +30,7 @@ test('Filters and modal expose the right interactive semantics', () => {
   const filters = readSource('../src/components/catalog/ProductFiltersPanel.tsx')
   const modal = readSource('../src/components/ui/modal.tsx')
 
-  assert.match(filters, /aria-label="Limpiar todos los filtros"/)
+  assert.match(filters, /aria-label=\{copy\.filters\.clearAllAria\}/)
   assert.match(filters, /aria-pressed=\{!currentCat\}/)
   assert.match(filters, /aria-pressed=\{currentCat === cat\.slug\}/)
   assert.match(modal, /aria-labelledby=\{title \? titleId : undefined\}/)

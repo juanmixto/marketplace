@@ -49,6 +49,13 @@ const es = {
   myAccount: 'Mi cuenta',
   myOrders: 'Mis pedidos',
   signIn: 'Entrar',
+  market_local: 'Mercado local',
+  admin_panel: 'Panel admin',
+  vendor_panel: 'Panel productor',
+  portal_shop_label: 'Comprar',
+  portal_shop_desc: 'Explora el catálogo público y compra como cliente.',
+  portal_vendor_label: 'Soy productor',
+  portal_admin_desc: 'Accede al dashboard administrativo con un usuario autorizado.',
   // Footer
   tagline: 'Conectamos pequeños productores con consumidores que valoran la calidad y la proximidad.',
   buy: 'Comprar',
@@ -84,11 +91,15 @@ const es = {
 
   // Sections
   'sections.browseByCat': 'Explorar por categoría',
+  'sections.browseByCatDesc': 'Accede al catálogo por familias de producto y encuentra antes lo que buscas.',
   'sections.featured': 'Productos destacados',
+  'sections.featuredDesc': 'Una selección cuidada de referencias con buena disponibilidad y productores activos.',
   'sections.seeAll': 'Ver todos',
   'sections.howItWorks': 'Cómo funciona',
   'sections.featuredVendors': 'Productores destacados',
+  'sections.featuredVendorsDesc': 'Perfiles con catálogo vivo, buena valoración y propuesta diferencial dentro del marketplace.',
   'sections.seeAllVendors': 'Ver todos',
+  'sections.vendorCardCta': 'Ver perfil',
   'sections.ctaTitle': '¿Eres productor?',
   'sections.ctaSubtitle': 'Vende directamente a consumidores. Sin intermediarios. Gestiona tu catálogo, pedidos y cobros desde un panel sencillo.',
   'sections.ctaBtn': 'Empieza gratis',
@@ -106,6 +117,7 @@ const es = {
   // Home misc
   producerPortalDesc: 'Entra a tu panel para gestionar catálogo, pedidos y cobros.',
   quickAccessTitle: 'Entra según tu perfil',
+  quickAccessDesc: 'Accede a la parte del marketplace que necesitas sin rodeos y con contexto claro.',
   sectionLabelSelection: 'Selección',
   sectionLabelProcess: 'El proceso',
   sectionLabelOrigin: 'Origen',
@@ -248,6 +260,7 @@ const es = {
   'vendor.saveDraft': 'Guardar como borrador',
   'vendor.sendReview': 'Enviar a revisión',
   'vendor.statusHint': 'Puedes editar borradores y reenviar productos rechazados más adelante.',
+  'vendor.autoTranslateHint': 'Los textos del producto se traducen automáticamente para la tienda en el otro idioma. Los compradores verán una insignia cuando estén viendo una traducción automática.',
   'vendor.saveChanges': 'Guardar cambios',
   'vendor.createProduct': 'Crear producto',
 

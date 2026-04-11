@@ -1,92 +1,69 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowRightIcon, ShoppingBagIcon, TruckIcon, CheckCircleIcon, CreditCardIcon, SparklesIcon } from '@heroicons/react/24/outline'
+import {
+  ArrowRightIcon,
+  ShoppingBagIcon,
+  TruckIcon,
+  CheckCircleIcon,
+  CreditCardIcon,
+  SparklesIcon,
+} from '@heroicons/react/24/outline'
 import { buildPageMetadata } from '@/lib/seo'
+import { getPublicPageCopy } from '@/i18n/public-page-copy'
+import { getServerLocale } from '@/i18n/server'
 
-export const metadata: Metadata = buildPageMetadata({
-  title: 'Cómo funciona',
-  description: 'Descubre cómo funciona Mercado Productor, la plataforma de venta directa de productos locales.',
-  path: '/como-funciona',
-})
+const stepIcons = [SparklesIcon, ShoppingBagIcon, CreditCardIcon, TruckIcon, CheckCircleIcon] as const
 
-const steps = [
-  {
-    num: 1,
-    icon: SparklesIcon,
-    title: 'Descubre productores locales',
-    description: 'Navega nuestro catálogo y encuentra productores de tu región. Ve sus ofertas, certificaciones y reseñas de otros clientes.',
-  },
-  {
-    num: 2,
-    icon: ShoppingBagIcon,
-    title: 'Selecciona tus productos',
-    description: 'Elige los productos que quieres, gestiona cantidades y añade a carrito. Sin intermediarios, directamente del productor.',
-  },
-  {
-    num: 3,
-    icon: CreditCardIcon,
-    title: 'Paga de forma segura',
-    description: 'Completa el pago de manera segura con tarjeta de crédito. Todos los pagos están protegidos por Stripe.',
-  },
-  {
-    num: 4,
-    icon: TruckIcon,
-    title: 'Recibe tu pedido',
-    description: 'El productor recibe tu pedido, prepara tus productos y los envía. Recibirás notificaciones en tiempo real.',
-  },
-  {
-    num: 5,
-    icon: CheckCircleIcon,
-    title: 'Valora tu experiencia',
-    description: 'Recibe tu pedido y deja una reseña. Tus comentarios ayudan a otros compradores y a los productores a mejorar.',
-  },
-]
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale()
+  const copy = getPublicPageCopy(locale).howItWorks
 
-export default function ComoFunciona() {
+  return buildPageMetadata({
+    title: copy.metadataTitle,
+    description: copy.metadataDescription,
+    path: '/como-funciona',
+  })
+}
+
+export default async function ComoFunciona() {
+  const locale = await getServerLocale()
+  const copy = getPublicPageCopy(locale).howItWorks
+
   return (
     <main className="bg-surface">
-      {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-b from-accent-soft to-surface px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
-          <h1 className="mb-6 text-5xl font-bold text-foreground">
-            Cómo funciona
-          </h1>
-          <p className="mb-8 text-xl text-foreground-soft">
-            Conectamos productores locales con consumidores que valoran la calidad y la proximidad. Sin intermediarios, sin sorpresas.
-          </p>
+          <h1 className="mb-6 text-5xl font-bold text-foreground">{copy.heroTitle}</h1>
+          <p className="mb-8 text-xl text-foreground-soft">{copy.heroBody}</p>
         </div>
       </section>
 
-      {/* Pasos */}
       <section className="px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl">
           <div className="space-y-12">
-            {steps.map((step, idx) => {
-              const Icon = step.icon
-              const isLast = idx === steps.length - 1
+            {copy.steps.map((step, idx) => {
+              const Icon = stepIcons[idx]
+              const isLast = idx === copy.steps.length - 1
 
               return (
-                <div key={step.num}>
+                <div key={`${idx + 1}-${step.title}`}>
                   <div className="flex gap-6">
-                    {/* Número */}
                     <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-accent text-2xl font-bold text-white">
-                      {step.num}
+                      {idx + 1}
                     </div>
 
-                    {/* Contenido */}
                     <div className="flex-1 pt-1">
-                      <div className="flex items-start gap-3 mb-2">
-                        <Icon className="h-6 w-6 text-accent flex-shrink-0 mt-1" />
+                      <div className="mb-2 flex items-start gap-3">
+                        <Icon className="mt-1 h-6 w-6 flex-shrink-0 text-accent" />
                         <h3 className="text-2xl font-bold text-foreground">{step.title}</h3>
                       </div>
                       <p className="text-lg text-foreground-soft">{step.description}</p>
                     </div>
                   </div>
 
-                  {/* Flecha */}
                   {!isLast && (
                     <div className="ml-8 mt-6 flex justify-center">
-                      <ArrowRightIcon className="h-6 w-6 text-accent-soft rotate-90" />
+                      <ArrowRightIcon className="h-6 w-6 rotate-90 text-accent-soft" />
                     </div>
                   )}
                 </div>
@@ -96,54 +73,15 @@ export default function ComoFunciona() {
         </div>
       </section>
 
-      {/* Ventajas */}
       <section className="bg-surface-raised px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl">
-          <h2 className="mb-12 text-center text-3xl font-bold text-foreground">
-            Ventajas de comprar con nosotros
-          </h2>
+          <h2 className="mb-12 text-center text-3xl font-bold text-foreground">{copy.advantagesTitle}</h2>
 
           <div className="grid gap-8 md:grid-cols-2">
-            {[
-              {
-                icon: '🌱',
-                title: 'Sostenibilidad',
-                description: 'Reduce la huella de carbono comprando localmente. Sin largos transportes, productos frescos.',
-              },
-              {
-                icon: '💰',
-                title: 'Mejores precios',
-                description: 'Sin intermediarios, el dinero va directo al productor. Tú ahorras, ellos ganan más.',
-              },
-              {
-                icon: '✅',
-                title: 'Calidad garantizada',
-                description: 'Conoce quién produce tus alimentos. Transparencia total desde origen hasta tu mesa.',
-              },
-              {
-                icon: '⭐',
-                title: 'Reseñas reales',
-                description: 'Lee experiencias de otros clientes. Decisiones informadas basadas en opiniones verificadas.',
-              },
-              {
-                icon: '🚚',
-                title: 'Entrega rápida',
-                description: 'Recibe tus productos frescos en días, no en semanas. Seguimiento en tiempo real.',
-              },
-              {
-                icon: '🤝',
-                title: 'Apoyo local',
-                description: 'Contribuye al desarrollo de tu comunidad. Cada compra impulsa productores locales.',
-              },
-            ].map((item, idx) => (
-              <div
-                key={idx}
-                className="rounded-lg border border-border bg-surface p-6"
-              >
+            {copy.advantages.map((item, idx) => (
+              <div key={`${item.title}-${idx}`} className="rounded-lg border border-border bg-surface p-6">
                 <p className="mb-3 text-4xl">{item.icon}</p>
-                <h3 className="mb-2 text-lg font-semibold text-foreground">
-                  {item.title}
-                </h3>
+                <h3 className="mb-2 text-lg font-semibold text-foreground">{item.title}</h3>
                 <p className="text-foreground-soft">{item.description}</p>
               </div>
             ))}
@@ -151,27 +89,22 @@ export default function ComoFunciona() {
         </div>
       </section>
 
-      {/* CTA */}
       <section className="px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="mb-6 text-4xl font-bold text-foreground">
-            ¿Listo para empezar?
-          </h2>
-          <p className="mb-8 text-xl text-foreground-soft">
-            Explora nuestro catálogo y descubre productores locales de calidad
-          </p>
+          <h2 className="mb-6 text-4xl font-bold text-foreground">{copy.ctaTitle}</h2>
+          <p className="mb-8 text-xl text-foreground-soft">{copy.ctaBody}</p>
           <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
             <Link
               href="/productos"
               className="inline-block rounded-lg bg-accent px-8 py-4 font-semibold text-white hover:bg-accent-hover"
             >
-              Ver productos
+              {copy.ctaProducts}
             </Link>
             <Link
               href="/productores"
               className="inline-block rounded-lg border-2 border-accent px-8 py-4 font-semibold text-accent hover:bg-accent-soft"
             >
-              Ver productores
+              {copy.ctaProducers}
             </Link>
           </div>
         </div>

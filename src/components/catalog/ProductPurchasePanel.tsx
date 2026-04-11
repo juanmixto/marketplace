@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useLocale } from '@/i18n'
 import { AddToCartButton } from '@/components/catalog/AddToCartButton'
 import {
   getAvailableStockForPurchase,
@@ -12,6 +13,7 @@ import {
 } from '@/domains/catalog/variants'
 import { formatPrice } from '@/lib/utils'
 import { createAnalyticsItem, trackAnalyticsEvent } from '@/lib/analytics'
+import { getCatalogCopy, translateProductLabel, translateProductUnit } from '@/i18n/catalog-copy'
 import { MinusIcon, PlusIcon } from '@heroicons/react/24/outline'
 
 interface Props {
@@ -45,6 +47,8 @@ export function ProductPurchasePanel({
   stock,
   variants,
 }: Props) {
+  const { locale } = useLocale()
+  const copy = getCatalogCopy(locale)
   const [selectedVariantId, setSelectedVariantId] = useState<string>('')
   const [quantity, setQuantity] = useState(1)
 
@@ -62,6 +66,7 @@ export function ProductPurchasePanel({
   const displayCompareAt = getVariantAdjustedCompareAtPrice(compareAtPrice, selectedVariant)
   const hasDiscount = displayCompareAt !== null && displayCompareAt > displayPrice
   const availableStock = getAvailableStockForPurchase(product, selectedVariant)
+  const localizedUnit = translateProductUnit(unit, locale)
 
   const canAddToCart = !requiresVariantSelection || selectedVariant !== null
   const isOutOfStock = trackStock && availableStock === 0
@@ -96,18 +101,18 @@ export function ProductPurchasePanel({
     <div className="mt-6 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
       <div className="flex items-baseline gap-3">
         <span className="text-4xl font-bold text-[var(--foreground)]">{formatPrice(displayPrice)}</span>
-        <span className="text-lg text-[var(--muted)]">/ {unit}</span>
+        <span className="text-lg text-[var(--muted)]">/ {localizedUnit}</span>
         {hasDiscount && (
           <span className="text-xl text-[var(--muted-light)] line-through">{formatPrice(displayCompareAt!)}</span>
         )}
       </div>
       <p className="mt-1 text-sm text-[var(--muted)]">
-        IVA incluido ({(taxRate * 100).toFixed(0)}%)
+        {copy.actions.vatIncluded(Number((taxRate * 100).toFixed(0)))}
       </p>
 
       {requiresVariantSelection && (
         <div className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-4">
-          <p className="text-sm font-semibold text-[var(--foreground)]">Selecciona formato</p>
+          <p className="text-sm font-semibold text-[var(--foreground)]">{copy.actions.selectFormat}</p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {variants.map(variant => {
               const variantPrice = getVariantAdjustedPrice(basePrice, variant)
@@ -127,11 +132,11 @@ export function ProductPurchasePanel({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-medium text-[var(--foreground)]">{variant.name}</p>
+                      <p className="font-medium text-[var(--foreground)]">{translateProductLabel(variant.name, locale)}</p>
                       <p className="mt-1 text-sm text-[var(--muted)]">
                         {variant.priceModifier === 0
-                          ? 'Sin recargo'
-                          : `${variant.priceModifier > 0 ? '+' : '-'}${formatPrice(Math.abs(variant.priceModifier))} sobre base`}
+                          ? copy.actions.noSurcharge
+                          : copy.actions.overBase(formatPrice(Math.abs(variant.priceModifier)), variant.priceModifier > 0)}
                       </p>
                     </div>
                     <p className="text-sm font-semibold text-[var(--foreground)]">{formatPrice(variantPrice)}</p>
@@ -139,10 +144,10 @@ export function ProductPurchasePanel({
                   {trackStock && (
                     <p className={`mt-2 text-xs font-medium ${variantOutOfStock ? 'text-red-600 dark:text-red-400' : variant.stock <= 5 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                       {variantOutOfStock
-                        ? 'Sin stock'
+                        ? copy.actions.outOfStock
                         : variant.stock <= 5
-                          ? `Quedan ${variant.stock} unidades`
-                          : `${variant.stock} en stock`}
+                          ? copy.actions.onlyLeft(variant.stock)
+                          : copy.actions.inStock(variant.stock)}
                     </p>
                   )}
                 </button>
@@ -151,7 +156,7 @@ export function ProductPurchasePanel({
           </div>
           {!selectedVariant && (
             <p className="mt-3 text-sm text-amber-700 dark:text-amber-400">
-              Selecciona una variante antes de añadir el producto al carrito.
+              {copy.actions.selectVariant}
             </p>
           )}
         </div>
@@ -168,26 +173,26 @@ export function ProductPurchasePanel({
               : 'text-emerald-600 dark:text-emerald-400'
         }`}>
           {requiresVariantSelection && !selectedVariant
-            ? 'Selecciona una variante para ver el stock disponible'
+            ? copy.actions.selectVariantForStock
             : availableStock === 0
-            ? 'Sin stock'
+            ? copy.actions.outOfStock
             : availableStock != null && availableStock <= 5
-              ? `Solo quedan ${availableStock} unidades`
+              ? copy.actions.onlyLeft(availableStock)
               : availableStock != null
-                ? `${availableStock} en stock`
-                : 'Disponible'}
+                ? copy.actions.inStock(availableStock)
+                : copy.actions.available}
         </p>
       )}
 
       <div className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-[var(--foreground)]">Cantidad</p>
-            <p className="text-xs text-[var(--muted)]">Añade varias unidades en un solo toque</p>
+            <p className="text-sm font-semibold text-[var(--foreground)]">{copy.actions.quantity}</p>
+            <p className="text-xs text-[var(--muted)]">{copy.actions.quantityHint}</p>
           </div>
           {trackStock && !isOutOfStock && (
             <p className="text-xs font-medium text-[var(--muted)]">
-              Máx. {availableStock} {availableStock === 1 ? 'unidad' : 'unidades'}
+              {copy.actions.maxUnits(availableStock ?? 0)}
             </p>
           )}
         </div>
@@ -199,7 +204,7 @@ export function ProductPurchasePanel({
               onClick={() => updateQuantity(quantity - 1)}
               disabled={quantity <= 1}
               className="p-2 text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="Reducir cantidad"
+              aria-label={copy.actions.decreaseQuantity}
             >
               <MinusIcon className="h-4 w-4" />
             </button>
@@ -216,14 +221,14 @@ export function ProductPurchasePanel({
                 updateQuantity(nextQuantity)
               }}
               className="w-16 border-x border-[var(--border)] bg-transparent px-2 py-2 text-center text-sm font-semibold text-[var(--foreground)] focus:outline-none"
-              aria-label={`Cantidad de ${productName}`}
+              aria-label={copy.actions.quantityOf(productName)}
             />
             <button
               type="button"
               onClick={() => updateQuantity(quantity + 1)}
               disabled={quantity >= maxQuantity}
               className="p-2 text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="Aumentar cantidad"
+              aria-label={copy.actions.increaseQuantity}
             >
               <PlusIcon className="h-4 w-4" />
             </button>
@@ -241,7 +246,7 @@ export function ProductPurchasePanel({
                     : 'border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-soft)] hover:border-emerald-300 hover:text-emerald-700 dark:hover:border-emerald-700 dark:hover:text-emerald-300'
                 }`}
               >
-                {preset} uds.
+                {preset} {translateProductUnit('uds.', locale)}
               </button>
             ))}
           </div>
@@ -259,7 +264,7 @@ export function ProductPurchasePanel({
           price={displayPrice}
           slug={slug}
           image={image}
-          unit={unit}
+          unit={localizedUnit}
           vendorId={vendorId}
           vendorName={vendorName}
         />

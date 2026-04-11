@@ -60,6 +60,30 @@ docker compose down
 - **Productor**: dashboard, gestión de catálogo, alta/edición de productos
 - **Admin**: dashboard de administración
 
+## 🌐 Idiomas y auto-traducción de productos
+
+El storefront ya funciona en **español e inglés** para navegación, páginas públicas y catálogo.
+
+### Qué hace actualmente
+- guarda el idioma del usuario en la cookie `mp_locale`
+- traduce la UI pública y de catálogo con el sistema interno de i18n
+- si un producto fue escrito originalmente en otro idioma, puede mostrar una **traducción automática** de `nombre`, `descripción` y `unidad`
+- enseña una insignia visual para avisar al comprador, por ejemplo: `Auto-translated from Spanish`
+
+### Tecnología usada
+La traducción actual **no usa servicios externos** como Google Translate, DeepL u OpenAI.
+Se implementa con lógica interna en:
+- `src/i18n/server.ts`
+- `src/i18n/public-page-copy.ts`
+- `src/i18n/catalog-copy.ts`
+
+### Limitación importante
+La auto-traducción actual es **heurística y basada en glosarios**, adecuada para copy corto del catálogo. Si más adelante se necesita máxima calidad en producción, lo recomendado es evolucionar a:
+- campos bilingües en base de datos (`nameEs`, `nameEn`, etc.), o
+- traducción persistida al guardar con un proveedor externo
+
+Más detalle en la wiki: [`docs/wiki/Internationalization and Auto-translation.md`](./docs/wiki/Internationalization%20and%20Auto-translation.md).
+
 ## 💻 Requisitos del sistema
 
 - **Node.js 20+**

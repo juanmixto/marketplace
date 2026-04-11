@@ -1,7 +1,9 @@
 'use server'
 
+import { ZodError } from 'zod'
 import { db } from '@/lib/db'
 import { redirect } from 'next/navigation'
+import { isRedirectError } from 'next/dist/client/components/redirect-error'
 import { generateOrderNumber } from '@/lib/utils'
 import { createPaymentIntent } from '@/domains/payments/provider'
 import {
@@ -25,6 +27,38 @@ export interface CartItemInput {
   productId: string
   variantId?: string
   quantity: number
+}
+
+export type CreateCheckoutOrderResult =
+  | {
+    ok: true
+    orderId: string
+    clientSecret: string
+    orderNumber: string
+  }
+  | {
+    ok: false
+    error: string
+  }
+
+function getCheckoutErrorMessage(error: unknown) {
+  if (error instanceof ZodError) {
+    return error.issues[0]?.message ?? 'Revisa los datos de la dirección y vuelve a intentarlo.'
+  }
+
+  if (error instanceof Error) {
+    const message = error.message.trim()
+
+    if (/stock insuficiente|carrito vac[íi]o|no disponible|ya no esta disponible|ya no está disponible|debes seleccionar una variante|c[óo]digo postal|requerid/i.test(message)) {
+      return message
+    }
+
+    if (/no autorizado|unauthorized|iniciar sesi[óo]n|login/i.test(message)) {
+      return 'Debes iniciar sesión para completar el pedido.'
+    }
+  }
+
+  return 'No se pudo procesar el pedido. Revisa el stock disponible o actualiza el carrito e inténtalo de nuevo.'
 }
 
 /**
@@ -135,19 +169,6 @@ export async function createOrder(
     shippingCost
   )
 
-  // Save address if requested
-  let addressId: string | undefined
-  if (validated.saveAddress) {
-    const saved = await db.address.create({
-      data: {
-        userId: session.user.id,
-        ...validated.address,
-        isDefault: false,
-      },
-    })
-    addressId = saved.id
-  }
-
   // Create payment intent (mock or Stripe)
   const payment = await createPaymentIntent(
     Math.round(grandTotal * 100), // cents
@@ -160,6 +181,8 @@ export async function createOrder(
   // Create order in transaction
   const env = getServerEnv()
   const order = await db.$transaction(async tx => {
+    let addressId: string | null = null
+
     // Lock and decrement stock before creating the order record.
     // Doing this first reduces the chance of deadlocks when several buyers
     // try to checkout the same product at the same time.
@@ -216,6 +239,17 @@ export async function createOrder(
       }
     }
 
+    if (validated.saveAddress) {
+      const savedAddress = await tx.address.create({
+        data: {
+          userId: session.user.id,
+          ...validated.address,
+          isDefault: false,
+        },
+      })
+      addressId = savedAddress.id
+    }
+
     return tx.order.create({
       data: {
         orderNumber: generateOrderNumber(),
@@ -248,6 +282,33 @@ export async function createOrder(
     orderId: order.id,
     clientSecret: payment.clientSecret,
     orderNumber: order.orderNumber,
+  }
+}
+
+export async function createCheckoutOrder(
+  items: CartItemInput[],
+  formData: CheckoutFormData
+): Promise<CreateCheckoutOrderResult> {
+  try {
+    const created = await createOrder(items, formData)
+
+    if (created.clientSecret.startsWith('mock_')) {
+      await confirmOrder(created.orderId, created.clientSecret.replace('_secret', ''))
+    }
+
+    return {
+      ok: true,
+      ...created,
+    }
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error
+    }
+
+    return {
+      ok: false,
+      error: getCheckoutErrorMessage(error),
+    }
   }
 }
 

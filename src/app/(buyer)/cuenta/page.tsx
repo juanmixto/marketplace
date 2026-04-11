@@ -1,11 +1,11 @@
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ShoppingBagIcon, MapPinIcon, UserCircleIcon, ArrowDownTrayIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { UserCircleIcon } from '@heroicons/react/24/outline'
 import { ChevronRightIcon } from '@heroicons/react/20/solid'
 import { SignOutButton } from '@/components/auth/SignOutButton'
 import type { Metadata } from 'next'
-import { buyerAccountItems } from '@/lib/navigation'
+import { buyerAccountItems, buyerAccountMeta } from '@/lib/navigation'
 import { GDPRActions } from './GDPRActions'
 
 export const metadata: Metadata = { title: 'Mi cuenta' }
@@ -15,21 +15,6 @@ export default async function CuentaPage() {
   if (!session) redirect('/login')
 
   const initial = session.user.name?.[0]?.toUpperCase() ?? '?'
-
-  const linkMeta = {
-    '/cuenta/pedidos': {
-      icon: ShoppingBagIcon,
-      desc: 'Consulta y gestiona tus pedidos',
-    },
-    '/cuenta/direcciones': {
-      icon: MapPinIcon,
-      desc: 'Gestiona tus direcciones de entrega',
-    },
-    '/cuenta/perfil': {
-      icon: UserCircleIcon,
-      desc: 'Nombre, email y contrasena',
-    },
-  } as const
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6 lg:px-8">
@@ -46,7 +31,10 @@ export default async function CuentaPage() {
 
       <div className="space-y-2">
         {buyerAccountItems.map(({ href, label, available }) => {
-          const meta = linkMeta[href as keyof typeof linkMeta]
+          const meta = buyerAccountMeta[href as keyof typeof buyerAccountMeta] ?? {
+            icon: UserCircleIcon,
+            desc: 'Accede a esta sección de tu cuenta',
+          }
           const Icon = meta.icon
 
           if (!available) {

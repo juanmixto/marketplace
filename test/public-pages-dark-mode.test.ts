@@ -133,6 +133,20 @@ describe('Public pages dark mode compliance', () => {
       'ContactForm should use text-foreground class'
     )
   })
+
+  test('VendorReviewsSection should stay readable in dark mode', () => {
+    const content = readFileSync(resolve('src/app/(public)/productores/[slug]/VendorReviewsSection.tsx'), 'utf-8')
+
+    assert(!content.includes('bg-white'), 'VendorReviewsSection should not use bg-white in dark mode')
+    assert(!content.includes('text-gray-900'), 'VendorReviewsSection should not use text-gray-900 in dark mode')
+    assert(!content.includes('text-gray-700'), 'VendorReviewsSection should not use text-gray-700 in dark mode')
+    assert(!content.includes('text-gray-600'), 'VendorReviewsSection should not use text-gray-600 in dark mode')
+    assert(!content.includes('border-gray-200'), 'VendorReviewsSection should not use border-gray-200 in dark mode')
+
+    assert(content.includes('var(--surface)'), 'VendorReviewsSection should use theme-aware surface colors')
+    assert(content.includes('var(--border)'), 'VendorReviewsSection should use theme-aware borders')
+    assert(content.includes('var(--foreground)'), 'VendorReviewsSection should use theme-aware text colors')
+  })
 })
 
 describe('Shared components dark mode compliance', () => {

@@ -5,13 +5,21 @@ import { ProductCard } from '@/components/catalog/ProductCard'
 import { ProductFiltersPanel } from '@/components/catalog/ProductFiltersPanel'
 import { SortSelect } from '@/components/catalog/SortSelect'
 import { parseProductSort, type ProductWithVendor } from '@/domains/catalog/types'
+import { getCatalogCopy } from '@/i18n/catalog-copy'
+import { getServerLocale } from '@/i18n/server'
+import { translateCategoryLabel } from '@/lib/portals'
 import { buildPageMetadata } from '@/lib/seo'
 
-export const metadata: Metadata = buildPageMetadata({
-  title: 'Productos',
-  description: 'Explora el catálogo de productos locales disponibles en Mercado Productor.',
-  path: '/productos',
-})
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale()
+  const copy = getCatalogCopy(locale)
+
+  return buildPageMetadata({
+    title: copy.page.title,
+    description: copy.page.description,
+    path: '/productos',
+  })
+}
 
 interface Props {
   searchParams: Promise<{
@@ -24,6 +32,8 @@ interface Props {
 }
 
 export default async function ProductosPage({ searchParams }: Props) {
+  const locale = await getServerLocale()
+  const copy = getCatalogCopy(locale)
   const params = await searchParams
   const certs = params.cert
     ? Array.isArray(params.cert) ? params.cert : [params.cert]
@@ -38,6 +48,14 @@ export default async function ProductosPage({ searchParams }: Props) {
   })
 
   const categories = await getCategories()
+  const selectedCategory = params.categoria
+    ? categories.find(category => category.slug === params.categoria)
+    : null
+  const pageTitle = params.q
+    ? `"${params.q}"`
+    : selectedCategory
+      ? translateCategoryLabel(selectedCategory.slug, selectedCategory.name, locale)
+      : copy.page.allProducts
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -53,10 +71,8 @@ export default async function ProductosPage({ searchParams }: Props) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-2xl font-bold text-[var(--foreground)]">
-                {params.q ? `"${params.q}"` : params.categoria ? categories.find(c => c.slug === params.categoria)?.name ?? 'Productos' : 'Todos los productos'}
-              </h1>
-              <p className="text-sm text-[var(--muted)] mt-0.5">{products.length} resultado{products.length !== 1 ? 's' : ''}{hasNext ? '+' : ''}</p>
+              <h1 className="text-2xl font-bold text-[var(--foreground)]">{pageTitle}</h1>
+              <p className="text-sm text-[var(--muted)] mt-0.5">{copy.page.results(products.length, hasNext)}</p>
             </div>
             <Suspense fallback={null}>
               <SortSelect current={params.orden} />
@@ -66,13 +82,13 @@ export default async function ProductosPage({ searchParams }: Props) {
           {products.length === 0 ? (
             <div className="py-24 text-center">
               <p className="text-5xl mb-4">🔍</p>
-              <p className="font-semibold text-[var(--foreground)]">Sin resultados</p>
-              <p className="text-sm text-[var(--muted)] mt-1">Prueba con otros filtros o términos de búsqueda</p>
+              <p className="font-semibold text-[var(--foreground)]">{copy.page.noResultsTitle}</p>
+              <p className="text-sm text-[var(--muted)] mt-1">{copy.page.noResultsDescription}</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
               {products.map(p => (
-                <ProductCard key={p.id} product={p as ProductWithVendor} />
+                <ProductCard key={p.id} product={p as ProductWithVendor} locale={locale} />
               ))}
             </div>
           )}
@@ -90,7 +106,7 @@ export default async function ProductosPage({ searchParams }: Props) {
                   )}`}
                   className="flex h-9 items-center gap-1.5 rounded-xl border border-[var(--border)] px-4 text-sm font-medium text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
                 >
-                  ← Anterior
+                  ← {copy.page.previous}
                 </a>
               )}
               {hasNext && nextCursor && (
@@ -103,7 +119,7 @@ export default async function ProductosPage({ searchParams }: Props) {
                   )}`}
                   className="flex h-9 items-center gap-1.5 rounded-xl bg-accent px-4 text-sm font-medium text-white shadow-sm transition hover:bg-accent-hover dark:bg-accent dark:text-white dark:hover:bg-accent-hover"
                 >
-                  Siguiente →
+                  {copy.page.next} →
                 </a>
               )}
             </div>

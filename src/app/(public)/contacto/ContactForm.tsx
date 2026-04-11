@@ -1,43 +1,48 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { trackAnalyticsEvent } from '@/lib/analytics'
+import { useLocale } from '@/i18n'
+import { getPublicPageCopy } from '@/i18n/public-page-copy'
 
-const contactSchema = z.object({
-  nombre: z.string().min(2, 'El nombre es demasiado corto').max(100),
-  email: z.string().email('Email inválido'),
-  asunto: z.enum(['pedido', 'productores', 'tecnico', 'general', 'otros']),
-  mensaje: z
-    .string()
-    .min(20, 'El mensaje debe tener al menos 20 caracteres')
-    .max(1000, 'Máximo 1000 caracteres'),
-  privacidad: z.literal(true),
-})
+const SUBJECT_KEYS = ['pedido', 'productores', 'tecnico', 'general', 'otros'] as const
 
-type ContactFormData = z.infer<typeof contactSchema>
+type ContactFormCopy = ReturnType<typeof getPublicPageCopy>['contact']['form']
 
-const asuntoLabels = {
-  pedido: 'Soporte con un pedido',
-  productores: 'Información para productores',
-  tecnico: 'Problema técnico',
-  general: 'Consulta general',
-  otros: 'Otros',
+function buildContactSchema(formCopy: ContactFormCopy) {
+  return z.object({
+    nombre: z.string().min(2, formCopy.errors.nameTooShort).max(100),
+    email: z.string().email(formCopy.errors.invalidEmail),
+    asunto: z.preprocess(
+      value => (value === '' ? undefined : value),
+      z.enum(SUBJECT_KEYS, { error: () => formCopy.errors.subjectRequired })
+    ),
+    mensaje: z.string().min(20, formCopy.errors.messageTooShort).max(1000, formCopy.errors.messageTooLong),
+    privacidad: z.literal(true, { error: () => formCopy.errors.privacyRequired }),
+  })
 }
 
+type ContactFormInput = z.input<ReturnType<typeof buildContactSchema>>
+type ContactFormData = z.output<ReturnType<typeof buildContactSchema>>
+
 export function ContactForm() {
+  const { locale } = useLocale()
+  const formCopy = getPublicPageCopy(locale).contact.form
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const contactSchema = useMemo(() => buildContactSchema(formCopy), [formCopy])
 
   const {
     register,
     handleSubmit,
     formState: { errors },
     reset,
-  } = useForm<ContactFormData>({
+  } = useForm<ContactFormInput, unknown, ContactFormData>({
     resolver: zodResolver(contactSchema),
   })
 
@@ -53,8 +58,7 @@ export function ContactForm() {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Error al enviar el mensaje')
+        throw new Error(formCopy.submitError)
       }
 
       setSuccess(true)
@@ -63,11 +67,9 @@ export function ContactForm() {
         has_privacy_consent: data.privacidad,
       })
       reset()
-
-      // Auto-hide success message after 5 seconds
       setTimeout(() => setSuccess(false), 5000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al enviar el formulario')
+    } catch {
+      setError(formCopy.submitError)
     } finally {
       setLoading(false)
     }
@@ -75,62 +77,49 @@ export function ContactForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Success message */}
-      {success && (
-        <div className="rounded-lg bg-accent-soft p-4 text-foreground">
-          ✓ Mensaje recibido. Nos pondremos en contacto en breve.
-        </div>
-      )}
+      {success && <div className="rounded-lg bg-accent-soft p-4 text-foreground">{formCopy.success}</div>}
 
-      {/* Error message */}
-      {error && (
-        <div className="rounded-lg bg-red-50 p-4 text-red-800">
-          ✗ {error}
-        </div>
-      )}
+      {error && <div className="rounded-lg bg-red-50 p-4 text-red-800">✗ {error}</div>}
 
-      {/* Nombre */}
       <div>
         <label htmlFor="nombre" className="block text-sm font-medium text-foreground">
-          Nombre *
+          {formCopy.nameLabel}
         </label>
         <input
           {...register('nombre')}
           type="text"
           id="nombre"
-          placeholder="Tu nombre"
+          placeholder={formCopy.namePlaceholder}
           className="mt-2 block w-full rounded-lg border border-border px-4 py-2 text-foreground placeholder-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft"
         />
         {errors.nombre && <p className="mt-1 text-sm text-red-600">{errors.nombre.message}</p>}
       </div>
 
-      {/* Email */}
       <div>
         <label htmlFor="email" className="block text-sm font-medium text-foreground">
-          Email *
+          {formCopy.emailLabel}
         </label>
         <input
           {...register('email')}
           type="email"
           id="email"
-          placeholder="tu@email.com"
+          placeholder={formCopy.emailPlaceholder}
           className="mt-2 block w-full rounded-lg border border-border px-4 py-2 text-foreground placeholder-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft"
         />
         {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>}
       </div>
 
-      {/* Asunto */}
       <div>
         <label htmlFor="asunto" className="block text-sm font-medium text-foreground">
-          Asunto *
+          {formCopy.subjectLabel}
         </label>
         <select
           {...register('asunto')}
           id="asunto"
           className="mt-2 block w-full rounded-lg border border-border px-4 py-2 text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft"
         >
-          <option value="">Elige un asunto...</option>
-          {Object.entries(asuntoLabels).map(([key, label]) => (
+          <option value="">{formCopy.subjectPlaceholder}</option>
+          {Object.entries(formCopy.subjectOptions).map(([key, label]) => (
             <option key={key} value={key}>
               {label}
             </option>
@@ -139,22 +128,20 @@ export function ContactForm() {
         {errors.asunto && <p className="mt-1 text-sm text-red-600">{errors.asunto.message}</p>}
       </div>
 
-      {/* Mensaje */}
       <div>
         <label htmlFor="mensaje" className="block text-sm font-medium text-foreground">
-          Mensaje *
+          {formCopy.messageLabel}
         </label>
         <textarea
           {...register('mensaje')}
           id="mensaje"
           rows={5}
-          placeholder="Cuéntanos lo que necesitas..."
+          placeholder={formCopy.messagePlaceholder}
           className="mt-2 block w-full rounded-lg border border-border px-4 py-2 text-foreground placeholder-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft"
         />
         {errors.mensaje && <p className="mt-1 text-sm text-red-600">{errors.mensaje.message}</p>}
       </div>
 
-      {/* Privacy checkbox */}
       <div className="flex items-start gap-3">
         <input
           {...register('privacidad')}
@@ -163,22 +150,21 @@ export function ContactForm() {
           className="mt-1 h-4 w-4 rounded border-border text-accent focus:ring-accent"
         />
         <label htmlFor="privacidad" className="text-sm text-foreground-soft">
-          He leído y acepto la{' '}
+          {formCopy.privacyLabel}{' '}
           <a href="/privacidad" className="text-accent hover:underline">
-            Política de Privacidad
+            {formCopy.privacyPolicy}
           </a>
           {errors.privacidad && <span className="text-red-600">*</span>}
         </label>
       </div>
       {errors.privacidad && <p className="text-sm text-red-600">{errors.privacidad.message}</p>}
 
-      {/* Submit button */}
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-lg bg-accent px-4 py-3 font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full rounded-lg bg-accent px-4 py-3 font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {loading ? 'Enviando...' : 'Enviar mensaje'}
+        {loading ? formCopy.submitLoading : formCopy.submitIdle}
       </button>
     </form>
   )

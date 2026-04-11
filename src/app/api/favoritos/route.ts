@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import {
+  FAVORITES_UNAVAILABLE_MESSAGE,
+  isFavoritesTableMissingError,
+  withFavoritesGuard,
+} from '@/lib/favorites'
 
 const addFavoriteSchema = z.object({
   productId: z.string().min(1),
@@ -14,30 +19,34 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const favorites = await db.favorite.findMany({
-      where: { userId: session.user.id },
-      include: {
-        product: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            images: true,
-            basePrice: true,
-            stock: true,
-            vendor: {
+    const { value: favorites, unavailable } = await withFavoritesGuard(
+      () =>
+        db.favorite.findMany({
+          where: { userId: session.user.id },
+          include: {
+            product: {
               select: {
-                displayName: true,
+                id: true,
+                name: true,
                 slug: true,
+                images: true,
+                basePrice: true,
+                stock: true,
+                vendor: {
+                  select: {
+                    displayName: true,
+                    slug: true,
+                  },
+                },
               },
             },
           },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    })
+          orderBy: { createdAt: 'desc' },
+        }),
+      []
+    )
 
-    return NextResponse.json(favorites)
+    return NextResponse.json(favorites, unavailable ? { headers: { 'x-favorites-unavailable': 'true' } } : undefined)
   } catch (error) {
     console.error('GET /api/favoritos error:', error)
     return NextResponse.json(
@@ -94,6 +103,13 @@ export async function POST(req: NextRequest) {
           details: error.issues,
         },
         { status: 400 }
+      )
+    }
+
+    if (isFavoritesTableMissingError(error)) {
+      return NextResponse.json(
+        { error: FAVORITES_UNAVAILABLE_MESSAGE },
+        { status: 503 }
       )
     }
 

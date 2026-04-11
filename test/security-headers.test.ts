@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { buildContentSecurityPolicy, getSecurityHeaders } from '@/lib/security-headers'
+import nextConfig, { buildHeaderRules } from '../next.config'
 
 test('getSecurityHeaders exposes the core browser hardening headers', () => {
   const previousAppUrl = process.env.NEXT_PUBLIC_APP_URL
@@ -64,4 +65,28 @@ test('buildContentSecurityPolicy upgrades insecure requests only for HTTPS deplo
   assert.match(csp, /upgrade-insecure-requests/)
 
   process.env.NEXT_PUBLIC_APP_URL = previousAppUrl
+})
+
+test('buildContentSecurityPolicy allows React development tooling requirements in dev mode', () => {
+  const csp = buildContentSecurityPolicy(true)
+
+  assert.match(csp, /script-src 'self' 'unsafe-inline' 'unsafe-eval' https:\/\/js\.stripe\.com/)
+  assert.match(csp, /connect-src 'self' ws: wss: https:\/\/api\.stripe\.com https:\/\/js\.stripe\.com/)
+})
+
+test('buildHeaderRules skips Next asset cache overrides during development', () => {
+  const headers = buildHeaderRules(true)
+
+  assert.ok(headers.some(rule => rule.source === '/:path*'))
+  assert.ok(headers.every(rule => rule.source !== '/_next/static/:path*'))
+  assert.ok(headers.every(rule => rule.source !== '/_next/image'))
+})
+
+test('buildHeaderRules keeps asset cache overrides outside development', async () => {
+  const headers = buildHeaderRules(false)
+  const resolvedHeaders = await nextConfig.headers?.()
+
+  assert.ok(resolvedHeaders)
+  assert.ok(headers.some(rule => rule.source === '/_next/static/:path*'))
+  assert.ok(headers.some(rule => rule.source === '/_next/image'))
 })
