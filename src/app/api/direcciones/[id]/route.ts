@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { clearOtherDefaults, promoteOldestAsDefault } from '@/lib/address-defaults'
 
 const addressSchema = z.object({
   label: z.string().max(50).optional(),
@@ -41,21 +42,19 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Dirección no encontrada' }, { status: 404 })
     }
 
-    // If setting as default, clear isDefault for all other addresses
-    if (validated.isDefault && !existingAddress.isDefault) {
-      await db.address.updateMany({
-        where: { userId: session.user.id, id: { not: id } },
-        data: { isDefault: false },
-      })
-    }
+    const address = await db.$transaction(async (tx) => {
+      if (validated.isDefault && !existingAddress.isDefault) {
+        await clearOtherDefaults(tx, session.user.id, id)
+      }
 
-    const address = await db.address.update({
-      where: { id },
-      data: {
-        ...validated,
-        label: validated.label || undefined,
-        line2: validated.line2 || undefined,
-      },
+      return tx.address.update({
+        where: { id },
+        data: {
+          ...validated,
+          label: validated.label || undefined,
+          line2: validated.line2 || undefined,
+        },
+      })
     })
 
     return NextResponse.json(address)
@@ -96,23 +95,11 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Dirección no encontrada' }, { status: 404 })
     }
 
-    // If it was default, set another as default
-    if (address.isDefault) {
-      const nextDefault = await db.address.findFirst({
-        where: { userId: session.user.id, id: { not: id } },
-        orderBy: { createdAt: 'asc' },
-      })
-
-      if (nextDefault) {
-        await db.address.update({
-          where: { id: nextDefault.id },
-          data: { isDefault: true },
-        })
+    await db.$transaction(async (tx) => {
+      await tx.address.delete({ where: { id } })
+      if (address.isDefault) {
+        await promoteOldestAsDefault(tx, session.user.id)
       }
-    }
-
-    await db.address.delete({
-      where: { id },
     })
 
     return NextResponse.json({ success: true })
