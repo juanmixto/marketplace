@@ -68,12 +68,12 @@ export function StripeConnectUI({ onboarded }: StripeConnectProps) {
 
   if (localOnboarded) {
     return (
-      <div className="rounded-lg border border-green-200 bg-green-50 p-6">
+      <div className="rounded-lg border border-green-200 bg-green-50 p-6 dark:border-emerald-900/40 dark:bg-emerald-950/30">
         <div className="flex items-start gap-3">
-          <CheckCircleIcon className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+          <CheckCircleIcon className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5 dark:text-emerald-400" />
           <div>
-            <h3 className="font-semibold text-green-900">Pagos configurados</h3>
-            <p className="mt-1 text-sm text-green-800">
+            <h3 className="font-semibold text-green-900 dark:text-emerald-200">Pagos configurados</h3>
+            <p className="mt-1 text-sm text-green-800 dark:text-emerald-300">
               Tu cuenta de Stripe está conectada. Recibirás liquidaciones semanales en tu cuenta
               bancaria.
             </p>
@@ -89,20 +89,20 @@ export function StripeConnectUI({ onboarded }: StripeConnectProps) {
         <div
           className={`rounded-lg p-4 ${
             message.type === 'success'
-              ? 'border border-green-200 bg-green-50 text-green-800'
-              : 'border border-red-200 bg-red-50 text-red-800'
+              ? 'border border-green-200 bg-green-50 text-green-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300'
+              : 'border border-red-200 bg-red-50 text-red-800 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300'
           }`}
         >
           {message.text}
         </div>
       )}
 
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-6">
         <div className="flex items-start gap-3 mb-4">
-          <ExclamationCircleIcon className="h-6 w-6 text-amber-600 flex-shrink-0 mt-0.5" />
+          <ExclamationCircleIcon className="h-6 w-6 text-amber-600 flex-shrink-0 mt-0.5 dark:text-amber-400" />
           <div>
-            <h3 className="font-semibold text-gray-900">Configurar pagos</h3>
-            <p className="mt-1 text-sm text-gray-600">
+            <h3 className="font-semibold text-[var(--foreground)]">Configurar pagos</h3>
+            <p className="mt-1 text-sm text-[var(--muted)]">
               Conecta tu cuenta bancaria para recibir pagos. Usamos Stripe para gestionar los
               pagos de forma segura.
             </p>
@@ -112,12 +112,12 @@ export function StripeConnectUI({ onboarded }: StripeConnectProps) {
         <button
           onClick={handleConnect}
           disabled={loading}
-          className="w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-blue-500 dark:hover:bg-blue-400"
         >
           {loading ? 'Conectando...' : 'Conectar con Stripe'}
         </button>
 
-        <p className="mt-3 text-xs text-gray-500">
+        <p className="mt-3 text-xs text-[var(--muted-light)]">
           Serás redirigido al formulario seguro de Stripe para completar tu información bancaria.
         </p>
       </div>
