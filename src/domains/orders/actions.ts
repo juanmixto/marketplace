@@ -517,6 +517,7 @@ export async function getMyOrders() {
       lines: {
         include: { product: { select: { name: true, images: true, slug: true } } },
       },
+      reviews: { select: { productId: true } },
     },
   })
 }
