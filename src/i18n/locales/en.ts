@@ -202,6 +202,7 @@ const en: Record<TranslationKeys, string> = {
   'checkout.savedAddressesLoading': 'Loading your saved addresses...',
   'checkout.savedAddressesError': 'We could not load your saved addresses. You can continue with a new one.',
   'checkout.useNewAddress': 'Use a new address',
+  'checkout.copyFromDefault': 'Copy from my default address',
   'checkout.firstName': 'First name',
   'checkout.lastName': 'Last name',
   'checkout.line1': 'Address',
@@ -334,6 +335,7 @@ const en: Record<TranslationKeys, string> = {
   'account.defaultBadge': 'Default',
   'account.noAddresses': 'You have no saved addresses.',
   'account.addAddress': '+ Add address',
+  'account.copyFromDefault': 'Copy from my default address',
   'account.edit': 'Edit',
   'account.delete': 'Delete',
 

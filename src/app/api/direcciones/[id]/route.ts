@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { clearOtherDefaults, promoteOldestAsDefault } from '@/lib/address-defaults'
+import {
+  clearOtherDefaults,
+  enforceSingleDefault,
+  promoteOldestAsDefault,
+} from '@/lib/address-defaults'
 
 const addressSchema = z.object({
   label: z.string().max(50).optional(),
@@ -43,7 +47,9 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
     }
 
     const address = await db.$transaction(async (tx) => {
-      if (validated.isDefault && !existingAddress.isDefault) {
+      if (validated.isDefault) {
+        // Always heal — the existing address may already be default while
+        // another stale row is *also* flagged default (legacy/race state).
         await clearOtherDefaults(tx, session.user.id, id)
       }
 
@@ -100,6 +106,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
       if (address.isDefault) {
         await promoteOldestAsDefault(tx, session.user.id)
       }
+      await enforceSingleDefault(tx, session.user.id)
     })
 
     return NextResponse.json({ success: true })

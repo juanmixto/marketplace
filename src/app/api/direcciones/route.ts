@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { clearOtherDefaults } from '@/lib/address-defaults'
+import { clearOtherDefaults, enforceSingleDefault } from '@/lib/address-defaults'
 
 const addressSchema = z.object({
   label: z.string().max(50).optional(),
@@ -25,10 +25,23 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const addresses = await db.address.findMany({
+    let addresses = await db.address.findMany({
       where: { userId: session.user.id },
       orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
     })
+
+    // Self-heal: if multiple defaults exist (legacy/race state), keep the
+    // most recently updated one and clear the rest, then re-fetch.
+    const defaultCount = addresses.reduce((n, a) => n + (a.isDefault ? 1 : 0), 0)
+    if (defaultCount > 1) {
+      await db.$transaction(async (tx) => {
+        await enforceSingleDefault(tx, session.user.id)
+      })
+      addresses = await db.address.findMany({
+        where: { userId: session.user.id },
+        orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+      })
+    }
 
     return NextResponse.json(addresses)
   } catch (error) {

@@ -15,6 +15,11 @@ type AddressDelegate = {
     where: { userId: string; id?: { not: string } }
     orderBy: { createdAt: 'asc' | 'desc' }
   }) => Promise<{ id: string } | null>
+  findMany: (args: {
+    where: { userId: string; isDefault: true }
+    orderBy: { updatedAt: 'asc' | 'desc' }
+    select: { id: true }
+  }) => Promise<{ id: string }[]>
   update: (args: {
     where: { id: string }
     data: { isDefault: boolean }
@@ -49,4 +54,33 @@ export async function promoteOldestAsDefault(
   if (!next) return null
   await tx.address.update({ where: { id: next.id }, data: { isDefault: true } })
   return next.id
+}
+
+/**
+ * Heal the "single default" invariant for a user.
+ *
+ * When the database somehow ended up with multiple addresses marked as
+ * default (legacy data, race conditions, or past bugs), this picks the most
+ * recently updated one as the canonical default and clears the rest.
+ *
+ * Returns the id of the surviving default, or null if the user has no
+ * default-flagged addresses.
+ */
+export async function enforceSingleDefault(
+  tx: AddressTxClient,
+  userId: string
+): Promise<string | null> {
+  const defaults = await tx.address.findMany({
+    where: { userId, isDefault: true },
+    orderBy: { updatedAt: 'desc' },
+    select: { id: true },
+  })
+  if (defaults.length <= 1) return defaults[0]?.id ?? null
+
+  const keepId = defaults[0]!.id
+  await tx.address.updateMany({
+    where: { userId, isDefault: true, id: { not: keepId } },
+    data: { isDefault: false },
+  })
+  return keepId
 }

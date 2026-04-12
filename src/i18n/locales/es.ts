@@ -200,6 +200,7 @@ const es = {
   'checkout.savedAddressesLoading': 'Cargando tus direcciones guardadas...',
   'checkout.savedAddressesError': 'No hemos podido cargar tus direcciones guardadas. Puedes seguir con una nueva.',
   'checkout.useNewAddress': 'Usar una dirección nueva',
+  'checkout.copyFromDefault': 'Copiar de mi dirección por defecto',
   'checkout.firstName': 'Nombre',
   'checkout.lastName': 'Apellidos',
   'checkout.line1': 'Dirección',
@@ -332,6 +333,7 @@ const es = {
   'account.defaultBadge': 'Predeterminada',
   'account.noAddresses': 'No tienes direcciones guardadas.',
   'account.addAddress': '+ Añadir dirección',
+  'account.copyFromDefault': 'Copiar de mi dirección por defecto',
   'account.edit': 'Editar',
   'account.delete': 'Eliminar',
 

@@ -44,6 +44,8 @@ interface Props {
   shippingRates: ShippingRateLike[]
   fallbackShippingCost: number
   showDemoNotice: boolean
+  userFirstName?: string
+  userLastName?: string
 }
 
 export function CheckoutPageClient({
@@ -51,6 +53,8 @@ export function CheckoutPageClient({
   shippingRates,
   fallbackShippingCost,
   showDemoNotice,
+  userFirstName = '',
+  userLastName = '',
 }: Props) {
   const router = useRouter()
   const { items, subtotal, clearCart } = useCartStore()
@@ -172,8 +176,8 @@ export function CheckoutPageClient({
     setSelectedAddressId(null)
     setShowNewAddressForm(true)
     reset({
-      firstName: '',
-      lastName: '',
+      firstName: userFirstName,
+      lastName: userLastName,
       line1: '',
       line2: '',
       city: '',
@@ -181,6 +185,19 @@ export function CheckoutPageClient({
       postalCode: '',
       phone: '',
       saveAddress: savedAddresses.length === 0,
+      selectedAddressId: undefined,
+    })
+  }
+
+  function handleCopyFromDefault() {
+    const defaultAddress =
+      savedAddresses.find(a => a.isDefault) ?? savedAddresses[0]
+    if (!defaultAddress) return
+    setSelectedAddressId(null)
+    setShowNewAddressForm(true)
+    reset({
+      ...toCheckoutFormAddress(defaultAddress),
+      saveAddress: true,
       selectedAddressId: undefined,
     })
   }
@@ -292,6 +309,15 @@ export function CheckoutPageClient({
               <input type="hidden" value={selectedAddressId ?? ''} {...register('selectedAddressId')} />
               {(showNewAddressForm || (!loadingAddresses && savedAddresses.length === 0)) && (
                 <div className="space-y-4">
+                  {showNewAddressForm && savedAddresses.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleCopyFromDefault}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50/60 px-3 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
+                    >
+                      {t('checkout.copyFromDefault')}
+                    </button>
+                  )}
                   <div className="grid grid-cols-2 gap-3">
                     <Input label={t('checkout.firstName')} error={errors.firstName?.message} {...register('firstName')} />
                     <Input label={t('checkout.lastName')} error={errors.lastName?.message} {...register('lastName')} />
