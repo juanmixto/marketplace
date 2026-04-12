@@ -5,6 +5,7 @@ import {
   doesWebhookPaymentMatchStoredPayment,
   getWebhookIdempotencyKey,
   isMockWebhookAllowed,
+  parseWebhookPaymentIntent,
   retryWebhookOperation,
   shouldApplyPaymentFailed,
   shouldApplyPaymentSucceeded,
@@ -17,37 +18,23 @@ import {
 import { getServerEnv } from '@/lib/env'
 import type Stripe from 'stripe'
 
-type WebhookPaymentIntent = {
-  id: string
-  amount?: number
-  currency?: string
-}
-
 type WebhookEvent = {
   id?: string
   type: string
   data: {
-    object: WebhookPaymentIntent
+    object: unknown
   }
 }
 
-function getWebhookPaymentIntent(event: Stripe.Event | WebhookEvent): WebhookPaymentIntent | null {
-  const object = event.data.object
-
-  if (
-    object &&
-    typeof object === 'object' &&
-    'id' in object &&
-    typeof object.id === 'string'
-  ) {
-    return {
-      id: object.id,
-      amount: 'amount' in object && typeof object.amount === 'number' ? object.amount : undefined,
-      currency: 'currency' in object && typeof object.currency === 'string' ? object.currency : undefined,
-    }
-  }
-
-  return null
+function logInvalidWebhookPayload(event: Stripe.Event | WebhookEvent) {
+  console.error('[stripe-webhook][invalid-payload]', {
+    eventId: event.id ?? null,
+    eventType: event.type,
+    objectType:
+      event.data.object && typeof event.data.object === 'object'
+        ? Object.prototype.toString.call(event.data.object)
+        : typeof event.data.object,
+  })
 }
 
 /**
@@ -96,14 +83,20 @@ export async function POST(req: NextRequest) {
   try {
     switch (event.type) {
       case 'payment_intent.succeeded': {
-        const pi = getWebhookPaymentIntent(event)
-        if (!pi) break
+        const pi = parseWebhookPaymentIntent(event.data.object)
+        if (!pi) {
+          logInvalidWebhookPayload(event)
+          break
+        }
         await handlePaymentSucceeded(pi.id, pi.amount, pi.currency, event.id)
         break
       }
       case 'payment_intent.payment_failed': {
-        const pi = getWebhookPaymentIntent(event)
-        if (!pi) break
+        const pi = parseWebhookPaymentIntent(event.data.object)
+        if (!pi) {
+          logInvalidWebhookPayload(event)
+          break
+        }
         await handlePaymentFailed(pi.id, event.id)
         break
       }
