@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { StarIcon as StarOutlineIcon } from '@heroicons/react/24/outline'
+import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
-import { StarRating } from '@/components/reviews/StarRating'
 import { createReview } from '@/domains/reviews/actions'
 import { useT } from '@/i18n'
 
@@ -19,6 +20,7 @@ export function ReviewFormButton({ orderId, productId, productName }: Props) {
   const t = useT()
   const [open, setOpen] = useState(false)
   const [rating, setRating] = useState(5)
+  const [hoverRating, setHoverRating] = useState(0)
   const [body, setBody] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -51,10 +53,15 @@ export function ReviewFormButton({ orderId, productId, productName }: Props) {
         <div className="space-y-5 p-5">
           <div>
             <p className="text-sm font-medium text-[var(--foreground)]">{t('reviews.yourRating')}</p>
-            <div className="mt-3 flex gap-2">
+            <div
+              className="mt-3 flex items-center gap-1"
+              onMouseLeave={() => setHoverRating(0)}
+            >
               {Array.from({ length: 5 }, (_, index) => {
                 const value = index + 1
-                const active = value <= rating
+                const displayed = hoverRating || rating
+                const active = value <= displayed
+                const Icon = active ? StarSolidIcon : StarOutlineIcon
                 const ariaLabel =
                   value === 1
                     ? t('reviews.starAriaOne')
@@ -65,14 +72,20 @@ export function ReviewFormButton({ orderId, productId, productName }: Props) {
                     key={value}
                     type="button"
                     onClick={() => setRating(value)}
-                    className={`rounded-xl border px-3 py-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] ${
-                      active
-                        ? 'border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-50'
-                        : 'border-[var(--border)] bg-[var(--surface)] hover:border-amber-200 hover:bg-[var(--surface-raised)] dark:hover:border-amber-800'
-                    }`}
+                    onMouseEnter={() => setHoverRating(value)}
+                    onFocus={() => setHoverRating(value)}
+                    onBlur={() => setHoverRating(0)}
                     aria-label={ariaLabel}
+                    aria-pressed={value === rating}
+                    className="rounded-lg p-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40"
                   >
-                    <StarRating rating={value} size="sm" />
+                    <Icon
+                      className={`h-8 w-8 transition-colors ${
+                        active
+                          ? 'text-amber-400 dark:text-amber-300'
+                          : 'text-[var(--border-strong)] hover:text-amber-300'
+                      }`}
+                    />
                   </button>
                 )
               })}
