@@ -24,8 +24,9 @@ test('orders list page shows item count summary with total articles and products
 
   assert.match(source, /totalItems/)
   assert.match(source, /productCount/)
-  assert.match(source, /artículo/)
-  assert.match(source, /producto/)
+  // Labels come from i18n now, so assert on the translation keys rather than literals.
+  assert.match(source, /account\.ordersItem/)
+  assert.match(source, /account\.ordersProduct/)
 })
 
 test('orders list page displays payment status badge', () => {
