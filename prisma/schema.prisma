@@ -372,6 +372,7 @@ model Order {
   reviews      Review[]
 
   @@index([customerId, status])
+  @@index([customerId, placedAt])
   @@index([status, placedAt])
   @@index([orderNumber])
 }
@@ -436,6 +437,7 @@ model VendorFulfillment {
 
   @@index([orderId])
   @@index([vendorId, status])
+  @@index([vendorId, createdAt])
 }
 
 model OrderEvent {
@@ -530,6 +532,7 @@ model Incident {
   @@index([status, slaDeadline])
   @@index([customerId])
   @@index([customerId, status])
+  @@index([createdAt])
 }
 
 model IncidentMessage {
