@@ -4,6 +4,7 @@ import { PAGINATION_DEFAULTS } from '@/lib/constants'
 import { getAvailableProductWhere } from '@/domains/catalog/availability'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 import { getDemoProductImages } from '@/lib/demo-product-images'
+import { expandSearchQuery } from '@/lib/search-translation'
 
 export interface ProductFilters {
   categorySlug?: string
@@ -71,13 +72,18 @@ async function getProductsUncached(filters: ProductFilters = {}) {
     ...(certifications?.length && { certifications: { hasSome: certifications } }),
     ...(minPrice !== undefined && { basePrice: { gte: minPrice } }),
     ...(maxPrice !== undefined && { basePrice: { lte: maxPrice } }),
-    ...(q && {
-      OR: [
-        { name: { contains: q, mode: 'insensitive' as const } },
-        { description: { contains: q, mode: 'insensitive' as const } },
-        { tags: { has: q.toLowerCase() } },
-      ],
-    }),
+    ...(q && (() => {
+      // Expand the query with EN→ES translations so an English-locale buyer
+      // typing "honey" / "olive oil" matches Spanish "miel" / "aceite de oliva".
+      const terms = expandSearchQuery(q)
+      return {
+        OR: terms.flatMap(term => [
+          { name: { contains: term, mode: 'insensitive' as const } },
+          { description: { contains: term, mode: 'insensitive' as const } },
+          { tags: { has: term.toLowerCase() } },
+        ]),
+      }
+    })()),
   }
 
   // Stable compound sort: primary sort field + id tiebreaker ensures
