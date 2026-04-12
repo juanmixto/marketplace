@@ -256,6 +256,25 @@ const en: Record<TranslationKeys, string> = {
   'vendor.noStock': 'Out of stock',
   'vendor.inStock': 'in stock',
 
+  // Vendor – quick fixes (inline actions on catalog rows)
+  'vendor.fix.oneNeedsAttention': '1 product needs your attention',
+  'vendor.fix.manyNeedAttention': '{n} products need your attention',
+  'vendor.fix.hint': 'Fix each issue in one click using the button on its row.',
+  'vendor.fix.chipRejected': 'rejected',
+  'vendor.fix.chipExpired': 'expired',
+  'vendor.fix.chipOutOfStock': 'out of stock',
+  'vendor.fix.chipLowStock': 'low stock',
+  'vendor.fix.editAndResubmit': 'Edit & resubmit',
+  'vendor.fix.submitForReview': 'Submit for review',
+  'vendor.fix.renew': 'Renew date',
+  'vendor.fix.restock': 'Restock',
+  'vendor.fix.newExpiration': 'New expiration date',
+  'vendor.fix.newStock': 'New stock available',
+  'vendor.fix.rejectionReason': 'Rejection reason',
+  'vendor.fix.save': 'Save',
+  'vendor.fix.cancel': 'Cancel',
+  'vendor.fix.invalidStock': 'Enter a valid integer',
+
   // Vendor – product form
   'vendor.nameLabel': 'Name',
   'vendor.description': 'Description',

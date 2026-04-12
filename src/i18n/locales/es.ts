@@ -254,6 +254,25 @@ const es = {
   'vendor.noStock': 'Sin stock',
   'vendor.inStock': 'en stock',
 
+  // Vendor – quick fixes (inline actions on catalog rows)
+  'vendor.fix.oneNeedsAttention': '1 producto necesita tu atención',
+  'vendor.fix.manyNeedAttention': '{n} productos necesitan tu atención',
+  'vendor.fix.hint': 'Resuelve cada problema con un clic en el botón de su fila.',
+  'vendor.fix.chipRejected': 'rechazado',
+  'vendor.fix.chipExpired': 'caducado',
+  'vendor.fix.chipOutOfStock': 'sin stock',
+  'vendor.fix.chipLowStock': 'stock bajo',
+  'vendor.fix.editAndResubmit': 'Editar y reenviar',
+  'vendor.fix.submitForReview': 'Enviar a revisión',
+  'vendor.fix.renew': 'Renovar fecha',
+  'vendor.fix.restock': 'Reponer stock',
+  'vendor.fix.newExpiration': 'Nueva fecha de caducidad',
+  'vendor.fix.newStock': 'Nuevo stock disponible',
+  'vendor.fix.rejectionReason': 'Motivo del rechazo',
+  'vendor.fix.save': 'Guardar',
+  'vendor.fix.cancel': 'Cancelar',
+  'vendor.fix.invalidStock': 'Introduce un número entero válido',
+
   // Vendor – product form
   'vendor.nameLabel': 'Nombre',
   'vendor.description': 'Descripción',
