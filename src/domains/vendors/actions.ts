@@ -9,12 +9,7 @@ import { parseExpirationDateInput } from '@/domains/catalog/availability'
 import { getActionSession } from '@/lib/action-session'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { isVendor } from '@/lib/roles'
-import {
-  VENDOR_STRIPE_ONBOARDING_REQUIRED_MESSAGE,
-  assertVendorOnboarded,
-} from '@/domains/vendors/onboarding'
-
-export { VENDOR_STRIPE_ONBOARDING_REQUIRED_MESSAGE, assertVendorOnboarded }
+import { assertVendorOnboarded } from '@/domains/vendors/onboarding'
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 
