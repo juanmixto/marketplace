@@ -1,4 +1,4 @@
-import test, { beforeEach } from 'node:test'
+import test from 'node:test'
 import assert from 'node:assert/strict'
 import { checkRateLimit, getClientIP } from '@/lib/ratelimit'
 

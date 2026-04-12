@@ -1,4 +1,4 @@
-import { Button, Container, Head, Hr, Html, Img, Link, Preview, Row, Section, Text } from '@react-email/components'
+import { Button, Container, Head, Hr, Html, Link, Preview, Row, Section, Text } from '@react-email/components'
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 

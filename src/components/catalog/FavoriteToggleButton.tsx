@@ -23,10 +23,10 @@ export function FavoriteToggleButton({
   compact = false,
   className,
 }: Props) {
-  const { data: session, status } = useSession()
+  const { status } = useSession()
   const router = useRouter()
   const t = useT()
-  const { loadFavorites, toggle, loaded } = useFavoritesStore()
+  const { loadFavorites, toggle } = useFavoritesStore()
   const isFavorited = useFavoritesStore(s => s.productIds.has(productId))
   const [toggling, setToggling] = useState(false)
 

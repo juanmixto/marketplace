@@ -1,4 +1,4 @@
-import { Button, Container, Head, Hr, Html, Link, Preview, Section, Text } from '@react-email/components'
+import { Button, Container, Head, Hr, Html, Preview, Section, Text } from '@react-email/components'
 
 interface EmailVerificationEmailProps {
   userName: string

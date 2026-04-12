@@ -10,7 +10,6 @@ import {
   canPurchaseQuantity,
   getStockDisplayText,
 } from '@/domains/catalog/stock'
-import type { Product, ProductVariant } from '@/generated/prisma/client'
 
 describe('Stock Availability - Single Source of Truth (#80)', () => {
   let vendorId: string

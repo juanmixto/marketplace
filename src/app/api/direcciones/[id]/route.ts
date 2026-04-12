@@ -20,8 +20,6 @@ const addressSchema = z.object({
   isDefault: z.boolean().default(false),
 })
 
-type AddressInput = z.infer<typeof addressSchema>
-
 interface RouteParams {
   params: Promise<{ id: string }>
 }
@@ -83,7 +81,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: RouteParams) {
+export async function DELETE(_req: NextRequest, { params }: RouteParams) {
   try {
     const session = await auth()
     if (!session?.user?.id) {
