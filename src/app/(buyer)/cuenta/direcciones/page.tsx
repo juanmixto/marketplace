@@ -1,5 +1,6 @@
 import { Metadata } from 'next'
 import { requireAuth } from '@/lib/auth-guard'
+import { db } from '@/lib/db'
 import { DireccionesClient } from './DireccionesClient'
 
 export const metadata: Metadata = {
@@ -8,7 +9,11 @@ export const metadata: Metadata = {
 }
 
 export default async function Direcciones() {
-  await requireAuth()
+  const session = await requireAuth()
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { firstName: true, lastName: true },
+  })
 
   return (
     <main className="space-y-6 max-w-3xl mx-auto px-4 py-10 sm:px-6 lg:px-8">
@@ -20,7 +25,10 @@ export default async function Direcciones() {
       </div>
 
       <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
-        <DireccionesClient />
+        <DireccionesClient
+          userFirstName={user?.firstName ?? ''}
+          userLastName={user?.lastName ?? ''}
+        />
       </div>
     </main>
   )

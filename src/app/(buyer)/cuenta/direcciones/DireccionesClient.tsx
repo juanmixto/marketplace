@@ -36,7 +36,15 @@ const SPANISH_PROVINCES = [
   'Teruel', 'Toledo', 'Valencia', 'Valladolid', 'Vizcaya', 'Zamora', 'Zaragoza', 'Ceuta', 'Melilla',
 ]
 
-export function DireccionesClient() {
+interface DireccionesClientProps {
+  userFirstName?: string
+  userLastName?: string
+}
+
+export function DireccionesClient({
+  userFirstName = '',
+  userLastName = '',
+}: DireccionesClientProps = {}) {
   const [addresses, setAddresses] = useState<Address[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -138,6 +146,38 @@ export function DireccionesClient() {
     }
   }
 
+  const startNewAddress = () => {
+    setEditingId(null)
+    reset({
+      label: '',
+      firstName: userFirstName,
+      lastName: userLastName,
+      line1: '',
+      line2: '',
+      city: '',
+      province: '',
+      postalCode: '',
+      isDefault: addresses.length === 0,
+    })
+    setShowForm(true)
+  }
+
+  const handleCopyFromDefault = () => {
+    const source = addresses.find(a => a.isDefault) ?? addresses[0]
+    if (!source) return
+    reset({
+      label: '',
+      firstName: source.firstName,
+      lastName: source.lastName,
+      line1: source.line1,
+      line2: source.line2 ?? '',
+      city: source.city,
+      province: source.province,
+      postalCode: source.postalCode,
+      isDefault: false,
+    })
+  }
+
   const handleSetDefault = async (id: string) => {
     try {
       const res = await fetch(`/api/direcciones/${id}/predeterminada`, {
@@ -170,9 +210,20 @@ export function DireccionesClient() {
       {/* Form */}
       {showForm && (
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-[var(--foreground)]">
-            {editingId ? t('account.editAddress') : t('account.newAddress')}
-          </h2>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-[var(--foreground)]">
+              {editingId ? t('account.editAddress') : t('account.newAddress')}
+            </h2>
+            {!editingId && addresses.length > 0 && (
+              <button
+                type="button"
+                onClick={handleCopyFromDefault}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50/60 px-3 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
+              >
+                {t('account.copyFromDefault')}
+              </button>
+            )}
+          </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
@@ -375,10 +426,7 @@ export function DireccionesClient() {
       {/* Add Button */}
       {!showForm && (
         <button
-          onClick={() => {
-            setShowForm(true)
-            reset()
-          }}
+          onClick={startNewAddress}
           className="rounded-lg bg-emerald-600 dark:bg-emerald-500 px-4 py-2 font-medium text-white hover:bg-emerald-700 dark:hover:bg-emerald-600 transition"
         >
           {t('account.addAddress')}
