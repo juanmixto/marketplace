@@ -56,7 +56,6 @@ export async function checkRateLimit(
   const cleanKey = key.replace(/\[.*\]/, '').replace(/:\d+$/, '')
   const limitKey = `${action}:${cleanKey}`
   const now = Date.now()
-  const resetAt = now + windowSeconds * 1000
 
   // Try to use Upstash Redis if available
   if (process.env.UPSTASH_REDIS_REST_URL) {

@@ -63,7 +63,7 @@ export function getStripeAppearance(theme?: string | null): Appearance {
   }
 }
 
-function InnerStripeCheckoutForm({ orderId, orderNumber, grandTotal, returnUrl, appearance }: InnerFormProps) {
+function InnerStripeCheckoutForm({ orderNumber, grandTotal, returnUrl }: InnerFormProps) {
   const stripe = useStripe()
   const elements = useElements()
   const router = useRouter()

@@ -19,7 +19,6 @@ import { getServerEnv } from '@/lib/env'
 import { getAvailableProductWhere } from '@/domains/catalog/availability'
 import {
   assertVariantPriceChargeable,
-  getAvailableStockForPurchase,
   getDefaultVariant,
   getSelectedVariant,
   getVariantAdjustedPrice,

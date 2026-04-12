@@ -33,7 +33,6 @@ interface Props {
 }
 
 export function BuyerProfileForm({ user }: Props) {
-  const [showPassword, setShowPassword] = useState(false)
   const [profileSuccess, setProfileSuccess] = useState(false)
   const [passwordSuccess, setPasswordSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)

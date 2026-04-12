@@ -6,13 +6,12 @@
 
 import { db } from '@/lib/db'
 import { getActionSession } from '@/lib/action-session'
-import { redirect } from 'next/navigation'
 
 /**
  * Approve a settlement for payment
  * Only admins can do this
  */
-export async function approveSettlement(settlementId: string, comment?: string) {
+export async function approveSettlement(settlementId: string, _comment?: string) {
   const session = await getActionSession()
   if (!session?.user || session.user.role !== 'SUPERADMIN') {
     throw new Error('No autorizado')
@@ -39,7 +38,7 @@ export async function approveSettlement(settlementId: string, comment?: string) 
 /**
  * Reject a settlement (send back to DRAFT for adjustments)
  */
-export async function rejectSettlement(settlementId: string, reason: string) {
+export async function rejectSettlement(settlementId: string, _reason: string) {
   const session = await getActionSession()
   if (!session?.user || session.user.role !== 'SUPERADMIN') {
     throw new Error('No autorizado')
@@ -91,7 +90,7 @@ export async function markAsPayd(settlementId: string) {
 export async function adjustSettlement(
   settlementId: string,
   adjustmentAmount: number,
-  reason: string
+  _reason: string
 ) {
   const session = await getActionSession()
   if (!session?.user || session.user.role !== 'SUPERADMIN') {

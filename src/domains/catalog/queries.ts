@@ -199,9 +199,6 @@ export async function getProductBySlug(slug: string) {
   return getProductBySlugCached(slug)
 }
 
-// Explicit type for TypeScript inference
-type ProductDetail = Awaited<ReturnType<typeof getProductBySlugUncached>>
-
 async function getFeaturedProductsUncached(limit = 8) {
   const products = await db.product.findMany({
     where: getAvailableProductWhere(),

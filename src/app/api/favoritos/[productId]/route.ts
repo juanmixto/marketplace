@@ -7,7 +7,7 @@ interface RouteParams {
   params: Promise<{ productId: string }>
 }
 
-export async function DELETE(req: NextRequest, { params }: RouteParams) {
+export async function DELETE(_req: NextRequest, { params }: RouteParams) {
   try {
     const session = await auth()
     if (!session?.user?.id) {
