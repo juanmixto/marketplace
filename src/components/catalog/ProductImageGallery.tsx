@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import Image from 'next/image'
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 
@@ -11,16 +11,35 @@ interface Props {
 
 export function ProductImageGallery({ images, alt }: Props) {
   const [activeIndex, setActiveIndex] = useState(0)
+  const [failedUrls, setFailedUrls] = useState<Set<string>>(() => new Set())
+
+  const validImages = useMemo(
+    () => images.filter(url => !failedUrls.has(url)),
+    [images, failedUrls],
+  )
+
+  const handleError = useCallback((url: string) => {
+    setFailedUrls(prev => {
+      const next = new Set(prev)
+      next.add(url)
+      return next
+    })
+    // If the currently shown image just failed, reset to 0 so we jump to the
+    // first valid image on the next render.
+    setActiveIndex(0)
+  }, [])
+
+  const safeIndex = Math.min(activeIndex, validImages.length - 1)
 
   const prev = useCallback(() =>
-    setActiveIndex(i => (i - 1 + images.length) % images.length), [images.length])
+    setActiveIndex(i => (i - 1 + validImages.length) % validImages.length), [validImages.length])
 
   const next = useCallback(() =>
-    setActiveIndex(i => (i + 1) % images.length), [images.length])
+    setActiveIndex(i => (i + 1) % validImages.length), [validImages.length])
 
-  if (!images.length) {
+  if (!validImages.length) {
     return (
-      <div className="aspect-square overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] shadow-sm flex items-center justify-center text-8xl">
+      <div className="flex aspect-square items-center justify-center overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] shadow-sm text-8xl">
         🌿
       </div>
     )
@@ -31,18 +50,18 @@ export function ProductImageGallery({ images, alt }: Props) {
       {/* Main image */}
       <div className="group relative aspect-square overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] shadow-sm">
         <Image
-          key={activeIndex}
-          src={images[activeIndex]}
-          alt={`${alt} — imagen ${activeIndex + 1}`}
+          key={validImages[safeIndex]}
+          src={validImages[safeIndex]}
+          alt={`${alt} — imagen ${safeIndex + 1}`}
           fill
           className="object-cover transition-opacity duration-200"
           sizes="(max-width: 1024px) 100vw, 50vw"
-          priority={activeIndex === 0}
+          priority={safeIndex === 0}
+          onError={() => handleError(validImages[safeIndex])}
         />
 
-        {images.length > 1 && (
+        {validImages.length > 1 && (
           <>
-            {/* Prev arrow */}
             <button
               type="button"
               onClick={prev}
@@ -52,7 +71,6 @@ export function ProductImageGallery({ images, alt }: Props) {
               <ChevronLeftIcon className="h-5 w-5" />
             </button>
 
-            {/* Next arrow */}
             <button
               type="button"
               onClick={next}
@@ -62,16 +80,15 @@ export function ProductImageGallery({ images, alt }: Props) {
               <ChevronRightIcon className="h-5 w-5" />
             </button>
 
-            {/* Dot indicators (mobile) */}
             <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5 sm:hidden">
-              {images.map((_, i) => (
+              {validImages.map((url, i) => (
                 <button
-                  key={i}
+                  key={url}
                   type="button"
                   onClick={() => setActiveIndex(i)}
                   aria-label={`Ir a imagen ${i + 1}`}
                   className={`rounded-full transition-all ${
-                    i === activeIndex
+                    i === safeIndex
                       ? 'h-1.5 w-4 bg-white'
                       : 'h-1.5 w-1.5 bg-white/50'
                   }`}
@@ -82,17 +99,17 @@ export function ProductImageGallery({ images, alt }: Props) {
         )}
       </div>
 
-      {/* Thumbnails strip (desktop, only when > 1 image) */}
-      {images.length > 1 && (
+      {/* Thumbnails strip */}
+      {validImages.length > 1 && (
         <div className="hidden gap-2 overflow-x-auto pb-1 sm:flex">
-          {images.map((img, i) => (
+          {validImages.map((img, i) => (
             <button
-              key={i}
+              key={img}
               type="button"
               onClick={() => setActiveIndex(i)}
               aria-label={`Ver imagen ${i + 1}`}
               className={`relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border-2 transition-all ${
-                i === activeIndex
+                i === safeIndex
                   ? 'border-emerald-500 shadow-md'
                   : 'border-[var(--border)] opacity-60 hover:opacity-90 hover:border-emerald-300'
               }`}
@@ -103,6 +120,7 @@ export function ProductImageGallery({ images, alt }: Props) {
                 fill
                 className="object-cover"
                 sizes="80px"
+                onError={() => handleError(img)}
               />
             </button>
           ))}
