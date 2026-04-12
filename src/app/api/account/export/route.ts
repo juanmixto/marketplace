@@ -68,24 +68,88 @@ export async function GET() {
       }),
       db.order.findMany({
         where: { customerId: userId },
-        include: {
-          lines: true,
-          payments: true,
-          fulfillments: true,
+        orderBy: { placedAt: 'desc' },
+        select: {
+          id: true,
+          orderNumber: true,
+          status: true,
+          paymentStatus: true,
+          subtotal: true,
+          shippingCost: true,
+          taxAmount: true,
+          grandTotal: true,
+          notes: true,
+          placedAt: true,
+          updatedAt: true,
+          lines: {
+            select: {
+              id: true,
+              productId: true,
+              variantId: true,
+              quantity: true,
+              unitPrice: true,
+              taxRate: true,
+              productSnapshot: true,
+              createdAt: true,
+            },
+          },
+          payments: {
+            select: {
+              id: true,
+              provider: true,
+              status: true,
+              amount: true,
+              currency: true,
+              createdAt: true,
+            },
+          },
+          fulfillments: {
+            select: {
+              id: true,
+              status: true,
+              trackingNumber: true,
+              carrier: true,
+              shippedAt: true,
+              deliveredAt: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
         },
       }),
       db.review.findMany({
         where: { customerId: userId },
-        include: {
-          product: { select: { name: true, id: true } },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          rating: true,
+          body: true,
+          createdAt: true,
+          product: { select: { id: true, name: true } },
           order: { select: { orderNumber: true } },
         },
       }),
       db.incident.findMany({
         where: { customerId: userId },
-        include: {
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          type: true,
+          status: true,
+          description: true,
+          resolution: true,
+          resolvedAt: true,
+          createdAt: true,
+          updatedAt: true,
           order: { select: { orderNumber: true } },
-          messages: true,
+          messages: {
+            select: {
+              id: true,
+              authorId: true,
+              body: true,
+              createdAt: true,
+            },
+          },
         },
       }),
     ])
