@@ -245,3 +245,31 @@ test('checkRateLimit Upstash path fails open when fetch throws', async () => {
     }
   }
 })
+
+test('forgot-password rate limit allows 5 then rejects (#181)', async () => {
+  const ip = '10.0.0.181'
+  for (let i = 0; i < 5; i += 1) {
+    const ok = await checkRateLimit('forgot-password', ip, 5, 3600)
+    assert.equal(ok.success, true, `attempt ${i + 1} should succeed`)
+  }
+  const blocked = await checkRateLimit('forgot-password', ip, 5, 3600)
+  assert.equal(blocked.success, false)
+  assert.equal(blocked.remaining, 0)
+})
+
+test('account-export and account-delete keep independent counters per user (#181)', async () => {
+  const userA = 'user-aaaaaa'
+  const userB = 'user-bbbbbb'
+
+  for (let i = 0; i < 3; i += 1) {
+    await checkRateLimit('account-export', userA, 3, 3600)
+  }
+  const blockedA = await checkRateLimit('account-export', userA, 3, 3600)
+  assert.equal(blockedA.success, false)
+
+  const okB = await checkRateLimit('account-export', userB, 3, 3600)
+  assert.equal(okB.success, true)
+
+  const okDelete = await checkRateLimit('account-delete', userA, 3, 3600)
+  assert.equal(okDelete.success, true)
+})
