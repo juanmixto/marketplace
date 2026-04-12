@@ -68,6 +68,98 @@ test('account GDPR keys are translated differently in Spanish and English', asyn
   assert.notEqual(locales.es['account.gdpr.desc'], locales.en['account.gdpr.desc'])
 })
 
+test('buyer account pages (orders, profile, addresses) i18n keys exist in both locales', async () => {
+  const { locales } = await import('@/i18n/locales')
+  const accountKeys = [
+    'account.ordersTitle',
+    'account.ordersSubtitle',
+    'account.ordersEmpty',
+    'account.ordersExplore',
+    'account.ordersViewDetail',
+    'account.ordersItem',
+    'account.ordersItems',
+    'account.ordersProduct',
+    'account.ordersProducts',
+    'account.ordersMore',
+    'account.profileTitle',
+    'account.profileSubtitle',
+    'account.profilePersonalInfo',
+    'account.profileNameLabel',
+    'account.profileLastNameLabel',
+    'account.profileEmailLabel',
+    'account.profileSaving',
+    'account.profileSaveChanges',
+    'account.profileChangesSaved',
+    'account.profileChangePassword',
+    'account.profileCurrentPassword',
+    'account.profileNewPassword',
+    'account.profileConfirmPassword',
+    'account.profileChanging',
+    'account.profilePasswordUpdated',
+    'account.profileNameRequired',
+    'account.profileLastNameRequired',
+    'account.profileEmailInvalid',
+    'account.profileCurrentPasswordRequired',
+    'account.profileMin8',
+    'account.profilePasswordsDontMatch',
+    'account.profileUpdateError',
+    'account.profilePasswordError',
+    'account.addressesTitle',
+    'account.addressesSubtitle',
+  ] as const
+
+  for (const key of accountKeys) {
+    assert.ok(key in locales.es, `Spanish locale missing key: ${key}`)
+    assert.ok(key in locales.en, `English locale missing key: ${key}`)
+    assert.ok((locales.es as Record<string, string>)[key].length > 0, `Spanish value empty for: ${key}`)
+    assert.ok((locales.en as Record<string, string>)[key].length > 0, `English value empty for: ${key}`)
+  }
+})
+
+test('buyer account translations differ between Spanish and English for human-readable copy', async () => {
+  const { locales } = await import('@/i18n/locales')
+  const compareKeys = [
+    'account.ordersTitle',
+    'account.ordersSubtitle',
+    'account.ordersEmpty',
+    'account.ordersExplore',
+    'account.profileTitle',
+    'account.profileSubtitle',
+    'account.profilePersonalInfo',
+    'account.profileChangePassword',
+    'account.addressesTitle',
+    'account.addressesSubtitle',
+  ] as const
+
+  for (const key of compareKeys) {
+    assert.notEqual(
+      (locales.es as Record<string, string>)[key],
+      (locales.en as Record<string, string>)[key],
+      `Expected ${key} to differ between locales`,
+    )
+  }
+})
+
+test('buyer account server pages and profile form consume i18n', () => {
+  const ordersPage = readFileSync(resolve(process.cwd(), 'src/app/(buyer)/cuenta/pedidos/page.tsx'), 'utf8')
+  const profilePage = readFileSync(resolve(process.cwd(), 'src/app/(buyer)/cuenta/perfil/page.tsx'), 'utf8')
+  const addressesPage = readFileSync(resolve(process.cwd(), 'src/app/(buyer)/cuenta/direcciones/page.tsx'), 'utf8')
+  const profileForm = readFileSync(resolve(process.cwd(), 'src/components/buyer/BuyerProfileForm.tsx'), 'utf8')
+
+  for (const src of [ordersPage, profilePage, addressesPage]) {
+    assert.match(src, /getServerT/, 'server page should call getServerT')
+    assert.match(src, /generateMetadata\(\): Promise<Metadata>/, 'server page should localize metadata via generateMetadata')
+  }
+
+  assert.doesNotMatch(ordersPage, />Mis pedidos</)
+  assert.doesNotMatch(profilePage, />Mi perfil</)
+  assert.doesNotMatch(addressesPage, />Mis direcciones</)
+
+  assert.match(profileForm, /useT/)
+  assert.match(profileForm, /account\.profilePersonalInfo/)
+  assert.doesNotMatch(profileForm, />Información personal</)
+})
+
 test('LanguageSwitcher displays the target language rather than the current one', () => {
   const src = readFileSync(
     resolve(process.cwd(), 'src/components/LanguageSwitcher.tsx'),

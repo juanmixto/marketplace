@@ -339,6 +339,47 @@ const en: Record<TranslationKeys, string> = {
   'account.edit': 'Edit',
   'account.delete': 'Delete',
 
+  // Account – orders page
+  'account.ordersTitle': 'My orders',
+  'account.ordersSubtitle': 'Reorder a previous purchase in one click or open the details to review an order.',
+  'account.ordersEmpty': 'You don\'t have any orders yet',
+  'account.ordersExplore': 'Browse products',
+  'account.ordersViewDetail': 'View details',
+  'account.ordersItem': 'item',
+  'account.ordersItems': 'items',
+  'account.ordersProduct': 'product',
+  'account.ordersProducts': 'products',
+  'account.ordersMore': 'more',
+
+  // Account – profile page
+  'account.profileTitle': 'My profile',
+  'account.profileSubtitle': 'Manage your personal information and password',
+  'account.profilePersonalInfo': 'Personal information',
+  'account.profileNameLabel': 'First name',
+  'account.profileLastNameLabel': 'Last name',
+  'account.profileEmailLabel': 'Email',
+  'account.profileSaving': 'Saving...',
+  'account.profileSaveChanges': 'Save changes',
+  'account.profileChangesSaved': '✓ Changes saved',
+  'account.profileChangePassword': 'Change password',
+  'account.profileCurrentPassword': 'Current password',
+  'account.profileNewPassword': 'New password',
+  'account.profileConfirmPassword': 'Confirm password',
+  'account.profileChanging': 'Changing...',
+  'account.profilePasswordUpdated': '✓ Password updated',
+  'account.profileNameRequired': 'First name required',
+  'account.profileLastNameRequired': 'Last name required',
+  'account.profileEmailInvalid': 'Invalid email',
+  'account.profileCurrentPasswordRequired': 'Current password required',
+  'account.profileMin8': 'Minimum 8 characters',
+  'account.profilePasswordsDontMatch': 'Passwords do not match',
+  'account.profileUpdateError': 'Error updating profile',
+  'account.profilePasswordError': 'Error changing password',
+
+  // Account – addresses page header
+  'account.addressesTitle': 'My addresses',
+  'account.addressesSubtitle': 'Manage your shipping addresses',
+
   // Common
   'common.cancel': 'Cancel',
 
