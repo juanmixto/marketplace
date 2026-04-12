@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Tooltip } from '@/components/ui/tooltip'
 import { formatPrice } from '@/lib/utils'
 import { AddToCartButton } from '@/components/catalog/AddToCartButton'
+import { FavoriteToggleButton } from '@/components/catalog/FavoriteToggleButton'
 import { AutoTranslatedBadge } from '@/components/catalog/AutoTranslatedBadge'
 import {
   getAvailableStockForPurchase,
@@ -162,6 +163,11 @@ export function ProductCard({ product, locale = 'es' }: ProductCardProps) {
 
       <div className="border-t border-[var(--border)] bg-[var(--surface)] p-3">
         <div className="flex items-center gap-2">
+          <FavoriteToggleButton
+            productId={product.id}
+            productName={localizedProduct.name}
+            compact
+          />
           <Link
             href={`/productos/${product.slug}`}
             className="hidden h-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] px-3 text-sm font-semibold text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] sm:inline-flex"

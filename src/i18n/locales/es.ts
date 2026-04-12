@@ -329,6 +329,24 @@ const es = {
   // Common
   'common.cancel': 'Cancelar',
 
+  // Favorites
+  'favorites.title': 'Mis favoritos',
+  'favorites.subtitle': 'Productos que has marcado como favoritos',
+  'favorites.emptyTitle': 'Aún no tienes productos favoritos',
+  'favorites.emptyBody': 'Explora nuestro catálogo y añade tus productos preferidos',
+  'favorites.explore': 'Explorar productos',
+  'favorites.removeTitle': 'Quitar de favoritos',
+  'favorites.noImage': 'Sin imagen',
+  'favorites.available': 'disponibles',
+  'favorites.outOfStock': 'Sin stock',
+  'favorites.addToCart': 'Añadir al carrito',
+  'favorites.errorRemove': 'Error al eliminar favorito',
+  'favorites.migrationWarning': 'La lista de favoritos se ha cargado en modo seguro porque faltaban migraciones pendientes en la base de datos.',
+  'favorites.save': 'Guardar',
+  'favorites.saved': 'Guardado',
+  'favorites.saving': 'Guardando...',
+  'favorites.loginToSave': 'Inicia sesión para guardar favoritos',
+
   // Admin
   'admin.dashboard': 'Panel admin',
   'admin.orders': 'Pedidos',

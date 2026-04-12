@@ -1,10 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { HeartIcon } from '@heroicons/react/24/solid'
-import { ShoppingCartIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { ShoppingCartIcon } from '@heroicons/react/24/outline'
+import { useT } from '@/i18n'
+import { useCartStore } from '@/lib/cart-store'
+import { useFavoritesStore } from '@/lib/favorites-store'
 
 interface FavoriteProduct {
   id: string
@@ -24,8 +27,10 @@ interface FavoriteProduct {
 }
 
 export function FavoritosClient({ initialFavorites }: { initialFavorites: FavoriteProduct[] }) {
+  const t = useT()
+  const addItem = useCartStore(s => s.addItem)
+  const storeFavRemove = useFavoritesStore(s => s.remove)
   const [favorites, setFavorites] = useState<FavoriteProduct[]>(initialFavorites)
-  const [loading, setLoading] = useState(false)
   const [removing, setRemoving] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -38,19 +43,32 @@ export function FavoritosClient({ initialFavorites }: { initialFavorites: Favori
         method: 'DELETE',
       })
 
-      if (!res.ok) throw new Error('Error al eliminar favorito')
+      if (!res.ok) throw new Error(t('favorites.errorRemove'))
 
       setFavorites(favorites.filter(f => f.product.id !== productId))
+      storeFavRemove(productId)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al eliminar favorito')
+      setError(err instanceof Error ? err.message : t('favorites.errorRemove'))
     } finally {
       setRemoving(null)
     }
   }
 
-  const handleAddToCart = (productId: string) => {
-    // Implement cart adding later
-    console.log('Add to cart:', productId)
+  const handleAddToCart = (fav: FavoriteProduct) => {
+    const price = typeof fav.product.basePrice === 'object' && fav.product.basePrice !== null
+      ? Number(String((fav.product.basePrice as any).$numberDecimal || fav.product.basePrice))
+      : Number(fav.product.basePrice || 0)
+
+    addItem({
+      productId: fav.product.id,
+      name: fav.product.name,
+      slug: fav.product.slug,
+      image: fav.product.images?.[0],
+      price,
+      unit: 'ud',
+      vendorId: '',
+      vendorName: fav.product.vendor.displayName,
+    })
   }
 
   if (favorites.length === 0) {
@@ -58,16 +76,16 @@ export function FavoritosClient({ initialFavorites }: { initialFavorites: Favori
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <HeartIcon className="mb-4 h-16 w-16 text-[var(--muted)]" />
         <p className="mb-2 text-xl font-semibold text-[var(--foreground)]">
-          Aún no tienes productos favoritos
+          {t('favorites.emptyTitle')}
         </p>
         <p className="mb-6 text-[var(--muted)]">
-          Explora nuestro catálogo y añade tus productos preferidos
+          {t('favorites.emptyBody')}
         </p>
         <Link
           href="/productos"
           className="rounded-lg bg-emerald-600 dark:bg-emerald-500 px-6 py-2 font-semibold text-white hover:bg-emerald-700 dark:hover:bg-emerald-600 transition"
         >
-          Explorar productos
+          {t('favorites.explore')}
         </Link>
       </div>
     )
@@ -77,14 +95,13 @@ export function FavoritosClient({ initialFavorites }: { initialFavorites: Favori
     <div className="space-y-6">
       {error && (
         <div className="rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30 p-4 text-red-800 dark:text-red-300">
-          ✗ {error}
+          {error}
         </div>
       )}
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {favorites.map(fav => {
-          const imageUrl = fav.product.images?.[0] || '/placeholder.jpg'
-          // Handle Decimal price from Prisma
+          const imageUrl = fav.product.images?.[0] || ''
           const priceValue = fav.product.basePrice
           const priceString = typeof priceValue === 'object' && priceValue !== null
             ? String((priceValue as any).$numberDecimal || priceValue)
@@ -103,17 +120,18 @@ export function FavoritosClient({ initialFavorites }: { initialFavorites: Favori
                     alt={fav.product.name}
                     fill
                     className="object-cover"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full text-[var(--muted)]">
-                    Sin imagen
+                    {t('favorites.noImage')}
                   </div>
                 )}
                 <button
                   onClick={() => handleRemove(fav.product.id)}
                   disabled={removing === fav.product.id}
                   className="absolute right-2 top-2 rounded-full bg-[var(--surface)] dark:bg-[var(--surface-raised)] p-2 shadow-md hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-50 transition"
-                  title="Quitar de favoritos"
+                  title={t('favorites.removeTitle')}
                 >
                   <HeartIcon className="h-5 w-5 text-red-600 dark:text-red-400" />
                 </button>
@@ -137,24 +155,24 @@ export function FavoritosClient({ initialFavorites }: { initialFavorites: Favori
 
                 <div className="mb-3 flex items-baseline gap-2">
                   <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-                    €{priceString}
+                    {priceString} &euro;
                   </span>
                   {fav.product.stock > 0 ? (
                     <span className="text-xs text-[var(--muted)]">
-                      ({fav.product.stock} disponibles)
+                      ({fav.product.stock} {t('favorites.available')})
                     </span>
                   ) : (
-                    <span className="text-xs text-red-600 dark:text-red-400">Sin stock</span>
+                    <span className="text-xs text-red-600 dark:text-red-400">{t('favorites.outOfStock')}</span>
                   )}
                 </div>
 
                 <button
-                  onClick={() => handleAddToCart(fav.product.id)}
+                  onClick={() => handleAddToCart(fav)}
                   disabled={fav.product.stock <= 0}
                   className="mt-auto flex items-center justify-center gap-2 rounded-lg bg-emerald-600 dark:bg-emerald-500 px-4 py-2 font-semibold text-white hover:bg-emerald-700 dark:hover:bg-emerald-600 disabled:bg-[var(--surface-raised)] disabled:text-[var(--muted)] disabled:cursor-not-allowed transition"
                 >
                   <ShoppingCartIcon className="h-4 w-4" />
-                  Añadir al carrito
+                  {t('favorites.addToCart')}
                 </button>
               </div>
             </div>

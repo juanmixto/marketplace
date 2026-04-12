@@ -1,0 +1,74 @@
+'use client'
+
+import { create } from 'zustand'
+
+interface FavoritesStore {
+  productIds: Set<string>
+  loaded: boolean
+  loading: boolean
+  loadFavorites: () => Promise<void>
+  toggle: (productId: string) => Promise<void>
+  has: (productId: string) => boolean
+  remove: (productId: string) => void
+}
+
+export const useFavoritesStore = create<FavoritesStore>()((set, get) => ({
+  productIds: new Set<string>(),
+  loaded: false,
+  loading: false,
+
+  loadFavorites: async () => {
+    if (get().loaded || get().loading) return
+    set({ loading: true })
+    try {
+      const res = await fetch('/api/favoritos/ids')
+      if (!res.ok) {
+        set({ loaded: true, loading: false })
+        return
+      }
+      const data = await res.json()
+      set({ productIds: new Set(data.ids ?? []), loaded: true, loading: false })
+    } catch {
+      set({ loaded: true, loading: false })
+    }
+  },
+
+  toggle: async (productId: string) => {
+    const current = get().productIds
+    const isFav = current.has(productId)
+
+    // Optimistic update
+    const next = new Set(current)
+    if (isFav) {
+      next.delete(productId)
+    } else {
+      next.add(productId)
+    }
+    set({ productIds: next })
+
+    try {
+      if (isFav) {
+        const res = await fetch(`/api/favoritos/${productId}`, { method: 'DELETE' })
+        if (!res.ok) throw new Error()
+      } else {
+        const res = await fetch('/api/favoritos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productId }),
+        })
+        if (!res.ok) throw new Error()
+      }
+    } catch {
+      // Rollback on failure
+      set({ productIds: current })
+    }
+  },
+
+  has: (productId: string) => get().productIds.has(productId),
+
+  remove: (productId: string) => {
+    const next = new Set(get().productIds)
+    next.delete(productId)
+    set({ productIds: next })
+  },
+}))

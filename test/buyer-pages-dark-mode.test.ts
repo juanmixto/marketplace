@@ -127,7 +127,11 @@ describe('FavoritosClient — structure', () => {
   })
 
   test('shows empty-state message', () => {
-    assert.ok(content.includes('favoritos'), 'should contain an empty-state message about favorites')
+    assert.ok(content.includes('favoritos') || content.includes('favorites'), 'should contain an empty-state message about favorites')
+  })
+
+  test('uses useCartStore for add-to-cart functionality', () => {
+    assert.ok(content.includes('useCartStore'), 'should use useCartStore for cart integration')
   })
 })
 

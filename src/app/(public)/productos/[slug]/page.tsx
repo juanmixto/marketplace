@@ -8,6 +8,7 @@ import { StarRating } from '@/components/reviews/StarRating'
 import type { ProductWithVendor } from '@/domains/catalog/types'
 import { MapPinIcon, StarIcon, CheckBadgeIcon, TruckIcon, ShieldCheckIcon } from '@heroicons/react/24/solid'
 import { ProductImageGallery } from '@/components/catalog/ProductImageGallery'
+import { FavoriteToggleButton } from '@/components/catalog/FavoriteToggleButton'
 import { ProductCard } from '@/components/catalog/ProductCard'
 import { getProductReviews } from '@/domains/reviews/actions'
 import type { Metadata } from 'next'
@@ -155,7 +156,15 @@ export default async function ProductDetailPage({ params }: Props) {
             </div>
           )}
 
-          <h1 className="text-3xl font-bold text-[var(--foreground)]">{localizedProduct.name}</h1>
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-3xl font-bold text-[var(--foreground)]">{localizedProduct.name}</h1>
+            <FavoriteToggleButton
+              productId={product.id}
+              productName={localizedProduct.name}
+              compact
+              className="shrink-0 mt-1"
+            />
+          </div>
 
           {/* Rating + vendor inline */}
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">

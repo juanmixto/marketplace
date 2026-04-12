@@ -331,6 +331,24 @@ const en: Record<TranslationKeys, string> = {
   // Common
   'common.cancel': 'Cancel',
 
+  // Favorites
+  'favorites.title': 'My favourites',
+  'favorites.subtitle': 'Products you have saved as favourites',
+  'favorites.emptyTitle': 'No favourite products yet',
+  'favorites.emptyBody': 'Browse our catalogue and save your favourite products',
+  'favorites.explore': 'Explore products',
+  'favorites.removeTitle': 'Remove from favourites',
+  'favorites.noImage': 'No image',
+  'favorites.available': 'available',
+  'favorites.outOfStock': 'Out of stock',
+  'favorites.addToCart': 'Add to cart',
+  'favorites.errorRemove': 'Error removing favourite',
+  'favorites.migrationWarning': 'The favourites list was loaded in safe mode due to pending database migrations.',
+  'favorites.save': 'Save',
+  'favorites.saved': 'Saved',
+  'favorites.saving': 'Saving...',
+  'favorites.loginToSave': 'Sign in to save favourites',
+
   // Admin
   'admin.dashboard': 'Admin Dashboard',
   'admin.orders': 'Orders',
