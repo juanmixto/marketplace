@@ -36,6 +36,14 @@ export function buildHeaderRules(isDevelopment = process.env.NODE_ENV === 'devel
 }
 
 const nextConfig: NextConfig = {
+  experimental: {
+    staleTimes: {
+      // Default is 300 s (matches revalidate = 300). That causes Link-navigation to serve
+      // a stale prefetched RSC payload for up to 5 minutes even after server-side data changes.
+      // 30 s is the minimum Next.js allows and gives a good freshness/performance balance.
+      static: 30,
+    },
+  },
   images: {
     dangerouslyAllowSVG: true,
     contentDispositionType: 'inline',

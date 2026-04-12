@@ -4,7 +4,7 @@ import { getMyOrders } from '@/domains/orders/actions'
 import Link from 'next/link'
 import Image from 'next/image'
 import { formatPrice, formatDate } from '@/lib/utils'
-import { ORDER_STATUS_LABELS } from '@/lib/constants'
+import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/constants'
 import { Badge } from '@/components/ui/badge'
 import { RepeatOrderButton } from '@/components/buyer/RepeatOrderButton'
 import type { Metadata } from 'next'
@@ -20,6 +20,14 @@ const STATUS_VARIANT: Record<string, 'green' | 'amber' | 'red' | 'blue' | 'defau
   DELIVERED: 'green',
   CANCELLED: 'red',
   REFUNDED: 'default',
+}
+
+const PAYMENT_STATUS_VARIANT: Record<string, 'green' | 'amber' | 'red' | 'blue' | 'default'> = {
+  PENDING: 'amber',
+  SUCCEEDED: 'green',
+  FAILED: 'red',
+  REFUNDED: 'default',
+  PARTIALLY_REFUNDED: 'default',
 }
 
 export default async function MisPedidosPage() {
@@ -47,7 +55,11 @@ export default async function MisPedidosPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {orders.map(order => (
+          {orders.map(order => {
+            const totalItems = order.lines.reduce((sum, l) => sum + l.quantity, 0)
+            const productCount = order.lines.length
+
+            return (
             <article
               key={order.id}
               className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 transition hover:border-emerald-300 hover:shadow-sm dark:hover:border-emerald-700"
@@ -60,28 +72,36 @@ export default async function MisPedidosPage() {
                   <div>
                     <p className="font-semibold text-[var(--foreground)]">{order.orderNumber}</p>
                     <p className="text-sm text-[var(--muted)]">{formatDate(order.placedAt)}</p>
+                    <p className="text-xs text-[var(--muted)]">
+                      {totalItems} artículo{totalItems !== 1 ? 's' : ''} · {productCount} producto{productCount !== 1 ? 's' : ''}
+                    </p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <Badge variant={STATUS_VARIANT[order.status] ?? 'default'}>
                       {ORDER_STATUS_LABELS[order.status] ?? order.status}
                     </Badge>
+                    <Badge variant={PAYMENT_STATUS_VARIANT[order.paymentStatus] ?? 'default'}>
+                      {PAYMENT_STATUS_LABELS[order.paymentStatus] ?? order.paymentStatus}
+                    </Badge>
                     <p className="font-bold text-[var(--foreground)]">{formatPrice(Number(order.grandTotal))}</p>
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  {order.lines.slice(0, 4).map(line => (
-                    <div key={line.id} className="relative h-12 w-12 overflow-hidden rounded-lg bg-[var(--surface-raised)]">
-                      {line.product.images?.[0]
-                        ? <Image src={line.product.images[0]} alt={line.product.name} fill className="object-cover" sizes="48px" />
-                        : <div className="flex h-full items-center justify-center text-lg">🌿</div>
-                      }
+                <div className="space-y-2">
+                  {order.lines.slice(0, 3).map(line => (
+                    <div key={line.id} className="flex items-center gap-3">
+                      <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-[var(--surface-raised)]">
+                        {line.product.images?.[0]
+                          ? <Image src={line.product.images[0]} alt={line.product.name} fill className="object-cover" sizes="40px" />
+                          : <div className="flex h-full items-center justify-center text-sm">🌿</div>
+                        }
+                      </div>
+                      <p className="min-w-0 flex-1 truncate text-sm text-[var(--foreground-soft)]">{line.product.name}</p>
+                      <span className="shrink-0 text-xs text-[var(--muted)]">x{line.quantity}</span>
                     </div>
                   ))}
-                  {order.lines.length > 4 && (
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[var(--surface-raised)] text-xs font-medium text-[var(--muted)]">
-                      +{order.lines.length - 4}
-                    </div>
+                  {order.lines.length > 3 && (
+                    <p className="text-xs text-[var(--muted)]">+{order.lines.length - 3} más</p>
                   )}
                 </div>
               </Link>
@@ -112,7 +132,8 @@ export default async function MisPedidosPage() {
                 />
               </div>
             </article>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

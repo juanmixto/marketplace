@@ -43,7 +43,7 @@ const vendorBlueprints = [
     vendor: {
       slug: 'finca-garcia',
       displayName: 'Finca García',
-      description: 'Productores ecológicos en la Sierra de Gredos. Temporada corta, recogida diaria y envíos directos desde finca.',
+      description: 'Somos Carlos y Pilar, tercera generación en la Sierra de Gredos. Cultivamos hortalizas y huevos camperos en 12 hectáreas de tierra heredada, siguiendo las prácticas que nos enseñó el abuelo Tomás: rotación de cultivos, compost propio y cero químicos desde 1987.\n\nNuestra finca funciona con temporada corta y recogida diaria. No almacenamos: lo que se recolecta por la mañana sale hacia tu casa esa misma tarde. Trabajamos con variedades locales —tomates de Barco, pimientos de asar, judiones del valle— porque creemos que el sabor no se negocia.\n\nDurante los meses de invierno hacemos conservas, mermeladas y encurtidos con el excedente de temporada, siempre en lotes pequeños y con recetas de casa. Si tienes alguna duda sobre nuestros productos o quieres saber qué hay disponible esta semana, escríbenos sin compromiso.',
       location: 'Ávila, Castilla y León',
       logo: 'https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=400',
       coverImage: 'https://images.unsplash.com/photo-1501004318641-b39e6451bec6?w=1200',
@@ -61,10 +61,12 @@ const vendorBlueprints = [
         categoryId: 'cat-verduras',
         name: 'Tomates cherry ecológicos',
         slug: 'tomates-cherry-ecologicos',
-        description: 'Tomates cherry cultivados sin pesticidas en invernadero solar. Dulces, firmes y recogidos en el día.',
+        description: 'Cherry de piel fina, pulpa firme y un dulzor que solo se consigue dejándolos madurar en la mata. Los cultivamos en invernadero solar sin calefacción, con riego por goteo controlado y abono orgánico de nuestra propia compostera.\n\nRecogemos cada mañana para que lleguen a tu mesa con la frescura intacta. Son perfectos para ensaladas, pasta, pizzas caseras o simplemente para picar tal cual. En temporada alta (mayo-octubre) el sabor es todavía más intenso.',
         images: [
-          'https://images.unsplash.com/photo-1542838132-92c53300491e?w=1200',
-          'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=1200',
+          'https://images.unsplash.com/photo-1518977822534-7049a61ee0c2?w=1200&q=80', // cherry tomatoes on vine
+          'https://images.unsplash.com/photo-1542838132-92c53300491e?w=1200&q=80', // bowl of cherry tomatoes
+          'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=1200&q=80', // tomatoes closeup
+          'https://images.unsplash.com/photo-1558160074-4d7d8bdf4256?w=1200&q=80', // fresh tomatoes
         ],
         status: 'ACTIVE' as const,
         basePrice: 3.5,
@@ -80,9 +82,11 @@ const vendorBlueprints = [
         categoryId: 'cat-verduras',
         name: 'Calabacín tierno de temporada',
         slug: 'calabacin-tierno-temporada',
-        description: 'Pieza fina, piel suave y sabor delicado. Ideal para plancha, cremas y cocina rápida.',
+        description: 'Pieza fina con piel suave y textura delicada, ideal para cortar en rodajas a la plancha, en espirales para pasta vegetal o para cremas de verduras con buen cuerpo. Lo recolectamos joven para que la semilla sea pequeña y el sabor más concentrado.\n\nPlantamos en turnos escalonados para tener producción continua de abril a noviembre. El calibre es homogéneo porque seleccionamos a mano, y sale de nuestra finca el mismo día de la recolección.',
         images: [
-          'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=1200',
+          'https://images.unsplash.com/photo-1572453800999-e8d2d1589b7c?w=1200&q=80', // zucchini whole
+          'https://images.unsplash.com/photo-1617093727343-374698b1b08d?w=1200&q=80', // zucchini sliced
+          'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=1200&q=80', // green vegetables
         ],
         status: 'ACTIVE' as const,
         basePrice: 2.9,
@@ -98,9 +102,12 @@ const vendorBlueprints = [
         categoryId: 'cat-lacteos',
         name: 'Huevos de gallinas camperas',
         slug: 'huevos-gallinas-camperas',
-        description: 'Huevos de gallinas criadas en libertad. Categoría A, clase L, con yema intensa y fresca.',
+        description: 'Nuestras gallinas pastan libres por la finca, picotean hierba, insectos y grano ecológico complementario. El resultado son huevos con yema naranja intensa, cáscara resistente y un sabor que marca la diferencia en tortillas, huevos fritos y repostería casera.\n\nSon categoría A, clase L (entre 63 y 73 gramos). Los recogemos a diario y los marcamos con fecha de puesta. No los lavamos industrialmente para conservar la cutícula protectora natural. Llegan a tu casa en un plazo máximo de 48 horas desde la puesta.',
         images: [
-          'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=1200',
+          'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=1200&q=80', // eggs in carton
+          'https://images.unsplash.com/photo-1573246123716-6b1782bfc499?w=1200&q=80', // eggs in nest
+          'https://images.unsplash.com/photo-1510693206972-df098062cb71?w=1200&q=80', // farm eggs
+          'https://images.unsplash.com/photo-1491524062933-cb0289261700?w=1200&q=80', // fresh eggs close
         ],
         status: 'ACTIVE' as const,
         basePrice: 4.8,
@@ -116,9 +123,12 @@ const vendorBlueprints = [
         categoryId: 'cat-miel',
         name: 'Mermelada artesana de fresa',
         slug: 'mermelada-artesana-fresa',
-        description: 'Elaborada en pequeños lotes con fruta madura y cocción lenta para conservar textura y aroma.',
+        description: 'Elaborada con fresas maduras de nuestra huerta y azúcar de caña en proporción justa. La cocción es lenta, en cazos de cobre, para que la fruta conserve su textura y su aroma natural sin quedarse aguada.\n\nCada tarro es un lote pequeño —60 tarros por cocción como máximo—, y la consistencia cambia ligeramente según la temporada y el punto de madurez de la fruta. Es perfecta para desayunos con pan casero, relleno de bizcochos o acompañamiento de quesos suaves.',
         images: [
-          'https://images.unsplash.com/photo-1514996937319-344454492b37?w=1200',
+          'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=1200&q=80', // strawberries
+          'https://images.unsplash.com/photo-1553530979-7ee52a2670c4?w=1200&q=80', // strawberry jam jar
+          'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=1200&q=80', // jam on toast
+          'https://images.unsplash.com/photo-1514996937319-344454492b37?w=1200&q=80', // preserve jar
         ],
         status: 'ACTIVE' as const,
         basePrice: 5.4,
@@ -135,9 +145,11 @@ const vendorBlueprints = [
         categoryId: 'cat-verduras',
         name: 'Pimientos de Padrón ecológicos',
         slug: 'pimientos-padron-ecologicos',
-        description: 'Caja corta de pimientos verdes con calibre pequeño y textura fina. Muy demandados en fin de semana.',
+        description: 'Verdes, pequeños y con esa textura fina que hace que se frían rápido y queden crujientes por fuera y tiernos por dentro. Los nuestros son eco certificados, cultivados con sustrato natural y sin tratamientos químicos.\n\nVienen en bandejas de 400 gramos, calibre ideal para tapa. El clásico: vuelta y vuelta en sartén con aceite bien caliente y un buen golpe de sal gorda. Son los más demandados de viernes a domingo, así que conviene pedirlos antes del jueves.',
         images: [
-          'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=1200',
+          'https://images.unsplash.com/photo-1506084868230-bb9d95c24759?w=1200&q=80', // padrón peppers plate
+          'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=1200&q=80', // green peppers
+          'https://images.unsplash.com/photo-1564325724739-bae0bd08762c?w=1200&q=80', // peppers in pan
         ],
         status: 'ACTIVE' as const,
         basePrice: 3.9,
@@ -153,9 +165,12 @@ const vendorBlueprints = [
         categoryId: 'cat-verduras',
         name: 'Cesta mixta de huerta',
         slug: 'cesta-mixta-huerta',
-        description: 'Selección semanal con tomates, calabacín, hojas tiernas y producto sorpresa de temporada.',
+        description: 'Cada semana preparamos una selección variada con lo mejor que da la finca: tomates, calabacín, hojas tiernas, alguna hierba aromática y un producto sorpresa de temporada que rotamos para que siempre haya novedad.\n\nLa cesta pesa aproximadamente 4 kg y está pensada para una familia de 3-4 personas o para quien quiera cocinar variado durante la semana. Todo ecológico, recolectado el día de preparación y embalado con cuidado para evitar golpes en el transporte.',
         images: [
-          'https://images.unsplash.com/photo-1542838132-92c53300491e?w=1200',
+          'https://images.unsplash.com/photo-1466637574441-749b8f19452f?w=1200&q=80', // vegetable basket
+          'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=1200&q=80', // farmers market
+          'https://images.unsplash.com/photo-1498654896293-37aacf113fd9?w=1200&q=80', // fresh vegetables
+          'https://images.unsplash.com/photo-1590165482129-1b8b27698780?w=1200&q=80', // mixed produce
         ],
         status: 'ACTIVE' as const,
         basePrice: 14.5,
@@ -172,9 +187,10 @@ const vendorBlueprints = [
         categoryId: 'cat-verduras',
         name: 'Patata roja lavada',
         slug: 'patata-roja-lavada',
-        description: 'Patata firme para asado y guiso, lavada en origen y calibrada para cocina diaria.',
+        description: 'Patata firme de piel roja y carne amarilla, ideal para asados al horno, guisos de invierno y purés con cuerpo. La lavamos en origen para que llegue lista para pelar o para cocinar directamente con piel.\n\nCalibre medio-grande, seleccionada a mano y embolsada en malla transpirable. Es nuestra patata de despensa básica: aguanta bien 2-3 semanas en lugar fresco y oscuro sin brotar ni perder textura.',
         images: [
-          'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=1200',
+          'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=1200&q=80', // red potatoes
+          'https://images.unsplash.com/photo-1508747703725-719777637510?w=1200&q=80', // potatoes pile
         ],
         status: 'PENDING_REVIEW' as const,
         basePrice: 2.6,
@@ -190,9 +206,9 @@ const vendorBlueprints = [
         categoryId: 'cat-verduras',
         name: 'Cebolla dulce seleccionada',
         slug: 'cebolla-dulce-seleccionada',
-        description: 'Lote de cebolla dulce para horno y sofritos largos. Producto pausado por etiquetado incompleto.',
+        description: 'Cebolla de variedad dulce, perfecta para largas cocciones lentas: confitada en el horno a baja temperatura, en sofritos de base o caramelizada como acompañamiento. Su contenido en azúcares naturales es alto, y al cocinarla libera un dulzor intenso sin necesidad de añadir nada.\n\nProducto pausado temporalmente por etiquetado incompleto — estamos actualizando la información de trazabilidad del lote.',
         images: [
-          'https://images.unsplash.com/photo-1508747703725-719777637510?w=1200',
+          'https://images.unsplash.com/photo-1508747703725-719777637510?w=1200&q=80', // onions
         ],
         status: 'REJECTED' as const,
         basePrice: 2.2,
@@ -209,9 +225,11 @@ const vendorBlueprints = [
         categoryId: 'cat-verduras',
         name: 'Lechuga romana fresca',
         slug: 'lechuga-romana-fresca',
-        description: 'Lechuga de hoja crujiente preparada para venta rápida. El lote de demo aparece caducado para probar alertas internas.',
+        description: 'Lechuga de hoja crujiente y nervio firme, cultivada en bancal protegido y recogida antes del amanecer para conservar la hidratación. El sabor es suave, ligeramente dulce y muy refrescante.\n\nLa presentamos entera con raíz para prolongar su frescura en nevera. Si la sumerges en agua fría 10 minutos antes de servir, recupera todo su crujiente. Ideal como base de ensaladas, para wraps o para acompañar a la brasa.',
         images: [
-          'https://images.unsplash.com/photo-1502741338009-cac2772e18bc?w=1200',
+          'https://images.unsplash.com/photo-1524179091875-bf99a9a6af57?w=1200&q=80', // romaine lettuce
+          'https://images.unsplash.com/photo-1502741338009-cac2772e18bc?w=1200&q=80', // lettuce
+          'https://images.unsplash.com/photo-1607305387299-a3d9611cd469?w=1200&q=80', // salad leaves
         ],
         status: 'ACTIVE' as const,
         basePrice: 1.9,
@@ -240,7 +258,7 @@ const vendorBlueprints = [
     vendor: {
       slug: 'huerta-la-solana',
       displayName: 'Huerta La Solana',
-      description: 'Huerta familiar especializada en cítricos, fruta de hueso y lotes de temporada con recolección bajo pedido.',
+      description: 'Nos dedicamos al cítrico y la fruta de hueso desde hace más de cuarenta años. Lo que empezó como un pequeño huerto familiar entre naranjos se ha convertido en una finca de 8 hectáreas donde cultivamos naranjas, mandarinas, fresas y fruta de temporada.\n\nCada pieza se recolecta bajo pedido: no usamos cámaras frigoríficas ni tratamientos de postcosecha. Del árbol a tu mesa en 24-48 horas. También producimos miel cruda de azahar, porque nuestras colmenas conviven con los naranjos y el resultado merece la pena.\n\nEstamos en plena huerta valenciana, a pocos kilómetros de la Albufera. Si pasas por la zona, avísanos y te enseñamos la finca encantados.',
       location: 'Valencia, Comunidad Valenciana',
       logo: 'https://images.unsplash.com/photo-1461354464878-ad92f492a5a0?w=400',
       coverImage: 'https://images.unsplash.com/photo-1471193945509-9ad0617afabf?w=1200',
@@ -256,10 +274,12 @@ const vendorBlueprints = [
         categoryId: 'cat-frutas',
         name: 'Naranjas de mesa premium',
         slug: 'naranjas-mesa-premium',
-        description: 'Naranjas dulces, piel fina y calibre homogéneo. Recolectadas a mano y sin cámara.',
+        description: 'Naranjas Navel Lane Late, la variedad más equilibrada para mesa. Piel fina, gajos firmes y un dulzor limpio que no empalaga. Las recolectamos a mano y no pasan por cámara: del árbol a la caja directamente.\n\nSon perfectas para comer en gajos, en ensaladas o para hacer zumo natural por las mañanas. El calibre es homogéneo (70-80 mm) y por tratarse de producto sin tratamiento postcosecha, pueden presentar alguna marca superficial que no afecta en nada al sabor ni a la calidad interior.',
         images: [
-          'https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b?w=1200',
-          'https://images.unsplash.com/photo-1502741338009-cac2772e18bc?w=1200',
+          'https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b?w=1200&q=80', // oranges pile
+          'https://images.unsplash.com/photo-1615484477778-ca3b77940c25?w=1200&q=80', // oranges halved
+          'https://images.unsplash.com/photo-1582979512210-99b6a53386f9?w=1200&q=80', // citrus fruits
+          'https://images.unsplash.com/photo-1550258987-190a2d41a8ba?w=1200&q=80', // citrus close
         ],
         status: 'ACTIVE' as const,
         basePrice: 3.2,
@@ -276,9 +296,12 @@ const vendorBlueprints = [
         categoryId: 'cat-frutas',
         name: 'Fresas dulces en bandeja',
         slug: 'fresas-dulces-bandeja',
-        description: 'Fresas aromáticas con maduración natural. Lote corto para mantener frescura y sabor.',
+        description: 'Fresas de la variedad San Andreas, con maduración natural y sin forzar. Las recogemos a primera hora cuando el azúcar se ha acumulado durante la noche y el aroma es más intenso. Cada bandeja se prepara el mismo día de la recolección.\n\nEl lote es corto a propósito —producimos lo justo para que cada bandeja se venda fresca—. Son ideales para postre, combinadas con nata, con yogur natural o directamente a bocados. En temporada alta (marzo-junio), el sabor alcanza su punto máximo.',
         images: [
-          'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=1200',
+          'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=1200&q=80', // strawberries
+          'https://images.unsplash.com/photo-1587393855524-087f83d95bc9?w=1200&q=80', // strawberries bowl
+          'https://images.unsplash.com/photo-1495147466023-ac5c588e2e94?w=1200&q=80', // strawberries close
+          'https://images.unsplash.com/photo-1518635017498-87f514b751ba?w=1200&q=80', // strawberries field
         ],
         status: 'ACTIVE' as const,
         basePrice: 4.1,
@@ -294,9 +317,11 @@ const vendorBlueprints = [
         categoryId: 'cat-miel',
         name: 'Miel cruda de azahar',
         slug: 'miel-cruda-azahar',
-        description: 'Miel sin pasteurizar con notas florales y textura sedosa. Procede de colmenas cercanas a floración de cítrico.',
+        description: 'Miel sin pasteurizar, sin filtrar en exceso y sin mezcla. Procede de nuestras 30 colmenas situadas entre naranjos y limoneros de la huerta valenciana. Las notas florales de azahar son inconfundibles: dulce, suave y con un fondo cítrico muy delicado.\n\nAl ser cruda, conserva todos los nutrientes, enzimas y polen natural. Puede cristalizar con el tiempo, lo cual es señal de que no ha sido procesada. Para devolverla a estado líquido, basta con un baño maría suave. Perfecta para endulzar infusiones, aliñar yogur o tomar a cucharadas.',
         images: [
-          'https://images.unsplash.com/photo-1587049352851-8d4e89133924?w=1200',
+          'https://images.unsplash.com/photo-1587049352851-8d4e89133924?w=1200&q=80', // honey jar
+          'https://images.unsplash.com/photo-1471943311424-646960669fbc?w=1200&q=80', // honey dripping
+          'https://images.unsplash.com/photo-1558642891-54be180ea339?w=1200&q=80', // honeycomb
         ],
         status: 'ACTIVE' as const,
         basePrice: 8.9,
@@ -320,7 +345,7 @@ const vendorBlueprints = [
     vendor: {
       slug: 'queseria-monteazul',
       displayName: 'Quesería Monteazul',
-      description: 'Quesería artesanal de montaña con leche diaria y afinados lentos. Lotes pequeños, corteza natural y producción propia.',
+      description: 'En Monteazul hacemos queso como se hacía antes: con leche cruda del día, cuajo natural y el tiempo que cada pieza necesita. Nuestro rebaño de 120 cabras pasta libre en los Picos de Europa, y la diferencia se nota en la leche.\n\nTenemos tres líneas de producto: queso fresco (de 3 a 7 días), semicurado (45 días en cava de piedra) y curado (mínimo 90 días, con corteza natural lavada). También elaboramos yogur de oveja con fermentos propios y mantequilla batida a diario.\n\nMateo, el maestro quesero, lleva 22 años perfeccionando las recetas. Cada lote es pequeño —entre 40 y 60 piezas— y cada uno tiene su propio carácter. No hay dos quesos iguales, y eso es exactamente lo que buscamos.',
       location: 'Cangas de Onís, Asturias',
       logo: 'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=400',
       coverImage: 'https://images.unsplash.com/photo-1516594915697-87eb3b1c14ea?w=1200',
@@ -336,9 +361,11 @@ const vendorBlueprints = [
         categoryId: 'cat-lacteos',
         name: 'Queso de cabra curado',
         slug: 'queso-cabra-curado',
-        description: 'Pasta compacta y sabor persistente. Curación de 90 días, ideal para tabla o rallado fino.',
+        description: 'Elaborado con leche cruda de nuestras propias cabras que pastan libres en los Picos de Europa. La curación de 90 días en cava de piedra natural desarrolla una pasta compacta y un sabor persistente con matices a frutos secos y un ligero punto picante.\n\nCada pieza pesa alrededor de 350 gramos y se presenta con corteza natural lavada. Ideal para tabla de quesos, rallado sobre pasta fresca o simplemente con un hilo de miel y unas nueces. Maridaje perfecto con un vino tinto joven o una sidra natural asturiana.',
         images: [
-          'https://images.unsplash.com/photo-1452195100486-9cc805987862?w=1200',
+          'https://images.unsplash.com/photo-1452195100486-9cc805987862?w=1200&q=80', // goat cheese wheel
+          'https://images.unsplash.com/photo-1589881133595-a3c085cb731d?w=1200&q=80', // cheese board
+          'https://images.unsplash.com/photo-1557142046-c704a3adf364?w=1200&q=80', // artisan cheese
         ],
         status: 'ACTIVE' as const,
         basePrice: 9.5,
@@ -355,9 +382,11 @@ const vendorBlueprints = [
         categoryId: 'cat-lacteos',
         name: 'Yogur de oveja natural',
         slug: 'yogur-oveja-natural',
-        description: 'Yogur cremoso y ligeramente ácido, elaborado con fermentos propios y sin azúcares añadidos.',
+        description: 'Yogur elaborado con leche de oveja Latxa de ganaderías cercanas y fermentos propios que cultivamos en el obrador. La textura es cremosa y densa, con una acidez suave que lo diferencia del yogur industrial. Sin azúcares añadidos, sin espesantes, sin colorantes.\n\nViene en pack de dos tarrinas de 125 gramos cada una. Se puede tomar solo, con miel de azahar, con fruta fresca o como base para salsas y aliños. Es uno de nuestros productos más repetidos entre clientes habituales.',
         images: [
-          'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=1200',
+          'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=1200&q=80', // yogurt bowl
+          'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=1200&q=80', // yogurt jar
+          'https://images.unsplash.com/photo-1481391243133-f96216dcb5d2?w=1200&q=80', // creamy yogurt
         ],
         status: 'ACTIVE' as const,
         basePrice: 3.6,
@@ -373,9 +402,11 @@ const vendorBlueprints = [
         categoryId: 'cat-lacteos',
         name: 'Mantequilla artesana salada',
         slug: 'mantequilla-artesana-salada',
-        description: 'Batida lentamente y con un punto de sal marina. Untuosa, intensa y perfecta para tostas o cocina.',
+        description: 'Batida lentamente con nata fresca de vaca y un punto justo de sal marina de Añana. El resultado es una mantequilla untuosa, con un color amarillo natural y un sabor intenso que transforma cualquier tostada en un desayuno especial.\n\nLa elaboramos en pequeños lotes diarios —no más de 30 piezas por tanda— y cada una pesa 250 gramos, envuelta en papel vegetal. También funciona de maravilla para cocinar: resiste bien la temperatura y aporta un fondo de sabor que la margarina no puede igualar.',
         images: [
-          'https://images.unsplash.com/photo-1514996937319-344454492b37?w=1200',
+          'https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?w=1200&q=80', // artisan butter
+          'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=1200&q=80', // butter on bread
+          'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=1200&q=80', // butter close
         ],
         status: 'ACTIVE' as const,
         basePrice: 4.4,
@@ -402,7 +433,7 @@ const vendorBlueprints = [
     vendor: {
       slug: 'bodega-ribera-viva',
       displayName: 'Bodega Ribera Viva',
-      description: 'Viñedo propio y producción limitada. Vinos frescos, honestos y pensados para mesa diaria y ocasiones especiales.',
+      description: 'Somos una bodega familiar en la Ribera del Duero con 6 hectáreas de viñedo propio y una producción que rara vez supera las 15.000 botellas al año. Nos gusta decir que hacemos vinos honestos: sin adornos, sin trucos, con la expresión pura de la uva y el terreno.\n\nNuestras cepas de tempranillo tienen entre 25 y 40 años, y las trabajamos en ecológico desde 2018. Ana se encarga de la viña y la cosecha, y Pablo del trabajo en bodega. Criamos en barrica cuando la uva lo pide, pero nunca como obligación.\n\nAdemás del vino, elaboramos aceite de oliva virgen extra con aceitunas de la finca y conservas artesanas con producto de nuestra huerta. Todo bajo el mismo principio: buen producto, sin intermediarios, directo a tu mesa.',
       location: 'Valladolid, Castilla y León',
       logo: 'https://images.unsplash.com/photo-1516594915697-87eb3b1c14ea?w=400',
       coverImage: 'https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?w=1200',
@@ -418,9 +449,10 @@ const vendorBlueprints = [
         categoryId: 'cat-aceites',
         name: 'Aceite de oliva virgen extra',
         slug: 'aceite-oliva-virgen-extra',
-        description: 'AOVE de primera prensada en frío. Variedad Cornicabra, equilibrado y con final ligeramente picante.',
+        description: 'Aceite de primera prensada en frío elaborado con aceitunas de la variedad Cornicabra recolectadas en envero temprano. El resultado es un aceite equilibrado, con aromas a hierba recién cortada, un frutado medio y un final ligeramente picante.\n\nEmbotellamos en vidrio oscuro para proteger las propiedades del aceite de la luz. Cada cosecha es limitada (unas 3.000 botellas) y varía ligeramente en matices según el año. Va bien tanto para aliñar en crudo —ensaladas, tostadas, verduras— como para guisos y frituras suaves.',
         images: [
-          'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=1200',
+          'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=1200&q=80', // olive oil bottle
+          'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1200&q=80', // olives and oil
         ],
         status: 'ACTIVE' as const,
         basePrice: 12,
@@ -437,9 +469,12 @@ const vendorBlueprints = [
         categoryId: 'cat-vinos',
         name: 'Vino tinto joven tempranillo',
         slug: 'vino-tinto-joven-tempranillo',
-        description: 'Vino joven con fruta roja, paso amable y acidez viva. Muy fácil de beber y perfecto para compartir.',
+        description: 'Tempranillo 100% de nuestras viñas de entre 25 y 40 años en la Ribera del Duero. Fermentación en depósito de acero inoxidable a temperatura controlada y un breve paso por barrica de roble francés de segundo uso para redondear sin tapar la fruta.\n\nEn nariz encontrarás cereza madura, grosella negra y un toque de violeta. En boca es amable, con taninos suaves y una acidez viva que lo hace muy fácil de maridar. Perfecto para carnes a la brasa, embutidos, legumbres y comidas informales entre amigos. Servir a 14-16 °C.',
         images: [
-          'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=1200',
+          'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=1200&q=80', // wine bottle
+          'https://images.unsplash.com/photo-1553361371-9b22f78e8b1d?w=1200&q=80', // wine cellar bottles
+          'https://images.unsplash.com/photo-1507434965515-61970f2bd7c6?w=1200&q=80', // wine glass red
+          'https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?w=1200&q=80', // vineyard
         ],
         status: 'ACTIVE' as const,
         basePrice: 8.7,
@@ -456,9 +491,10 @@ const vendorBlueprints = [
         categoryId: 'cat-aceites',
         name: 'Pimientos asados en conserva',
         slug: 'pimientos-asados-conserva',
-        description: 'Pimientos rojos asados al fuego, pelados a mano y conservados con un aliño suave.',
+        description: 'Pimientos rojos del piquillo asados directamente sobre fuego de leña, pelados a mano uno a uno y conservados en un aliño suave de aceite de oliva, ajo laminado y una pizca de sal. Nada más.\n\nCada tarro contiene entre 8 y 10 pimientos, suficientes para una buena tapa, un relleno de bacalao o para acompañar cualquier plato de cuchara. Al ser pelados a mano, la textura es mucho más delicada que los industriales.',
         images: [
-          'https://images.unsplash.com/photo-1508747703725-719777637510?w=1200',
+          'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=1200&q=80', // roasted red peppers
+          'https://images.unsplash.com/photo-1598518619776-eae3f8a34eac?w=1200&q=80', // jarred peppers
         ],
         status: 'ACTIVE' as const,
         basePrice: 6.1,
@@ -482,7 +518,7 @@ const vendorBlueprints = [
     vendor: {
       slug: 'obrador-santa-ines',
       displayName: 'Obrador Santa Inés',
-      description: 'Panadería y obrador de fermentación lenta. Harinas locales, masas madre activas y horneado diario.',
+      description: 'Nuestro obrador nació en 2019 con una idea simple: recuperar el pan de verdad. Usamos harinas ecológicas molidas a piedra, masas madre que alimentamos a diario y fermentaciones de entre 24 y 48 horas. No tenemos prisa, y se nota en cada bocado.\n\nElena aprendió el oficio en panaderías de Francia y Alemania antes de abrir Santa Inés en el casco antiguo de Pamplona. Hoy somos un equipo de cuatro personas que hornea cada mañana a las cinco. Pan de pueblo, hogazas integrales, chapatas, croissants de mantequilla y bollería de temporada.\n\nTambién hacemos galletas, bizcochos y repostería seca que aguanta bien el envío. Todo sale del mismo obrador, con los mismos ingredientes y el mismo cuidado. Si quieres probar nuestro pan, te recomendamos hacer el pedido antes de las 11:00 para que salga en el horneado del día siguiente.',
       location: 'Pamplona, Navarra',
       logo: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400',
       coverImage: 'https://images.unsplash.com/photo-1517433670267-08bbd4be890f?w=1200',
@@ -498,9 +534,11 @@ const vendorBlueprints = [
         categoryId: 'cat-panaderia',
         name: 'Pan de pueblo de masa madre',
         slug: 'pan-pueblo-masa-madre',
-        description: 'Hogaza de corteza crujiente y miga húmeda. Fermentación larga y harina molida a piedra.',
+        description: 'Hogaza de ochocientos gramos con corteza gruesa y miga húmeda llena de alveolos irregulares. Usamos masa madre natural que alimentamos a diario, harina T80 ecológica molida a piedra y una fermentación lenta de 36 horas mínimo.\n\nEl resultado es un pan con carácter: sabor ligeramente ácido, aroma intenso y una conservación que dura 4-5 días sin perder la gracia. Se hornea sobre piedra refractaria a 250 °C con vapor. Ideal para acompañar cualquier comida, para sopas de ajo o para hacer las mejores tostadas del desayuno.',
         images: [
-          'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=1200',
+          'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=1200&q=80', // sourdough loaf
+          'https://images.unsplash.com/photo-1598373182133-52452f7691ef?w=1200&q=80', // bread crust closeup
+          'https://images.unsplash.com/photo-1559548331-f9cb98001426?w=1200&q=80', // artisan bread sliced
         ],
         status: 'ACTIVE' as const,
         basePrice: 4.9,
@@ -516,9 +554,12 @@ const vendorBlueprints = [
         categoryId: 'cat-panaderia',
         name: 'Croissants de mantequilla',
         slug: 'croissants-mantequilla',
-        description: 'Hojaldre ligero, interior alveolado y mantequilla con sabor limpio. Recién hechos cada mañana.',
+        description: 'Laminado artesanal con mantequilla francesa de calidad y una fermentación en frío de 24 horas que desarrolla aroma y textura. El interior es alveolado y ligero, con un sabor a mantequilla limpio que no deja sensación grasa.\n\nLos horneamos cada mañana entre las 5 y las 7, y salen del obrador todavía calientes. El pack incluye cuatro piezas de buen tamaño. Son perfectos solos, con mermelada artesana o con un café con leche para empezar el día como manda.',
         images: [
-          'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?w=1200',
+          'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?w=1200&q=80', // croissants
+          'https://images.unsplash.com/photo-1530610476181-d83430b64dcd?w=1200&q=80', // croissant layers
+          'https://images.unsplash.com/photo-1555099962-4199c345e5dd?w=1200&q=80', // croissant closeup
+          'https://images.unsplash.com/photo-1549903072-7e6e0bedb7fb?w=1200&q=80', // pastry basket
         ],
         status: 'ACTIVE' as const,
         basePrice: 6.8,
@@ -534,9 +575,11 @@ const vendorBlueprints = [
         categoryId: 'cat-panaderia',
         name: 'Galletas de avena y miel',
         slug: 'galletas-avena-miel',
-        description: 'Crujientes por fuera, tiernas por dentro y con dulzor suave. Perfectas para café o merienda.',
+        description: 'Receta de casa con avena integral, miel de flores, mantequilla, huevo y una pizca de canela. Las hacemos a mano en tandas pequeñas, y el punto de cocción está estudiado para que queden crujientes por fuera y tiernas por dentro.\n\nCada bolsa lleva 300 gramos de galletas de tamaño generoso. Son perfectas para el café de media mañana, para la merienda con un vaso de leche o para picar algo dulce sin recurrir a ultraprocesados. También las usamos como base de tartas en el obrador.',
         images: [
-          'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?w=1200',
+          'https://images.unsplash.com/photo-1590080875515-8a3a8dc5735e?w=1200&q=80', // oat cookies
+          'https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=1200&q=80', // homemade cookies
+          'https://images.unsplash.com/photo-1506224772180-d75b3efbe9be?w=1200&q=80', // cookie jar
         ],
         status: 'ACTIVE' as const,
         basePrice: 5.1,
@@ -1790,7 +1833,7 @@ async function main() {
       vendorId: vendorsBySlug.get('finca-garcia')!.id,
       customerId: primaryCustomer.id,
       rating: 5,
-      body: 'Muy dulces y con piel fina. Llegaron perfectos y duraron varios días en la nevera.',
+      body: 'Muy dulces y con piel fina, se nota que están recogidos en el día. Los usé para una ensalada caprese y el sabor era increíble. Llegaron bien embalados y duraron varios días en la nevera sin perder firmeza.',
     },
     {
       id: 'review-demo-002',
@@ -1799,7 +1842,7 @@ async function main() {
       vendorId: vendorsBySlug.get('bodega-ribera-viva')!.id,
       customerId: primaryCustomer.id,
       rating: 4,
-      body: 'Buen aroma y sabor equilibrado. Botella cuidada y envío rápido.',
+      body: 'Buen aroma nada más abrir la botella. Sabor equilibrado con un toque picante al final que le da carácter. Lo usé para aliñar una ensalada y para mojar pan, y en ambos casos estaba estupendo. El envío llegó rápido y la botella venía bien protegida.',
     },
     {
       id: 'review-demo-003',
@@ -1808,7 +1851,7 @@ async function main() {
       vendorId: vendorsBySlug.get('queseria-monteazul')!.id,
       customerId: secondaryCustomer.id,
       rating: 5,
-      body: 'Sabor intenso pero elegante. Repetiré para tabla de quesos.',
+      body: 'Un queso con carácter de verdad. Sabor intenso pero elegante, con un punto de frutos secos que lo hace perfecto para tabla. Lo probé con un hilo de miel y unas nueces y la combinación era espectacular. Repetiré seguro para la próxima cena con amigos.',
     },
     {
       id: 'review-demo-004',
@@ -1817,7 +1860,7 @@ async function main() {
       vendorId: vendorsBySlug.get('huerta-la-solana')!.id,
       customerId: secondaryCustomer.id,
       rating: 4,
-      body: 'Textura muy agradable y notas florales claras. Ideal para yogur y tostadas.',
+      body: 'Textura sedosa y notas florales de azahar muy claras, nada que ver con la miel industrial. La probé con yogur natural y unas fresas y fue una combinación 10. También va genial con tostadas y queso fresco. El tarro es generoso y creo que me va a durar bastante.',
     },
     {
       id: 'review-demo-005',
@@ -1826,7 +1869,7 @@ async function main() {
       vendorId: vendorsBySlug.get('huerta-la-solana')!.id,
       customerId: thirdCustomer.id,
       rating: 5,
-      body: 'Perfectas para mesa y zumo. Muy jugosas.',
+      body: 'Perfectas para mesa y para zumo. Muy jugosas, con una dulzor equilibrado y sin semillas apenas. Pedí 2 kg y no duró ni la semana. El calibre es homogéneo y la piel finísima. Se nota que van del árbol a la caja sin pasar por cámara. Repetiré antes de que acabe la temporada.',
     },
     {
       id: 'review-demo-006',
@@ -1835,7 +1878,7 @@ async function main() {
       vendorId: vendorsBySlug.get('bodega-ribera-viva')!.id,
       customerId: thirdCustomer.id,
       rating: 4,
-      body: 'Fácil de beber y con buena fruta. Muy bien para comidas informales.',
+      body: 'Fácil de beber, con buena fruta y un paso muy amable. Lo abrimos para una comida informal con amigos y desapareció en un momento. Tiene personalidad pero no es demasiado complejo, que es justo lo que buscaba. Servido a unos 15 grados está perfecto. Buena relación calidad-precio.',
     },
   ]
 

@@ -185,6 +185,15 @@ const en: Record<TranslationKeys, string> = {
   'cart.total': 'Total',
   'cart.toCheckout': 'Go to checkout',
   'cart.continueShopping': 'Continue shopping',
+  'cart.stockBannerTitle': 'Some items don\u2019t have enough stock',
+  'cart.stockBannerDesc': 'Adjust the quantities or remove the affected items before continuing to checkout.',
+  'cart.stockUnavailable': 'Unavailable',
+  'cart.stockInsufficient': 'Insufficient stock',
+  'cart.stockOnlyLeft_one': 'Only 1 left',
+  'cart.stockOnlyLeft_other': 'Only {count} left',
+  'cart.stockAdjust': 'Adjust to available',
+  'cart.stockCheckoutBlocked': 'Resolve the stock warnings to continue',
+  'cart.stockChecking': 'Checking stock...',
 
   // Checkout
   'checkout.title': 'Complete order',
@@ -330,6 +339,24 @@ const en: Record<TranslationKeys, string> = {
 
   // Common
   'common.cancel': 'Cancel',
+
+  // Favorites
+  'favorites.title': 'My favourites',
+  'favorites.subtitle': 'Products you have saved as favourites',
+  'favorites.emptyTitle': 'No favourite products yet',
+  'favorites.emptyBody': 'Browse our catalogue and save your favourite products',
+  'favorites.explore': 'Explore products',
+  'favorites.removeTitle': 'Remove from favourites',
+  'favorites.noImage': 'No image',
+  'favorites.available': 'available',
+  'favorites.outOfStock': 'Out of stock',
+  'favorites.addToCart': 'Add to cart',
+  'favorites.errorRemove': 'Error removing favourite',
+  'favorites.migrationWarning': 'The favourites list was loaded in safe mode due to pending database migrations.',
+  'favorites.save': 'Save',
+  'favorites.saved': 'Saved',
+  'favorites.saving': 'Saving...',
+  'favorites.loginToSave': 'Sign in to save favourites',
 
   // Admin
   'admin.dashboard': 'Admin Dashboard',

@@ -21,6 +21,14 @@ export const ORDER_STATUS_LABELS: Record<string, string> = {
   REFUNDED: 'Reembolsado',
 }
 
+export const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Pago pendiente',
+  SUCCEEDED: 'Pagado',
+  FAILED: 'Pago fallido',
+  REFUNDED: 'Reembolsado',
+  PARTIALLY_REFUNDED: 'Reembolso parcial',
+}
+
 export const FULFILLMENT_STATUS_LABELS: Record<string, string> = {
   PENDING: 'Pendiente',
   CONFIRMED: 'Confirmado',

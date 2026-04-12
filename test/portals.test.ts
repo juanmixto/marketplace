@@ -68,3 +68,17 @@ test('getLoginPortalMode detects the intended portal from callback urls', () => 
   assert.equal(getLoginPortalMode('/cuenta'), 'buyer')
   assert.equal(getLoginPortalMode(undefined), 'buyer')
 })
+
+test('buyer portal href matches the hardcoded /cuenta path used in Header dropdown', () => {
+  assert.equal(getPrimaryPortalHref(undefined), '/cuenta')
+  assert.equal(getPrimaryPortalHref('CUSTOMER'), '/cuenta')
+  assert.notEqual(getPrimaryPortalHref('VENDOR'), '/cuenta')
+  assert.notEqual(getPrimaryPortalHref('SUPERADMIN'), '/cuenta')
+})
+
+test('buyer portal label matches myAccount translation confirming duplication source', () => {
+  assert.equal(getPortalLabel(undefined, 'es'), 'Mi cuenta')
+  assert.equal(getPortalLabel('CUSTOMER', 'es'), 'Mi cuenta')
+  assert.notEqual(getPortalLabel('VENDOR', 'es'), 'Mi cuenta')
+  assert.notEqual(getPortalLabel('SUPERADMIN', 'es'), 'Mi cuenta')
+})

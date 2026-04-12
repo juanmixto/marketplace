@@ -103,6 +103,34 @@ type CatalogCopy = {
     originalLanguageHint: (language: string) => string
   }
   certifications: Record<string, CertificationCopy>
+  product: {
+    ratingLabel: (rating: string, count: number) => string
+    originTitle: string
+    originFrom: string
+    trustDirectPurchase: string
+    trustNoIntermediaries: string
+    trustQuality: string
+    aboutProducer: string
+    viewProducerProfile: string
+  }
+  vendor: {
+    heroImageAlt: (name: string) => string
+    logoAlt: (name: string) => string
+    ratingLabel: (rating: string, count: number) => string
+    memberSinceDate: (date: string) => string
+    preparationDays: (days: number) => string
+    orderCutoff: (time: string) => string
+    aboutTitle: string
+    aboutEmpty: string
+    trustDirectSale: string
+    trustSmallBatch: string
+    trustLocalOrigin: string
+    productsTitle: (count: number) => string
+    productsEmpty: string
+    reviewsTitle: (count: number) => string
+    breadcrumbProducers: string
+    noReviews: string
+  }
 }
 
 const ES_CATALOG_COPY: CatalogCopy = {
@@ -213,6 +241,34 @@ const ES_CATALOG_COPY: CatalogCopy = {
       label: 'ARTESANO',
       description: 'Elaborado en pequeños lotes con un proceso tradicional y cuidado artesanal.',
     },
+  },
+  product: {
+    ratingLabel: (rating, count) => `${rating} · ${count} valoracion${count === 1 ? '' : 'es'}`,
+    originTitle: 'Origen del producto',
+    originFrom: 'Producido en',
+    trustDirectPurchase: 'Compra directa al productor',
+    trustNoIntermediaries: 'Sin intermediarios',
+    trustQuality: 'Calidad garantizada',
+    aboutProducer: 'Conoce al productor',
+    viewProducerProfile: 'Ver perfil completo',
+  },
+  vendor: {
+    heroImageAlt: name => `Portada de ${name}`,
+    logoAlt: name => `Logo de ${name}`,
+    ratingLabel: (rating, count) => `${rating} · ${count} valoración${count === 1 ? '' : 'es'}`,
+    memberSinceDate: date => `Desde ${date}`,
+    preparationDays: days => `Preparación en ${days} día${days === 1 ? '' : 's'}`,
+    orderCutoff: time => `Pedidos antes de las ${time}`,
+    aboutTitle: 'Nuestra historia',
+    aboutEmpty: 'Este productor aún no ha añadido una descripción.',
+    trustDirectSale: 'Venta directa',
+    trustSmallBatch: 'Pequeño lote',
+    trustLocalOrigin: 'Origen local',
+    productsTitle: count => `Productos (${count})`,
+    productsEmpty: 'Este productor aún no tiene productos publicados.',
+    reviewsTitle: count => `Reseñas (${count})`,
+    breadcrumbProducers: 'Productores',
+    noReviews: 'Aún no hay reseñas. ¡Sé el primero en reseñar!',
   },
 }
 
@@ -325,80 +381,108 @@ const EN_CATALOG_COPY: CatalogCopy = {
       description: 'Made in small batches using a careful traditional process.',
     },
   },
+  product: {
+    ratingLabel: (rating, count) => `${rating} · ${count} review${count === 1 ? '' : 's'}`,
+    originTitle: 'Product origin',
+    originFrom: 'Produced in',
+    trustDirectPurchase: 'Direct from the producer',
+    trustNoIntermediaries: 'No intermediaries',
+    trustQuality: 'Quality guaranteed',
+    aboutProducer: 'Meet the producer',
+    viewProducerProfile: 'View full profile',
+  },
+  vendor: {
+    heroImageAlt: name => `${name} cover`,
+    logoAlt: name => `${name} logo`,
+    ratingLabel: (rating, count) => `${rating} · ${count} review${count === 1 ? '' : 's'}`,
+    memberSinceDate: date => `Since ${date}`,
+    preparationDays: days => `Ready in ${days} day${days === 1 ? '' : 's'}`,
+    orderCutoff: time => `Orders before ${time}`,
+    aboutTitle: 'Our story',
+    aboutEmpty: 'This producer has not added a description yet.',
+    trustDirectSale: 'Direct sale',
+    trustSmallBatch: 'Small batch',
+    trustLocalOrigin: 'Local origin',
+    productsTitle: count => `Products (${count})`,
+    productsEmpty: 'This producer has no published products yet.',
+    reviewsTitle: count => `Reviews (${count})`,
+    breadcrumbProducers: 'Producers',
+    noReviews: 'No reviews yet. Be the first to leave a review!',
+  },
 }
 
 const PRODUCT_COPY_EN: Record<string, { name: string; description?: string; unit?: string }> = {
   'tomates-cherry-ecologicos': {
     name: 'Organic cherry tomatoes',
-    description: 'Cherry tomatoes grown without pesticides in a solar greenhouse. Sweet, firm and picked the same day.',
+    description: 'Thin-skinned cherry tomatoes with firm flesh and a sweetness you only get by letting them ripen on the vine. Grown in an unheated solar greenhouse with drip irrigation and organic compost from our own composting system.\n\nPicked every morning so they reach your table with freshness intact. Perfect for salads, pasta, homemade pizza or simply snacking straight from the punnet. During peak season (May–October) the flavour is even more intense.',
   },
   'calabacin-tierno-temporada': {
     name: 'Tender seasonal zucchini',
-    description: 'Slim zucchini with soft skin and a delicate flavour. Ideal for grilling, soups and quick cooking.',
+    description: 'Slim courgettes with soft skin and a delicate texture, ideal for slicing on the griddle, spiralising into veggie noodles or blending into full-bodied vegetable soups. We harvest them young so the seeds remain tiny and the flavour stays concentrated.\n\nWe plant in staggered batches for continuous production from April to November. Every piece is hand-selected for even size and leaves the farm on the same day it is picked.',
   },
   'huevos-gallinas-camperas': {
     name: 'Free-range eggs',
-    description: 'Eggs from hens raised outdoors. Grade A, size L, with rich yolks and exceptional freshness.',
+    description: 'Our hens roam freely across the farm, foraging on grass, insects and supplementary organic grain. The result: eggs with deep orange yolks, strong shells and a flavour that makes a real difference in omelettes, fried eggs and baking.\n\nGrade A, size L (63–73 g). Collected daily and date-stamped at laying. We skip industrial washing to preserve the natural protective cuticle. They reach your doorstep within 48 hours of being laid.',
   },
   'mermelada-artesana-fresa': {
     name: 'Artisan strawberry jam',
-    description: 'Made in small batches with ripe fruit and slow cooking to preserve texture and aroma.',
+    description: 'Made with ripe strawberries from our own garden and just the right amount of cane sugar. Cooked slowly in copper pans so the fruit keeps its texture and natural aroma without turning watery.\n\nEach jar comes from a small batch — 60 jars per cook at most — and the consistency changes slightly with the season and ripeness of the fruit. Perfect on homemade bread for breakfast, as a cake filling or alongside mild cheeses.',
   },
   'pimientos-padron-ecologicos': {
     name: 'Organic Padrón peppers',
-    description: 'Small-batch green peppers with a fine texture and small size, perfect for weekend tapas.',
+    description: 'Small, green and with that fine texture that fries quickly — crispy on the outside, tender inside. Ours are certified organic, grown in natural substrate with no chemical treatments.\n\nSold in 400 g trays, the ideal size for tapas. The classic method: toss in a hot pan with plenty of oil and finish with a generous pinch of coarse salt. They are our most popular item from Friday to Sunday, so order before Thursday to be safe.',
   },
   'cesta-mixta-huerta': {
     name: 'Mixed vegetable basket',
-    description: 'Weekly selection with tomatoes, zucchini, tender greens and a surprise seasonal product.',
+    description: 'Every week we put together a varied selection of the best the farm has to offer: tomatoes, courgettes, tender leaves, a handful of aromatic herbs and a surprise seasonal item that rotates so there is always something new.\n\nThe basket weighs roughly 4 kg and is designed for a household of 3–4 people or anyone who wants to cook varied meals through the week. Everything is organic, harvested on packing day and carefully wrapped to avoid transit damage.',
   },
   'naranjas-mesa-premium': {
     name: 'Premium table oranges',
-    description: 'Sweet oranges with thin skin and even sizing. Hand-picked and never stored in cold chambers.',
+    description: 'Navel Lane Late oranges — the most balanced variety for eating fresh. Thin skin, firm segments and a clean sweetness that never cloys. Hand-picked and never cold-stored: straight from the tree into the box.\n\nPerfect for eating in segments, in salads or for fresh morning juice. Even sizing (70–80 mm) and, because they receive no post-harvest treatment, they may show the odd surface mark that has zero effect on flavour or interior quality.',
   },
   'fresas-dulces-bandeja': {
     name: 'Sweet strawberry tray',
-    description: 'Aromatic strawberries ripened naturally. A short batch to preserve freshness and flavour.',
+    description: 'San Andreas variety strawberries, naturally ripened without forcing. We pick them at first light when the sugars have built up overnight and the aroma is at its strongest. Each tray is prepared on the same day as harvesting.\n\nThe batch is deliberately small — we produce only enough to sell fresh. Ideal for dessert, paired with cream, with natural yogurt or simply eaten by the handful. During peak season (March–June), the flavour hits its absolute best.',
   },
   'miel-cruda-azahar': {
     name: 'Raw orange blossom honey',
-    description: 'Unpasteurized honey with floral notes and a silky texture from hives near citrus blossom.',
+    description: 'Unpasteurised, minimally filtered and unblended honey from our 30 hives set among the orange and lemon groves of the Valencian huerta. The orange blossom notes are unmistakable: sweet, smooth and with a delicate citrus undertone.\n\nBeing raw, it retains all its nutrients, enzymes and natural pollen. It may crystallise over time — a sign it has not been processed. A gentle bain-marie brings it back to liquid. Perfect for sweetening infusions, drizzling over yogurt or eating by the spoonful.',
   },
   'queso-cabra-curado': {
     name: 'Aged goat cheese',
-    description: 'Firm paste and lingering flavour. A 90-day maturation, ideal for cheese boards or fine grating.',
+    description: 'Made with raw milk from our own free-range goats grazing in the Picos de Europa. A 90-day cure in a natural stone cellar develops a firm paste and a lingering flavour with nutty overtones and a gentle peppery bite.\n\nEach piece weighs around 350 g and features a washed natural rind. Ideal on a cheese board, grated over fresh pasta or simply drizzled with honey and a few walnuts. Pairs beautifully with a young red wine or a natural Asturian cider.',
   },
   'yogur-oveja-natural': {
     name: 'Natural sheep yogurt',
-    description: 'Creamy, lightly tangy yogurt made with house cultures and no added sugars.',
+    description: 'Made with Latxa sheep milk from nearby farms and house cultures we maintain in the dairy ourselves. The texture is creamy and dense, with a gentle tang that sets it apart from industrial yogurt. No added sugars, no thickeners, no colouring.\n\nSold in a two-pack of 125 g pots. Enjoy it plain, with orange blossom honey, fresh fruit or as a base for dressings and sauces. It is one of our most-reordered products among regular customers.',
   },
   'mantequilla-artesana-salada': {
     name: 'Artisan salted butter',
-    description: 'Slow-churned with a touch of sea salt. Rich, smooth and perfect for toast or cooking.',
+    description: 'Slow-churned with fresh cow cream and just the right touch of Añana sea salt. The result is a spreadable butter with a natural yellow colour and an intense flavour that transforms any slice of toast into a special breakfast.\n\nWe make it in small daily batches — no more than 30 pieces per run — each weighing 250 g and wrapped in parchment paper. It also works beautifully for cooking: it handles heat well and provides a depth of flavour no margarine can match.',
   },
   'aceite-oliva-virgen-extra': {
     name: 'Extra virgin olive oil',
-    description: 'First cold-pressed EVOO. Cornicabra variety, balanced and with a lightly peppery finish.',
+    description: 'First cold-pressed oil made from Cornicabra olives harvested at early veraison. The result is a balanced EVOO with aromas of fresh-cut grass, a medium fruitiness and a gently peppery finish.\n\nBottled in dark glass to protect the oil from light. Each harvest is limited (around 3,000 bottles) and the nuances shift subtly from year to year. Equally at home drizzled raw over salads, toast and vegetables or used in gentle cooking and stewing.',
   },
   'vino-tinto-joven-tempranillo': {
     name: 'Young Tempranillo red wine',
-    description: 'A young red with ripe berry notes, smooth body and lively acidity. Easy to enjoy and perfect for sharing.',
+    description: '100 % Tempranillo from our own 25- to 40-year-old vines in the Ribera del Duero. Fermented in temperature-controlled stainless steel and briefly aged in second-use French oak to round out the edges without masking the fruit.\n\nOn the nose: ripe cherry, blackcurrant and a hint of violet. On the palate it is approachable, with soft tannins and lively acidity that make it very easy to pair. Perfect with grilled meats, cured sausages, hearty legume stews or casual meals with friends. Serve at 14–16 °C.',
   },
   'pimientos-asados-conserva': {
     name: 'Fire-roasted peppers in a jar',
-    description: 'Red peppers roasted over fire, hand-peeled and preserved with a gentle dressing.',
+    description: 'Piquillo red peppers roasted directly over a wood fire, hand-peeled one by one and preserved in a light dressing of olive oil, sliced garlic and a pinch of salt. Nothing else.\n\nEach jar holds 8 to 10 peppers — enough for a generous tapa, a cod stuffing or an accompaniment to any spoon dish. Because they are hand-peeled, the texture is far more delicate than industrial versions.',
   },
   'pan-pueblo-masa-madre': {
     name: 'Sourdough country loaf',
-    description: 'A crusty loaf with a moist crumb. Long fermentation and stone-milled flour.',
+    description: 'An 800 g loaf with a thick crust and moist crumb full of irregular air pockets. We use a natural sourdough starter fed daily, organic T80 stone-milled flour and a slow fermentation of at least 36 hours.\n\nThe result is a bread with character: slightly tangy taste, intense aroma and shelf life of 4–5 days without losing its charm. Baked on a refractory stone at 250 °C with steam. Ideal alongside any meal, for garlic soup or for making the best breakfast toast.',
   },
   'croissants-mantequilla': {
     name: 'Butter croissants',
-    description: 'Light laminated pastry with an airy interior and clean butter flavour. Baked fresh every morning.',
+    description: 'Artisan laminated pastry using quality French butter and a 24-hour cold proof that develops aroma and texture. The inside is honeycombed and light, with a clean butter taste that leaves no greasy aftertaste.\n\nBaked every morning between 5 and 7 am, they leave the bakery still warm. The pack includes four generously-sized pieces. Perfect on their own, with artisan jam or with a café con leche to start the day properly.',
   },
   'galletas-avena-miel': {
     name: 'Oat and honey cookies',
-    description: 'Crispy on the outside, soft inside and gently sweet. Perfect with coffee or as an afternoon treat.',
+    description: 'A house recipe with wholegrain oats, flower honey, butter, egg and a pinch of cinnamon. Hand-shaped in small batches, the baking time is dialled in so they come out crispy on the outside and soft in the middle.\n\nEach bag holds 300 g of generously-sized cookies. Perfect with a mid-morning coffee, an afternoon glass of milk or as a sweet snack that does not rely on ultra-processing. We also use them as a tart base in the bakery.',
   },
 }
 

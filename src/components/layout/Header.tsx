@@ -56,6 +56,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
       : t('cart_items_other').replace('{count}', String(effectiveCartCount))
   const portalHref = getPrimaryPortalHref(currentUser?.role)
   const portalLabel = getPortalLabel(currentUser?.role, locale)
+  const isBuyerPortal = portalHref === '/cuenta'
   const cartAriaLabel = cartHasItems
     ? `${t('cart')}, ${cartCountLabel}`
     : t('cart')
@@ -152,12 +153,14 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
 
             {currentUser ? (
               <>
-                <Link
-                  href={portalHref}
-                  className="hidden rounded-lg px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] md:block"
-                >
-                  {portalLabel}
-                </Link>
+                {!isBuyerPortal && (
+                  <Link
+                    href={portalHref}
+                    className="hidden rounded-lg px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] md:block"
+                  >
+                    {portalLabel}
+                  </Link>
+                )}
                 <div className="relative hidden md:block">
                   <button
                     onClick={() => setAccountOpen(v => !v)}
@@ -186,13 +189,15 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                         >
                           {t('myOrders')}
                         </Link>
-                        <Link
-                          href={portalHref}
-                          onClick={() => setAccountOpen(false)}
-                          className="block rounded-xl px-3 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
-                        >
-                          {portalLabel}
-                        </Link>
+                        {!isBuyerPortal && (
+                          <Link
+                            href={portalHref}
+                            onClick={() => setAccountOpen(false)}
+                            className="block rounded-xl px-3 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
+                          >
+                            {portalLabel}
+                          </Link>
+                        )}
                         <div className="mx-1 my-1 border-t border-[var(--border)]" />
                         <SignOutButton compact />
                       </div>
@@ -290,13 +295,15 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
 
             {user ? (
               <>
-                <Link
-                  href={portalHref}
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
-                >
-                  {portalLabel}
-                </Link>
+                {!isBuyerPortal && (
+                  <Link
+                    href={portalHref}
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
+                  >
+                    {portalLabel}
+                  </Link>
+                )}
                 <Link
                   href="/cuenta"
                   onClick={() => setMobileOpen(false)}

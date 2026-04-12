@@ -1,13 +1,14 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import { getProductBySlug, getProducts } from '@/domains/catalog/queries'
 import { Badge } from '@/components/ui/badge'
 import { ProductPurchasePanel } from '@/components/catalog/ProductPurchasePanel'
 import { AutoTranslatedBadge } from '@/components/catalog/AutoTranslatedBadge'
 import { StarRating } from '@/components/reviews/StarRating'
 import type { ProductWithVendor } from '@/domains/catalog/types'
-import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
+import { MapPinIcon, StarIcon, CheckBadgeIcon, TruckIcon, ShieldCheckIcon } from '@heroicons/react/24/solid'
+import { ProductImageGallery } from '@/components/catalog/ProductImageGallery'
+import { FavoriteToggleButton } from '@/components/catalog/FavoriteToggleButton'
 import { ProductCard } from '@/components/catalog/ProductCard'
 import { getProductReviews } from '@/domains/reviews/actions'
 import type { Metadata } from 'next'
@@ -133,74 +134,91 @@ export default async function ProductDetailPage({ params }: Props) {
 
       <div className="grid gap-10 lg:grid-cols-2">
         {/* Gallery */}
-        <div className="space-y-3">
-          <div className="relative aspect-square overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] shadow-sm">
-            {product.images?.[0] ? (
-              <Image
-                src={product.images[0]}
-                alt={localizedProduct.name}
-                fill
-                className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 50vw"
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center text-8xl">🌿</div>
-            )}
-          </div>
-          {product.images.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto">
-              {product.images.map((img, i) => (
-                <div key={i} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] shadow-sm">
-                  <Image src={img} alt={`${localizedProduct.name} ${locale === 'en' ? 'image' : 'imagen'} ${i + 1}`} fill className="object-cover" sizes="80px" />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <ProductImageGallery images={product.images} alt={localizedProduct.name} />
 
         {/* Info */}
         <div>
-          {/* Certs */}
+          {/* Certs with descriptions */}
           {product.certifications.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {product.certifications.map(cert => (
-                <Badge key={cert} variant={CERT_COLORS[cert] ?? 'default'}>
-                  {getLocalizedCertificationCopy(cert, locale).label}
-                </Badge>
-              ))}
+            <div className="mb-4 space-y-2">
+              <div className="flex flex-wrap gap-1.5">
+                {product.certifications.map(cert => (
+                  <Badge key={cert} variant={CERT_COLORS[cert] ?? 'default'}>
+                    {getLocalizedCertificationCopy(cert, locale).label}
+                  </Badge>
+                ))}
+              </div>
+              {product.certifications.length === 1 && (
+                <p className="text-xs text-[var(--muted)] leading-relaxed">
+                  {getLocalizedCertificationCopy(product.certifications[0], locale).description}
+                </p>
+              )}
             </div>
           )}
 
-          <h1 className="text-3xl font-bold text-[var(--foreground)]">{localizedProduct.name}</h1>
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-3xl font-bold text-[var(--foreground)]">{localizedProduct.name}</h1>
+            <FavoriteToggleButton
+              productId={product.id}
+              productName={localizedProduct.name}
+              compact
+              className="shrink-0 mt-1"
+            />
+          </div>
+
+          {/* Rating + vendor inline */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+            {reviewSummary.averageRating && reviewSummary.totalReviews > 0 && (
+              <a
+                href="#reviews"
+                className="inline-flex items-center gap-1 text-sm text-[var(--muted)] hover:text-amber-600 dark:hover:text-amber-400"
+              >
+                <StarIcon className="h-4 w-4 text-amber-400" />
+                <span className="font-medium text-[var(--foreground)]">
+                  {reviewSummary.averageRating.toFixed(1)}
+                </span>
+                <span>·</span>
+                <span>{copy.product.ratingLabel(reviewSummary.averageRating.toFixed(1), reviewSummary.totalReviews)}</span>
+              </a>
+            )}
+            <Link
+              href={`/productores/${product.vendor.slug}`}
+              className="inline-flex items-center gap-1.5 rounded-md text-sm text-[var(--muted)] hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
+            >
+              {product.originRegion && (
+                <>
+                  <MapPinIcon className="h-4 w-4" />
+                  <span>{product.originRegion}</span>
+                  <span>·</span>
+                </>
+              )}
+              <span>{product.vendor.displayName}</span>
+            </Link>
+          </div>
+
           <div className="mt-3">
             <AutoTranslatedBadge translation={localizedProduct.translation} className="text-xs" />
           </div>
 
-          {/* Vendor */}
-          <Link
-            href={`/productores/${product.vendor.slug}`}
-            className="mt-2 inline-flex items-center gap-1.5 rounded-md text-sm text-[var(--muted)] hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
-          >
-            {product.originRegion && (
-              <>
-                <MapPinIcon className="h-4 w-4" />
-                <span>{product.originRegion}</span>
-                <span>·</span>
-              </>
-            )}
-            <span>{product.vendor.displayName}</span>
-            {product.vendor.avgRating && (
-              <>
-                <span>·</span>
-                <StarIcon className="h-3.5 w-3.5 text-amber-400" />
-                <span>{Number(product.vendor.avgRating).toFixed(1)}</span>
-              </>
-            )}
-          </Link>
-
           {/* Description */}
           {localizedProduct.description && (
-            <p className="mt-6 text-[var(--foreground-soft)] leading-relaxed">{localizedProduct.description}</p>
+            <p className="mt-5 text-[var(--foreground-soft)] leading-relaxed">{localizedProduct.description}</p>
+          )}
+
+          {/* Origin highlight */}
+          {product.originRegion && (
+            <div className="mt-5 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+              <MapPinIcon className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <div>
+                <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">{copy.product.originTitle}</p>
+                <p className="text-sm text-emerald-800 dark:text-emerald-300">
+                  {copy.product.originFrom} <span className="font-medium">{product.originRegion}</span>
+                  {product.vendor.location && product.vendor.location !== product.originRegion && (
+                    <span className="text-emerald-700 dark:text-emerald-400"> · {product.vendor.location}</span>
+                  )}
+                </p>
+              </div>
+            </div>
           )}
 
           <ProductPurchasePanel
@@ -225,25 +243,51 @@ export default async function ProductDetailPage({ params }: Props) {
             }))}
           />
 
-          {/* Vendor card */}
-          <div className="mt-8 rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-4 shadow-sm">
-            <div className="flex items-start gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-950/40 text-2xl">
+          {/* Trust strip */}
+          <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs text-[var(--muted)]">
+            <div className="flex flex-col items-center gap-1">
+              <TruckIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <span>{copy.product.trustDirectPurchase}</span>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <ShieldCheckIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <span>{copy.product.trustQuality}</span>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <CheckBadgeIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <span>{copy.product.trustNoIntermediaries}</span>
+            </div>
+          </div>
+
+          {/* Vendor card — "Conoce al productor" */}
+          <div className="mt-8 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] shadow-sm">
+            <div className="bg-gradient-to-r from-emerald-50 to-transparent px-5 py-3 dark:from-emerald-950/30">
+              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                {copy.product.aboutProducer}
+              </p>
+            </div>
+            <div className="flex items-start gap-4 p-5">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-3xl dark:bg-emerald-950/40">
                 🌾
               </div>
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="font-semibold text-[var(--foreground)]">{product.vendor.displayName}</p>
                 {product.vendor.location && (
-                  <p className="text-sm text-[var(--muted)]">{product.vendor.location}</p>
+                  <p className="mt-0.5 flex items-center gap-1 text-sm text-[var(--muted)]">
+                    <MapPinIcon className="h-3.5 w-3.5" />
+                    {product.vendor.location}
+                  </p>
                 )}
                 {product.vendor.description && (
-                  <p className="mt-1 text-sm text-[var(--foreground-soft)] line-clamp-2">{product.vendor.description}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-[var(--foreground-soft)] line-clamp-3">
+                    {product.vendor.description}
+                  </p>
                 )}
                 <Link
                   href={`/productores/${product.vendor.slug}`}
-                  className="mt-2 inline-block rounded-md text-sm font-medium text-emerald-600 underline-offset-4 hover:underline dark:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
+                  className="mt-3 inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
                 >
-                  {copy.actions.viewVendorProducts}
+                  {copy.product.viewProducerProfile}
                 </Link>
               </div>
             </div>

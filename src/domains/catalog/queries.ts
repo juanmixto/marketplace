@@ -322,16 +322,42 @@ export async function getHomeSnapshot() {
 }
 
 async function getVendorBySlugUncached(slug: string) {
-  return db.vendor.findUnique({
+  const vendor = await db.vendor.findUnique({
     where: { slug, status: 'ACTIVE' },
     include: {
       products: {
         where: getAvailableProductWhere(),
-        include: { category: { select: { name: true, slug: true } } },
         orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          vendorId: true,
+          slug: true,
+          name: true,
+          images: true,
+          basePrice: true,
+          compareAtPrice: true,
+          stock: true,
+          trackStock: true,
+          unit: true,
+          certifications: true,
+          originRegion: true,
+          createdAt: true,
+          category: { select: { name: true, slug: true } },
+          variants: {
+            where: { isActive: true },
+            select: { id: true, name: true, priceModifier: true, stock: true, isActive: true },
+          },
+        },
       },
     },
   })
+
+  if (!vendor) return null
+
+  return {
+    ...vendor,
+    products: vendor.products.map(withDemoProductImages),
+  }
 }
 
 const getVendorBySlugCached = unstable_cache(
