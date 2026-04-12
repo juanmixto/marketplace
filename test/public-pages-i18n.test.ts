@@ -188,15 +188,16 @@ test('buyer account server pages and profile form consume i18n', () => {
   assert.doesNotMatch(profileForm, />Información personal</)
 })
 
-test('LanguageSwitcher displays the target language rather than the current one', () => {
+test('LanguageSwitcher is a segmented two-option toggle with the current locale highlighted', () => {
   const src = readFileSync(
     resolve(process.cwd(), 'src/components/LanguageSwitcher.tsx'),
     'utf8'
   )
-  // The button labels must show [next] (target locale) so users see what they will switch TO
-  assert.match(src, /FLAGS\[next\]/, 'Button flag should show the target language flag')
-  assert.match(src, /LABELS\[next\]/, 'Button label should show the target language label')
-  // Must NOT display the current locale as the button text
-  assert.doesNotMatch(src, />\s*\{FLAGS\[locale\]\}/, 'Button must not show current locale flag as its label')
-  assert.doesNotMatch(src, />\s*\{LABELS\[locale\]\}/, 'Button must not show current locale label as its text')
+  // Must render both locale buttons (segmented control) so the state is unambiguous
+  assert.match(src, /code:\s*'es'/, 'Must enumerate the es locale')
+  assert.match(src, /code:\s*'en'/, 'Must enumerate the en locale')
+  // Active state must be driven by comparing each option to the current locale
+  assert.match(src, /code === locale/, 'Must compare each button against the current locale')
+  // aria-pressed communicates the active segment to screen readers
+  assert.match(src, /aria-pressed/, 'Active segment must expose aria-pressed')
 })

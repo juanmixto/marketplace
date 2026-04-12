@@ -324,29 +324,29 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                 </div>
               </>
             ) : (
-              <div className="space-y-2 pt-1">
-                <Link
-                  href="/login?callbackUrl=%2Fvendor%2Fdashboard"
-                  className="block rounded-xl border border-[var(--border)] px-4 py-2.5 text-center text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
-                >
-                  {t('producerPortal')}
+              <div className="flex gap-2 pt-1">
+                <Link href="/login" onClick={() => setMobileOpen(false)} className="flex-1 rounded-xl border border-[var(--border)] px-4 py-2.5 text-center text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
+                  {t('signIn')}
                 </Link>
-                <div className="flex gap-2">
-                  <Link href="/login" className="flex-1 rounded-xl border border-[var(--border)] px-4 py-2.5 text-center text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
-                    {t('signIn')}
-                  </Link>
-                  <Link href="/register" className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
-                    {t('register')}
-                  </Link>
-                </div>
+                <Link href="/register" onClick={() => setMobileOpen(false)} className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
+                  {t('register')}
+                </Link>
               </div>
             )}
 
-            {/* Language toggle in mobile menu */}
+            {/* Footer settings row: language + producer portal link */}
             <div className="mx-0 my-2 border-t border-[var(--border)] sm:hidden" />
-            <div className="flex items-center justify-between px-1 pt-1 sm:hidden">
-              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">{t('language')}</span>
+            <div className="flex items-center justify-between gap-3 px-1 pt-1 sm:hidden">
               <LanguageToggle />
+              {!user && (
+                <Link
+                  href="/login?callbackUrl=%2Fvendor%2Fdashboard"
+                  onClick={() => setMobileOpen(false)}
+                  className="text-xs font-medium text-[var(--muted)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 rounded"
+                >
+                  {t('producerPortal')}
+                </Link>
+              )}
             </div>
           </div>
         </div>
