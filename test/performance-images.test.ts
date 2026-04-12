@@ -8,12 +8,12 @@ function readSource(path: string) {
 
 test('server-side product surfaces use next/image instead of SafeImage', () => {
   const card = readSource('../src/components/catalog/ProductCard.tsx')
-  const detail = readSource('../src/app/(public)/productos/[slug]/page.tsx')
+  const gallery = readSource('../src/components/catalog/ProductImageGallery.tsx')
 
   assert.match(card, /import Image from 'next\/image'/)
-  assert.match(detail, /import Image from 'next\/image'/)
+  assert.match(gallery, /import Image from 'next\/image'/)
   assert.doesNotMatch(card, /SafeImage/)
-  assert.doesNotMatch(detail, /SafeImage/)
+  assert.doesNotMatch(gallery, /SafeImage/)
 })
 
 test('demo catalog data uses curated product artwork instead of random mismatched photos', () => {
