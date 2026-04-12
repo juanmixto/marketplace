@@ -16,6 +16,8 @@ const schema = z.object({
   password: z.string().min(8).max(100),
 })
 
+import { isUniqueConstraintViolation } from '@/lib/prisma-errors'
+
 export async function POST(req: NextRequest) {
   let createdUser: { id: string; firstName: string; email: string } | null = null
 
@@ -42,23 +44,26 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const data = schema.parse(body)
 
-    const existing = await db.user.findUnique({ where: { email: data.email } })
-    if (existing) {
-      return NextResponse.json({ message: 'Este email ya está registrado' }, { status: 409 })
-    }
-
     const passwordHash = await bcrypt.hash(data.password, 12)
 
-    createdUser = await db.user.create({
-      data: {
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        passwordHash,
-        role: 'CUSTOMER',
-        emailVerified: null, // Require email verification before access
-      },
-    })
+    try {
+      createdUser = await db.user.create({
+        data: {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          passwordHash,
+          role: 'CUSTOMER',
+          emailVerified: null, // Require email verification before access
+        },
+        select: { id: true, firstName: true, email: true },
+      })
+    } catch (createErr) {
+      if (isUniqueConstraintViolation(createErr)) {
+        return NextResponse.json({ message: 'Este email ya está registrado' }, { status: 409 })
+      }
+      throw createErr
+    }
 
     const token = await createEmailVerificationToken(createdUser.id)
     const verificationLink = new URL('/api/auth/verify-email', getServerEnv().appUrl)
@@ -93,3 +98,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: 'Error interno' }, { status: 500 })
   }
 }
+
