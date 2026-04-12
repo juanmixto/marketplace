@@ -116,7 +116,7 @@ export function ContactForm() {
         <select
           {...register('asunto')}
           id="asunto"
-          className="mt-2 block w-full rounded-lg border border-border px-4 py-2 text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft"
+          className="mt-2 block w-full rounded-lg border border-border bg-surface px-4 py-2 text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft [&>option]:bg-surface [&>option]:text-foreground"
         >
           <option value="">{formCopy.subjectPlaceholder}</option>
           {Object.entries(formCopy.subjectOptions).map(([key, label]) => (
