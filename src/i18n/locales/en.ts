@@ -50,7 +50,7 @@ const en: Record<TranslationKeys, string> = {
   searchMobile: 'Search...',
   myAccount: 'My Account',
   myOrders: 'My Orders',
-  signIn: 'Sign In',
+  signIn: 'Sign in',
   market_local: 'Local market',
   admin_panel: 'Admin panel',
   vendor_panel: 'Producer panel',
