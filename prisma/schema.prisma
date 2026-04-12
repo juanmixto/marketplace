@@ -133,6 +133,7 @@ model User {
   incidents                 Incident[]
   reviews                   Review[]
   favorites                 Favorite[]
+  vendorFavorites           VendorFavorite[]
   emailVerificationTokens   EmailVerificationToken[]
   passwordResetTokens       PasswordResetToken[]
 
@@ -205,6 +206,7 @@ model Vendor {
   fulfillments VendorFulfillment[]
   settlements  Settlement[]
   reviews      Review[]
+  vendorFavorites VendorFavorite[]
 
   @@index([status])
   @@index([slug])
@@ -623,6 +625,19 @@ model Favorite {
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([userId, productId])
+  @@index([userId])
+}
+
+model VendorFavorite {
+  id        String   @id @default(cuid())
+  userId    String
+  vendorId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, vendorId])
   @@index([userId])
 }
 

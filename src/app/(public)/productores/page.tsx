@@ -5,6 +5,7 @@ import { getVendors } from '@/domains/catalog/queries'
 import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import { buildPageMetadata } from '@/lib/seo'
 import { getVendorHeroImage, getVendorVisualLabel } from '@/lib/vendor-visuals'
+import { VendorFavoriteToggleButton } from '@/components/catalog/VendorFavoriteToggleButton'
 
 export const metadata: Metadata = buildPageMetadata({
   title: 'Productores',
@@ -45,6 +46,14 @@ export default async function ProductoresPage() {
                 <span className="absolute left-4 top-4 inline-flex items-center rounded-full bg-white/92 px-3 py-1 text-[11px] font-semibold text-slate-800 shadow-sm">
                   {visualLabel}
                 </span>
+
+                <div className="absolute right-4 top-4 z-10">
+                  <VendorFavoriteToggleButton
+                    vendorId={v.id}
+                    vendorName={v.displayName}
+                    compact
+                  />
+                </div>
 
                 <span className="absolute bottom-4 right-4 inline-flex items-center rounded-full bg-emerald-400/90 px-3 py-1 text-xs font-semibold text-slate-950 shadow-sm">
                   {v._count.products} producto{v._count.products !== 1 ? 's' : ''}

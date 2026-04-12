@@ -348,6 +348,13 @@ const en: Record<TranslationKeys, string> = {
   'favorites.saved': 'Saved',
   'favorites.saving': 'Saving...',
   'favorites.loginToSave': 'Sign in to save favourites',
+  'favorites.tabProducts': 'Products',
+  'favorites.tabProducers': 'Producers',
+  'favorites.emptyVendorsTitle': 'No favourite producers yet',
+  'favorites.emptyVendorsBody': 'Browse our producers and save your favourites',
+  'favorites.exploreProducers': 'Explore producers',
+  'favorites.viewProducer': 'View producer',
+  'favorites.vendorProducts': 'products',
 
   // Admin
   'admin.dashboard': 'Admin Dashboard',

@@ -15,7 +15,10 @@ export function isFavoritesTableMissingError(error: unknown) {
 
   return (
     candidate.code === 'P2021' &&
-    (candidate.meta?.modelName === 'Favorite' || message.includes('Favorite'))
+    (candidate.meta?.modelName === 'Favorite' ||
+     candidate.meta?.modelName === 'VendorFavorite' ||
+     message.includes('Favorite') ||
+     message.includes('VendorFavorite'))
   )
 }
 

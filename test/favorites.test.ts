@@ -19,6 +19,17 @@ test('isFavoritesTableMissingError detects the missing Favorite table scenario',
   assert.equal(isFavoritesTableMissingError(new Error('boom')), false)
 })
 
+test('isFavoritesTableMissingError also detects VendorFavorite table missing', () => {
+  assert.equal(
+    isFavoritesTableMissingError({ code: 'P2021', meta: { modelName: 'VendorFavorite' } }),
+    true
+  )
+  assert.equal(
+    isFavoritesTableMissingError({ code: 'P2021', message: 'The table public.VendorFavorite does not exist.' }),
+    true
+  )
+})
+
 test('withFavoritesGuard returns fallback data when favorites are temporarily unavailable', async () => {
   const result = await withFavoritesGuard(async () => {
     throw { code: 'P2021', meta: { modelName: 'Favorite' } }

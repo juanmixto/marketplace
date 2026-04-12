@@ -3,6 +3,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { getVendorBySlug } from '@/domains/catalog/queries'
 import { ProductCard } from '@/components/catalog/ProductCard'
+import { VendorFavoriteToggleButton } from '@/components/catalog/VendorFavoriteToggleButton'
 import type { ProductWithVendor } from '@/domains/catalog/types'
 import {
   MapPinIcon,
@@ -144,6 +145,15 @@ export default async function VendorPublicPage({ params }: Props) {
           <span className="absolute left-4 top-4 rounded-full bg-white/20 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
             {visualLabel}
           </span>
+
+          {/* Favorite toggle */}
+          <div className="absolute right-4 top-4 z-10">
+            <VendorFavoriteToggleButton
+              vendorId={vendor.id}
+              vendorName={vendor.displayName}
+              compact
+            />
+          </div>
         </div>
 
         {/* Info overlay at the bottom of the hero */}

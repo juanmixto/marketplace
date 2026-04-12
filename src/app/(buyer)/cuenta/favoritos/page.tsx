@@ -17,35 +17,63 @@ export default async function Favoritos() {
   const session = await requireAuth()
   const t = await getServerT()
 
-  const { value: favorites, unavailable } = await withFavoritesGuard(
-    () =>
-      db.favorite.findMany({
-        where: { userId: session.user.id },
-        include: {
-          product: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-              images: true,
-              basePrice: true,
-              stock: true,
-              vendor: {
-                select: {
-                  displayName: true,
-                  slug: true,
+  const [productResult, vendorResult] = await Promise.all([
+    withFavoritesGuard(
+      () =>
+        db.favorite.findMany({
+          where: { userId: session.user.id },
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                images: true,
+                basePrice: true,
+                stock: true,
+                vendor: {
+                  select: {
+                    displayName: true,
+                    slug: true,
+                  },
                 },
               },
             },
           },
-        },
-        orderBy: { createdAt: 'desc' },
-      }),
-    []
-  )
+          orderBy: { createdAt: 'desc' },
+        }),
+      []
+    ),
+    withFavoritesGuard(
+      () =>
+        db.vendorFavorite.findMany({
+          where: { userId: session.user.id },
+          include: {
+            vendor: {
+              select: {
+                id: true,
+                slug: true,
+                displayName: true,
+                logo: true,
+                coverImage: true,
+                location: true,
+                description: true,
+                avgRating: true,
+                totalReviews: true,
+                _count: { select: { products: true } },
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        }),
+      []
+    ),
+  ])
+
+  const unavailable = productResult.unavailable || vendorResult.unavailable
 
   return (
-    <main className="space-y-6 max-w-3xl mx-auto px-4 py-10 sm:px-6 lg:px-8">
+    <main className="space-y-6 max-w-4xl mx-auto px-4 py-10 sm:px-6 lg:px-8">
       <div>
         <h1 className="text-3xl font-bold text-[var(--foreground)]">{t('favorites.title')}</h1>
         <p className="mt-2 text-[var(--muted)]">
@@ -59,9 +87,10 @@ export default async function Favoritos() {
         </div>
       )}
 
-      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
-        <FavoritosClient initialFavorites={favorites} />
-      </div>
+      <FavoritosClient
+        initialFavorites={productResult.value}
+        initialVendorFavorites={vendorResult.value}
+      />
     </main>
   )
 }

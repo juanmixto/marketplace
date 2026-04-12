@@ -346,6 +346,13 @@ const es = {
   'favorites.saved': 'Guardado',
   'favorites.saving': 'Guardando...',
   'favorites.loginToSave': 'Inicia sesión para guardar favoritos',
+  'favorites.tabProducts': 'Productos',
+  'favorites.tabProducers': 'Productores',
+  'favorites.emptyVendorsTitle': 'Aún no sigues a ningún productor',
+  'favorites.emptyVendorsBody': 'Explora nuestros productores y guarda tus favoritos',
+  'favorites.exploreProducers': 'Explorar productores',
+  'favorites.viewProducer': 'Ver productor',
+  'favorites.vendorProducts': 'productos',
 
   // Admin
   'admin.dashboard': 'Panel admin',
