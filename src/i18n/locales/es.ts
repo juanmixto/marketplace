@@ -337,6 +337,47 @@ const es = {
   'account.edit': 'Editar',
   'account.delete': 'Eliminar',
 
+  // Account – orders page
+  'account.ordersTitle': 'Mis pedidos',
+  'account.ordersSubtitle': 'Repite compras anteriores en un clic o entra al detalle para revisar el pedido.',
+  'account.ordersEmpty': 'Aún no tienes pedidos',
+  'account.ordersExplore': 'Explorar productos',
+  'account.ordersViewDetail': 'Ver detalle',
+  'account.ordersItem': 'artículo',
+  'account.ordersItems': 'artículos',
+  'account.ordersProduct': 'producto',
+  'account.ordersProducts': 'productos',
+  'account.ordersMore': 'más',
+
+  // Account – profile page
+  'account.profileTitle': 'Mi perfil',
+  'account.profileSubtitle': 'Gestiona tu información personal y contraseña',
+  'account.profilePersonalInfo': 'Información personal',
+  'account.profileNameLabel': 'Nombre',
+  'account.profileLastNameLabel': 'Apellidos',
+  'account.profileEmailLabel': 'Email',
+  'account.profileSaving': 'Guardando...',
+  'account.profileSaveChanges': 'Guardar cambios',
+  'account.profileChangesSaved': '✓ Cambios guardados',
+  'account.profileChangePassword': 'Cambiar contraseña',
+  'account.profileCurrentPassword': 'Contraseña actual',
+  'account.profileNewPassword': 'Nueva contraseña',
+  'account.profileConfirmPassword': 'Confirmar contraseña',
+  'account.profileChanging': 'Cambiando...',
+  'account.profilePasswordUpdated': '✓ Contraseña actualizada',
+  'account.profileNameRequired': 'Nombre requerido',
+  'account.profileLastNameRequired': 'Apellidos requeridos',
+  'account.profileEmailInvalid': 'Email inválido',
+  'account.profileCurrentPasswordRequired': 'Contraseña actual requerida',
+  'account.profileMin8': 'Mínimo 8 caracteres',
+  'account.profilePasswordsDontMatch': 'Las contraseñas no coinciden',
+  'account.profileUpdateError': 'Error al actualizar perfil',
+  'account.profilePasswordError': 'Error al cambiar contraseña',
+
+  // Account – addresses page header
+  'account.addressesTitle': 'Mis direcciones',
+  'account.addressesSubtitle': 'Gestiona tus direcciones de envío',
+
   // Common
   'common.cancel': 'Cancelar',
 
