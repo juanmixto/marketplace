@@ -187,5 +187,6 @@ export function getDemoProductImagePath(slug: string) {
 }
 
 export function getDemoProductImages(slug: string, existingImages: string[] = []): string[] {
+  if (existingImages.length > 0) return existingImages
   return getDemoProductVisual(slug) ? [getDemoProductImagePath(slug)] : existingImages
 }
