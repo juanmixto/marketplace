@@ -11,20 +11,22 @@ export function AutoTranslatedBadge({ translation, className = '' }: AutoTransla
   if (!translation?.isAutoTranslated) return null
 
   const title = translation.badgeTitle || translation.badgeLabel
+  const shortLabel = translation.sourceLocale?.toUpperCase() ?? ''
 
   return (
     <Tooltip content={title} side="top">
       <span
         title={title}
+        aria-label={translation.badgeLabel}
         className={[
-          'inline-flex max-w-full items-start gap-1 rounded-2xl border px-2.5 py-1',
-          'border-sky-200 bg-sky-50/90 text-[10px] font-semibold leading-tight text-sky-700',
+          'inline-flex items-center gap-1 rounded-full border px-2 py-0.5',
+          'border-sky-200 bg-sky-50/90 text-[10px] font-semibold text-sky-700',
           'dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-300',
           className,
         ].join(' ')}
       >
-        <LanguageIcon className="mt-[1px] h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-        <span className="min-w-0 break-words">{translation.badgeLabel}</span>
+        <LanguageIcon className="h-3 w-3 shrink-0" aria-hidden="true" />
+        <span>{shortLabel}</span>
       </span>
     </Tooltip>
   )
