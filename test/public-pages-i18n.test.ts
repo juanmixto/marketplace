@@ -27,6 +27,41 @@ test('legal privacy page exposes English copy', () => {
   assert.equal(en.sections.contact.contactLink, 'contact form')
 })
 
+test('legal notice, cookies and terms pages expose copy in both locales', () => {
+  const es = getLegalPageCopy('es')
+  const en = getLegalPageCopy('en')
+
+  // Legal notice
+  assert.equal(es.legalNotice.title, 'Aviso legal')
+  assert.equal(en.legalNotice.title, 'Legal Notice')
+  assert.notEqual(es.legalNotice.intro, en.legalNotice.intro)
+  assert.equal(es.legalNotice.sections.usage.items.length, en.legalNotice.sections.usage.items.length)
+  assert.match(en.legalNotice.sections.ownership.bodyPrefix, /marketplace/i)
+
+  // Cookies
+  assert.equal(es.cookies.title, 'Política de cookies')
+  assert.equal(en.cookies.title, 'Cookie policy')
+  assert.notEqual(es.cookies.intro, en.cookies.intro)
+  assert.equal(es.cookies.sections.types.items.length, en.cookies.sections.types.items.length)
+  assert.match(en.cookies.sections.what.body, /cookies/i)
+
+  // Terms
+  assert.equal(es.terms.title, 'Términos de uso')
+  assert.equal(en.terms.title, 'Terms of use')
+  assert.notEqual(es.terms.intro, en.terms.intro)
+  assert.equal(es.terms.sections.acceptable.items.length, en.terms.sections.acceptable.items.length)
+  assert.match(en.terms.sections.purchases.body, /stock|payment|checkout/i)
+})
+
+test('legal page copy falls back to Spanish for unsupported locales', () => {
+  const fallback = getLegalPageCopy('fr' as never)
+  const es = getLegalPageCopy('es')
+
+  assert.equal(fallback.legalNotice.title, es.legalNotice.title)
+  assert.equal(fallback.cookies.title, es.cookies.title)
+  assert.equal(fallback.terms.title, es.terms.title)
+})
+
 test('Spanish copy remains the default fallback for public pages', () => {
   const es = getPublicPageCopy('es')
 

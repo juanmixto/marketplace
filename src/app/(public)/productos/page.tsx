@@ -70,9 +70,9 @@ export default async function ProductosPage({ searchParams }: Props) {
 
         {/* Main */}
         <div className="flex-1 min-w-0">
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2">
             <div className="min-w-0 flex-1">
-              <h1 className="truncate text-2xl font-bold text-[var(--foreground)]">{pageTitle}</h1>
+              <h1 className="text-2xl font-bold text-[var(--foreground)] break-words">{pageTitle}</h1>
               <p className="mt-0.5 text-sm text-[var(--muted)]">{copy.page.results(products.length, hasNext)}</p>
             </div>
             <div className="flex items-center gap-2">

@@ -1,28 +1,45 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
+import { useT } from '@/i18n'
 
-const profileSchema = z.object({
-  firstName: z.string().min(1, 'Nombre requerido').max(50),
-  lastName: z.string().min(1, 'Apellidos requeridos').max(50),
-  email: z.string().email('Email inválido'),
+function buildSchemas(t: (key: import('@/i18n').TranslationKeys) => string) {
+  const profileSchema = z.object({
+    firstName: z.string().min(1, t('account.profileNameRequired')).max(50),
+    lastName: z.string().min(1, t('account.profileLastNameRequired')).max(50),
+    email: z.string().email(t('account.profileEmailInvalid')),
+  })
+
+  const passwordSchema = z.object({
+    currentPassword: z.string().min(1, t('account.profileCurrentPasswordRequired')),
+    newPassword: z.string().min(8, t('account.profileMin8')),
+    confirmPassword: z.string(),
+  }).refine(data => data.newPassword === data.confirmPassword, {
+    message: t('account.profilePasswordsDontMatch'),
+    path: ['confirmPassword'],
+  })
+
+  return { profileSchema, passwordSchema }
+}
+
+const profileSchemaShape = z.object({
+  firstName: z.string().min(1).max(50),
+  lastName: z.string().min(1).max(50),
+  email: z.string().email(),
 })
 
-const passwordSchema = z.object({
-  currentPassword: z.string().min(1, 'Contraseña actual requerida'),
-  newPassword: z.string().min(8, 'Mínimo 8 caracteres'),
+const passwordSchemaShape = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8),
   confirmPassword: z.string(),
-}).refine(data => data.newPassword === data.confirmPassword, {
-  message: 'Las contraseñas no coinciden',
-  path: ['confirmPassword'],
 })
 
-type ProfileFormInput = z.infer<typeof profileSchema>
-type PasswordFormInput = z.infer<typeof passwordSchema>
+type ProfileFormInput = z.infer<typeof profileSchemaShape>
+type PasswordFormInput = z.infer<typeof passwordSchemaShape>
 
 interface Props {
   user: {
@@ -33,10 +50,12 @@ interface Props {
 }
 
 export function BuyerProfileForm({ user }: Props) {
-  const [showPassword, setShowPassword] = useState(false)
+  const t = useT()
   const [profileSuccess, setProfileSuccess] = useState(false)
   const [passwordSuccess, setPasswordSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const { profileSchema, passwordSchema } = useMemo(() => buildSchemas(t), [t])
 
   const profileForm = useForm<ProfileFormInput>({
     resolver: zodResolver(profileSchema),
@@ -64,13 +83,13 @@ export function BuyerProfileForm({ user }: Props) {
 
       if (!res.ok) {
         const err = await res.json()
-        throw new Error(err.message || 'Error al actualizar perfil')
+        throw new Error(err.message || t('account.profileUpdateError'))
       }
 
       setProfileSuccess(true)
       setTimeout(() => setProfileSuccess(false), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al actualizar perfil')
+      setError(err instanceof Error ? err.message : t('account.profileUpdateError'))
     }
   }
 
@@ -90,14 +109,14 @@ export function BuyerProfileForm({ user }: Props) {
 
       if (!res.ok) {
         const err = await res.json()
-        throw new Error(err.message || 'Error al cambiar contraseña')
+        throw new Error(err.message || t('account.profilePasswordError'))
       }
 
       setPasswordSuccess(true)
       passwordForm.reset()
       setTimeout(() => setPasswordSuccess(false), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cambiar contraseña')
+      setError(err instanceof Error ? err.message : t('account.profilePasswordError'))
     }
   }
 

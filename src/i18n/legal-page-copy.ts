@@ -66,8 +66,101 @@ type PrivacyCopy = {
   }
 }
 
+type LegalNoticeCopy = {
+  metadataTitle: string
+  metadataDescription: string
+  eyebrow: string
+  updatedAtLabel: string
+  title: string
+  updatedAt: string
+  intro: string
+  sections: {
+    ownership: {
+      title: string
+      bodyPrefix: string
+      contactLink: string
+      bodySuffix: string
+    }
+    usage: {
+      title: string
+      items: string[]
+    }
+    ip: {
+      title: string
+      body: string
+    }
+    liability: {
+      title: string
+      body: string
+    }
+  }
+}
+
+type CookiesCopy = {
+  metadataTitle: string
+  metadataDescription: string
+  eyebrow: string
+  updatedAtLabel: string
+  title: string
+  updatedAt: string
+  intro: string
+  sections: {
+    what: {
+      title: string
+      body: string
+    }
+    types: {
+      title: string
+      items: LabeledItem[]
+    }
+    consent: {
+      title: string
+      body: string
+    }
+    disable: {
+      title: string
+      body: string
+    }
+  }
+}
+
+type TermsCopy = {
+  metadataTitle: string
+  metadataDescription: string
+  eyebrow: string
+  updatedAtLabel: string
+  title: string
+  updatedAt: string
+  intro: string
+  sections: {
+    accounts: {
+      title: string
+      body: string
+    }
+    purchases: {
+      title: string
+      body: string
+    }
+    shipping: {
+      title: string
+      body: string
+    }
+    acceptable: {
+      title: string
+      items: string[]
+    }
+    changes: {
+      title: string
+      body: string
+    }
+  }
+}
+
 type LegalPageCopy = {
   privacy: PrivacyCopy
+  legalNotice: LegalNoticeCopy
+  cookies: CookiesCopy
+  terms: TermsCopy
 }
 
 const legalPageCopy: Record<Locale, LegalPageCopy> = {
@@ -170,6 +263,105 @@ const legalPageCopy: Record<Locale, LegalPageCopy> = {
         legalNote: 'Esta política está diseñada para cumplir con RGPD (UE), LOPDGDD (España) y otras regulaciones aplicables de protección de datos.',
       },
     },
+    legalNotice: {
+      metadataTitle: 'Aviso legal',
+      metadataDescription: `Aviso legal y condiciones de uso de ${SITE_NAME}.`,
+      eyebrow: 'Información legal',
+      updatedAtLabel: 'Última revisión',
+      title: 'Aviso legal',
+      updatedAt: '11 de abril de 2026',
+      intro: `Este aviso legal regula el acceso y uso del sitio de ${SITE_NAME}, así como las responsabilidades generales de la plataforma y de las personas usuarias.`,
+      sections: {
+        ownership: {
+          title: '1. Titularidad del sitio',
+          bodyPrefix: `${SITE_NAME} opera como un marketplace que conecta productores, compradores y equipos operativos. La información de contacto para soporte y consultas está disponible en la página de`,
+          contactLink: 'contacto',
+          bodySuffix: '.',
+        },
+        usage: {
+          title: '2. Condiciones de uso',
+          items: [
+            'No se permite usar la plataforma para actividades ilícitas o fraudulentas.',
+            'Las personas usuarias deben proporcionar información veraz y mantener sus credenciales seguras.',
+            'El acceso a áreas privadas puede requerir registro y autenticación.',
+          ],
+        },
+        ip: {
+          title: '3. Propiedad intelectual',
+          body: 'Los contenidos de marca, diseño, textos y estructura del sitio están protegidos por la normativa aplicable de propiedad intelectual e industrial. Los contenidos aportados por vendedores o terceros siguen siendo de su titularidad, salvo que se indique lo contrario.',
+        },
+        liability: {
+          title: '4. Responsabilidad',
+          body: 'La plataforma actúa como intermediaria técnica entre compradores y vendedores. Cada parte es responsable de cumplir sus obligaciones legales, comerciales y fiscales en el marco de sus operaciones.',
+        },
+      },
+    },
+    cookies: {
+      metadataTitle: 'Política de cookies',
+      metadataDescription: `Información sobre el uso de cookies en ${SITE_NAME}.`,
+      eyebrow: 'Información legal',
+      updatedAtLabel: 'Última revisión',
+      title: 'Política de cookies',
+      updatedAt: '11 de abril de 2026',
+      intro: `Esta política explica qué tipos de cookies puede usar ${SITE_NAME} y para qué se emplean.`,
+      sections: {
+        what: {
+          title: '1. Qué son las cookies',
+          body: 'Las cookies son pequeños archivos que el navegador almacena para recordar preferencias, mantener la sesión y mejorar el funcionamiento del sitio.',
+        },
+        types: {
+          title: '2. Tipos de cookies que usamos',
+          items: [
+            { label: 'Técnicas', text: 'necesarias para iniciar sesión, mantener el carrito y proteger formularios.' },
+            { label: 'Preferencias', text: 'recuerdan idioma, tema visual y otras opciones de experiencia.' },
+            { label: 'Analíticas', text: 'se usan para medir el uso del sitio cuando están habilitadas en la configuración de la plataforma.' },
+          ],
+        },
+        consent: {
+          title: '3. Gestión del consentimiento',
+          body: 'Cuando el sitio active cookies no esenciales, el consentimiento deberá gestionarse de forma clara antes de su uso. También puedes bloquear o eliminar cookies desde la configuración de tu navegador.',
+        },
+        disable: {
+          title: '4. Cómo desactivarlas',
+          body: 'Puedes restringir, bloquear o eliminar cookies desde las preferencias de tu navegador. Ten en cuenta que deshabilitar cookies técnicas puede afectar al inicio de sesión y al carrito.',
+        },
+      },
+    },
+    terms: {
+      metadataTitle: 'Términos de uso',
+      metadataDescription: `Términos y condiciones de uso de ${SITE_NAME}.`,
+      eyebrow: 'Información legal',
+      updatedAtLabel: 'Última revisión',
+      title: 'Términos de uso',
+      updatedAt: '11 de abril de 2026',
+      intro: `Estos términos describen cómo se usa ${SITE_NAME}, qué obligaciones tiene cada parte y cómo se gestiona la compra en la plataforma.`,
+      sections: {
+        accounts: {
+          title: '1. Registro y cuentas',
+          body: 'Cuando una funcionalidad requiera cuenta, la persona usuaria debe aportar datos veraces, mantener su contraseña segura y avisar de cualquier uso no autorizado de su cuenta.',
+        },
+        purchases: {
+          title: '2. Compras y disponibilidad',
+          body: 'Los pedidos están sujetos a disponibilidad de stock, validación de pago y condiciones logísticas. Los precios y promociones pueden actualizarse antes de completar la compra.',
+        },
+        shipping: {
+          title: '3. Envíos y devoluciones',
+          body: 'Las condiciones de envío, plazos y posibles devoluciones se muestran en el proceso de compra y pueden variar según la zona o el producto.',
+        },
+        acceptable: {
+          title: '4. Uso aceptable',
+          items: [
+            'No se permite el uso automatizado abusivo ni la manipulación de precios o pedidos.',
+            'Está prohibida la publicación de contenido engañoso, ilícito o que infrinja derechos de terceros.',
+            'La plataforma puede restringir accesos si detecta uso indebido o riesgo para la operación.',
+          ],
+        },
+        changes: {
+          title: '5. Cambios en los términos',
+          body: `${SITE_NAME} puede actualizar estos términos cuando cambien la operación, la normativa o la propia plataforma. La versión vigente será la publicada en esta página.`,
+        },
+      },
+    },
   },
   en: {
     privacy: {
@@ -268,6 +460,105 @@ const legalPageCopy: Record<Locale, LegalPageCopy> = {
           accountNote: 'You can also review your data from the privacy section of your account.',
         },
         legalNote: 'This policy is intended to comply with the GDPR (EU), the Spanish LOPDGDD, and other applicable data protection regulations.',
+      },
+    },
+    legalNotice: {
+      metadataTitle: 'Legal Notice',
+      metadataDescription: `Legal notice and terms of use for ${SITE_NAME}.`,
+      eyebrow: 'Legal information',
+      updatedAtLabel: 'Last updated',
+      title: 'Legal Notice',
+      updatedAt: 'April 11, 2026',
+      intro: `This legal notice governs access to and use of the ${SITE_NAME} site, as well as the general responsibilities of the platform and its users.`,
+      sections: {
+        ownership: {
+          title: '1. Site ownership',
+          bodyPrefix: `${SITE_NAME} operates as a marketplace that connects producers, buyers, and operations teams. Contact information for support and inquiries is available on the`,
+          contactLink: 'contact page',
+          bodySuffix: '.',
+        },
+        usage: {
+          title: '2. Terms of use',
+          items: [
+            'The platform may not be used for unlawful or fraudulent activities.',
+            'Users must provide accurate information and keep their credentials secure.',
+            'Access to private areas may require registration and authentication.',
+          ],
+        },
+        ip: {
+          title: '3. Intellectual property',
+          body: 'Brand assets, design, copy, and site structure are protected by applicable intellectual and industrial property regulations. Content contributed by sellers or third parties remains the property of its respective owners unless stated otherwise.',
+        },
+        liability: {
+          title: '4. Liability',
+          body: 'The platform acts as a technical intermediary between buyers and sellers. Each party is responsible for meeting its own legal, commercial, and tax obligations in connection with its operations.',
+        },
+      },
+    },
+    cookies: {
+      metadataTitle: 'Cookie policy',
+      metadataDescription: `Information about how ${SITE_NAME} uses cookies.`,
+      eyebrow: 'Legal information',
+      updatedAtLabel: 'Last updated',
+      title: 'Cookie policy',
+      updatedAt: 'April 11, 2026',
+      intro: `This policy explains the types of cookies ${SITE_NAME} may use and what they are used for.`,
+      sections: {
+        what: {
+          title: '1. What cookies are',
+          body: 'Cookies are small files that the browser stores to remember preferences, keep your session active, and improve how the site works.',
+        },
+        types: {
+          title: '2. Types of cookies we use',
+          items: [
+            { label: 'Essential', text: 'required to sign in, keep the cart, and protect forms.' },
+            { label: 'Preferences', text: 'remember language, theme, and other experience options.' },
+            { label: 'Analytics', text: 'used to measure site usage when enabled in the platform configuration.' },
+          ],
+        },
+        consent: {
+          title: '3. Consent management',
+          body: 'When the site enables non-essential cookies, consent must be managed clearly before they are used. You can also block or delete cookies from your browser settings.',
+        },
+        disable: {
+          title: '4. How to disable them',
+          body: 'You can restrict, block, or delete cookies from your browser preferences. Note that disabling essential cookies may affect sign-in and the cart.',
+        },
+      },
+    },
+    terms: {
+      metadataTitle: 'Terms of use',
+      metadataDescription: `Terms and conditions of use for ${SITE_NAME}.`,
+      eyebrow: 'Legal information',
+      updatedAtLabel: 'Last updated',
+      title: 'Terms of use',
+      updatedAt: 'April 11, 2026',
+      intro: `These terms describe how ${SITE_NAME} is used, the obligations of each party, and how purchases are handled on the platform.`,
+      sections: {
+        accounts: {
+          title: '1. Registration and accounts',
+          body: 'When a feature requires an account, users must provide accurate information, keep their password secure, and report any unauthorized use of their account.',
+        },
+        purchases: {
+          title: '2. Purchases and availability',
+          body: 'Orders are subject to stock availability, payment validation, and logistics conditions. Prices and promotions may be updated before checkout is completed.',
+        },
+        shipping: {
+          title: '3. Shipping and returns',
+          body: 'Shipping conditions, lead times, and possible returns are shown during checkout and may vary by zone or product.',
+        },
+        acceptable: {
+          title: '4. Acceptable use',
+          items: [
+            'Abusive automated use and manipulation of prices or orders are not allowed.',
+            'Publishing misleading or unlawful content, or content that infringes third-party rights, is prohibited.',
+            'The platform may restrict access if it detects misuse or risk to operations.',
+          ],
+        },
+        changes: {
+          title: '5. Changes to these terms',
+          body: `${SITE_NAME} may update these terms when operations, regulations, or the platform itself change. The version published on this page is the one in force.`,
+        },
       },
     },
   },
