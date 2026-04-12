@@ -1,0 +1,29 @@
+name: Setup deps
+description: Restore node_modules + Prisma client from cache, install only on miss.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v5
+      with:
+        node-version: 22
+        cache: npm
+
+    - name: Restore node_modules cache
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          node_modules
+          node_modules/.prisma
+        key: deps-${{ runner.os }}-node22-${{ hashFiles('package-lock.json', 'prisma/schema.prisma') }}
+
+    - name: Install dependencies
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: npm ci --prefer-offline --no-audit
+
+    - name: Generate Prisma client
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: npx prisma generate

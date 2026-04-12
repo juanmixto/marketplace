@@ -9,7 +9,7 @@
     "test": "node ./scripts/run-node-tests.mjs",
     "test:parallel": "node ./scripts/run-node-tests.mjs --parallel",
     "test:db": "node --env-file-if-exists=.env --env-file-if-exists=.env.test ./scripts/run-node-tests.mjs --db",
-    "test:db:parallel": "node --env-file=.env --env-file-if-exists=.env.test ./scripts/run-node-tests.mjs --db --parallel",
+    "test:db:parallel": "node --env-file-if-exists=.env --env-file-if-exists=.env.test ./scripts/run-node-tests.mjs --db --parallel",
     "test:integration": "node --env-file-if-exists=.env --env-file-if-exists=.env.test ./scripts/run-integration-tests.mjs",
     "test:coverage": "c8 node ./scripts/run-node-tests.mjs --parallel",
     "typecheck": "tsc --noEmit",
