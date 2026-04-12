@@ -134,6 +134,29 @@ describe('Public pages dark mode compliance', () => {
     )
   })
 
+  test('ContactForm <select> should render with theme background and option contrast in dark mode', () => {
+    const content = readFileSync(resolve('src/app/(public)/contacto/ContactForm.tsx'), 'utf-8')
+
+    const selectMatch = content.match(/<select\b[\s\S]*?className="([^"]+)"/)
+    assert(selectMatch, 'ContactForm should contain a <select> element with a className')
+    const selectClassName = selectMatch![1]
+
+    assert(
+      /\bbg-surface\b/.test(selectClassName),
+      'Subject <select> should set bg-surface so it is opaque in dark mode (not transparent over the raised card)'
+    )
+
+    assert(
+      selectClassName.includes('[&>option]:bg-surface'),
+      'Subject <select> options should explicitly set bg-surface — native dropdown options inherit washed-out OS colors when text-foreground is applied to the parent in dark mode'
+    )
+
+    assert(
+      selectClassName.includes('[&>option]:text-foreground'),
+      'Subject <select> options should explicitly set text-foreground for readable contrast in dark mode'
+    )
+  })
+
   test('VendorReviewsSection should stay readable in dark mode', () => {
     const content = readFileSync(resolve('src/app/(public)/productores/[slug]/VendorReviewsSection.tsx'), 'utf-8')
 

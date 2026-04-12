@@ -4,27 +4,31 @@ import type { Metadata } from 'next'
 import { getVendors } from '@/domains/catalog/queries'
 import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import { buildPageMetadata } from '@/lib/seo'
-import { getVendorHeroImage, getVendorVisualLabel } from '@/lib/vendor-visuals'
+import { getVendorHeroImage, getVendorVisualLabelKey } from '@/lib/vendor-visuals'
+import { getServerT } from '@/i18n/server'
 
-export const metadata: Metadata = buildPageMetadata({
-  title: 'Productores',
-  description: 'Conoce a los productores locales que venden en Mercado Productor.',
-  path: '/productores',
-})
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT()
+  return buildPageMetadata({
+    title: t('producersPage.metaTitle'),
+    description: t('producersPage.metaDescription'),
+    path: '/productores',
+  })
+}
 export const revalidate = 60
 
 export default async function ProductoresPage() {
-  const vendors = await getVendors(50)
+  const [vendors, t] = await Promise.all([getVendors(50), getServerT()])
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="text-3xl font-bold text-[var(--foreground)]">Nuestros productores</h1>
-      <p className="mt-2 text-[var(--muted)]">Conoce a las personas detrás de cada producto</p>
+      <h1 className="text-3xl font-bold text-[var(--foreground)]">{t('producersPage.title')}</h1>
+      <p className="mt-2 text-[var(--muted)]">{t('producersPage.subtitle')}</p>
 
       <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {vendors.map(v => {
           const heroImage = getVendorHeroImage(v)
-          const visualLabel = getVendorVisualLabel(v)
+          const visualLabel = t(getVendorVisualLabelKey(v))
 
           return (
             <Link
@@ -47,7 +51,9 @@ export default async function ProductoresPage() {
                 </span>
 
                 <span className="absolute bottom-4 right-4 inline-flex items-center rounded-full bg-emerald-400/90 px-3 py-1 text-xs font-semibold text-slate-950 shadow-sm">
-                  {v._count.products} producto{v._count.products !== 1 ? 's' : ''}
+                  {v._count.products === 1
+                    ? t('producersPage.productCountOne')
+                    : t('producersPage.productCountOther').replace('{count}', String(v._count.products))}
                 </span>
               </div>
 
@@ -76,7 +82,7 @@ export default async function ProductoresPage() {
                 )}
 
                 <p className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-emerald-600 transition-transform group-hover:translate-x-0.5 dark:text-emerald-400">
-                  Ver productor <span aria-hidden>→</span>
+                  {t('producersPage.viewProducer')} <span aria-hidden>→</span>
                 </p>
               </div>
             </Link>
@@ -85,7 +91,7 @@ export default async function ProductoresPage() {
       </div>
 
       {vendors.length === 0 && (
-        <p className="py-16 text-center text-[var(--muted)]">Próximamente...</p>
+        <p className="py-16 text-center text-[var(--muted)]">{t('producersPage.empty')}</p>
       )}
     </div>
   )
