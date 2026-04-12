@@ -11,6 +11,34 @@ interface WebhookPaymentIntentSnapshot {
   currency?: string
 }
 
+export type WebhookPaymentIntent = {
+  id: string
+  amount?: number
+  currency?: string
+}
+
+/**
+ * Runtime-validates a Stripe webhook payload's `data.object` shape.
+ *
+ * Returns null when the payload is missing the fields we need to act on it.
+ * `id` is required and must be a non-empty string. `amount` and `currency`
+ * are optional but, when present, must be the right primitive type — empty
+ * strings and non-finite numbers are coerced to undefined so the downstream
+ * `doesWebhookPaymentMatchStoredPayment` check fails closed.
+ */
+export function parseWebhookPaymentIntent(object: unknown): WebhookPaymentIntent | null {
+  if (!object || typeof object !== 'object') return null
+  const obj = object as Record<string, unknown>
+  if (typeof obj.id !== 'string' || obj.id.length === 0) return null
+  return {
+    id: obj.id,
+    amount:
+      typeof obj.amount === 'number' && Number.isFinite(obj.amount) ? obj.amount : undefined,
+    currency:
+      typeof obj.currency === 'string' && obj.currency.length > 0 ? obj.currency : undefined,
+  }
+}
+
 interface StoredPaymentSnapshot {
   amount: unknown
   currency: string

@@ -4,6 +4,7 @@ import {
   assertProviderRefForPaymentStatus,
   doesWebhookPaymentMatchStoredPayment,
   isRetryableWebhookError,
+  parseWebhookPaymentIntent,
   retryWebhookOperation,
   shouldApplyPaymentFailed,
   shouldApplyPaymentSucceeded,
@@ -187,4 +188,58 @@ test('retryWebhookOperation retries transient failures with exponential backoff'
   assert.equal(result, 'ok')
   assert.equal(attempts, 3)
   assert.deepEqual(delays, [100, 200])
+})
+
+test('parseWebhookPaymentIntent returns null for non-object inputs', () => {
+  assert.equal(parseWebhookPaymentIntent(null), null)
+  assert.equal(parseWebhookPaymentIntent(undefined), null)
+  assert.equal(parseWebhookPaymentIntent('pi_123'), null)
+  assert.equal(parseWebhookPaymentIntent(42), null)
+})
+
+test('parseWebhookPaymentIntent rejects payloads without a string id', () => {
+  assert.equal(parseWebhookPaymentIntent({}), null)
+  assert.equal(parseWebhookPaymentIntent({ id: 123 }), null)
+  assert.equal(parseWebhookPaymentIntent({ id: '' }), null)
+  assert.equal(parseWebhookPaymentIntent({ id: null }), null)
+})
+
+test('parseWebhookPaymentIntent extracts id, amount and currency when valid', () => {
+  const result = parseWebhookPaymentIntent({
+    id: 'pi_abc',
+    amount: 1999,
+    currency: 'eur',
+    extra: 'ignored',
+  })
+  assert.deepEqual(result, { id: 'pi_abc', amount: 1999, currency: 'eur' })
+})
+
+test('parseWebhookPaymentIntent coerces invalid amount/currency to undefined', () => {
+  const result = parseWebhookPaymentIntent({
+    id: 'pi_abc',
+    amount: 'not-a-number',
+    currency: 42,
+  })
+  assert.deepEqual(result, { id: 'pi_abc', amount: undefined, currency: undefined })
+})
+
+test('parseWebhookPaymentIntent treats NaN/Infinity amounts as undefined', () => {
+  assert.deepEqual(parseWebhookPaymentIntent({ id: 'pi_a', amount: Number.NaN }), {
+    id: 'pi_a',
+    amount: undefined,
+    currency: undefined,
+  })
+  assert.deepEqual(parseWebhookPaymentIntent({ id: 'pi_a', amount: Number.POSITIVE_INFINITY }), {
+    id: 'pi_a',
+    amount: undefined,
+    currency: undefined,
+  })
+})
+
+test('parseWebhookPaymentIntent treats empty currency string as undefined', () => {
+  assert.deepEqual(parseWebhookPaymentIntent({ id: 'pi_a', currency: '' }), {
+    id: 'pi_a',
+    amount: undefined,
+    currency: undefined,
+  })
 })
