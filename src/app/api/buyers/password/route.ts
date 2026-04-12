@@ -13,7 +13,7 @@ export async function PUT(request: Request) {
   try {
     const session = await getActionSession()
     if (!session) {
-      return NextResponse.json({ message: 'No autorizado' }, { status: 401 })
+      return NextResponse.json({ message: 'No autorizado', code: 'unauthorized' }, { status: 401 })
     }
 
     const body = await request.json()
@@ -27,7 +27,7 @@ export async function PUT(request: Request) {
 
     if (!user) {
       return NextResponse.json(
-        { message: 'Usuario no encontrado' },
+        { message: 'Usuario no encontrado', code: 'user_not_found' },
         { status: 404 }
       )
     }
@@ -35,7 +35,7 @@ export async function PUT(request: Request) {
     // Verify current password
     if (!user.passwordHash || !(await bcrypt.compare(currentPassword, user.passwordHash))) {
       return NextResponse.json(
-        { message: 'Contraseña actual incorrecta' },
+        { message: 'Contraseña actual incorrecta', code: 'current_password_incorrect' },
         { status: 401 }
       )
     }
@@ -55,13 +55,13 @@ export async function PUT(request: Request) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { message: 'Datos inválidos' },
+        { message: 'Datos inválidos', code: 'invalid_data' },
         { status: 400 }
       )
     }
     console.error('Password change error:', error)
     return NextResponse.json(
-      { message: 'Error al cambiar contraseña' },
+      { message: 'Error al cambiar contraseña', code: 'password_change_failed' },
       { status: 500 }
     )
   }

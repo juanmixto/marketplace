@@ -74,6 +74,10 @@ test('BuyerProfileForm uses useT for every label, button and validation message'
     "t('account.profile.errPasswordsDontMatch')",
     "t('account.profile.errUpdateFailed')",
     "t('account.profile.errPasswordChangeFailed')",
+    "t('account.profile.errCurrentPasswordIncorrect')",
+    "t('account.profile.errEmailInUse')",
+    "t('account.profile.errInvalidData')",
+    "t('account.profile.errUnauthorized')",
   ]
   for (const call of requiredCalls) {
     assert.ok(source.includes(call), `BuyerProfileForm missing ${call}`)
@@ -103,6 +107,38 @@ test('BuyerProfileForm uses useT for every label, button and validation message'
   }
 })
 
+test('BuyerProfileForm renders profile and password errors inline (per form, not at the top)', () => {
+  const source = readSource('../src/components/buyer/BuyerProfileForm.tsx')
+
+  assert.match(source, /profileError/)
+  assert.match(source, /passwordError/)
+  assert.ok(
+    !/const \[error, setError\]/.test(source),
+    'should not use a single shared error state at the top of the form'
+  )
+})
+
+test('BuyerProfileForm maps API error codes to localized messages', () => {
+  const source = readSource('../src/components/buyer/BuyerProfileForm.tsx')
+
+  for (const code of ['current_password_incorrect', 'email_in_use', 'invalid_data', 'unauthorized']) {
+    assert.ok(source.includes(`'${code}'`), `BuyerProfileForm missing code mapping for ${code}`)
+  }
+})
+
+test('buyer profile + password API routes return error codes for client-side i18n', () => {
+  const profileSource = readSource('../src/app/api/buyers/profile/route.ts')
+  const passwordSource = readSource('../src/app/api/buyers/password/route.ts')
+
+  assert.match(profileSource, /code: 'unauthorized'/)
+  assert.match(profileSource, /code: 'email_in_use'/)
+  assert.match(profileSource, /code: 'invalid_data'/)
+
+  assert.match(passwordSource, /code: 'unauthorized'/)
+  assert.match(passwordSource, /code: 'current_password_incorrect'/)
+  assert.match(passwordSource, /code: 'invalid_data'/)
+})
+
 test('account.profile.* keys exist in both Spanish and English locales', async () => {
   const { locales } = await import('@/i18n/locales')
 
@@ -130,6 +166,10 @@ test('account.profile.* keys exist in both Spanish and English locales', async (
     'account.profile.errPasswordsDontMatch',
     'account.profile.errUpdateFailed',
     'account.profile.errPasswordChangeFailed',
+    'account.profile.errCurrentPasswordIncorrect',
+    'account.profile.errEmailInUse',
+    'account.profile.errInvalidData',
+    'account.profile.errUnauthorized',
   ]
 
   for (const key of requiredKeys) {

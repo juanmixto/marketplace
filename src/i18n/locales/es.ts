@@ -359,6 +359,10 @@ const es = {
   'account.profile.errPasswordsDontMatch': 'Las contraseñas no coinciden',
   'account.profile.errUpdateFailed': 'Error al actualizar perfil',
   'account.profile.errPasswordChangeFailed': 'Error al cambiar contraseña',
+  'account.profile.errCurrentPasswordIncorrect': 'Contraseña actual incorrecta',
+  'account.profile.errEmailInUse': 'Ese email ya está en uso',
+  'account.profile.errUnauthorized': 'No autorizado',
+  'account.profile.errInvalidData': 'Datos inválidos',
 
   // Common
   'common.cancel': 'Cancelar',

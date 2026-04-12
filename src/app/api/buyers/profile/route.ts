@@ -13,7 +13,7 @@ export async function PUT(request: Request) {
   try {
     const session = await getActionSession()
     if (!session) {
-      return NextResponse.json({ message: 'No autorizado' }, { status: 401 })
+      return NextResponse.json({ message: 'No autorizado', code: 'unauthorized' }, { status: 401 })
     }
 
     const body = await request.json()
@@ -24,7 +24,7 @@ export async function PUT(request: Request) {
       const existing = await db.user.findUnique({ where: { email } })
       if (existing) {
         return NextResponse.json(
-          { message: 'Email ya está en uso' },
+          { message: 'Email ya está en uso', code: 'email_in_use' },
           { status: 400 }
         )
       }
@@ -48,13 +48,13 @@ export async function PUT(request: Request) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { message: 'Datos inválidos' },
+        { message: 'Datos inválidos', code: 'invalid_data' },
         { status: 400 }
       )
     }
     console.error('Profile update error:', error)
     return NextResponse.json(
-      { message: 'Error al actualizar perfil' },
+      { message: 'Error al actualizar perfil', code: 'profile_update_failed' },
       { status: 500 }
     )
   }

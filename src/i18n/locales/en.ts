@@ -361,6 +361,10 @@ const en: Record<TranslationKeys, string> = {
   'account.profile.errPasswordsDontMatch': 'Passwords do not match',
   'account.profile.errUpdateFailed': 'Failed to update profile',
   'account.profile.errPasswordChangeFailed': 'Failed to change password',
+  'account.profile.errCurrentPasswordIncorrect': 'Current password is incorrect',
+  'account.profile.errEmailInUse': 'That email is already in use',
+  'account.profile.errUnauthorized': 'Not authorised',
+  'account.profile.errInvalidData': 'Invalid data',
 
   // Common
   'common.cancel': 'Cancel',

@@ -19,7 +19,8 @@ export function BuyerProfileForm({ user }: Props) {
   const t = useT()
   const [profileSuccess, setProfileSuccess] = useState(false)
   const [passwordSuccess, setPasswordSuccess] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [profileError, setProfileError] = useState<string | null>(null)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
 
   const profileSchema = useMemo(
     () =>
@@ -62,11 +63,36 @@ export function BuyerProfileForm({ user }: Props) {
     resolver: zodResolver(passwordSchema),
   })
 
-  const onProfileSubmit = async (data: ProfileFormInput) => {
-    try {
-      setError(null)
-      setProfileSuccess(false)
+  const profileErrorMessage = (code: unknown, fallback: string): string => {
+    switch (code) {
+      case 'email_in_use':
+        return t('account.profile.errEmailInUse')
+      case 'invalid_data':
+        return t('account.profile.errInvalidData')
+      case 'unauthorized':
+        return t('account.profile.errUnauthorized')
+      default:
+        return fallback
+    }
+  }
 
+  const passwordErrorMessage = (code: unknown, fallback: string): string => {
+    switch (code) {
+      case 'current_password_incorrect':
+        return t('account.profile.errCurrentPasswordIncorrect')
+      case 'invalid_data':
+        return t('account.profile.errInvalidData')
+      case 'unauthorized':
+        return t('account.profile.errUnauthorized')
+      default:
+        return fallback
+    }
+  }
+
+  const onProfileSubmit = async (data: ProfileFormInput) => {
+    setProfileError(null)
+    setProfileSuccess(false)
+    try {
       const res = await fetch('/api/buyers/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -74,22 +100,22 @@ export function BuyerProfileForm({ user }: Props) {
       })
 
       if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.message || t('account.profile.errUpdateFailed'))
+        const err = await res.json().catch(() => ({}))
+        setProfileError(profileErrorMessage(err?.code, t('account.profile.errUpdateFailed')))
+        return
       }
 
       setProfileSuccess(true)
       setTimeout(() => setProfileSuccess(false), 3000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('account.profile.errUpdateFailed'))
+    } catch {
+      setProfileError(t('account.profile.errUpdateFailed'))
     }
   }
 
   const onPasswordSubmit = async (data: PasswordFormInput) => {
+    setPasswordError(null)
+    setPasswordSuccess(false)
     try {
-      setError(null)
-      setPasswordSuccess(false)
-
       const res = await fetch('/api/buyers/password', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -100,26 +126,21 @@ export function BuyerProfileForm({ user }: Props) {
       })
 
       if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.message || t('account.profile.errPasswordChangeFailed'))
+        const err = await res.json().catch(() => ({}))
+        setPasswordError(passwordErrorMessage(err?.code, t('account.profile.errPasswordChangeFailed')))
+        return
       }
 
       setPasswordSuccess(true)
       passwordForm.reset()
       setTimeout(() => setPasswordSuccess(false), 3000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('account.profile.errPasswordChangeFailed'))
+    } catch {
+      setPasswordError(t('account.profile.errPasswordChangeFailed'))
     }
   }
 
   return (
     <div className="space-y-8">
-      {error && (
-        <div className="rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30 p-4 text-red-800 dark:text-red-300">
-          ✗ {error}
-        </div>
-      )}
-
       {/* Profile Section */}
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-[var(--foreground)] mb-4">{t('account.profile.personalInfo')}</h2>
@@ -171,6 +192,12 @@ export function BuyerProfileForm({ user }: Props) {
               </span>
             )}
           </div>
+
+          {profileError && (
+            <div className="mt-2 rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30 p-3 text-sm text-red-800 dark:text-red-300">
+              ✗ {profileError}
+            </div>
+          )}
         </form>
       </div>
 
@@ -225,6 +252,12 @@ export function BuyerProfileForm({ user }: Props) {
               </span>
             )}
           </div>
+
+          {passwordError && (
+            <div className="mt-2 rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30 p-3 text-sm text-red-800 dark:text-red-300">
+              ✗ {passwordError}
+            </div>
+          )}
         </form>
       </div>
     </div>
