@@ -94,6 +94,15 @@ export function ProductCard({ product, locale = 'es' }: ProductCardProps) {
               </span>
             </div>
           )}
+
+          <div className="absolute right-2 top-2 z-10">
+            <FavoriteToggleButton
+              productId={product.id}
+              productName={localizedProduct.name}
+              compact
+              className="h-8 w-8 rounded-full bg-white/80 shadow-sm backdrop-blur-sm hover:bg-white dark:bg-black/50 dark:hover:bg-black/70"
+            />
+          </div>
         </div>
 
         <div className="flex flex-1 flex-col p-4">
@@ -163,11 +172,6 @@ export function ProductCard({ product, locale = 'es' }: ProductCardProps) {
 
       <div className="border-t border-[var(--border)] bg-[var(--surface)] p-3">
         <div className="flex items-center gap-2">
-          <FavoriteToggleButton
-            productId={product.id}
-            productName={localizedProduct.name}
-            compact
-          />
           <Link
             href={`/productos/${product.slug}`}
             className="hidden h-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] px-3 text-sm font-semibold text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] sm:inline-flex"
