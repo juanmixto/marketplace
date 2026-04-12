@@ -183,6 +183,15 @@ const es = {
   'cart.total': 'Total',
   'cart.toCheckout': 'Ir al checkout',
   'cart.continueShopping': 'Seguir comprando',
+  'cart.stockBannerTitle': 'Algunos productos no tienen stock suficiente',
+  'cart.stockBannerDesc': 'Ajusta las cantidades o elimina los productos afectados antes de continuar al checkout.',
+  'cart.stockUnavailable': 'No disponible',
+  'cart.stockInsufficient': 'Stock insuficiente',
+  'cart.stockOnlyLeft': 'Solo quedan',
+  'cart.stockUnits': 'unidades',
+  'cart.stockAdjust': 'Ajustar al disponible',
+  'cart.stockCheckoutBlocked': 'Resuelve los avisos de stock para continuar',
+  'cart.stockChecking': 'Comprobando stock...',
 
   // Checkout
   'checkout.title': 'Finalizar pedido',

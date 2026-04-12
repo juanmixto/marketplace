@@ -185,6 +185,15 @@ const en: Record<TranslationKeys, string> = {
   'cart.total': 'Total',
   'cart.toCheckout': 'Go to checkout',
   'cart.continueShopping': 'Continue shopping',
+  'cart.stockBannerTitle': 'Some items don\u2019t have enough stock',
+  'cart.stockBannerDesc': 'Adjust the quantities or remove the affected items before continuing to checkout.',
+  'cart.stockUnavailable': 'Unavailable',
+  'cart.stockInsufficient': 'Insufficient stock',
+  'cart.stockOnlyLeft': 'Only',
+  'cart.stockUnits': 'left',
+  'cart.stockAdjust': 'Adjust to available',
+  'cart.stockCheckoutBlocked': 'Resolve the stock warnings to continue',
+  'cart.stockChecking': 'Checking stock...',
 
   // Checkout
   'checkout.title': 'Complete order',
