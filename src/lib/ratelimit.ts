@@ -1,13 +1,20 @@
 /**
- * Rate limiting utility for authentication endpoints
+ * Rate limiting utility for authentication and abuse-sensitive endpoints
  *
- * Supports two modes:
- * - Development: In-memory store (no external dependencies)
- * - Production: Upstash Redis (requires UPSTASH_REDIS_REST_URL)
+ * Two storage modes:
+ * - Development: in-memory store (no external dependencies)
+ * - Production:  Upstash Redis (when UPSTASH_REDIS_REST_URL is set)
  *
- * Usage:
- *   const result = await checkRateLimit('register', clientIp, 3, 3600)
- *   if (!result.success) return NextResponse.json({ error: result.message }, { status: 429 })
+ * Two security knobs (#172):
+ * - Trusted-proxy gating: forwarded headers are only honored when the
+ *   deployment is explicitly behind a proxy we trust. Otherwise we refuse
+ *   to identify the client by what the client sent us, because anything
+ *   else lets a single attacker rotate `X-Forwarded-For` and bypass
+ *   per-IP limits trivially.
+ * - Fail-closed mode: callers that protect critical surfaces (auth,
+ *   recovery) ask for `failClosed: true`. When the backend rate-limit
+ *   store is unreachable or returns garbage, those callers get
+ *   `success: false` instead of an open door.
  */
 
 interface RateLimitEntry {
@@ -35,39 +42,56 @@ export interface RateLimitResult {
   remaining: number
   resetAt: number
   message?: string
+  /** True when this result came from a fail-mode degradation (open or closed). */
+  degraded?: boolean
+}
+
+export interface RateLimitOptions {
+  /**
+   * When true, a backend failure (Upstash unreachable, malformed response,
+   * thrown fetch) returns `success: false` instead of allowing the request.
+   * Use this for auth and recovery surfaces.
+   */
+  failClosed?: boolean
+}
+
+const STRUCTURED_LOG_PREFIX = '[ratelimit]'
+
+function logEvent(event: string, payload: Record<string, unknown>): void {
+  // Structured single-line JSON so log shippers can parse without regex.
+  // Kept on console.* so it works in every runtime (Node, Edge, Vercel).
+  const line = JSON.stringify({ event, ...payload })
+  if (event.endsWith(':error') || event.endsWith(':fail-closed')) {
+    console.error(`${STRUCTURED_LOG_PREFIX} ${line}`)
+  } else {
+    console.warn(`${STRUCTURED_LOG_PREFIX} ${line}`)
+  }
 }
 
 /**
  * Check rate limit for an action.
- *
- * @param action - Action identifier (e.g., 'register', 'login')
- * @param key - Identifier to rate limit by (usually IP address)
- * @param limit - Max attempts allowed in window
- * @param windowSeconds - Time window in seconds
- * @returns Result with success flag and reset timestamp
  */
 export async function checkRateLimit(
   action: string,
   key: string,
   limit: number,
-  windowSeconds: number
+  windowSeconds: number,
+  options: RateLimitOptions = {}
 ): Promise<RateLimitResult> {
   // Strip port from IPv6 addresses for cleaner keys
   const cleanKey = key.replace(/\[.*\]/, '').replace(/:\d+$/, '')
   const limitKey = `${action}:${cleanKey}`
   const now = Date.now()
 
-  // Try to use Upstash Redis if available
   if (process.env.UPSTASH_REDIS_REST_URL) {
-    return checkRateLimitUpstash(limitKey, limit, windowSeconds, now)
+    return checkRateLimitUpstash(action, limitKey, limit, windowSeconds, now, options)
   }
 
-  // Fall back to in-memory store for development
   return checkRateLimitMemory(limitKey, limit, windowSeconds, now)
 }
 
 /**
- * In-memory rate limiting (development)
+ * In-memory rate limiting (development / single-process fallback)
  */
 function checkRateLimitMemory(
   limitKey: string,
@@ -79,7 +103,6 @@ function checkRateLimitMemory(
   const resetAt = now + windowSeconds * 1000
 
   if (!entry || entry.resetAt < now) {
-    // First attempt or window expired
     inMemoryStore.set(limitKey, { count: 1, resetAt })
     return {
       success: true,
@@ -107,13 +130,47 @@ function checkRateLimitMemory(
 }
 
 /**
- * Redis-based rate limiting (production with Upstash)
+ * Apply degraded behavior when the Upstash backend is unusable.
+ *
+ * - failClosed: deny the request and surface a friendly message.
+ * - default:    fall back to the in-process counter so we still apply
+ *               *some* throttling per Node instance instead of allowing
+ *               unlimited traffic.
  */
-async function checkRateLimitUpstash(
+function degrade(
+  reason: string,
   limitKey: string,
   limit: number,
   windowSeconds: number,
-  now: number
+  now: number,
+  options: RateLimitOptions
+): RateLimitResult {
+  if (options.failClosed) {
+    logEvent('degraded:fail-closed', { reason, key: limitKey })
+    return {
+      success: false,
+      remaining: 0,
+      resetAt: now + windowSeconds * 1000,
+      message: 'Servicio temporalmente no disponible. Inténtalo de nuevo en unos minutos.',
+      degraded: true,
+    }
+  }
+
+  logEvent('degraded:fallback-memory', { reason, key: limitKey })
+  const result = checkRateLimitMemory(limitKey, limit, windowSeconds, now)
+  return { ...result, degraded: true }
+}
+
+/**
+ * Redis-based rate limiting (production with Upstash)
+ */
+async function checkRateLimitUpstash(
+  action: string,
+  limitKey: string,
+  limit: number,
+  windowSeconds: number,
+  now: number,
+  options: RateLimitOptions
 ): Promise<RateLimitResult> {
   try {
     const response = await fetch(
@@ -128,13 +185,18 @@ async function checkRateLimitUpstash(
     )
 
     if (!response.ok) {
-      console.error('[ratelimit] Upstash error:', response.status)
-      // Fail open - allow request if Redis is down
-      return { success: true, remaining: limit, resetAt: now + windowSeconds * 1000 }
+      logEvent('upstash:error', { action, key: limitKey, status: response.status })
+      return degrade(`upstash-status-${response.status}`, limitKey, limit, windowSeconds, now, options)
     }
 
-    const { result } = await response.json()
-    const count = parseInt(result)
+    const payload = await response.json().catch(() => null)
+    const rawResult = payload?.result
+    const count = typeof rawResult === 'number' ? rawResult : parseInt(String(rawResult ?? ''), 10)
+
+    if (!Number.isFinite(count)) {
+      logEvent('upstash:malformed', { action, key: limitKey, raw: rawResult })
+      return degrade('upstash-malformed', limitKey, limit, windowSeconds, now, options)
+    }
 
     // Set expiry on first request
     if (count === 1) {
@@ -146,7 +208,7 @@ async function checkRateLimitUpstash(
             Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`,
           },
         }
-      )
+      ).catch(() => undefined)
     }
 
     const resetAt = now + windowSeconds * 1000
@@ -166,22 +228,61 @@ async function checkRateLimitUpstash(
       resetAt,
     }
   } catch (error) {
-    console.error('[ratelimit] Error:', error)
-    // Fail open - allow request if Redis is unreachable
-    return { success: true, remaining: limit, resetAt: now + windowSeconds * 1000 }
+    logEvent('upstash:error', { action, key: limitKey, error: (error as Error)?.message })
+    return degrade('upstash-throw', limitKey, limit, windowSeconds, now, options)
   }
 }
 
+export interface ResolveClientIpOptions {
+  /**
+   * Override automatic trust detection. Default: trust proxy headers only
+   * when running on a known managed platform (Vercel) or when
+   * `TRUST_PROXY_HEADERS=true` is set explicitly.
+   */
+  trustProxy?: boolean
+}
+
+const UNTRUSTED_CLIENT_KEY = 'untrusted-client'
+
+function isProxyTrustedFromEnv(): boolean {
+  if (process.env.TRUST_PROXY_HEADERS === 'true') return true
+  if (process.env.TRUST_PROXY_HEADERS === 'false') return false
+  // Vercel always sits in front of the function and strips client-supplied
+  // x-forwarded-for, so its value can be trusted.
+  if (process.env.VERCEL === '1' || process.env.VERCEL === 'true') return true
+  return false
+}
+
 /**
- * Extract client IP address from request headers
- * Respects X-Forwarded-For when behind a proxy
+ * Resolve the client IP for rate limiting purposes.
+ *
+ * Returns a stable sentinel (`untrusted-client`) when the deployment is not
+ * behind a proxy we trust. That sentinel is intentional: it groups every
+ * request from an unconfigured deployment into one bucket so an attacker
+ * cannot evade limits by spoofing headers, while still keeping per-action
+ * counters working. Configure `TRUST_PROXY_HEADERS=true` (or deploy to
+ * Vercel) to opt into per-IP limits.
  */
-export function getClientIP(request: Request): string {
-  const forwarded = request.headers.get('x-forwarded-for')
-  if (forwarded) {
-    // X-Forwarded-For can contain multiple IPs; use the first one
-    return forwarded.split(',')[0].trim()
+export function getClientIP(request: Request, options: ResolveClientIpOptions = {}): string {
+  const trustProxy = options.trustProxy ?? isProxyTrustedFromEnv()
+
+  if (!trustProxy) {
+    if (request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip')) {
+      logEvent('untrusted-header-ignored', {
+        forwarded: request.headers.get('x-forwarded-for') ?? null,
+        realIp: request.headers.get('x-real-ip') ?? null,
+      })
+    }
+    return UNTRUSTED_CLIENT_KEY
   }
 
-  return request.headers.get('x-real-ip') ?? '127.0.0.1'
+  const forwarded = request.headers.get('x-forwarded-for')
+  if (forwarded) {
+    return forwarded.split(',')[0]!.trim()
+  }
+
+  const realIp = request.headers.get('x-real-ip')
+  if (realIp) return realIp
+
+  return '127.0.0.1'
 }

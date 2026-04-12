@@ -22,9 +22,11 @@ export async function POST(req: NextRequest) {
   let createdUser: { id: string; firstName: string; email: string } | null = null
 
   try {
-    // Rate limiting: 3 registrations per IP per hour
+    // Rate limiting: 3 registrations per IP per hour. Auth surface →
+    // fail-closed if the rate-limit backend is unreachable so a Redis
+    // outage cannot be turned into an unbounded registration flood.
     const clientIP = getClientIP(req)
-    const rateLimitResult = await checkRateLimit('register', clientIP, 3, 3600)
+    const rateLimitResult = await checkRateLimit('register', clientIP, 3, 3600, { failClosed: true })
 
     if (!rateLimitResult.success) {
       return NextResponse.json(

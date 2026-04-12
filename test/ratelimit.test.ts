@@ -67,23 +67,71 @@ test('checkRateLimit blocks brute force: 20 attempts with limit 5', async () => 
   for (let i = 5; i < 20; i++) assert.equal(results[i]!.success, false)
 })
 
-test('getClientIP extracts first IP from x-forwarded-for', () => {
+test('getClientIP honors x-forwarded-for only when proxy trust is on', () => {
   const req = new Request('http://localhost', {
     headers: { 'x-forwarded-for': '203.0.113.1, 198.51.100.178' },
   })
-  assert.equal(getClientIP(req), '203.0.113.1')
+  assert.equal(getClientIP(req, { trustProxy: true }), '203.0.113.1')
 })
 
-test('getClientIP falls back to x-real-ip', () => {
+test('getClientIP falls back to x-real-ip when proxy trust is on', () => {
   const req = new Request('http://localhost', {
     headers: { 'x-real-ip': '203.0.113.2' },
   })
-  assert.equal(getClientIP(req), '203.0.113.2')
+  assert.equal(getClientIP(req, { trustProxy: true }), '203.0.113.2')
 })
 
-test('getClientIP defaults to 127.0.0.1 when no headers', () => {
+test('getClientIP defaults to 127.0.0.1 when proxy trust is on and no headers', () => {
   const req = new Request('http://localhost')
-  assert.equal(getClientIP(req), '127.0.0.1')
+  assert.equal(getClientIP(req, { trustProxy: true }), '127.0.0.1')
+})
+
+test('getClientIP refuses to honor x-forwarded-for from untrusted clients (#172)', () => {
+  // No env vars => not behind a known proxy => header MUST be ignored.
+  const originalConsoleWarn = console.warn
+  console.warn = () => undefined
+  try {
+    const spoofA = new Request('http://localhost', {
+      headers: { 'x-forwarded-for': '1.2.3.4' },
+    })
+    const spoofB = new Request('http://localhost', {
+      headers: { 'x-forwarded-for': '9.9.9.9' },
+    })
+    const a = getClientIP(spoofA)
+    const b = getClientIP(spoofB)
+    assert.notEqual(a, '1.2.3.4', 'spoofed forwarded header must not become the client identity')
+    assert.notEqual(b, '9.9.9.9')
+    assert.equal(a, b, 'all untrusted clients should collapse into one stable bucket')
+  } finally {
+    console.warn = originalConsoleWarn
+  }
+})
+
+test('getClientIP refuses to honor x-real-ip from untrusted clients (#172)', () => {
+  const originalConsoleWarn = console.warn
+  console.warn = () => undefined
+  try {
+    const req = new Request('http://localhost', {
+      headers: { 'x-real-ip': '7.7.7.7' },
+    })
+    assert.notEqual(getClientIP(req), '7.7.7.7')
+  } finally {
+    console.warn = originalConsoleWarn
+  }
+})
+
+test('getClientIP honors TRUST_PROXY_HEADERS=true env (#172)', () => {
+  const original = process.env.TRUST_PROXY_HEADERS
+  process.env.TRUST_PROXY_HEADERS = 'true'
+  try {
+    const req = new Request('http://localhost', {
+      headers: { 'x-forwarded-for': '203.0.113.50' },
+    })
+    assert.equal(getClientIP(req), '203.0.113.50')
+  } finally {
+    if (original === undefined) delete process.env.TRUST_PROXY_HEADERS
+    else process.env.TRUST_PROXY_HEADERS = original
+  }
 })
 
 test('checkRateLimit strips port from keys so IPv6 bracket notation does not produce distinct entries', async () => {
@@ -178,25 +226,37 @@ test('checkRateLimit Upstash path returns failure when count exceeds limit', asy
   }
 })
 
-test('checkRateLimit Upstash path fails open when Redis returns non-ok response', async () => {
+test('checkRateLimit Upstash path degrades to in-memory fallback when Redis returns non-ok (#172)', async () => {
   const originalUrl = process.env.UPSTASH_REDIS_REST_URL
   const originalToken = process.env.UPSTASH_REDIS_REST_TOKEN
   const originalFetch = globalThis.fetch
   const originalConsoleError = console.error
+  const originalConsoleWarn = console.warn
 
   process.env.UPSTASH_REDIS_REST_URL = 'https://upstash.example.com'
   process.env.UPSTASH_REDIS_REST_TOKEN = 'test-token'
   console.error = () => undefined
+  console.warn = () => undefined
 
   globalThis.fetch = (async () => {
     return new Response('Service Unavailable', { status: 503 })
   }) as typeof fetch
 
   try {
-    const result = await checkRateLimit('upstash-fail-open', '10.5.5.7', 5, 60)
-    assert.equal(result.success, true)
-    assert.equal(result.remaining, 5)
+    // Without failClosed, we degrade to in-memory and STILL apply the limit
+    // — never silently allow everything.
+    const limit = 3
+    const results = []
+    for (let i = 0; i < limit + 2; i++) {
+      results.push(await checkRateLimit('upstash-degrade', '10.5.5.7', limit, 60))
+    }
+    const allowed = results.filter(r => r.success).length
+    const blocked = results.filter(r => !r.success).length
+    assert.equal(allowed, limit, 'degraded mode must still apply the limit')
+    assert.equal(blocked, 2)
+    assert.ok(results[0]!.degraded, 'degraded flag should be set on fallback results')
   } finally {
+    console.warn = originalConsoleWarn
     globalThis.fetch = originalFetch
     console.error = originalConsoleError
     if (originalUrl === undefined) {
@@ -212,27 +272,69 @@ test('checkRateLimit Upstash path fails open when Redis returns non-ok response'
   }
 })
 
-test('checkRateLimit Upstash path fails open when fetch throws', async () => {
+test('checkRateLimit Upstash path fails CLOSED for auth callers when fetch throws (#172)', async () => {
   const originalUrl = process.env.UPSTASH_REDIS_REST_URL
   const originalToken = process.env.UPSTASH_REDIS_REST_TOKEN
   const originalFetch = globalThis.fetch
   const originalConsoleError = console.error
+  const originalConsoleWarn = console.warn
 
   process.env.UPSTASH_REDIS_REST_URL = 'https://upstash.example.com'
   process.env.UPSTASH_REDIS_REST_TOKEN = 'test-token'
   console.error = () => undefined
+  console.warn = () => undefined
 
   globalThis.fetch = (async () => {
     throw new Error('Network error')
   }) as unknown as typeof fetch
 
   try {
-    const result = await checkRateLimit('upstash-throw', '10.5.5.8', 5, 60)
-    assert.equal(result.success, true)
-    assert.equal(result.remaining, 5)
+    const result = await checkRateLimit('upstash-throw-failclosed', '10.5.5.8', 5, 60, { failClosed: true })
+    assert.equal(result.success, false, 'auth callers must NOT see success=true under backend failure')
+    assert.equal(result.remaining, 0)
+    assert.ok(result.degraded, 'result should be marked as degraded')
+    assert.match(result.message ?? '', /no disponible/i)
   } finally {
     globalThis.fetch = originalFetch
     console.error = originalConsoleError
+    console.warn = originalConsoleWarn
+    if (originalUrl === undefined) {
+      delete process.env.UPSTASH_REDIS_REST_URL
+    } else {
+      process.env.UPSTASH_REDIS_REST_URL = originalUrl
+    }
+    if (originalToken === undefined) {
+      delete process.env.UPSTASH_REDIS_REST_TOKEN
+    } else {
+      process.env.UPSTASH_REDIS_REST_TOKEN = originalToken
+    }
+  }
+})
+
+test('checkRateLimit Upstash path fails CLOSED on malformed response for auth callers (#172)', async () => {
+  const originalUrl = process.env.UPSTASH_REDIS_REST_URL
+  const originalToken = process.env.UPSTASH_REDIS_REST_TOKEN
+  const originalFetch = globalThis.fetch
+  const originalConsoleError = console.error
+  const originalConsoleWarn = console.warn
+
+  process.env.UPSTASH_REDIS_REST_URL = 'https://upstash.example.com'
+  process.env.UPSTASH_REDIS_REST_TOKEN = 'test-token'
+  console.error = () => undefined
+  console.warn = () => undefined
+
+  globalThis.fetch = (async () => {
+    return new Response(JSON.stringify({ result: 'not-a-number' }), { status: 200 })
+  }) as typeof fetch
+
+  try {
+    const result = await checkRateLimit('upstash-malformed', '10.5.5.9', 5, 60, { failClosed: true })
+    assert.equal(result.success, false)
+    assert.ok(result.degraded)
+  } finally {
+    globalThis.fetch = originalFetch
+    console.error = originalConsoleError
+    console.warn = originalConsoleWarn
     if (originalUrl === undefined) {
       delete process.env.UPSTASH_REDIS_REST_URL
     } else {

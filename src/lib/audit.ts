@@ -40,9 +40,26 @@ export function extractAuditIp(headerStore: Pick<Headers, 'get'>) {
   )
 }
 
+/**
+ * Resolve the request IP for audit logs.
+ *
+ * Refuses to record proxy-supplied headers unless the deployment is behind a
+ * proxy we trust (#172). Recording a forged value would actively mislead a
+ * forensic investigation, so when in doubt we record `null`.
+ */
 export async function getAuditRequestIp() {
   const headerStore = await headers()
+  if (!isProxyTrustedFromEnv()) {
+    return null
+  }
   return extractAuditIp(headerStore)
+}
+
+function isProxyTrustedFromEnv(): boolean {
+  if (process.env.TRUST_PROXY_HEADERS === 'true') return true
+  if (process.env.TRUST_PROXY_HEADERS === 'false') return false
+  if (process.env.VERCEL === '1' || process.env.VERCEL === 'true') return true
+  return false
 }
 
 export async function createAuditLog(
