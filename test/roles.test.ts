@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import { UserRole } from '@/generated/prisma/enums'
 import {
   ADMIN_ROLES,
+  ALL_USER_ROLES,
+  coerceUserRole,
   FINANCE_ADMIN_ROLES,
   OPS_ADMIN_ROLES,
   hasRole,
@@ -73,4 +75,33 @@ test('isFinanceAdminRole returns true for finance and ops-level roles', () => {
   assert.equal(isFinanceAdminRole(UserRole.VENDOR), false)
   assert.equal(isFinanceAdminRole(undefined), false)
   assert.equal(isFinanceAdminRole(null), false)
+})
+
+test('ALL_USER_ROLES contains every UserRole enum value', () => {
+  const enumValues = Object.values(UserRole)
+  assert.equal(ALL_USER_ROLES.length, enumValues.length)
+  for (const value of enumValues) {
+    assert.equal(ALL_USER_ROLES.includes(value), true, `${value} missing from ALL_USER_ROLES`)
+  }
+})
+
+test('coerceUserRole returns the role for every valid enum member', () => {
+  for (const role of Object.values(UserRole)) {
+    assert.equal(coerceUserRole(role), role)
+  }
+})
+
+test('coerceUserRole falls back to CUSTOMER for unknown strings', () => {
+  assert.equal(coerceUserRole('ROOT'), UserRole.CUSTOMER)
+  assert.equal(coerceUserRole('admin'), UserRole.CUSTOMER)
+  assert.equal(coerceUserRole(''), UserRole.CUSTOMER)
+  assert.equal(coerceUserRole('GOD_MODE'), UserRole.CUSTOMER)
+})
+
+test('coerceUserRole falls back to CUSTOMER for non-string inputs', () => {
+  assert.equal(coerceUserRole(undefined), UserRole.CUSTOMER)
+  assert.equal(coerceUserRole(null), UserRole.CUSTOMER)
+  assert.equal(coerceUserRole(42), UserRole.CUSTOMER)
+  assert.equal(coerceUserRole({ role: 'SUPERADMIN' }), UserRole.CUSTOMER)
+  assert.equal(coerceUserRole(true), UserRole.CUSTOMER)
 })
