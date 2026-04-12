@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { StarRating } from '@/components/reviews/StarRating'
 import { createReview } from '@/domains/reviews/actions'
+import { useT } from '@/i18n'
 
 interface Props {
   orderId: string
@@ -15,6 +16,7 @@ interface Props {
 
 export function ReviewFormButton({ orderId, productId, productName }: Props) {
   const router = useRouter()
+  const t = useT()
   const [open, setOpen] = useState(false)
   const [rating, setRating] = useState(5)
   const [body, setBody] = useState('')
@@ -32,25 +34,31 @@ export function ReviewFormButton({ orderId, productId, productName }: Props) {
         setRating(5)
         router.refresh()
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'No se pudo enviar la reseña')
+        setError(err instanceof Error ? err.message : t('reviews.submitError'))
       }
     })
   }
 
+  const modalTitle = t('reviews.rate').replace('{product}', productName)
+
   return (
     <>
       <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>
-        Dejar reseña
+        {t('reviews.leave')}
       </Button>
 
-      <Modal open={open} onClose={() => setOpen(false)} title={`Valorar ${productName}`} size="md">
+      <Modal open={open} onClose={() => setOpen(false)} title={modalTitle} size="md">
         <div className="space-y-5 p-5">
           <div>
-            <p className="text-sm font-medium text-[var(--foreground)]">Tu valoración</p>
+            <p className="text-sm font-medium text-[var(--foreground)]">{t('reviews.yourRating')}</p>
             <div className="mt-3 flex gap-2">
               {Array.from({ length: 5 }, (_, index) => {
                 const value = index + 1
                 const active = value <= rating
+                const ariaLabel =
+                  value === 1
+                    ? t('reviews.starAriaOne')
+                    : t('reviews.starAriaOther').replace('{count}', String(value))
 
                 return (
                   <button
@@ -62,7 +70,7 @@ export function ReviewFormButton({ orderId, productId, productName }: Props) {
                         ? 'border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-50'
                         : 'border-[var(--border)] bg-[var(--surface)] hover:border-amber-200 hover:bg-[var(--surface-raised)] dark:hover:border-amber-800'
                     }`}
-                    aria-label={`${value} estrellas`}
+                    aria-label={ariaLabel}
                   >
                     <StarRating rating={value} size="sm" />
                   </button>
@@ -73,7 +81,7 @@ export function ReviewFormButton({ orderId, productId, productName }: Props) {
 
           <div>
             <label htmlFor={`review-${productId}`} className="text-sm font-medium text-[var(--foreground)]">
-              Comentario
+              {t('reviews.comment')}
             </label>
             <textarea
               id={`review-${productId}`}
@@ -81,7 +89,7 @@ export function ReviewFormButton({ orderId, productId, productName }: Props) {
               maxLength={1000}
               value={body}
               onChange={event => setBody(event.target.value)}
-              placeholder="Cuenta que te ha parecido el producto, el sabor, la frescura o la presentacion."
+              placeholder={t('reviews.commentPlaceholder')}
               className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
             />
             <p className="mt-1 text-xs text-[var(--muted)]">{body.length}/1000</p>
@@ -91,10 +99,10 @@ export function ReviewFormButton({ orderId, productId, productName }: Props) {
 
           <div className="flex justify-end gap-3">
             <Button variant="secondary" onClick={() => setOpen(false)}>
-              Cancelar
+              {t('common.cancel')}
             </Button>
             <Button isLoading={isPending} onClick={handleSubmit}>
-              Publicar reseña
+              {t('reviews.submit')}
             </Button>
           </div>
         </div>
