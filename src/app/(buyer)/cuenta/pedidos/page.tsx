@@ -3,11 +3,14 @@ import { redirect } from 'next/navigation'
 import { getMyOrders } from '@/domains/orders/actions'
 import Link from 'next/link'
 import Image from 'next/image'
+import { StarIcon } from '@heroicons/react/24/solid'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/constants'
 import { Badge } from '@/components/ui/badge'
 import { RepeatOrderButton } from '@/components/buyer/RepeatOrderButton'
 import type { Metadata } from 'next'
+import { getServerT } from '@/i18n/server'
+import { countPendingReviewsInOrder } from '@/domains/reviews/pending-policy'
 
 export const metadata: Metadata = { title: 'Mis pedidos' }
 
@@ -35,6 +38,7 @@ export default async function MisPedidosPage() {
   if (!session) redirect('/login')
 
   const orders = await getMyOrders()
+  const t = await getServerT()
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
@@ -58,7 +62,12 @@ export default async function MisPedidosPage() {
           {orders.map(order => {
             const totalItems = order.lines.reduce((sum, l) => sum + l.quantity, 0)
             const productCount = order.lines.length
-
+            const pendingReviews =
+              order.status === 'DELIVERED' ? countPendingReviewsInOrder(order) : 0
+            const pendingLabel =
+              pendingReviews === 1
+                ? t('pendingReviews.badgeCountOne')
+                : t('pendingReviews.badgeCountOther').replace('{count}', String(pendingReviews))
             return (
             <article
               key={order.id}
@@ -105,6 +114,20 @@ export default async function MisPedidosPage() {
                   )}
                 </div>
               </Link>
+
+              {pendingReviews > 0 && (
+                <Link
+                  href={`/cuenta/pedidos/${order.id}#reseñas`}
+                  className="mt-4 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 transition hover:border-amber-300 hover:bg-amber-100 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:border-amber-700 dark:hover:bg-amber-950/60"
+                >
+                  <StarIcon className="h-5 w-5 shrink-0 text-amber-500 dark:text-amber-300" />
+                  <span className="flex-1">
+                    <strong className="font-semibold">{t('pendingReviews.badge')}</strong>
+                    <span className="ml-1 text-amber-800/80 dark:text-amber-200/80">· {pendingLabel}</span>
+                  </span>
+                  <span aria-hidden>→</span>
+                </Link>
+              )}
 
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-3">
                 <Link

@@ -6,7 +6,8 @@ import { StarIcon } from '@heroicons/react/24/solid'
 import { StarIcon as StarOutlineIcon } from '@heroicons/react/24/outline'
 import { createReview } from '@/domains/reviews/actions'
 import { formatDistanceToNow } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { es as esLocale, enUS as enLocale } from 'date-fns/locale'
+import { useT, useLocale } from '@/i18n'
 
 interface ReviewData {
   reviews: Array<{
@@ -33,11 +34,13 @@ interface ReviewSectionProps {
 
 export function ReviewSection({
   productId,
-  vendorId,
   reviews,
   eligibleOrders = [],
   userAuthenticated = false,
 }: ReviewSectionProps) {
+  const t = useT()
+  const { locale } = useLocale()
+  const dateLocale = locale === 'en' ? enLocale : esLocale
   const [isPending, startTransition] = useTransition()
   const [rating, setRating] = useState<number>(0)
   const [body, setBody] = useState('')
@@ -71,7 +74,7 @@ export function ReviewSection({
           body: body || null,
           createdAt: new Date(),
           customer: {
-            firstName: 'Yo', // Placeholder
+            firstName: 'Yo',
             lastName: '',
           },
         }
@@ -85,10 +88,15 @@ export function ReviewSection({
 
         setTimeout(() => setSuccess(false), 3000)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error al crear la reseña')
+        setError(err instanceof Error ? err.message : t('reviews.submitError'))
       }
     })
   }
+
+  const totalLabel =
+    totalCount === 1
+      ? t('reviews.totalOne')
+      : t('reviews.totalOther').replace('{count}', String(totalCount))
 
   return (
     <div className="space-y-8">
@@ -105,58 +113,56 @@ export function ReviewSection({
                   <StarIcon key={i} className="h-5 w-5 text-yellow-400" />
                 ))}
               </div>
-              <p className="text-sm text-gray-600">
-                {totalCount} reseña{totalCount !== 1 ? 's' : ''}
-              </p>
+              <p className="text-sm text-gray-600">{totalLabel}</p>
             </>
           ) : (
-            <p className="text-gray-600">Sin reseñas aún</p>
+            <p className="text-gray-600">{t('reviews.emptyShort')}</p>
           )}
         </div>
 
         {/* Reviews List */}
         <div className="flex-1 space-y-4">
           {allReviews.length > 0 ? (
-            allReviews.map(review => (
-              <div
-                key={review.id}
-                className="rounded-lg border border-gray-200 bg-white p-4"
-              >
-                <div className="mb-2 flex items-start justify-between">
-                  <div>
-                    <p className="font-semibold text-gray-900">
-                      {review.customer.firstName} {review.customer.lastName}
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      hace{' '}
-                      {formatDistanceToNow(new Date(review.createdAt), {
-                        locale: es,
-                        addSuffix: false,
-                      })}
-                    </p>
+            allReviews.map(review => {
+              const timeAgo = formatDistanceToNow(new Date(review.createdAt), {
+                locale: dateLocale,
+                addSuffix: false,
+              })
+              return (
+                <div
+                  key={review.id}
+                  className="rounded-lg border border-gray-200 bg-white p-4"
+                >
+                  <div className="mb-2 flex items-start justify-between">
+                    <div>
+                      <p className="font-semibold text-gray-900">
+                        {review.customer.firstName} {review.customer.lastName}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        {t('reviews.ago').replace('{time}', timeAgo)}
+                      </p>
+                    </div>
+                    <div className="flex gap-0.5">
+                      {[1, 2, 3, 4, 5].map(i => (
+                        <StarIcon
+                          key={i}
+                          className={`h-4 w-4 ${
+                            i <= review.rating
+                              ? 'text-yellow-400'
+                              : 'text-gray-300'
+                          }`}
+                        />
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex gap-0.5">
-                    {[1, 2, 3, 4, 5].map(i => (
-                      <StarIcon
-                        key={i}
-                        className={`h-4 w-4 ${
-                          i <= review.rating
-                            ? 'text-yellow-400'
-                            : 'text-gray-300'
-                        }`}
-                      />
-                    ))}
-                  </div>
+                  {review.body && (
+                    <p className="text-sm text-gray-700">{review.body}</p>
+                  )}
                 </div>
-                {review.body && (
-                  <p className="text-sm text-gray-700">{review.body}</p>
-                )}
-              </div>
-            ))
+              )
+            })
           ) : (
-            <p className="text-center text-gray-600">
-              Sin reseñas aún. ¡Sé el primero en reseñar!
-            </p>
+            <p className="text-center text-gray-600">{t('reviews.emptyBeFirst')}</p>
           )}
         </div>
       </div>
@@ -164,13 +170,11 @@ export function ReviewSection({
       {/* Review Form */}
       {userAuthenticated && myOrderId && (
         <div className="rounded-lg border-2 border-emerald-200 bg-emerald-50 p-6">
-          <h3 className="mb-4 font-semibold text-gray-900">
-            Deja tu reseña
-          </h3>
+          <h3 className="mb-4 font-semibold text-gray-900">{t('reviews.leave')}</h3>
 
           {success && (
             <div className="mb-4 rounded-lg bg-green-100 p-3 text-green-800">
-              ✓ Reseña publicada correctamente
+              ✓ {t('reviews.success')}
             </div>
           )}
 
@@ -184,7 +188,7 @@ export function ReviewSection({
             {/* Star Rating */}
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-900">
-                Calificación *
+                {t('reviews.rating')} *
               </label>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map(i => (
@@ -194,6 +198,11 @@ export function ReviewSection({
                     onClick={() => setRating(i)}
                     className="focus:outline-none"
                     disabled={isPending}
+                    aria-label={
+                      i === 1
+                        ? t('reviews.starAriaOne')
+                        : t('reviews.starAriaOther').replace('{count}', String(i))
+                    }
                   >
                     {i <= rating ? (
                       <StarIcon className="h-8 w-8 text-yellow-400" />
@@ -208,20 +217,18 @@ export function ReviewSection({
             {/* Comments */}
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-900">
-                Comentario (opcional)
+                {t('reviews.commentOptional')}
               </label>
               <textarea
                 value={body}
                 onChange={e => setBody(e.target.value)}
                 maxLength={1000}
                 disabled={isPending}
-                placeholder="Cuéntanos tu experiencia..."
+                placeholder={t('reviews.commentPlaceholderShort')}
                 className="block w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200 disabled:bg-gray-100"
                 rows={3}
               />
-              <p className="mt-1 text-xs text-gray-600">
-                {body.length}/1000
-              </p>
+              <p className="mt-1 text-xs text-gray-600">{body.length}/1000</p>
             </div>
 
             <button
@@ -229,7 +236,7 @@ export function ReviewSection({
               disabled={!rating || isPending}
               className="w-full rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              {isPending ? 'Publicando...' : 'Publicar reseña'}
+              {isPending ? t('reviews.submitting') : t('reviews.submit')}
             </button>
           </form>
         </div>
@@ -237,9 +244,7 @@ export function ReviewSection({
 
       {!userAuthenticated && (
         <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-6 text-center">
-          <p className="text-sm text-blue-900">
-            Inicia sesión para dejar una reseña
-          </p>
+          <p className="text-sm text-blue-900">{t('reviews.loginPrompt')}</p>
         </div>
       )}
     </div>

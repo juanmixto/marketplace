@@ -24,6 +24,9 @@ import { getCatalogCopy, getLocalizedCertificationCopy } from '@/i18n/catalog-co
 import { getVendorHeroImage, getVendorVisualLabel } from '@/lib/vendor-visuals'
 import { Badge } from '@/components/ui/badge'
 import { StarRating } from '@/components/reviews/StarRating'
+import { auth } from '@/lib/auth'
+import { getVendorPendingReviews } from '@/domains/reviews/pending'
+import { VendorReviewPromptCta } from './VendorReviewPromptCta'
 
 interface Props { params: Promise<{ slug: string }> }
 
@@ -82,6 +85,11 @@ export default async function VendorPublicPage({ params }: Props) {
 
   const avgRating = aggregate._avg.rating ? Number(aggregate._avg.rating) : null
   const totalReviews = aggregate._count._all
+
+  const session = await auth()
+  const pendingForVendor = session?.user?.id
+    ? await getVendorPendingReviews(session.user.id, vendor.id)
+    : { total: 0, firstPendingOrderId: null }
 
   // Collect unique certifications across all products
   const allCertifications = [
@@ -276,6 +284,12 @@ export default async function VendorPublicPage({ params }: Props) {
               </div>
             )}
           </div>
+          {pendingForVendor.total > 0 && pendingForVendor.firstPendingOrderId && (
+            <VendorReviewPromptCta
+              pendingCount={pendingForVendor.total}
+              orderId={pendingForVendor.firstPendingOrderId}
+            />
+          )}
           {totalReviews > 0 ? (
             <VendorReviewsSection
               reviews={reviews}
@@ -284,9 +298,11 @@ export default async function VendorPublicPage({ params }: Props) {
               hideSummary
             />
           ) : (
-            <p className="text-center text-[var(--muted)] py-4">
-              {copy.vendor.noReviews}
-            </p>
+            pendingForVendor.total === 0 && (
+              <p className="text-center text-[var(--muted)] py-4">
+                {copy.vendor.noReviews}
+              </p>
+            )
           )}
         </div>
       </section>

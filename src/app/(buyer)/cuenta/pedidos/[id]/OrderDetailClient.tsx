@@ -92,7 +92,10 @@ export function OrderDetailClient({ order, nuevo, reviewEligibility }: Props) {
       </div>
 
       {/* Products */}
-      <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+      <div
+        id="reseñas"
+        className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] scroll-mt-24"
+      >
         <div className="border-b border-[var(--border)] px-5 py-3.5">
           <h2 className="font-semibold text-[var(--foreground)]">{t('order.products')}</h2>
         </div>

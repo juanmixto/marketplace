@@ -7,8 +7,10 @@ import { SignOutButton } from '@/components/auth/SignOutButton'
 import type { Metadata } from 'next'
 import { buyerAccountItems, buyerAccountMeta } from '@/lib/navigation'
 import { GDPRActions } from './GDPRActions'
+import { PendingReviewsBanner } from './PendingReviewsBanner'
 import { getServerT } from '@/i18n/server'
 import type { TranslationKeys } from '@/i18n/locales'
+import { getPendingReviewsCount } from '@/domains/reviews/pending'
 
 export const metadata: Metadata = { title: 'Mi cuenta' }
 
@@ -17,6 +19,7 @@ export default async function CuentaPage() {
   if (!session) redirect('/login')
 
   const t = await getServerT()
+  const pendingReviews = await getPendingReviewsCount(session.user.id)
 
   const initial = session.user.name?.[0]?.toUpperCase() ?? '?'
 
@@ -32,6 +35,8 @@ export default async function CuentaPage() {
           <p className="text-sm text-[var(--muted)]">{session.user.email}</p>
         </div>
       </div>
+
+      <PendingReviewsBanner pendingCount={pendingReviews} />
 
       <div className="space-y-2">
         {buyerAccountItems.map(({ href, available }) => {
