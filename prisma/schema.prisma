@@ -451,6 +451,27 @@ model OrderEvent {
   @@index([orderId])
 }
 
+/// Dead-letter queue for webhook events that could not be reconciled to an
+/// existing order/payment (e.g. Stripe sent a payment_intent.succeeded for a
+/// providerRef we have no Payment row for). An operator can query the
+/// unresolved rows and replay them from the Stripe dashboard once the
+/// underlying issue is fixed.
+model WebhookDeadLetter {
+  id          String    @id @default(cuid())
+  provider    String    @default("stripe")
+  eventId     String?
+  eventType   String
+  providerRef String?
+  reason      String
+  payload     Json?
+  resolvedAt  DateTime?
+  resolvedBy  String?
+  createdAt   DateTime  @default(now())
+
+  @@index([resolvedAt])
+  @@index([provider, eventType])
+}
+
 // ─── Payments ─────────────────────────────────────────────────────────────────
 
 model Payment {

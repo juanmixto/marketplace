@@ -15,6 +15,7 @@ import {
   createPaymentFailedEventPayload,
   createPaymentMismatchEventPayload,
 } from '@/domains/orders/order-event-payload'
+import { recordWebhookDeadLetter } from '@/domains/payments/webhook-dlq'
 import { getServerEnv } from '@/lib/env'
 import type Stripe from 'stripe'
 
@@ -118,7 +119,16 @@ async function handlePaymentSucceeded(providerRef: string, amount?: number, curr
       }),
     { operationName: 'load payment for succeeded webhook' }
   )
-  if (!payment) return
+  if (!payment) {
+    await recordWebhookDeadLetter(db, {
+      eventId,
+      eventType: 'payment_intent.succeeded',
+      providerRef,
+      reason: 'payment_not_found',
+      payload: { providerRef, amount, currency },
+    })
+    return
+  }
   assertProviderRefForPaymentStatus({
     providerRef: payment.providerRef,
     nextStatus: 'SUCCEEDED',
@@ -218,7 +228,16 @@ async function handlePaymentFailed(providerRef: string, eventId?: string) {
       }),
     { operationName: 'load payment for failed webhook' }
   )
-  if (!payment) return
+  if (!payment) {
+    await recordWebhookDeadLetter(db, {
+      eventId,
+      eventType: 'payment_intent.payment_failed',
+      providerRef,
+      reason: 'payment_not_found',
+      payload: { providerRef },
+    })
+    return
+  }
 
   if (!shouldApplyPaymentFailed({
     paymentStatus: payment.status,
