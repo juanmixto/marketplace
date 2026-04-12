@@ -258,25 +258,26 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
             </button>
           </div>
         </div>
+
+        {/* Mobile search bar (always visible, Amazon-style) */}
+        <form action="/buscar" className="pb-3 md:hidden">
+          <div className="relative">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--muted)]" />
+            <input
+              name="q"
+              type="search"
+              placeholder={t('searchMobile')}
+              aria-label={t('searchMobile')}
+              className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] py-2.5 pl-10 pr-4 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:border-emerald-500 focus:bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
+            />
+          </div>
+        </form>
       </div>
 
       {/* Mobile drawer */}
       {mobileOpen && (
         <div className="border-t border-[var(--border)] bg-[var(--surface)] shadow-2xl md:hidden">
           <div className="space-y-1 p-4">
-            {/* Search */}
-            <form action="/buscar" className="mb-3">
-              <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
-                <input
-                  name="q"
-                  type="search"
-                  placeholder={t('searchMobile')}
-                  className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] py-2.5 pl-9 pr-4 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
-                />
-              </div>
-            </form>
-
             {/* Categories */}
             <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">{t('categories')}</p>
             {CATEGORIES.map(cat => (
