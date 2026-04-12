@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { clearOtherDefaults } from '@/lib/address-defaults'
 
 const addressSchema = z.object({
   label: z.string().max(50).optional(),
@@ -49,21 +50,19 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const validated = addressSchema.parse(body)
 
-    // If setting as default, clear isDefault for all other addresses
-    if (validated.isDefault) {
-      await db.address.updateMany({
-        where: { userId: session.user.id },
-        data: { isDefault: false },
-      })
-    }
+    const address = await db.$transaction(async (tx) => {
+      if (validated.isDefault) {
+        await clearOtherDefaults(tx, session.user.id)
+      }
 
-    const address = await db.address.create({
-      data: {
-        ...validated,
-        userId: session.user.id,
-        label: validated.label || undefined,
-        line2: validated.line2 || undefined,
-      },
+      return tx.address.create({
+        data: {
+          ...validated,
+          userId: session.user.id,
+          label: validated.label || undefined,
+          line2: validated.line2 || undefined,
+        },
+      })
     })
 
     return NextResponse.json(address, { status: 201 })
