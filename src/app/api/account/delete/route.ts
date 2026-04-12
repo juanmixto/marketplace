@@ -8,6 +8,7 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
+import { checkRateLimit } from '@/lib/ratelimit'
 
 export async function DELETE() {
   const session = await auth()
@@ -17,6 +18,22 @@ export async function DELETE() {
   }
 
   const userId = session.user.id
+
+  const rateLimitResult = await checkRateLimit('account-delete', userId, 3, 3600)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: rateLimitResult.message ?? 'Demasiadas solicitudes' },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000).toString(),
+          'X-RateLimit-Limit': '3',
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': rateLimitResult.resetAt.toString(),
+        },
+      }
+    )
+  }
 
   try {
     await db.$transaction([
