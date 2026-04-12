@@ -69,6 +69,9 @@ const es = {
   aboutUs: 'Sobre nosotros',
   allRights: 'Todos los derechos reservados.',
   legal: 'Aviso legal',
+  privacy: 'Privacidad',
+  cookies: 'Cookies',
+  terms: 'Términos',
 
   /* Language switcher */
   language: 'Idioma',

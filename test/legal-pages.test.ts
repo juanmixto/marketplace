@@ -20,8 +20,9 @@ test('footer links to the legal pages that now exist', () => {
 
   for (const path of legalPages) {
     const source = readSource(path)
-    assert.match(source, /export const metadata: Metadata/)
+    assert.match(source, /generateMetadata\(\): Promise<Metadata>/)
     assert.match(source, /LegalPage/)
+    assert.match(source, /getLegalPageCopy/)
   }
 })
 

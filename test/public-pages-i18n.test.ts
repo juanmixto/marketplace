@@ -27,6 +27,34 @@ test('legal privacy page exposes English copy', () => {
   assert.equal(en.sections.contact.contactLink, 'contact form')
 })
 
+test('legal notice, cookies and terms pages expose copy in both locales', () => {
+  const es = getLegalPageCopy('es')
+  const en = getLegalPageCopy('en')
+
+  assert.equal(es.legalNotice.title, 'Aviso legal')
+  assert.equal(en.legalNotice.title, 'Legal Notice')
+  assert.notEqual(es.legalNotice.intro, en.legalNotice.intro)
+  assert.equal(es.legalNotice.sections.usage.items.length, en.legalNotice.sections.usage.items.length)
+
+  assert.equal(es.cookies.title, 'Política de cookies')
+  assert.equal(en.cookies.title, 'Cookie policy')
+  assert.notEqual(es.cookies.intro, en.cookies.intro)
+  assert.equal(es.cookies.sections.types.items.length, en.cookies.sections.types.items.length)
+
+  assert.equal(es.terms.title, 'Términos de uso')
+  assert.equal(en.terms.title, 'Terms of use')
+  assert.notEqual(es.terms.intro, en.terms.intro)
+  assert.equal(es.terms.sections.acceptable.items.length, en.terms.sections.acceptable.items.length)
+})
+
+test('footer legal keys (privacy, cookies, terms) exist in both locales', async () => {
+  const { locales } = await import('@/i18n/locales')
+  for (const key of ['privacy', 'cookies', 'terms'] as const) {
+    assert.ok(key in locales.es, `Spanish missing ${key}`)
+    assert.ok(key in locales.en, `English missing ${key}`)
+  }
+})
+
 test('Spanish copy remains the default fallback for public pages', () => {
   const es = getPublicPageCopy('es')
 

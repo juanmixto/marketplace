@@ -71,6 +71,9 @@ const en: Record<TranslationKeys, string> = {
   aboutUs: 'About Us',
   allRights: 'All rights reserved.',
   legal: 'Legal Notice',
+  privacy: 'Privacy',
+  cookies: 'Cookies',
+  terms: 'Terms',
 
   /* Language switcher */
   language: 'Language',
