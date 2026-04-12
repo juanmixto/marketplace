@@ -253,6 +253,33 @@ const es = {
   'vendor.expiresSoon': 'Caduca pronto',
   'vendor.noStock': 'Sin stock',
   'vendor.inStock': 'en stock',
+  'vendor.productsOne': 'producto',
+  'vendor.productsOther': 'productos',
+  'vendor.rejectionReason': 'Motivo',
+  'vendor.alertExpired': 'retirado por caducidad',
+  'vendor.alertExpiredPlural': 'retirados por caducidad',
+  'vendor.alertOutOfStock': 'sin stock',
+  'vendor.alertLowStock': 'Stock bajo',
+
+  // Vendor – product status labels
+  'vendor.status.draft': 'Borrador',
+  'vendor.status.pendingReview': 'En revisión',
+  'vendor.status.active': 'Activo',
+  'vendor.status.rejected': 'Rechazado',
+  'vendor.status.suspended': 'Suspendido',
+
+  // Vendor – product filters
+  'vendor.filters.searchPlaceholder': 'Buscar por nombre…',
+  'vendor.filters.status': 'Estado',
+  'vendor.filters.allStatuses': 'Todos',
+  'vendor.filters.category': 'Categoría',
+  'vendor.filters.allCategories': 'Todas',
+  'vendor.filters.stock': 'Stock',
+  'vendor.filters.stockAll': 'Todos',
+  'vendor.filters.stockLow': 'Bajo',
+  'vendor.filters.stockOut': 'Agotados',
+  'vendor.filters.clear': 'Limpiar filtros',
+  'vendor.filters.noResults': 'Ningún producto coincide con los filtros',
 
   // Vendor – product form
   'vendor.nameLabel': 'Nombre',
