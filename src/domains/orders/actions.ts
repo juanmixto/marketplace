@@ -18,6 +18,7 @@ import { assertProviderRefForPaymentStatus, shouldApplyPaymentSucceeded } from '
 import { getServerEnv } from '@/lib/env'
 import { getAvailableProductWhere } from '@/domains/catalog/availability'
 import {
+  assertVariantPriceChargeable,
   getAvailableStockForPurchase,
   getDefaultVariant,
   getSelectedVariant,
@@ -157,12 +158,15 @@ export async function createOrder(
 
     // NOTE: Stock validation moved to transaction to prevent race condition
 
+    const unitPrice = getVariantAdjustedPrice(Number(product.basePrice), selectedVariant)
+    assertVariantPriceChargeable(unitPrice, product.name)
+
     return {
       productId: product.id,
       vendorId: product.vendor.id,
       variantId: selectedVariant?.id ?? null,
       quantity: item.quantity,
-      unitPrice: getVariantAdjustedPrice(Number(product.basePrice), selectedVariant),
+      unitPrice,
       taxRate: product.taxRate,
       productSnapshot: orderLineSnapshotSchema.parse({
         id: product.id,
