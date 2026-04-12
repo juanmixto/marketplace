@@ -155,7 +155,9 @@ export function CartPageClient({ shippingSettings }: Props) {
                       </span>
                       {isInsufficient && available !== null && (
                         <span className="text-[11px] text-amber-800 dark:text-amber-300">
-                          {t('cart.stockOnlyLeft')} {available} {t('cart.stockUnits')}
+                          {available === 1
+                            ? t('cart.stockOnlyLeft_one')
+                            : t('cart.stockOnlyLeft_other').replace('{count}', String(available))}
                         </span>
                       )}
                       {isInsufficient && available !== null && available > 0 && (
