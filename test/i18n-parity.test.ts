@@ -23,10 +23,12 @@ const enKeys = Object.keys(enMap).sort()
 const INTENTIONAL_COPY_KEYS = new Set<string>([
   // Words that are internationally identical or brand-style labels.
   'account.cityPlaceholder',      // city name placeholder (e.g. "Madrid")
+  'account.profileEmailLabel',    // "Email" is the same word in both locales
   'auth.recoveryEmail',           // "recovery@example.com" placeholder
   'cart.subtotal',                // "Subtotal" is the same word in both locales
   'cart.total',                   // "Total" is the same word in both locales
   'checkout.postalCodePlaceholder', // numeric example (e.g. "28001")
+  'cookies',                      // "Cookies" is the same word in both locales (footer link)
   'km0',                          // brand/label for "zero-kilometer" products
   'lang_en',                      // language name shown in its own language
   'lang_es',                      // language name shown in its own language

@@ -197,7 +197,7 @@ export default async function ProductDetailPage({ params }: Props) {
           </div>
 
           <div className="mt-3">
-            <AutoTranslatedBadge translation={localizedProduct.translation} className="text-xs" />
+            <AutoTranslatedBadge translation={localizedProduct.translation} variant="full" />
           </div>
 
           {/* Description */}

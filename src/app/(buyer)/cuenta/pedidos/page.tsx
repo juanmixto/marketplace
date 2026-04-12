@@ -12,7 +12,10 @@ import type { Metadata } from 'next'
 import { getServerT } from '@/i18n/server'
 import { countPendingReviewsInOrder } from '@/domains/reviews/pending-policy'
 
-export const metadata: Metadata = { title: 'Mis pedidos' }
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT()
+  return { title: t('account.ordersTitle') }
+}
 
 const STATUS_VARIANT: Record<string, 'green' | 'amber' | 'red' | 'blue' | 'default'> = {
   PLACED: 'blue',
@@ -43,18 +46,18 @@ export default async function MisPedidosPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">Mis pedidos</h1>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">{t('account.ordersTitle')}</h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
-          Repite compras anteriores en un clic o entra al detalle para revisar el pedido.
+          {t('account.ordersSubtitle')}
         </p>
       </div>
 
       {orders.length === 0 ? (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-6 py-16 text-center shadow-sm">
           <p className="text-4xl mb-3">📦</p>
-          <p className="font-medium text-[var(--foreground-soft)]">Aún no tienes pedidos</p>
+          <p className="font-medium text-[var(--foreground-soft)]">{t('account.ordersEmpty')}</p>
           <Link href="/productos" className="mt-4 inline-flex rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-300 dark:hover:bg-emerald-950/55">
-            Explorar productos
+            {t('account.ordersExplore')}
           </Link>
         </div>
       ) : (
@@ -82,7 +85,7 @@ export default async function MisPedidosPage() {
                     <p className="font-semibold text-[var(--foreground)]">{order.orderNumber}</p>
                     <p className="text-sm text-[var(--muted)]">{formatDate(order.placedAt)}</p>
                     <p className="text-xs text-[var(--muted)]">
-                      {totalItems} artículo{totalItems !== 1 ? 's' : ''} · {productCount} producto{productCount !== 1 ? 's' : ''}
+                      {totalItems} {totalItems === 1 ? t('account.ordersItem') : t('account.ordersItems')} · {productCount} {productCount === 1 ? t('account.ordersProduct') : t('account.ordersProducts')}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
@@ -110,7 +113,7 @@ export default async function MisPedidosPage() {
                     </div>
                   ))}
                   {order.lines.length > 3 && (
-                    <p className="text-xs text-[var(--muted)]">+{order.lines.length - 3} más</p>
+                    <p className="text-xs text-[var(--muted)]">+{order.lines.length - 3} {t('account.ordersMore')}</p>
                   )}
                 </div>
               </Link>
@@ -134,7 +137,7 @@ export default async function MisPedidosPage() {
                   href={`/cuenta/pedidos/${order.id}`}
                   className="text-sm font-medium text-emerald-700 underline-offset-4 hover:underline dark:text-emerald-400"
                 >
-                  Ver detalle
+                  {t('account.ordersViewDetail')}
                 </Link>
                 <RepeatOrderButton
                   orderNumber={order.orderNumber}
