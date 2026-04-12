@@ -2,11 +2,14 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
+  MINIMUM_CHARGEABLE_PRICE_EUR,
+  assertVariantPriceChargeable,
   getAvailableStockForPurchase,
   getDefaultVariant,
   getSelectedVariant,
   getVariantAdjustedCompareAtPrice,
   getVariantAdjustedPrice,
+  isVariantPriceChargeable,
   productRequiresVariantSelection,
   type PurchasableProduct,
 } from '@/domains/catalog/variants'
@@ -113,4 +116,40 @@ test('variant-aware product UI defaults to a concrete variant before adding to c
   assert.match(purchasePanel, /useState<string>\(defaultVariant\?\.id \?\? ''\)/)
   assert.match(productCard, /variantId=\{defaultVariant\?\.id\}/)
   assert.match(productCard, /variantName=\{defaultVariant\?\.name\}/)
+})
+
+test('MINIMUM_CHARGEABLE_PRICE_EUR matches the Stripe minimum charge', () => {
+  assert.equal(MINIMUM_CHARGEABLE_PRICE_EUR, 0.5)
+})
+
+test('isVariantPriceChargeable accepts prices at or above the minimum', () => {
+  assert.equal(isVariantPriceChargeable(0.5), true)
+  assert.equal(isVariantPriceChargeable(1), true)
+  assert.equal(isVariantPriceChargeable(1999.99), true)
+})
+
+test('isVariantPriceChargeable rejects zero, negative, NaN and Infinity', () => {
+  assert.equal(isVariantPriceChargeable(0), false)
+  assert.equal(isVariantPriceChargeable(0.49), false)
+  assert.equal(isVariantPriceChargeable(-5), false)
+  assert.equal(isVariantPriceChargeable(Number.NaN), false)
+  assert.equal(isVariantPriceChargeable(Number.POSITIVE_INFINITY), false)
+})
+
+test('assertVariantPriceChargeable is a no-op for chargeable prices', () => {
+  assert.doesNotThrow(() => assertVariantPriceChargeable(0.5))
+  assert.doesNotThrow(() => assertVariantPriceChargeable(42))
+})
+
+test('assertVariantPriceChargeable throws including the product name and minimum', () => {
+  assert.throws(
+    () => assertVariantPriceChargeable(0.1, 'Miel de romero'),
+    /Miel de romero.*0\.10.*0\.50/
+  )
+})
+
+test('getVariantAdjustedPrice still returns display prices below the minimum (no throw)', () => {
+  const price = getVariantAdjustedPrice(1, { priceModifier: -0.9 })
+  assert.equal(price, 0.1)
+  assert.equal(isVariantPriceChargeable(price), false)
 })
