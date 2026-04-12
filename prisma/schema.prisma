@@ -318,6 +318,7 @@ model CartItem {
 
   @@unique([cartId, productId, variantId])
   @@index([cartId])
+  @@index([userId, createdAt])
 }
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
@@ -412,6 +413,7 @@ model Review {
 
   @@unique([orderId, productId])
   @@index([productId])
+  @@index([productId, createdAt])
   @@index([vendorId])
   @@index([vendorId, createdAt])
   @@index([customerId])
@@ -506,6 +508,7 @@ model Incident {
 
   @@index([status, slaDeadline])
   @@index([customerId])
+  @@index([customerId, status])
 }
 
 model IncidentMessage {
@@ -520,6 +523,7 @@ model IncidentMessage {
   incident Incident @relation(fields: [incidentId], references: [id])
 
   @@index([incidentId])
+  @@index([incidentId, createdAt])
 }
 
 // ─── Finance ──────────────────────────────────────────────────────────────────
