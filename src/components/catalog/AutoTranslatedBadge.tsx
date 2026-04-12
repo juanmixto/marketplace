@@ -17,14 +17,14 @@ export function AutoTranslatedBadge({ translation, className = '' }: AutoTransla
       <span
         title={title}
         className={[
-          'inline-flex max-w-full items-center gap-1 rounded-full border px-2.5 py-1',
-          'border-sky-200 bg-sky-50/90 text-[10px] font-semibold text-sky-700',
+          'inline-flex max-w-full items-start gap-1 rounded-2xl border px-2.5 py-1',
+          'border-sky-200 bg-sky-50/90 text-[10px] font-semibold leading-tight text-sky-700',
           'dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-300',
           className,
         ].join(' ')}
       >
-        <LanguageIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-        <span className="truncate">{translation.badgeLabel}</span>
+        <LanguageIcon className="mt-[1px] h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        <span className="min-w-0 break-words">{translation.badgeLabel}</span>
       </span>
     </Tooltip>
   )
