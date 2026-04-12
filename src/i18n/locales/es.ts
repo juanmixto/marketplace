@@ -335,6 +335,31 @@ const es = {
   'account.edit': 'Editar',
   'account.delete': 'Eliminar',
 
+  // Account – profile (personal data)
+  'account.profile.title': 'Mi perfil',
+  'account.profile.subtitle': 'Gestiona tu información personal y contraseña',
+  'account.profile.personalInfo': 'Información personal',
+  'account.profile.firstName': 'Nombre',
+  'account.profile.lastName': 'Apellidos',
+  'account.profile.email': 'Email',
+  'account.profile.save': 'Guardar cambios',
+  'account.profile.saving': 'Guardando...',
+  'account.profile.saved': 'Cambios guardados',
+  'account.profile.changePassword': 'Cambiar contraseña',
+  'account.profile.currentPassword': 'Contraseña actual',
+  'account.profile.newPassword': 'Nueva contraseña',
+  'account.profile.confirmPassword': 'Confirmar contraseña',
+  'account.profile.changingPassword': 'Cambiando...',
+  'account.profile.passwordUpdated': 'Contraseña actualizada',
+  'account.profile.errFirstNameRequired': 'Nombre requerido',
+  'account.profile.errLastNameRequired': 'Apellidos requeridos',
+  'account.profile.errEmailInvalid': 'Email inválido',
+  'account.profile.errCurrentPasswordRequired': 'Contraseña actual requerida',
+  'account.profile.errPasswordMin': 'Mínimo 8 caracteres',
+  'account.profile.errPasswordsDontMatch': 'Las contraseñas no coinciden',
+  'account.profile.errUpdateFailed': 'Error al actualizar perfil',
+  'account.profile.errPasswordChangeFailed': 'Error al cambiar contraseña',
+
   // Common
   'common.cancel': 'Cancelar',
 

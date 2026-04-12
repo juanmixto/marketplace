@@ -337,6 +337,31 @@ const en: Record<TranslationKeys, string> = {
   'account.edit': 'Edit',
   'account.delete': 'Delete',
 
+  // Account – profile (personal data)
+  'account.profile.title': 'My profile',
+  'account.profile.subtitle': 'Manage your personal information and password',
+  'account.profile.personalInfo': 'Personal information',
+  'account.profile.firstName': 'First name',
+  'account.profile.lastName': 'Last name',
+  'account.profile.email': 'Email',
+  'account.profile.save': 'Save changes',
+  'account.profile.saving': 'Saving...',
+  'account.profile.saved': 'Changes saved',
+  'account.profile.changePassword': 'Change password',
+  'account.profile.currentPassword': 'Current password',
+  'account.profile.newPassword': 'New password',
+  'account.profile.confirmPassword': 'Confirm password',
+  'account.profile.changingPassword': 'Changing...',
+  'account.profile.passwordUpdated': 'Password updated',
+  'account.profile.errFirstNameRequired': 'First name is required',
+  'account.profile.errLastNameRequired': 'Last name is required',
+  'account.profile.errEmailInvalid': 'Invalid email',
+  'account.profile.errCurrentPasswordRequired': 'Current password is required',
+  'account.profile.errPasswordMin': 'Minimum 8 characters',
+  'account.profile.errPasswordsDontMatch': 'Passwords do not match',
+  'account.profile.errUpdateFailed': 'Failed to update profile',
+  'account.profile.errPasswordChangeFailed': 'Failed to change password',
+
   // Common
   'common.cancel': 'Cancel',
 
