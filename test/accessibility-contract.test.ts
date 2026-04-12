@@ -32,7 +32,16 @@ test('Filters and modal expose the right interactive semantics', () => {
 
   assert.match(filters, /aria-label=\{copy\.filters\.clearAllAria\}/)
   assert.match(filters, /aria-pressed=\{!currentCat\}/)
-  assert.match(filters, /aria-pressed=\{currentCat === cat\.slug\}/)
+  // Category buttons keep aria-pressed semantics; the active state is bound
+  // to the per-iteration `isActive` flag derived from currentCat === cat.slug.
+  assert.match(filters, /const isActive = currentCat === cat\.slug/)
+  assert.match(filters, /aria-pressed=\{isActive\}/)
+  // Certification chips are now toggleable buttons (not checkboxes) and must
+  // also expose aria-pressed within the CERTIFICATIONS.map block.
+  assert.ok(
+    /CERTIFICATIONS\.map[\s\S]+?aria-pressed=\{isActive\}/.test(filters),
+    'certification chips should expose aria-pressed'
+  )
   assert.match(modal, /aria-labelledby=\{title \? titleId : undefined\}/)
   assert.match(modal, /aria-label=\{title \? undefined : 'Diálogo'\}/)
   assert.match(modal, /aria-label="Cerrar modal"/)
