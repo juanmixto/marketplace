@@ -7,12 +7,20 @@ import { z } from 'zod'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { updateVendorProfile } from '@/domains/vendors/actions'
+import { isAllowedImageUrl } from '@/lib/image-validation'
 import type { Vendor } from '@/generated/prisma/client'
 
 const profileSchema = z.object({
   displayName: z.string().min(3, 'Mínimo 3 caracteres').max(80),
   description: z.string().max(2000).optional(),
   location: z.string().max(100).optional(),
+  logo: z
+    .union([z.string(), z.literal(''), z.undefined()])
+    .transform(v => (v ?? '').trim())
+    .refine(
+      v => v === '' || isAllowedImageUrl(v),
+      'URL inválida. Usa cloudinary.com, uploadthing.com o unsplash.com (HTTPS)',
+    ),
   orderCutoffTime: z
     .union([z.string().regex(/^\d{2}:\d{2}$/, 'Formato HH:MM'), z.literal(''), z.undefined()])
     .transform(v => v || undefined),
@@ -35,6 +43,7 @@ export function VendorProfileForm({ vendor }: Props) {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<ProfileFormInput, unknown, ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -42,12 +51,16 @@ export function VendorProfileForm({ vendor }: Props) {
       displayName: vendor.displayName,
       description: vendor.description ?? '',
       location: vendor.location ?? '',
+      logo: vendor.logo ?? '',
       orderCutoffTime: vendor.orderCutoffTime ?? '',
       preparationDays: vendor.preparationDays ?? 2,
       iban: vendor.iban ?? '',
       bankAccountName: vendor.bankAccountName ?? '',
     },
   })
+
+  const logoUrl = (watch('logo') ?? '').trim()
+  const logoPreviewValid = logoUrl !== '' && isAllowedImageUrl(logoUrl)
 
   async function onSubmit(values: ProfileFormValues) {
     setServerError(null)
@@ -92,6 +105,27 @@ export function VendorProfileForm({ vendor }: Props) {
           error={errors.location?.message}
           {...register('location')}
         />
+
+        <div className="space-y-2">
+          <Input
+            label="Foto del productor (URL)"
+            placeholder="https://res.cloudinary.com/..."
+            hint="Sube tu foto a Cloudinary, UploadThing o Unsplash y pega la URL aquí."
+            error={errors.logo?.message}
+            {...register('logo')}
+          />
+          {logoPreviewValid && (
+            <div className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
+              <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-muted,transparent)]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={logoUrl} alt="Vista previa" className="h-full w-full object-cover" />
+              </div>
+              <p className="text-xs text-[var(--muted)]">
+                Así se verá tu foto en el listado de productores.
+              </p>
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Logistics */}
