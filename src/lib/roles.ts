@@ -1,5 +1,28 @@
 import { UserRole } from '@/generated/prisma/enums'
 
+export const ALL_USER_ROLES: readonly UserRole[] = [
+  UserRole.CUSTOMER,
+  UserRole.VENDOR,
+  UserRole.ADMIN_SUPPORT,
+  UserRole.ADMIN_CATALOG,
+  UserRole.ADMIN_FINANCE,
+  UserRole.ADMIN_OPS,
+  UserRole.SUPERADMIN,
+]
+
+/**
+ * Narrows an unknown value to a valid UserRole, returning CUSTOMER as a
+ * safe fallback for anything we do not recognise. Intended for trust
+ * boundaries (JWT claims, session tokens) where the incoming role string
+ * must be validated before being used for authorization decisions.
+ */
+export function coerceUserRole(role: unknown): UserRole {
+  if (typeof role !== 'string') return UserRole.CUSTOMER
+  return (ALL_USER_ROLES as readonly string[]).includes(role)
+    ? (role as UserRole)
+    : UserRole.CUSTOMER
+}
+
 export const ADMIN_ROLES: readonly UserRole[] = [
   UserRole.ADMIN_SUPPORT,
   UserRole.ADMIN_CATALOG,
