@@ -411,6 +411,9 @@ model Review {
   body       String?  @db.Text
   createdAt  DateTime @default(now())
 
+  vendorResponse   String?   @db.Text
+  vendorResponseAt DateTime?
+
   order    Order   @relation(fields: [orderId], references: [id])
   product  Product @relation(fields: [productId], references: [id])
   vendor   Vendor  @relation(fields: [vendorId], references: [id])
