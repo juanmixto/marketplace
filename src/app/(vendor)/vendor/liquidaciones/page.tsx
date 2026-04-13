@@ -1,7 +1,8 @@
 import { Metadata } from 'next'
+import Link from 'next/link'
 import { requireVendor } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
-import { format, nextMonday } from 'date-fns'
+import { format, nextMonday, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 export const metadata: Metadata = {
@@ -51,7 +52,9 @@ export default async function Liquidaciones() {
     where: { userId: user.id },
   })
 
-  const [settlements, thisMonthData, pendingData] = await Promise.all([
+  const ninetyDaysAgo = subDays(new Date(), 90)
+
+  const [settlements, thisMonthData, pendingData, topLines] = await Promise.all([
     db.settlement.findMany({
       where: { vendorId: vendor.id },
       orderBy: { periodTo: 'desc' },
@@ -72,9 +75,61 @@ export default async function Liquidaciones() {
       },
       _sum: { netPayable: true },
     }),
+    db.orderLine.findMany({
+      where: {
+        vendorId: vendor.id,
+        createdAt: { gte: ninetyDaysAgo },
+        order: { status: { in: ['DELIVERED', 'SHIPPED'] } },
+      },
+      select: {
+        productId: true,
+        quantity: true,
+        unitPrice: true,
+        product: { select: { name: true, slug: true, images: true, unit: true } },
+      },
+    }),
   ])
 
   const nextPaymentDay = format(nextMonday(new Date()), 'dd MMM yyyy', { locale: es })
+
+  // Revenue trend: last 12 settlements in chronological order
+  const trend = settlements
+    .slice(0, 12)
+    .map(s => ({
+      label: format(s.periodTo, 'd MMM', { locale: es }),
+      value: Number(s.netPayable),
+    }))
+    .reverse()
+  const trendMax = Math.max(1, ...trend.map(t => t.value))
+  const trendTotal = trend.reduce((sum, t) => sum + t.value, 0)
+
+  // Top products: aggregate OrderLines by product
+  const productMap = new Map<
+    string,
+    { name: string; slug: string; image: string | null; unit: string; qty: number; revenue: number }
+  >()
+  for (const line of topLines) {
+    const key = line.productId
+    const revenue = Number(line.unitPrice) * line.quantity
+    const existing = productMap.get(key)
+    if (existing) {
+      existing.qty += line.quantity
+      existing.revenue += revenue
+    } else {
+      productMap.set(key, {
+        name: line.product.name,
+        slug: line.product.slug,
+        image: line.product.images[0] ?? null,
+        unit: line.product.unit,
+        qty: line.quantity,
+        revenue,
+      })
+    }
+  }
+  const topProducts = Array.from(productMap.values())
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5)
+  const topProductsMax = Math.max(1, ...topProducts.map(p => p.revenue))
 
   return (
     <main className="space-y-6">
@@ -107,6 +162,111 @@ export default async function Liquidaciones() {
           <p className="text-sm text-gray-600 dark:text-[var(--muted)]">Próxima liquidación</p>
           <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-[var(--foreground)]">{nextPaymentDay}</p>
         </div>
+      </div>
+
+      {/* Analytics */}
+      <div className="grid gap-4 lg:grid-cols-5">
+        {/* Revenue trend */}
+        <section className="rounded-lg border border-gray-200 bg-white p-6 dark:border-[var(--border)] dark:bg-[var(--surface)] lg:col-span-3">
+          <div className="flex items-baseline justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-gray-900 dark:text-[var(--foreground)]">
+                Facturación por semana
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-[var(--muted)]">
+                Últimas {trend.length || 0} liquidaciones · Total {formatEUR(trendTotal)}
+              </p>
+            </div>
+          </div>
+          {trend.length === 0 ? (
+            <p className="mt-6 text-sm text-gray-500 dark:text-[var(--muted)]">
+              Aún no hay datos para mostrar tendencia.
+            </p>
+          ) : (
+            <div className="mt-6">
+              <div
+                className="flex h-40 items-end gap-2"
+                role="img"
+                aria-label={`Facturación de las últimas ${trend.length} semanas`}
+              >
+                {trend.map((bar, idx) => {
+                  const heightPct = Math.max(2, (bar.value / trendMax) * 100)
+                  const isLast = idx === trend.length - 1
+                  return (
+                    <div key={idx} className="group relative flex flex-1 flex-col items-center">
+                      <div
+                        className={`w-full rounded-t transition-colors ${
+                          isLast
+                            ? 'bg-emerald-500 dark:bg-emerald-400'
+                            : 'bg-emerald-200 group-hover:bg-emerald-400 dark:bg-emerald-900/60 dark:group-hover:bg-emerald-500'
+                        }`}
+                        style={{ height: `${heightPct}%` }}
+                        title={`${bar.label}: ${formatEUR(bar.value)}`}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="mt-2 flex gap-2">
+                {trend.map((bar, idx) => (
+                  <div
+                    key={idx}
+                    className="flex-1 truncate text-center text-[10px] text-gray-500 dark:text-[var(--muted)]"
+                  >
+                    {bar.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Top products */}
+        <section className="rounded-lg border border-gray-200 bg-white p-6 dark:border-[var(--border)] dark:bg-[var(--surface)] lg:col-span-2">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-[var(--foreground)]">
+            Productos más vendidos
+          </h2>
+          <p className="text-xs text-gray-500 dark:text-[var(--muted)]">Últimos 90 días</p>
+          {topProducts.length === 0 ? (
+            <p className="mt-6 text-sm text-gray-500 dark:text-[var(--muted)]">
+              Aún no hay ventas completadas en los últimos 90 días.
+            </p>
+          ) : (
+            <ul className="mt-4 space-y-3">
+              {topProducts.map(p => {
+                const widthPct = (p.revenue / topProductsMax) * 100
+                return (
+                  <li key={p.slug}>
+                    <Link
+                      href={`/productos/${p.slug}`}
+                      className="group block rounded-md p-1.5 hover:bg-gray-50 dark:hover:bg-[var(--surface-raised)]"
+                    >
+                      <div className="flex items-baseline justify-between gap-3 text-sm">
+                        <span className="truncate font-medium text-gray-900 group-hover:text-emerald-600 dark:text-[var(--foreground)] dark:group-hover:text-emerald-400">
+                          {p.name}
+                        </span>
+                        <span className="whitespace-nowrap font-semibold text-emerald-600 dark:text-emerald-400">
+                          {formatEUR(p.revenue)}
+                        </span>
+                      </div>
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-[var(--surface-raised)]">
+                          <div
+                            className="h-full rounded-full bg-emerald-500 dark:bg-emerald-400"
+                            style={{ width: `${widthPct}%` }}
+                          />
+                        </div>
+                        <span className="whitespace-nowrap text-[11px] text-gray-500 dark:text-[var(--muted)]">
+                          {p.qty} {p.unit}
+                        </span>
+                      </div>
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </section>
       </div>
 
       {/* Table */}
