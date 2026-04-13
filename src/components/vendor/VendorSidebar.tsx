@@ -8,7 +8,6 @@ import {
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import { vendorNavItems } from '@/lib/navigation'
-import { ThemeToggle } from '@/components/ThemeToggle'
 
 const NAV_META = {
   '/vendor/dashboard':    HomeIcon,
@@ -76,8 +75,8 @@ export function VendorSidebar({ vendor }: Props) {
         })}
       </nav>
 
-      <div className="border-t border-[var(--border)] p-2 space-y-0.5">
-        {vendor?.slug && (
+      {vendor?.slug && (
+        <div className="border-t border-[var(--border)] p-2 space-y-0.5">
           <Link
             href={`/productores/${vendor.slug}`}
             target="_blank"
@@ -86,12 +85,8 @@ export function VendorSidebar({ vendor }: Props) {
             <ArrowTopRightOnSquareIcon className="h-4 w-4" />
             Ver mi tienda
           </Link>
-        )}
-        <div className="flex items-center justify-between px-3 py-1">
-          <span className="text-xs text-[var(--muted)]">Tema</span>
-          <ThemeToggle />
         </div>
-      </div>
+      )}
     </aside>
   )
 }
