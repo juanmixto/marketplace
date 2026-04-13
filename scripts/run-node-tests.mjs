@@ -1,6 +1,6 @@
 import { readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { spawnSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 
 const root = process.cwd()
 const testDir = join(root, 'test')
@@ -22,7 +22,20 @@ const runParallel = args.includes('--parallel')
 const testTimeoutMs = 10000
 
 if (runDbAlias) {
-  console.log('[tests] --db is now a no-op; DB-backed tests live in test/integration. Skipping.')
+  // The DB-backed tests have moved to test/integration/ and run via the
+  // dedicated integration runner. The legacy `--db` flag still applies
+  // migrations to the test database (so a downstream seed step in the
+  // same CI job can rely on the schema being present), then exits cleanly.
+  if (!process.env.DATABASE_URL_TEST) {
+    console.error('[tests] DATABASE_URL_TEST is required when invoking with --db.')
+    process.exit(1)
+  }
+  execFileSync('npx', ['prisma', 'migrate', 'deploy'], {
+    cwd: root,
+    env: { ...process.env, NODE_ENV: 'test', DATABASE_URL: process.env.DATABASE_URL_TEST },
+    stdio: 'inherit',
+  })
+  console.log('[tests] --db: migrations applied. DB tests now live in test/integration/.')
   process.exit(0)
 }
 
