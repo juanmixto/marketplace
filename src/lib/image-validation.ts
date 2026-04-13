@@ -8,7 +8,19 @@ const ALLOWED_DOMAINS = [
   'images.unsplash.com',
   'cloudinary.com',
   'uploadthing.com',
+  // Vercel Blob storage — used by the upload API when BLOB_READ_WRITE_TOKEN
+  // is set (see src/lib/blob-storage.ts).
+  'public.blob.vercel-storage.com',
 ]
+
+/**
+ * Returns true for URLs the upload API itself produces in local-mode dev:
+ * relative paths under `/uploads/`. They are served by Next.js out of
+ * `public/` so we don't need a hostname allowlist for them.
+ */
+export function isLocalUploadPath(url: string): boolean {
+  return url.startsWith('/uploads/')
+}
 
 /**
  * Checks if a domain is in the allowed list
@@ -37,10 +49,15 @@ export function isValidUrl(url: string): boolean {
 }
 
 /**
- * Validates if a URL is safe for display
- * Checks: valid URL format, allowed domain, HTTPS protocol
+ * Validates if a URL is safe for display.
+ * Accepts:
+ *  - relative paths produced by the local upload backend (`/uploads/...`)
+ *  - HTTPS URLs whose hostname is in the allow list
  */
 export function isAllowedImageUrl(url: string): boolean {
+  if (isLocalUploadPath(url)) {
+    return true
+  }
   try {
     const parsed = new URL(url)
 

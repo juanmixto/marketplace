@@ -331,6 +331,13 @@ const en: Record<TranslationKeys, string> = {
   'vendor.autoTranslateHint': 'Product text is translated automatically for the storefront in the other language. Shoppers will see a badge when they are viewing an automatic translation.',
   'vendor.saveChanges': 'Save changes',
   'vendor.createProduct': 'Create product',
+  'vendor.upload.title': 'Drag your images here',
+  'vendor.upload.subtitle': 'Or click to choose files. JPG, PNG or WEBP, up to 5 MB.',
+  'vendor.upload.slotsLeft': 'slots remaining',
+  'vendor.upload.remove': 'Remove image',
+  'vendor.upload.unsupported': 'unsupported file type',
+  'vendor.upload.tooLarge': 'file too large (max 5 MB)',
+  'vendor.upload.error': 'Could not upload the image',
 
   // Incident
   'incident.markResolved': 'Mark as resolved',
