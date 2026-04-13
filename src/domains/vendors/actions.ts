@@ -51,6 +51,7 @@ const productSchema = z.object({
   unit: z.string().min(1).max(20),
   stock: z.coerce.number().int().min(0),
   trackStock: z.coerce.boolean(),
+  weightGrams: z.coerce.number().int().positive().max(50000).optional().nullable(),
   certifications: z.array(z.string()).default([]),
   originRegion: z.string().max(100).optional(),
   images: z

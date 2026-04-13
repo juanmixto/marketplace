@@ -1,4 +1,3 @@
-import crypto from 'node:crypto'
 import { db } from '@/lib/db'
 import { mapSendcloudStatus } from '@/domains/shipping/providers/sendcloud/mapper'
 import {
@@ -7,6 +6,8 @@ import {
 } from '@/domains/shipping/actions'
 import type { ShipmentStatusInternal } from '@/domains/shipping/domain/types'
 
+export { verifySendcloudSignature } from './signature'
+
 export interface SendcloudWebhookPayload {
   action?: string
   timestamp?: number
@@ -14,32 +15,6 @@ export interface SendcloudWebhookPayload {
     id: number
     tracking_number?: string | null
     status: { id: number; message: string }
-  }
-}
-
-/**
- * Verifies the Sendcloud webhook signature (HMAC-SHA256 of the raw body
- * with the integration secret). Returns true if the signature matches.
- *
- * https://api.sendcloud.dev/docs/sendcloud-public-api/integrations
- */
-export function verifySendcloudSignature(
-  rawBody: string,
-  signatureHeader: string | null,
-  secret: string,
-): boolean {
-  if (!signatureHeader) return false
-  const expected = crypto
-    .createHmac('sha256', secret)
-    .update(rawBody, 'utf8')
-    .digest('hex')
-  try {
-    return crypto.timingSafeEqual(
-      Buffer.from(expected, 'hex'),
-      Buffer.from(signatureHeader, 'hex'),
-    )
-  } catch {
-    return false
   }
 }
 

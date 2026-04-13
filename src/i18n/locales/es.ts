@@ -447,6 +447,20 @@ const es = {
   'vendor.fulfillment.labelFailed': 'No se pudo generar la etiqueta',
   'vendor.fulfillment.addressMissing': 'Configura tu dirección de origen antes de preparar pedidos',
 
+  // Vendor – shipping origin address
+  'vendor.shippingAddress.title': 'Dirección de recogida',
+  'vendor.shippingAddress.subtitle': 'Esta dirección se usará como origen de los envíos que genere el marketplace.',
+  'vendor.shippingAddress.contactName': 'Persona de contacto',
+  'vendor.shippingAddress.phone': 'Teléfono',
+  'vendor.shippingAddress.line1': 'Dirección',
+  'vendor.shippingAddress.line2': 'Piso, puerta (opcional)',
+  'vendor.shippingAddress.postalCode': 'Código postal',
+  'vendor.shippingAddress.city': 'Localidad',
+  'vendor.shippingAddress.province': 'Provincia',
+  'vendor.shippingAddress.save': 'Guardar dirección',
+  'vendor.shippingAddress.saved': 'Dirección guardada',
+  'vendor.shippingAddress.saveError': 'No se pudo guardar la dirección',
+
   // Vendor – product actions menu
   'vendor.productActions.edit': 'Editar',
   'vendor.productActions.sendReview': 'Enviar a revisión',

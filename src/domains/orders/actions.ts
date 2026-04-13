@@ -608,7 +608,19 @@ export async function getOrderDetail(orderId: string) {
       },
       address: true,
       payments: true,
-      fulfillments: { include: { vendor: { select: { displayName: true } } } },
+      fulfillments: {
+        include: {
+          vendor: { select: { displayName: true } },
+          shipment: {
+            select: {
+              status: true,
+              carrierName: true,
+              trackingNumber: true,
+              trackingUrl: true,
+            },
+          },
+        },
+      },
     },
   })
 }

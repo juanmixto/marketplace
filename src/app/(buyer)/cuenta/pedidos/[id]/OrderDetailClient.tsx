@@ -38,6 +38,8 @@ interface Fulfillment {
   id: string
   status: FulfillmentStatus
   trackingNumber: string | null
+  trackingUrl: string | null
+  carrierName: string | null
   vendor: { displayName: string }
 }
 
@@ -161,16 +163,32 @@ export function OrderDetailClient({ order, nuevo, reviewEligibility }: Props) {
           </div>
           <div className="divide-y divide-[var(--border)]">
             {order.fulfillments.map(f => (
-              <div key={f.id} className="flex items-center justify-between px-5 py-3">
-                <p className="text-sm font-medium text-[var(--foreground-soft)]">{f.vendor.displayName}</p>
-                <div className="flex items-center gap-2">
+              <div key={f.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-[var(--foreground-soft)]">
+                    {f.vendor.displayName}
+                  </p>
                   {f.trackingNumber && (
-                    <span className="text-xs text-[var(--muted)] font-mono">{f.trackingNumber}</span>
+                    <p className="mt-0.5 text-xs text-[var(--muted)]">
+                      {f.carrierName ? `${f.carrierName} · ` : ''}
+                      {f.trackingUrl ? (
+                        <a
+                          href={f.trackingUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono underline hover:text-[var(--foreground-soft)]"
+                        >
+                          {f.trackingNumber}
+                        </a>
+                      ) : (
+                        <span className="font-mono">{f.trackingNumber}</span>
+                      )}
+                    </p>
                   )}
-                  <Badge variant={f.status === 'DELIVERED' ? 'green' : f.status === 'SHIPPED' ? 'blue' : 'amber'}>
-                    {FULFILLMENT_STATUS_LABELS[f.status] ?? f.status}
-                  </Badge>
                 </div>
+                <Badge variant={f.status === 'DELIVERED' ? 'green' : f.status === 'SHIPPED' ? 'blue' : 'amber'}>
+                  {FULFILLMENT_STATUS_LABELS[f.status] ?? f.status}
+                </Badge>
               </div>
             ))}
           </div>

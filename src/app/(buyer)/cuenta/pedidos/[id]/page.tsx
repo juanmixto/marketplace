@@ -65,7 +65,9 @@ export default async function OrderDetailPage({ params, searchParams }: Props) {
     fulfillments: order.fulfillments.map(fulfillment => ({
       id: fulfillment.id,
       status: fulfillment.status,
-      trackingNumber: fulfillment.trackingNumber,
+      trackingNumber: fulfillment.shipment?.trackingNumber ?? fulfillment.trackingNumber,
+      trackingUrl: fulfillment.shipment?.trackingUrl ?? null,
+      carrierName: fulfillment.shipment?.carrierName ?? fulfillment.carrier ?? null,
       vendor: {
         displayName: fulfillment.vendor.displayName,
       },

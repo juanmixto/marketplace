@@ -299,6 +299,7 @@ model Product {
   stock          Int           @default(0)
   trackStock     Boolean       @default(true)
   minOrderQty    Int           @default(1)
+  weightGrams    Int?
   certifications String[]
   originRegion   String?
   tags           String[]

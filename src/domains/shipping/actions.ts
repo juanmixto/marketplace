@@ -89,17 +89,18 @@ interface LineForDraft {
   quantity: number
   unitPrice: { toString(): string }
   productSnapshot: unknown
-  product: { name: string } | null
+  product: { name: string; weightGrams?: number | null } | null
 }
 
 function toParcelItems(lines: LineForDraft[]): ParcelItem[] {
   return lines.map(line => {
     const snapshot = parseOrderLineSnapshot(line.productSnapshot)
     const description = snapshot?.name ?? line.product?.name ?? 'Producto'
+    const weightGrams = line.product?.weightGrams ?? GRAM_PER_LINE_FALLBACK
     return {
       description,
       quantity: line.quantity,
-      weightGrams: GRAM_PER_LINE_FALLBACK,
+      weightGrams,
       unitPriceCents: Math.round(Number(line.unitPrice) * 100),
       sku: line.productId,
     }
@@ -203,7 +204,7 @@ export async function prepareFulfillment(
         include: {
           lines: {
             where: { vendorId: vendor.id },
-            include: { product: { select: { name: true } } },
+            include: { product: { select: { name: true, weightGrams: true } } },
           },
         },
       },
