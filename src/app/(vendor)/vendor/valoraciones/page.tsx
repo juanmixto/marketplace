@@ -1,7 +1,7 @@
 import { Metadata } from 'next'
 import { requireVendor } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
-import { VendorReviewsSection } from '@/app/(public)/productores/[slug]/VendorReviewsSection'
+import { VendorReviewsManager } from '@/components/vendor/VendorReviewsManager'
 import { getServerT } from '@/i18n/server'
 
 export const metadata: Metadata = {
@@ -37,6 +37,8 @@ export default async function Valoraciones() {
         rating: true,
         body: true,
         createdAt: true,
+        vendorResponse: true,
+        vendorResponseAt: true,
         customer: {
           select: {
             firstName: true,
@@ -61,22 +63,20 @@ export default async function Valoraciones() {
   return (
     <main className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-[var(--foreground)]">{t('reviews.vendorPage.title')}</h1>
-        <p className="mt-2 text-gray-600 dark:text-[var(--muted)]">{t('reviews.vendorPage.subtitle')}</p>
+        <h1 className="text-3xl font-bold text-[var(--foreground)]">{t('reviews.vendorPage.title')}</h1>
+        <p className="mt-2 text-[var(--muted)]">{t('reviews.vendorPage.subtitle')}</p>
       </div>
 
       {reviews.length === 0 ? (
-        <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center dark:border-[var(--border)] dark:bg-[var(--surface-raised)]">
-          <p className="text-lg text-gray-600 dark:text-[var(--muted)]">{t('reviews.vendorPage.empty')}</p>
+        <div className="rounded-lg border-2 border-dashed border-[var(--border)] bg-[var(--surface-raised)] p-8 text-center">
+          <p className="text-lg text-[var(--muted)]">{t('reviews.vendorPage.empty')}</p>
         </div>
       ) : (
-        <div className="rounded-lg bg-white p-6 shadow dark:bg-[var(--surface)] dark:shadow-black/30">
-          <VendorReviewsSection
-            reviews={reviews}
-            avgRating={aggregate._avg.rating ? Number(aggregate._avg.rating) : null}
-            totalReviews={aggregate._count._all}
-          />
-        </div>
+        <VendorReviewsManager
+          reviews={reviews}
+          avgRating={aggregate._avg.rating ? Number(aggregate._avg.rating) : null}
+          totalReviews={aggregate._count._all}
+        />
       )}
     </main>
   )
