@@ -54,13 +54,15 @@ type EditableProduct = Product & {
 interface ProductFormProps {
   categories: Category[]
   initialData?: EditableProduct
+  stripeOnboarded: boolean
 }
 
 
-export function ProductForm({ categories, initialData }: ProductFormProps) {
+export function ProductForm({ categories, initialData, stripeOnboarded }: ProductFormProps) {
   const router = useRouter()
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const [pendingAction, setPendingAction] = useState<'DRAFT' | 'PENDING_REVIEW' | null>(null)
   const t = useT()
 
   const {
@@ -93,7 +95,6 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
   })
 
   const selectedCertifications = watch('certifications') ?? []
-  const isEditing = Boolean(initialData)
   const imagesTextValue = watch('imagesText')
   const { valid: validImages } = parseAndValidateImages(imagesTextValue)
 
@@ -122,6 +123,7 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
       router.refresh()
     } catch (error) {
       setServerError(error instanceof Error ? error.message : 'No se pudo guardar el producto')
+      setPendingAction(null)
     }
   }
 
@@ -290,20 +292,7 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
           )}
         </div>
 
-        <div className="space-y-1.5 sm:col-span-2">
-          <label htmlFor="status" className="block text-sm font-medium text-[var(--foreground)]">
-            {t('vendor.statusLabel')}
-          </label>
-          <select
-            id="status"
-            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-            {...register('status')}
-          >
-            <option value="DRAFT">{t('vendor.saveDraft')}</option>
-            <option value="PENDING_REVIEW">{t('vendor.sendReview')}</option>
-          </select>
-          <p className="text-xs text-[var(--muted)]">{t('vendor.statusHint')}</p>
-        </div>
+        <input type="hidden" {...register('status')} />
       </div>
 
       {initialData?.variants?.length ? (
@@ -318,13 +307,41 @@ export function ProductForm({ categories, initialData }: ProductFormProps) {
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        <Button type="button" variant="secondary" onClick={() => router.push('/vendor/productos')}>
-          {t('common.cancel')}
-        </Button>
-        <Button type="submit" isLoading={isSubmitting}>
-          {isEditing ? t('vendor.saveChanges') : t('vendor.createProduct')}
-        </Button>
+      <div className="space-y-2 border-t border-[var(--border)] pt-4">
+        <p className="text-xs text-[var(--muted)]">
+          {stripeOnboarded ? t('vendor.statusHint') : t('vendor.draftOnlyHint')}
+        </p>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button type="button" variant="ghost" size="sm" onClick={() => router.push('/vendor/productos')}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            type="submit"
+            variant="secondary"
+            size="sm"
+            isLoading={isSubmitting && pendingAction === 'DRAFT'}
+            disabled={isSubmitting}
+            onClick={() => {
+              setPendingAction('DRAFT')
+              setValue('status', 'DRAFT')
+            }}
+          >
+            {t('vendor.saveDraft')}
+          </Button>
+          <Button
+            type="submit"
+            size="sm"
+            isLoading={isSubmitting && pendingAction === 'PENDING_REVIEW'}
+            disabled={isSubmitting || !stripeOnboarded}
+            title={stripeOnboarded ? undefined : t('vendor.sendReviewBlocked')}
+            onClick={() => {
+              setPendingAction('PENDING_REVIEW')
+              setValue('status', 'PENDING_REVIEW')
+            }}
+          >
+            {t('vendor.sendReview')}
+          </Button>
+        </div>
       </div>
     </form>
   )
