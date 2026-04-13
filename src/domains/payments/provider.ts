@@ -11,9 +11,29 @@ export interface PaymentIntent {
   amount: number
 }
 
+/**
+ * Optional Stripe Connect destination data for single-vendor orders.
+ *
+ * When provided AND the active provider is `stripe`, the Payment Intent is
+ * created with `transfer_data.destination = vendorAccountId` and an
+ * `application_fee_amount` equal to the platform commission. Stripe routes
+ * the funds directly to the vendor's Express account on capture, minus the
+ * fee, with no extra transfer call required.
+ *
+ * Multi-vendor orders intentionally do NOT pass this — they keep funds on
+ * the platform account and rely on the existing settlement system to pay
+ * each vendor periodically. (Stripe's destination charges only support a
+ * single recipient per Payment Intent.)
+ */
+export interface ConnectDestination {
+  vendorAccountId: string
+  applicationFeeAmountCents: number
+}
+
 export async function createPaymentIntent(
   amountCents: number,
-  metadata: Record<string, string>
+  metadata: Record<string, string>,
+  options?: { connect?: ConnectDestination }
 ): Promise<PaymentIntent> {
   const env = getServerEnv()
 
@@ -33,6 +53,10 @@ export async function createPaymentIntent(
         currency: 'eur',
         metadata,
         automatic_payment_methods: { enabled: true },
+        ...(options?.connect && {
+          application_fee_amount: options.connect.applicationFeeAmountCents,
+          transfer_data: { destination: options.connect.vendorAccountId },
+        }),
       })
 
       return {
@@ -45,6 +69,7 @@ export async function createPaymentIntent(
       console.error('[checkout] stripe payment intent creation failed', {
         amountCents,
         attempt,
+        connectDestination: options?.connect?.vendorAccountId ?? null,
         error,
       })
     }

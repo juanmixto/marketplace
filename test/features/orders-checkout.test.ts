@@ -179,6 +179,28 @@ test('createOrder still validates stock atomically inside the transaction (#133)
   assert.match(actions, /Stock insuficiente para/, 'transactional check must still throw on shortage')
 })
 
+test('createOrder builds Stripe Connect destination data for single-vendor orders (#48)', () => {
+  const actions = readSource('../../src/domains/orders/actions.ts')
+
+  // The vendor select must include the Connect fields used to route money.
+  // Without these on the loaded vendor record, the destination charge logic
+  // below has nothing to read.
+  assert.match(actions, /stripeAccountId:\s*true/, 'vendor select must load stripeAccountId')
+  assert.match(actions, /stripeOnboarded:\s*true/, 'vendor select must load stripeOnboarded')
+  assert.match(actions, /commissionRate:\s*true/, 'vendor select must load commissionRate')
+
+  // The destination-charge branch must only fire when the order has exactly
+  // one vendor AND that vendor has finished Stripe onboarding. Multi-vendor
+  // orders fall back to the platform-account flow + settlement system.
+  assert.match(actions, /vendorIds\.length === 1/, 'destination charges must gate on single-vendor orders')
+  assert.match(actions, /stripeOnboarded\s*&&\s*[a-zA-Z]+\.stripeAccountId/, 'must require completed onboarding')
+
+  // The commission must come out as application_fee_amount, not be silently
+  // dropped or split per-line. Verify the math hits commissionRate.
+  assert.match(actions, /applicationFeeAmountCents/, 'commission must be passed as application_fee_amount')
+  assert.match(actions, /commissionRate/, 'commission rate must drive the fee calculation')
+})
+
 test('checkout success redirects to the confirmation page instead of leaving the buyer without feedback', () => {
   const checkoutClient = readSource('../../src/components/buyer/CheckoutPageClient.tsx')
   const stripeForm = readSource('../../src/components/checkout/StripeCheckoutForm.tsx')

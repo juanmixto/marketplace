@@ -120,7 +120,17 @@ export async function createOrder(
   const products = await db.product.findMany({
     where: { id: { in: validatedItems.map(i => i.productId) }, ...getAvailableProductWhere() },
     include: {
-      vendor: { select: { id: true, slug: true, displayName: true } },
+      vendor: {
+        select: {
+          id: true,
+          slug: true,
+          displayName: true,
+          // Stripe Connect fields drive destination charges below (#48).
+          stripeAccountId: true,
+          stripeOnboarded: true,
+          commissionRate: true,
+        },
+      },
       variants: { where: { isActive: true } },
     },
   })
@@ -232,14 +242,40 @@ export async function createOrder(
     shippingCost
   )
 
+  // Determine unique vendors (used both for the order record and for the
+  // Stripe Connect destination-charge decision below).
+  const vendorIds = [...new Set(lines.map(l => l.vendorId))]
+
+  // Stripe Connect destination charges (#48):
+  // For single-vendor orders where that vendor has completed Stripe Connect
+  // onboarding, route the funds straight to the vendor's Express account
+  // and keep the platform commission as `application_fee_amount`. Stripe
+  // does the split atomically — no separate transfer call needed.
+  //
+  // Multi-vendor orders intentionally fall back to the current behavior
+  // (funds stay on the platform account, paid out via the existing
+  // settlement system). Stripe destination charges only support a single
+  // recipient per Payment Intent.
+  let connectDestination: { vendorAccountId: string; applicationFeeAmountCents: number } | undefined
+  if (vendorIds.length === 1) {
+    const onlyVendor = products.find(p => p.vendor.id === vendorIds[0])?.vendor
+    if (onlyVendor?.stripeOnboarded && onlyVendor.stripeAccountId) {
+      const grandTotalCents = Math.round(grandTotal * 100)
+      const commissionRate = Number(onlyVendor.commissionRate)
+      const applicationFeeAmountCents = Math.round(grandTotalCents * commissionRate)
+      connectDestination = {
+        vendorAccountId: onlyVendor.stripeAccountId,
+        applicationFeeAmountCents,
+      }
+    }
+  }
+
   // Create payment intent (mock or Stripe)
   const payment = await createPaymentIntent(
     Math.round(grandTotal * 100), // cents
-    { userId: sessionUserId }
+    { userId: sessionUserId },
+    connectDestination ? { connect: connectDestination } : undefined
   )
-
-  // Determine unique vendors
-  const vendorIds = [...new Set(lines.map(l => l.vendorId))]
 
   // Create order in transaction
   const env = getServerEnv()
