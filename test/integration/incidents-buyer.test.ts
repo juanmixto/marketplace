@@ -178,11 +178,23 @@ test('getMyIncidents returns only the authenticated buyer incidents, newest firs
   const orderB = await createOrderInStatus(customerB.id, 'DELIVERED')
 
   useTestSession(buildSession(customerA.id, 'CUSTOMER'))
-  await openIncident({ orderId: orderA1.id, type: IncidentType.OTHER, description: 'Caso A1.' })
-  await openIncident({ orderId: orderA2.id, type: IncidentType.OTHER, description: 'Caso A2.' })
+  await openIncident({
+    orderId: orderA1.id,
+    type: IncidentType.OTHER,
+    description: 'Primer caso del cliente A — descripción válida.',
+  })
+  await openIncident({
+    orderId: orderA2.id,
+    type: IncidentType.OTHER,
+    description: 'Segundo caso del cliente A — descripción válida.',
+  })
 
   useTestSession(buildSession(customerB.id, 'CUSTOMER'))
-  await openIncident({ orderId: orderB.id, type: IncidentType.OTHER, description: 'Caso B.' })
+  await openIncident({
+    orderId: orderB.id,
+    type: IncidentType.OTHER,
+    description: 'Único caso del cliente B — descripción válida.',
+  })
 
   // A only sees A's two incidents.
   useTestSession(buildSession(customerA.id, 'CUSTOMER'))
