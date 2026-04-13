@@ -1,4 +1,4 @@
-import { getDemoProductVisual } from '@/lib/demo-product-images'
+import { getDemoProductVisual } from '@/domains/catalog/demo-product-images'
 
 function escapeXml(value: string) {
   return value
