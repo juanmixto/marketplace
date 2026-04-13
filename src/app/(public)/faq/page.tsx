@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { buildPageMetadata } from '@/lib/seo'
 import { getPublicPageCopy } from '@/i18n/public-page-copy'
 import { getServerLocale } from '@/i18n/server'
+import { JsonLd } from '@/components/seo/JsonLd'
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getServerLocale()
@@ -19,8 +20,21 @@ export default async function FAQ() {
   const locale = await getServerLocale()
   const copy = getPublicPageCopy(locale).faq
 
+  const faqSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: copy.sections.flatMap(section =>
+      section.questions.map(faq => ({
+        '@type': 'Question',
+        name: faq.q,
+        acceptedAnswer: { '@type': 'Answer', text: faq.a },
+      })),
+    ),
+  }
+
   return (
     <main className="bg-surface">
+      <JsonLd data={faqSchema} />
       <section className="relative overflow-hidden bg-gradient-to-b from-accent-soft to-surface px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
           <h1 className="mb-6 text-5xl font-bold text-foreground">{copy.heroTitle}</h1>
