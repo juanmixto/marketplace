@@ -1,11 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import {
+  CheckCircleIcon,
+  CloudArrowUpIcon,
+  ExclamationTriangleIcon,
+} from '@heroicons/react/24/outline'
 import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
 import { updateVendorProfile } from '@/domains/vendors/actions'
 import { isAllowedImageUrl } from '@/lib/image-validation'
 import { SingleImageUpload } from './SingleImageUpload'
@@ -36,21 +40,27 @@ const profileSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileSchema>
 type ProfileFormInput = z.input<typeof profileSchema>
 
+type SaveState = 'idle' | 'saving' | 'saved' | 'error'
+
+const AUTOSAVE_DEBOUNCE_MS = 900
+
 interface Props {
   vendor: Vendor
 }
 
 export function VendorProfileForm({ vendor }: Props) {
-  const [success, setSuccess] = useState(false)
+  const [saveState, setSaveState] = useState<SaveState>('idle')
   const [serverError, setServerError] = useState<string | null>(null)
 
   const {
     register,
     handleSubmit,
     control,
-    formState: { errors, isSubmitting, isDirty },
+    watch,
+    formState: { errors },
   } = useForm<ProfileFormInput, unknown, ProfileFormValues>({
     resolver: zodResolver(profileSchema),
+    mode: 'onChange',
     defaultValues: {
       displayName: vendor.displayName,
       description: vendor.description ?? '',
@@ -64,19 +74,56 @@ export function VendorProfileForm({ vendor }: Props) {
     },
   })
 
-  async function onSubmit(values: ProfileFormValues) {
-    setServerError(null)
-    setSuccess(false)
-    try {
-      await updateVendorProfile(values)
-      setSuccess(true)
-    } catch (err) {
-      setServerError(err instanceof Error ? err.message : 'Error al guardar el perfil')
+  // Snapshot of the last successfully saved payload. The watch subscription
+  // compares JSON against this so we only hit the server when something
+  // actually changed (initial render / programmatic resets are ignored).
+  const lastSavedJsonRef = useRef<string | null>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const doSave = useCallback(
+    async (values: ProfileFormValues) => {
+      setSaveState('saving')
+      setServerError(null)
+      try {
+        await updateVendorProfile(values)
+        lastSavedJsonRef.current = JSON.stringify(values)
+        setSaveState('saved')
+      } catch (err) {
+        setSaveState('error')
+        setServerError(err instanceof Error ? err.message : 'Error al guardar el perfil')
+      }
+    },
+    [],
+  )
+
+  useEffect(() => {
+    const subscription = watch(() => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      debounceRef.current = setTimeout(() => {
+        // handleSubmit runs Zod again so we only save when the form is valid.
+        // It silently no-ops on validation errors, which is what we want for
+        // an autosave: the user keeps typing until the input becomes valid.
+        void handleSubmit(async valid => {
+          const nextJson = JSON.stringify(valid)
+          if (nextJson === lastSavedJsonRef.current) return
+          if (lastSavedJsonRef.current === null) {
+            // First tick: seed the baseline with the server values instead of
+            // triggering a redundant save on mount.
+            lastSavedJsonRef.current = nextJson
+            return
+          }
+          await doSave(valid)
+        })()
+      }, AUTOSAVE_DEBOUNCE_MS)
+    })
+    return () => {
+      subscription.unsubscribe()
+      if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  }
+  }, [watch, handleSubmit, doSave])
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={e => e.preventDefault()} className="space-y-6">
       {/* Public info */}
       <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
         <h2 className="font-semibold text-[var(--foreground)]">Información pública</h2>
@@ -187,22 +234,39 @@ export function VendorProfileForm({ vendor }: Props) {
         />
       </section>
 
-      {success && (
-        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-300">
-          Perfil actualizado correctamente.
-        </p>
-      )}
-      {serverError && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/35 dark:text-red-300">
-          {serverError}
-        </p>
-      )}
-
-      <div className="flex justify-end">
-        <Button type="submit" isLoading={isSubmitting} disabled={!isDirty && !isSubmitting}>
-          Guardar cambios
-        </Button>
-      </div>
+      <AutoSaveIndicator state={saveState} error={serverError} />
     </form>
+  )
+}
+
+function AutoSaveIndicator({ state, error }: { state: SaveState; error: string | null }) {
+  if (state === 'saving') {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)]">
+        <CloudArrowUpIcon className="h-4 w-4 animate-pulse" />
+        Guardando cambios...
+      </div>
+    )
+  }
+  if (state === 'saved') {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-300">
+        <CheckCircleIcon className="h-4 w-4" />
+        Cambios guardados automáticamente.
+      </div>
+    )
+  }
+  if (state === 'error') {
+    return (
+      <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/35 dark:text-red-300">
+        <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
+        <span>{error ?? 'Error al guardar. Reintentaremos con tu próximo cambio.'}</span>
+      </div>
+    )
+  }
+  return (
+    <p className="text-xs text-[var(--muted)]">
+      Los cambios se guardan automáticamente mientras editas.
+    </p>
   )
 }
