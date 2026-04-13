@@ -4,7 +4,7 @@ import {
   FAVORITES_UNAVAILABLE_MESSAGE,
   isFavoritesTableMissingError,
   withFavoritesGuard,
-} from '@/lib/favorites'
+} from '@/domains/catalog/favorites'
 
 test('isFavoritesTableMissingError detects the missing Favorite table scenario', () => {
   assert.equal(

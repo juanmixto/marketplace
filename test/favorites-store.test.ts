@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { useFavoritesStore, __resetFavoritesInflight } from '@/lib/favorites-store'
+import { useFavoritesStore, __resetFavoritesInflight } from '@/domains/catalog/favorites-store'
 
 type FetchCall = { url: string; method: string }
 

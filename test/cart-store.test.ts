@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { useCartStore } from '@/lib/cart-store'
+import { useCartStore } from '@/domains/orders/cart-store'
 
 function resetCart() {
   useCartStore.setState({ items: [] })
