@@ -12,13 +12,16 @@ import type { TranslationKeys } from '@/i18n/locales'
 export const metadata: Metadata = { title: 'Mis pedidos' }
 
 const STATUS_CONFIG: Record<string, { labelKey: TranslationKeys; variant: BadgeVariant }> = {
-  PENDING:   { labelKey: 'vendor.orders.statusPending',   variant: 'amber' },
-  CONFIRMED: { labelKey: 'vendor.orders.statusConfirmed', variant: 'default' },
-  PREPARING: { labelKey: 'vendor.orders.statusPreparing', variant: 'default' },
-  READY:     { labelKey: 'vendor.orders.statusReady',     variant: 'green' },
-  SHIPPED:   { labelKey: 'vendor.orders.statusShipped',   variant: 'green' },
-  DELIVERED: { labelKey: 'vendor.orders.statusDelivered', variant: 'green' },
-  CANCELLED: { labelKey: 'vendor.orders.statusCancelled', variant: 'red' },
+  PENDING:         { labelKey: 'vendor.orders.statusPending',   variant: 'amber' },
+  CONFIRMED:       { labelKey: 'vendor.orders.statusConfirmed', variant: 'default' },
+  PREPARING:       { labelKey: 'vendor.orders.statusPreparing', variant: 'default' },
+  LABEL_REQUESTED: { labelKey: 'vendor.orders.statusPreparing', variant: 'default' },
+  LABEL_FAILED:    { labelKey: 'vendor.orders.statusPending',   variant: 'red' },
+  READY:           { labelKey: 'vendor.orders.statusReady',     variant: 'green' },
+  SHIPPED:         { labelKey: 'vendor.orders.statusShipped',   variant: 'green' },
+  DELIVERED:       { labelKey: 'vendor.orders.statusDelivered', variant: 'green' },
+  INCIDENT:        { labelKey: 'vendor.orders.statusPending',   variant: 'red' },
+  CANCELLED:       { labelKey: 'vendor.orders.statusCancelled', variant: 'red' },
 }
 
 export default async function VendorPedidosPage() {
@@ -26,7 +29,7 @@ export default async function VendorPedidosPage() {
   const t = await getServerT()
 
   const active = fulfillments.filter(f =>
-    ['PENDING', 'CONFIRMED', 'PREPARING', 'READY'].includes(f.status)
+    ['PENDING', 'CONFIRMED', 'PREPARING', 'LABEL_REQUESTED', 'LABEL_FAILED', 'READY', 'INCIDENT'].includes(f.status)
   )
   const past = fulfillments.filter(f =>
     ['SHIPPED', 'DELIVERED', 'CANCELLED'].includes(f.status)
@@ -100,7 +103,12 @@ function FulfillmentList({ fulfillments, t }: { fulfillments: FulfillmentWithDet
                   </p>
                 )}
               </div>
-              <FulfillmentActions fulfillmentId={f.id} status={f.status} />
+              <FulfillmentActions
+                fulfillmentId={f.id}
+                status={f.status}
+                labelUrl={f.shipment?.labelUrl ?? null}
+                trackingUrl={f.shipment?.trackingUrl ?? null}
+              />
             </div>
 
             <div className="space-y-2">

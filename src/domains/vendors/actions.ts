@@ -51,6 +51,7 @@ const productSchema = z.object({
   unit: z.string().min(1).max(20),
   stock: z.coerce.number().int().min(0),
   trackStock: z.coerce.boolean(),
+  weightGrams: z.coerce.number().int().positive().max(50000).optional().nullable(),
   certifications: z.array(z.string()).default([]),
   originRegion: z.string().max(100).optional(),
   images: z
@@ -249,9 +250,6 @@ export async function getMyProduct(productId: string) {
 
 const VALID_TRANSITIONS: Partial<Record<FulfillmentStatus, FulfillmentStatus>> = {
   PENDING: 'CONFIRMED',
-  CONFIRMED: 'PREPARING',
-  PREPARING: 'READY',
-  READY: 'SHIPPED',
 }
 
 /**
@@ -325,6 +323,16 @@ export async function getMyFulfillments(filter?: 'active' | 'urgent' | 'shipped'
     },
     orderBy: { createdAt: 'asc' },
     include: {
+      shipment: {
+        select: {
+          id: true,
+          status: true,
+          labelUrl: true,
+          trackingUrl: true,
+          trackingNumber: true,
+          carrierName: true,
+        },
+      },
       order: {
         include: {
           lines: {

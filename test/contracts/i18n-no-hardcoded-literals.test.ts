@@ -74,6 +74,11 @@ const ALLOWLIST_FILES: ReadonlySet<string> = new Set([
   // entries here without first translating the page — see
   // test/contracts/vendor-portal-i18n.test.ts which asserts the vendor area
   // stays out of the allowlist.
+  //
+  // Dev-only mock shipment preview rendered when MockShippingProvider is the
+  // active shipping provider (i.e. Sendcloud credentials absent). Never
+  // reachable in production and deliberately untranslated.
+  'src/app/dev/mock-shipment/[ref]/page.tsx',
 ])
 
 // Files we never scan — pure server/runtime concerns, no user-visible JSX.

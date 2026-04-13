@@ -2,20 +2,27 @@ import type { Metadata } from 'next'
 import { db } from '@/lib/db'
 import { addShippingRate, createShippingZone } from '@/domains/admin/actions'
 import { ShippingRateActions } from '@/components/admin/ShippingRateActions'
-import { formatPrice } from '@/lib/utils'
+import { AdminShipmentRowActions } from '@/components/admin/AdminShipmentRowActions'
+import { listShipmentsForAdmin } from '@/domains/shipping/admin-actions'
+import { formatPrice, formatDate } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Envios | Admin' }
 export const revalidate = 30
 
+const FAILED_STATUSES = ['FAILED', 'EXCEPTION']
+
 export default async function AdminShippingPage() {
-  const zones = await db.shippingZone.findMany({
-    orderBy: { createdAt: 'asc' },
-    include: {
-      rates: {
-        orderBy: [{ minOrderAmount: 'desc' }, { createdAt: 'asc' }],
+  const [zones, shipments] = await Promise.all([
+    db.shippingZone.findMany({
+      orderBy: { createdAt: 'asc' },
+      include: {
+        rates: {
+          orderBy: [{ minOrderAmount: 'desc' }, { createdAt: 'asc' }],
+        },
       },
-    },
-  })
+    }),
+    listShipmentsForAdmin(50),
+  ])
 
   const inputCls = 'w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
 
@@ -126,6 +133,75 @@ export default async function AdminShippingPage() {
             Todavía no hay zonas de envío creadas.
           </p>
         )}
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold text-[var(--foreground)]">Etiquetas generadas</h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            Últimos envíos gestionados por el proveedor logístico. Usa &quot;Reintentar&quot; si una etiqueta queda en estado fallido.
+          </p>
+        </div>
+        <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
+          <div className="grid grid-cols-[1.2fr,1fr,0.8fr,1fr,1fr,auto] gap-4 border-b border-[var(--border)] px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+            <span>Pedido / Productor</span>
+            <span>Estado</span>
+            <span>Carrier</span>
+            <span>Tracking</span>
+            <span>Creado</span>
+            <span className="text-right">Acciones</span>
+          </div>
+          <div className="divide-y divide-[var(--border)]">
+            {shipments.map(s => (
+              <div
+                key={s.id}
+                className="grid grid-cols-[1.2fr,1fr,0.8fr,1fr,1fr,auto] items-start gap-4 px-5 py-3 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-[var(--foreground)]">{s.orderNumber}</p>
+                  <p className="truncate text-xs text-[var(--muted)]">{s.vendorName}</p>
+                </div>
+                <div>
+                  <span className="text-[var(--foreground-soft)]">{s.status}</span>
+                  {s.lastError && (
+                    <p className="mt-0.5 line-clamp-2 text-[10px] text-red-600 dark:text-red-400">
+                      {s.lastError}
+                    </p>
+                  )}
+                </div>
+                <span className="text-[var(--foreground-soft)]">{s.carrierName ?? '—'}</span>
+                <div className="min-w-0">
+                  {s.trackingNumber ? (
+                    s.trackingUrl ? (
+                      <a
+                        href={s.trackingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block truncate font-mono text-xs text-emerald-700 hover:underline"
+                      >
+                        {s.trackingNumber}
+                      </a>
+                    ) : (
+                      <span className="block truncate font-mono text-xs">{s.trackingNumber}</span>
+                    )
+                  ) : (
+                    <span className="text-xs text-[var(--muted)]">—</span>
+                  )}
+                </div>
+                <span className="text-xs text-[var(--muted)]">{formatDate(s.createdAt)}</span>
+                <AdminShipmentRowActions
+                  shipmentId={s.id}
+                  canRetry={FAILED_STATUSES.includes(s.status)}
+                />
+              </div>
+            ))}
+            {shipments.length === 0 && (
+              <p className="px-5 py-6 text-sm text-[var(--muted)]">
+                Aún no se ha generado ninguna etiqueta.
+              </p>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

@@ -27,6 +27,9 @@ const productFormSchema = z.object({
   unit: z.string().min(1, 'Unidad requerida').max(20),
   stock: z.coerce.number().int().min(0, 'No puede ser negativo'),
   trackStock: z.boolean(),
+  weightGrams: z
+    .union([z.coerce.number().int().positive('Debe ser positivo').max(50000, 'Máximo 50000 g'), z.literal(''), z.null(), z.undefined()])
+    .transform(value => (value === '' || value == null ? undefined : value)),
   certifications: z.array(z.string()).default([]),
   originRegion: z.string().max(100).optional(),
   imagesText: z.string().optional().refine(
@@ -83,6 +86,7 @@ export function ProductForm({ categories, initialData, stripeOnboarded }: Produc
       unit: initialData?.unit ?? 'kg',
       stock: initialData?.stock ?? 0,
       trackStock: initialData?.trackStock ?? true,
+      weightGrams: initialData?.weightGrams ?? undefined,
       certifications: initialData?.certifications ?? [],
       originRegion: initialData?.originRegion ?? '',
       imagesText: initialData?.images?.join('\n') ?? '',
@@ -232,6 +236,17 @@ export function ProductForm({ categories, initialData, stripeOnboarded }: Produc
           step="1"
           error={errors.stock?.message}
           {...register('stock')}
+        />
+
+        <Input
+          label={t('vendor.weightGrams')}
+          type="number"
+          min="1"
+          step="1"
+          placeholder="500"
+          hint={t('vendor.weightGramsHint')}
+          error={errors.weightGrams?.message}
+          {...register('weightGrams')}
         />
 
         <Input
