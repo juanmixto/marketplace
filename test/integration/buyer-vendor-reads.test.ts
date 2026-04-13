@@ -31,7 +31,7 @@ afterEach(() => {
 // ─── orders / buyer reads ───────────────────────────────────────────────────
 
 test('getMyOrders returns [] for unauthenticated callers', async () => {
-  // No useTestSession() — caller is anonymous.
+  useTestSession(null)
   const orders = await getMyOrders()
   assert.deepEqual(orders, [])
 })
@@ -72,6 +72,7 @@ test('getMyOrders returns only the authenticated buyers orders', async () => {
 })
 
 test('getOrderDetail returns null for unauthenticated callers', async () => {
+  useTestSession(null)
   const result = await getOrderDetail('any-id')
   assert.equal(result, null)
 })
