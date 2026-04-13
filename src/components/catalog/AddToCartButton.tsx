@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useLocale } from '@/i18n'
-import { useCartStore } from '@/lib/cart-store'
+import { useCartStore } from '@/domains/orders/cart-store'
 import { Button, type ButtonProps } from '@/components/ui/button'
 import { createAnalyticsItem, trackAnalyticsEvent } from '@/lib/analytics'
 import { getCatalogCopy } from '@/i18n/catalog-copy'

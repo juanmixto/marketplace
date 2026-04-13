@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowPathIcon, CheckIcon } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
-import { useCartStore } from '@/lib/cart-store'
+import { useCartStore } from '@/domains/orders/cart-store'
 
 interface RepeatOrderLine {
   id: string
