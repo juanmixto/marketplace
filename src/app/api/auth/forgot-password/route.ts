@@ -29,7 +29,23 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json()
     const data = schema.parse(body)
-    await createPasswordResetToken(data.email)
+    const normalizedEmail = data.email.trim().toLowerCase()
+
+    // Per-identity throttle (#173): a single attacker rotating IPs can blow
+    // through the per-IP bucket trivially; this caps the number of reset
+    // tokens that can be requested for the same email per hour. Response
+    // shape stays identical to the success path so we don't enumerate users.
+    const identityLimit = await checkRateLimit(
+      'forgot-password-identity',
+      normalizedEmail,
+      3,
+      3600,
+      { failClosed: true }
+    )
+
+    if (identityLimit.success) {
+      await createPasswordResetToken(normalizedEmail)
+    }
 
     // Always return success to prevent email enumeration
     // In production, would send actual email with reset link

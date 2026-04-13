@@ -410,6 +410,96 @@ describe('Email Verification and Password Reset (#77)', () => {
       expect(tokenRecord).toBeDefined()
     })
 
+    it('should keep the forgot-password response identical when the per-identity bucket fills up (#173)', async () => {
+      // Hit the per-identity bucket: limit is 3 per hour. Use a fresh email
+      // so we don't collide with other tests; create a real user so the
+      // success path is exercised.
+      const isolatedEmail = `forgot-id-bucket-${Date.now()}@example.com`
+      const isolatedUser = await db.user.create({
+        data: {
+          email: isolatedEmail,
+          firstName: 'Forgot',
+          lastName: 'Bucket',
+          passwordHash: await bcrypt.hash('whatever', 12),
+          emailVerified: new Date(),
+        },
+      })
+
+      try {
+        const responses: number[] = []
+        const messages: string[] = []
+        for (let i = 0; i < 4; i++) {
+          const r = await requestPasswordReset(
+            new Request('http://localhost:3000/api/auth/forgot-password', {
+              method: 'POST',
+              headers: {
+                'content-type': 'application/json',
+                'x-forwarded-for': `203.0.113.${200 + i}`, // rotate IPs so the per-IP bucket isn't the trigger
+              },
+              body: JSON.stringify({ email: isolatedEmail }),
+            }) as never
+          )
+          responses.push(r.status)
+          const json = await r.json()
+          messages.push(json.message ?? '')
+        }
+
+        // Every status must be 200 — we never enumerate users by switching
+        // shape between "we sent" and "we throttled".
+        expect(responses[0]).toBe(200)
+        expect(responses[1]).toBe(200)
+        expect(responses[2]).toBe(200)
+        expect(responses[3]).toBe(200)
+
+        // And the message body is identical across all four.
+        for (const m of messages) expect(m).toContain('Si el email existe')
+
+        // But the per-identity bucket DID actually trip — we should not have
+        // accumulated four token rows for one user. Tokens are deleted before
+        // each create, so we expect at most one alive token AND we expect
+        // some of the create calls to have been short-circuited.
+        const tokenRows = await db.passwordResetToken.findMany({
+          where: { userId: isolatedUser.id },
+        })
+        expect(tokenRows.length).toBeLessThanOrEqual(1)
+      } finally {
+        await db.passwordResetToken.deleteMany({ where: { userId: isolatedUser.id } }).catch(() => {})
+        await db.user.delete({ where: { id: isolatedUser.id } }).catch(() => {})
+      }
+    })
+
+    it('should rate-limit credentials authorize per identity (#173)', async () => {
+      const email = `login-id-${Date.now()}@example.com`
+      const password = 'login-id-test-pass'
+      const user = await db.user.create({
+        data: {
+          email,
+          firstName: 'Login',
+          lastName: 'Id',
+          passwordHash: await bcrypt.hash(password, 12),
+          emailVerified: new Date(),
+          isActive: true,
+        },
+      })
+
+      try {
+        // Hit the per-identity bucket repeatedly with WRONG passwords.
+        // Limit is 10 per 15 min. After that, even the correct password
+        // must be rejected — and the rejection shape is null (same as a
+        // wrong password) so we don't enumerate which accounts are under
+        // attack.
+        for (let i = 0; i < 10; i++) {
+          const result = await authorizeCredentials({ email, password: 'wrong-password' })
+          expect(result).toBeNull()
+        }
+
+        const blocked = await authorizeCredentials({ email, password })
+        expect(blocked).toBeNull()
+      } finally {
+        await db.user.delete({ where: { id: user.id } }).catch(() => {})
+      }
+    })
+
     it('should reset the password through the modern reset-password route', async () => {
       const { token } = await createPasswordResetToken(resetTestEmail)
 

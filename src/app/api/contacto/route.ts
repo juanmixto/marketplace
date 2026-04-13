@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { sendEmail } from '@/lib/email'
 import { createElement } from 'react'
 import { Text } from '@react-email/components'
+import { checkRateLimit, getClientIP } from '@/lib/ratelimit'
 
 const contactSchema = z.object({
   nombre: z.string().min(2).max(100),
@@ -12,12 +13,63 @@ const contactSchema = z.object({
   privacidad: z.literal(true),
 })
 
+const CONTACT_LIMIT_PER_IP = 5
+const CONTACT_LIMIT_PER_EMAIL = 3
+const CONTACT_WINDOW_SECONDS = 3600
+
+function rateLimitedResponse(message: string, resetAt: number, limit: number) {
+  return NextResponse.json(
+    { error: message },
+    {
+      status: 429,
+      headers: {
+        'Retry-After': Math.max(1, Math.ceil((resetAt - Date.now()) / 1000)).toString(),
+        'X-RateLimit-Limit': String(limit),
+        'X-RateLimit-Remaining': '0',
+        'X-RateLimit-Reset': resetAt.toString(),
+      },
+    }
+  )
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
+    // Per-IP throttle (#173): the contact form fans out to email, so an
+    // unbounded POST loop turns into a free mail-bomb against CONTACT_EMAIL.
+    const clientIP = getClientIP(req)
+    const ipLimit = await checkRateLimit(
+      'contact-ip',
+      clientIP,
+      CONTACT_LIMIT_PER_IP,
+      CONTACT_WINDOW_SECONDS
+    )
+    if (!ipLimit.success) {
+      return rateLimitedResponse(
+        'Demasiados envíos desde esta conexión. Intenta de nuevo más tarde.',
+        ipLimit.resetAt,
+        CONTACT_LIMIT_PER_IP
+      )
+    }
 
-    // Validate with Zod
+    const body = await req.json()
     const validated = contactSchema.parse(body)
+
+    // Per-identity throttle so a distributed source can't keep recycling the
+    // same sender address either.
+    const normalizedEmail = validated.email.trim().toLowerCase()
+    const emailLimit = await checkRateLimit(
+      'contact-email',
+      normalizedEmail,
+      CONTACT_LIMIT_PER_EMAIL,
+      CONTACT_WINDOW_SECONDS
+    )
+    if (!emailLimit.success) {
+      return rateLimitedResponse(
+        'Demasiados envíos para este correo. Intenta de nuevo más tarde.',
+        emailLimit.resetAt,
+        CONTACT_LIMIT_PER_EMAIL
+      )
+    }
 
     const contactEmail = process.env.CONTACT_EMAIL
 
