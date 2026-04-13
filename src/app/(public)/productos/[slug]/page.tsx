@@ -88,6 +88,28 @@ export default async function ProductDetailPage({ params }: Props) {
     limit: 4,
   }).then(r => r.products.filter(p => p.id !== product.id).slice(0, 4))
   const reviewSummary = await getProductReviews(product.id)
+  const breadcrumbData = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: copy.breadcrumbs.home, item: absoluteUrl('/') },
+      { '@type': 'ListItem', position: 2, name: copy.breadcrumbs.products, item: absoluteUrl('/productos') },
+      ...(product.category
+        ? [{
+            '@type': 'ListItem',
+            position: 3,
+            name: translateCategoryLabel(product.category.slug, product.category.name, locale),
+            item: absoluteUrl(`/productos?categoria=${product.category.slug}`),
+          }]
+        : []),
+      {
+        '@type': 'ListItem',
+        position: product.category ? 4 : 3,
+        name: localizedProduct.name,
+        item: absoluteUrl(`/productos/${product.slug}`),
+      },
+    ],
+  }
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -115,6 +137,7 @@ export default async function ProductDetailPage({ params }: Props) {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <JsonLd data={structuredData} />
+      <JsonLd data={breadcrumbData} />
       {/* Breadcrumb */}
       <nav className="mb-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-[var(--muted)]">
         <Link href="/" className="rounded-md hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">{copy.breadcrumbs.home}</Link>
