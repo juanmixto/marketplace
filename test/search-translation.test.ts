@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { expandSearchQuery } from '@/lib/search-translation'
+import { expandSearchQuery } from '@/domains/catalog/search-translation'
 
 test('expandSearchQuery returns empty array for empty / whitespace input', () => {
   assert.deepEqual(expandSearchQuery(''), [])

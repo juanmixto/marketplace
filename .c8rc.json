@@ -9,7 +9,7 @@
     "src/domains/**/actions.ts",
     "src/domains/catalog/queries.ts",
     "src/lib/auth.ts",
-    "src/lib/cart-store.ts",
+    "src/domains/orders/cart-store.ts",
     "src/lib/constants.ts",
     "src/lib/db.ts"
   ],

@@ -6,8 +6,8 @@ import Image from 'next/image'
 import { HeartIcon } from '@heroicons/react/24/solid'
 import { ShoppingCartIcon } from '@heroicons/react/24/outline'
 import { useT } from '@/i18n'
-import { useCartStore } from '@/lib/cart-store'
-import { useFavoritesStore } from '@/lib/favorites-store'
+import { useCartStore } from '@/domains/orders/cart-store'
+import { useFavoritesStore } from '@/domains/catalog/favorites-store'
 
 interface FavoriteProduct {
   id: string

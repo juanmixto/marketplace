@@ -38,7 +38,7 @@ test('FavoriteToggleButton uses optimistic state with HeartIcon solid and outlin
 })
 
 test('favorites-store exports useFavoritesStore with loadFavorites, toggle, and has', () => {
-  const source = readSource('../src/lib/favorites-store.ts')
+  const source = readSource('../src/domains/catalog/favorites-store.ts')
 
   assert.match(source, /useFavoritesStore/)
   assert.match(source, /loadFavorites/)
@@ -48,7 +48,7 @@ test('favorites-store exports useFavoritesStore with loadFavorites, toggle, and 
 })
 
 test('favorites-store uses optimistic updates with rollback on API failure', () => {
-  const source = readSource('../src/lib/favorites-store.ts')
+  const source = readSource('../src/domains/catalog/favorites-store.ts')
 
   // Verifies the optimistic update + rollback pattern
   assert.match(source, /Optimistic update/)

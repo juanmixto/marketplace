@@ -6,7 +6,7 @@ import {
   clearOtherDefaults,
   enforceSingleDefault,
   promoteOldestAsDefault,
-} from '@/lib/address-defaults'
+} from '@/domains/auth/address-defaults'
 
 const addressSchema = z.object({
   label: z.string().max(50).optional(),

@@ -11,7 +11,7 @@ import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import { CheckBadgeIcon, TruckIcon, ShieldCheckIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
 import { useLocale, useT } from '@/i18n'
 import type { TranslationKeys } from '@/i18n'
-import { getVendorHeroImage, getVendorVisualLabel } from '@/lib/vendor-visuals'
+import { getVendorHeroImage, getVendorVisualLabel } from '@/domains/vendors/visuals'
 
 interface HomePageClientProps {
   featured: ProductWithVendor[]

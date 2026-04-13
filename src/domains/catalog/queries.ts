@@ -3,8 +3,8 @@ import { db } from '@/lib/db'
 import { PAGINATION_DEFAULTS } from '@/lib/constants'
 import { getAvailableProductWhere } from '@/domains/catalog/availability'
 import { CACHE_TAGS } from '@/lib/cache-tags'
-import { getDemoProductImages } from '@/lib/demo-product-images'
-import { expandSearchQuery } from '@/lib/search-translation'
+import { getDemoProductImages } from '@/domains/catalog/demo-product-images'
+import { expandSearchQuery } from '@/domains/catalog/search-translation'
 
 export interface ProductFilters {
   categorySlug?: string

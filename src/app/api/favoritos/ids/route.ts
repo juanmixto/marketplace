@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { withFavoritesGuard } from '@/lib/favorites'
+import { withFavoritesGuard } from '@/domains/catalog/favorites'
 
 export async function GET() {
   try {

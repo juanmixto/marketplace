@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { useCartStore } from '@/lib/cart-store'
+import { useCartStore } from '@/domains/orders/cart-store'
 import { Button } from '@/components/ui/button'
 import { SafeImage } from '@/components/catalog/SafeImage'
 import { formatPrice } from '@/lib/utils'

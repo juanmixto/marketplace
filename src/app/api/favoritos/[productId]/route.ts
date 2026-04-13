@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { FAVORITES_UNAVAILABLE_MESSAGE, isFavoritesTableMissingError } from '@/lib/favorites'
+import { FAVORITES_UNAVAILABLE_MESSAGE, isFavoritesTableMissingError } from '@/domains/catalog/favorites'
 
 interface RouteParams {
   params: Promise<{ productId: string }>

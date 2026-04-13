@@ -5,7 +5,7 @@ import {
   enforceSingleDefault,
   promoteOldestAsDefault,
   type AddressTxClient,
-} from '@/lib/address-defaults'
+} from '@/domains/auth/address-defaults'
 
 type Call = { method: string; args: unknown }
 

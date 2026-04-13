@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { requireAuth } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
-import { withFavoritesGuard } from '@/lib/favorites'
+import { withFavoritesGuard } from '@/domains/catalog/favorites'
 import { getServerT } from '@/i18n/server'
 import { FavoritosClient } from './FavoritosClient'
 

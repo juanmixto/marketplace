@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { ContactForm } from './ContactForm'
 import { buildPageMetadata } from '@/lib/seo'
-import { BRAND_CLAIMS } from '@/lib/brand-claims'
+import { BRAND_CLAIMS } from '@/domains/vendors/brand-claims'
 import { getPublicPageCopy } from '@/i18n/public-page-copy'
 import { getServerLocale } from '@/i18n/server'
 
