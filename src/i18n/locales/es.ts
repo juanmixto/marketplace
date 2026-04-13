@@ -326,6 +326,8 @@ const es = {
   'vendor.saveDraft': 'Guardar como borrador',
   'vendor.sendReview': 'Enviar a revisión',
   'vendor.statusHint': 'Puedes editar borradores y reenviar productos rechazados más adelante.',
+  'vendor.draftOnlyHint': 'Para enviar a revisión, primero configura Stripe en tu perfil. Mientras tanto, puedes guardar borradores.',
+  'vendor.sendReviewBlocked': 'Configura Stripe antes de enviar a revisión',
   'vendor.autoTranslateHint': 'Los textos del producto se traducen automáticamente para la tienda en el otro idioma. Los compradores verán una insignia cuando estén viendo una traducción automática.',
   'vendor.saveChanges': 'Guardar cambios',
   'vendor.createProduct': 'Crear producto',

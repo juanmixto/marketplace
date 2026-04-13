@@ -128,7 +128,7 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
           setDragActive(false)
         }}
         onDrop={handleDrop}
-        className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition ${
+        className={`flex cursor-pointer items-center gap-3 rounded-xl border border-dashed px-4 py-3 text-left transition ${
           dropZoneDisabled
             ? 'cursor-not-allowed border-[var(--border)] bg-[var(--surface-raised)] opacity-60'
             : dragActive
@@ -136,16 +136,18 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
               : 'border-[var(--border)] bg-[var(--surface-raised)] hover:border-emerald-300 dark:hover:border-emerald-700'
         }`}
       >
-        <ArrowUpTrayIcon className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
-        <p className="mt-3 text-sm font-semibold text-[var(--foreground)]">
-          {t('vendor.upload.title')}
-        </p>
-        <p className="mt-1 text-xs text-[var(--muted)]">
-          {t('vendor.upload.subtitle')}
-        </p>
-        <p className="mt-2 text-xs text-[var(--muted)]">
-          {remainingSlots} / {MAX_IMAGES} {t('vendor.upload.slotsLeft')}
-        </p>
+        <ArrowUpTrayIcon className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-[var(--foreground)]">
+            {t('vendor.upload.title')}
+          </p>
+          <p className="truncate text-xs text-[var(--muted)]">
+            {t('vendor.upload.subtitle')}
+          </p>
+        </div>
+        <span className="shrink-0 text-xs text-[var(--muted)]">
+          {remainingSlots}/{MAX_IMAGES}
+        </span>
         <input
           ref={inputRef}
           id="product-image-upload"

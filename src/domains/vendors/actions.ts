@@ -67,9 +67,15 @@ type ProductInput = z.infer<typeof productSchema>
  * Status defaults to DRAFT. Vendor must submit for review explicitly.
  */
 export async function createProduct(input: ProductInput) {
-  const { vendor } = await requireOnboardedVendor()
+  const { vendor } = await requireVendor()
 
   const data = productSchema.parse(input)
+
+  // Drafts can be saved without Stripe onboarding; only submitting for review
+  // (or any non-draft status) requires a payout destination.
+  if (data.status !== 'DRAFT') {
+    assertVendorOnboarded(vendor)
+  }
 
   // Generate unique slug
   let slug = slugify(data.name)
@@ -108,6 +114,10 @@ export async function updateProduct(productId: string, input: Partial<ProductInp
   if (!product) throw new Error('Producto no encontrado')
 
   const data = productSchema.partial().parse(input)
+
+  if (data.status && data.status !== 'DRAFT') {
+    assertVendorOnboarded(vendor)
+  }
 
   const updated = await db.product.update({
     where: { id: productId },

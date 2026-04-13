@@ -1,11 +1,12 @@
 import { getCategories } from '@/domains/catalog/queries'
+import { getMyVendorProfile } from '@/domains/vendors/actions'
 import { ProductForm } from '@/components/vendor/ProductForm'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Nuevo producto' }
 
 export default async function NuevoProductoPage() {
-  const categories = await getCategories()
+  const [categories, vendor] = await Promise.all([getCategories(), getMyVendorProfile()])
   return (
     <div className="max-w-2xl">
       <div className="mb-6">
@@ -14,7 +15,7 @@ export default async function NuevoProductoPage() {
           Guarda como borrador y envía a revisión cuando esté listo.
         </p>
       </div>
-      <ProductForm categories={categories} />
+      <ProductForm categories={categories} stripeOnboarded={vendor.stripeOnboarded} />
     </div>
   )
 }

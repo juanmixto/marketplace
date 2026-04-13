@@ -328,6 +328,8 @@ const en: Record<TranslationKeys, string> = {
   'vendor.saveDraft': 'Save as draft',
   'vendor.sendReview': 'Send for review',
   'vendor.statusHint': 'You can edit drafts and resubmit rejected products later.',
+  'vendor.draftOnlyHint': 'To send for review, first set up Stripe in your profile. Meanwhile, you can save drafts.',
+  'vendor.sendReviewBlocked': 'Set up Stripe before sending for review',
   'vendor.autoTranslateHint': 'Product text is translated automatically for the storefront in the other language. Shoppers will see a badge when they are viewing an automatic translation.',
   'vendor.saveChanges': 'Save changes',
   'vendor.createProduct': 'Create product',
