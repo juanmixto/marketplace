@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { clearOtherDefaults, enforceSingleDefault } from '@/lib/address-defaults'
+import { clearOtherDefaults, enforceSingleDefault } from '@/domains/auth/address-defaults'
 
 const addressSchema = z.object({
   label: z.string().max(50).optional(),
