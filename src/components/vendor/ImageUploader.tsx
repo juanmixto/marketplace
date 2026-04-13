@@ -1,0 +1,205 @@
+'use client'
+
+/**
+ * Drag-and-drop image uploader for the vendor product form (#31).
+ *
+ * Wraps `POST /api/upload` (multipart/form-data with a `file` field).
+ * Controlled component: parent owns the array of URLs, this just handles
+ * the file selection / progress / preview UI and calls onChange when a
+ * new upload completes or the user removes one.
+ *
+ * Validation (file type, size) is enforced server-side by
+ * src/lib/upload-validation.ts. The client mirrors the rules to fail fast
+ * with a friendly message before the network round-trip, but never trusts
+ * its own check.
+ */
+
+import { useCallback, useRef, useState } from 'react'
+import Image from 'next/image'
+import {
+  ArrowUpTrayIcon,
+  ExclamationTriangleIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline'
+import { useT } from '@/i18n'
+
+const MAX_IMAGES = 6
+const MAX_BYTES = 5 * 1024 * 1024
+const ACCEPTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
+interface UploadingItem {
+  id: string
+  name: string
+}
+
+interface ImageUploaderProps {
+  urls: string[]
+  onChange: (urls: string[]) => void
+  disabled?: boolean
+}
+
+export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) {
+  const t = useT()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [dragActive, setDragActive] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [uploading, setUploading] = useState<UploadingItem[]>([])
+
+  const remainingSlots = Math.max(0, MAX_IMAGES - urls.length - uploading.length)
+
+  const uploadFile = useCallback(
+    async (file: File) => {
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      setUploading(prev => [...prev, { id, name: file.name }])
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+        if (!response.ok) {
+          const data = (await response.json().catch(() => ({}))) as { error?: string }
+          throw new Error(data.error ?? 'upload-failed')
+        }
+        const data = (await response.json()) as { url: string }
+        onChange([...urls, data.url])
+      } catch (uploadError) {
+        setError(
+          uploadError instanceof Error
+            ? `${file.name}: ${uploadError.message}`
+            : t('vendor.upload.error')
+        )
+      } finally {
+        setUploading(prev => prev.filter(item => item.id !== id))
+      }
+    },
+    [onChange, t, urls]
+  )
+
+  const acceptFiles = useCallback(
+    async (fileList: FileList | null) => {
+      if (!fileList) return
+      setError(null)
+
+      const files = Array.from(fileList).slice(0, remainingSlots)
+      for (const file of files) {
+        if (!ACCEPTED_TYPES.has(file.type)) {
+          setError(`${file.name}: ${t('vendor.upload.unsupported')}`)
+          continue
+        }
+        if (file.size > MAX_BYTES) {
+          setError(`${file.name}: ${t('vendor.upload.tooLarge')}`)
+          continue
+        }
+        await uploadFile(file)
+      }
+    },
+    [remainingSlots, t, uploadFile]
+  )
+
+  function handleDrop(event: React.DragEvent<HTMLLabelElement>) {
+    event.preventDefault()
+    setDragActive(false)
+    if (disabled) return
+    void acceptFiles(event.dataTransfer.files)
+  }
+
+  function handleRemove(url: string) {
+    onChange(urls.filter(u => u !== url))
+  }
+
+  const dropZoneDisabled = disabled || remainingSlots === 0
+
+  return (
+    <div className="space-y-3">
+      <label
+        htmlFor="product-image-upload"
+        onDragEnter={event => {
+          event.preventDefault()
+          if (!dropZoneDisabled) setDragActive(true)
+        }}
+        onDragOver={event => {
+          event.preventDefault()
+          if (!dropZoneDisabled) setDragActive(true)
+        }}
+        onDragLeave={event => {
+          event.preventDefault()
+          setDragActive(false)
+        }}
+        onDrop={handleDrop}
+        className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition ${
+          dropZoneDisabled
+            ? 'cursor-not-allowed border-[var(--border)] bg-[var(--surface-raised)] opacity-60'
+            : dragActive
+              ? 'border-emerald-400 bg-emerald-50/60 dark:border-emerald-700 dark:bg-emerald-950/30'
+              : 'border-[var(--border)] bg-[var(--surface-raised)] hover:border-emerald-300 dark:hover:border-emerald-700'
+        }`}
+      >
+        <ArrowUpTrayIcon className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+        <p className="mt-3 text-sm font-semibold text-[var(--foreground)]">
+          {t('vendor.upload.title')}
+        </p>
+        <p className="mt-1 text-xs text-[var(--muted)]">
+          {t('vendor.upload.subtitle')}
+        </p>
+        <p className="mt-2 text-xs text-[var(--muted)]">
+          {remainingSlots} / {MAX_IMAGES} {t('vendor.upload.slotsLeft')}
+        </p>
+        <input
+          ref={inputRef}
+          id="product-image-upload"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          className="hidden"
+          disabled={dropZoneDisabled}
+          onChange={event => {
+            void acceptFiles(event.target.files)
+            // Reset so selecting the same file twice still fires `change`.
+            if (inputRef.current) inputRef.current.value = ''
+          }}
+        />
+      </label>
+
+      {error && (
+        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400">
+          <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {(urls.length > 0 || uploading.length > 0) && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+          {urls.map(url => (
+            <div
+              key={url}
+              className="group relative aspect-square overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-raised)]"
+            >
+              <Image src={url} alt="" fill className="object-cover" sizes="200px" />
+              {!disabled && (
+                <button
+                  type="button"
+                  onClick={() => handleRemove(url)}
+                  className="absolute right-1.5 top-1.5 rounded-full bg-red-500 p-1.5 text-white opacity-0 shadow-lg transition hover:bg-red-600 group-hover:opacity-100 focus-visible:opacity-100"
+                  aria-label={t('vendor.upload.remove')}
+                >
+                  <XMarkIcon className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          ))}
+          {uploading.map(item => (
+            <div
+              key={item.id}
+              className="flex aspect-square flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-emerald-300 bg-emerald-50/40 text-xs text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/20 dark:text-emerald-300"
+            >
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-300 border-t-emerald-600" />
+              <span className="truncate px-2 text-center">{item.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

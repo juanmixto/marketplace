@@ -61,6 +61,12 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: '**.uploadthing.com',
       },
+      {
+        // Vercel Blob storage — used by the upload API when
+        // BLOB_READ_WRITE_TOKEN is set (#31).
+        protocol: 'https',
+        hostname: '**.public.blob.vercel-storage.com',
+      },
     ],
   },
   async headers() {

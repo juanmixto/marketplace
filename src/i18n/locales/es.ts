@@ -329,6 +329,13 @@ const es = {
   'vendor.autoTranslateHint': 'Los textos del producto se traducen automáticamente para la tienda en el otro idioma. Los compradores verán una insignia cuando estén viendo una traducción automática.',
   'vendor.saveChanges': 'Guardar cambios',
   'vendor.createProduct': 'Crear producto',
+  'vendor.upload.title': 'Arrastra tus imágenes aquí',
+  'vendor.upload.subtitle': 'O haz clic para seleccionar archivos. JPG, PNG o WEBP, máximo 5 MB.',
+  'vendor.upload.slotsLeft': 'huecos disponibles',
+  'vendor.upload.remove': 'Eliminar imagen',
+  'vendor.upload.unsupported': 'tipo de archivo no soportado',
+  'vendor.upload.tooLarge': 'archivo demasiado grande (máximo 5 MB)',
+  'vendor.upload.error': 'No se pudo subir la imagen',
 
   // Incident
   'incident.markResolved': 'Marcar como resuelta',
