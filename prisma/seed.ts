@@ -1511,6 +1511,95 @@ async function main() {
     },
   ]
 
+  // Analytics dummy data for finca-garcia: extra orders spread across the last 90 days
+  // so /vendor/liquidaciones shows a meaningful top-products chart.
+  const fincaGarciaId = vendorsBySlug.get('finca-garcia')!.id
+  const analyticsProductCatalog = [
+    { productId: 'prod-tomates', name: 'Tomates cherry ecológicos', unit: 'kg', unitPrice: 3.5, taxRate: 0.04 },
+    { productId: 'prod-calabacin', name: 'Calabacín tierno de temporada', unit: 'kg', unitPrice: 2.9, taxRate: 0.04 },
+    { productId: 'prod-huevos', name: 'Huevos de gallinas camperas', unit: 'docena', unitPrice: 4.8, taxRate: 0.04 },
+    { productId: 'prod-mermelada-fresa', name: 'Mermelada artesana de fresa', unit: 'tarro 280g', unitPrice: 5.4, taxRate: 0.1 },
+    { productId: 'prod-pimientos-padron', name: 'Pimientos de Padrón ecológicos', unit: 'bandeja 400g', unitPrice: 3.9, taxRate: 0.04 },
+    { productId: 'prod-cesta-huerta', name: 'Cesta mixta de huerta', unit: 'cesta 4kg', unitPrice: 14.5, taxRate: 0.04 },
+    { productId: 'prod-lechuga-romana', name: 'Lechuga romana fresca', unit: 'pieza', unitPrice: 1.9, taxRate: 0.04 },
+  ]
+
+  // Deterministic (seeded PRNG) so reseeding is idempotent. LCG — good enough for dummy data.
+  let analyticsSeed = 42
+  const rand = () => {
+    analyticsSeed = (analyticsSeed * 9301 + 49297) % 233280
+    return analyticsSeed / 233280
+  }
+  const pick = <T>(arr: T[]) => arr[Math.floor(rand() * arr.length)]
+
+  // 24 orders spread across the last 90 days. Each with 1–3 Finca García lines.
+  interface AnalyticsLine {
+    id: string
+    productId: string
+    vendorId: string
+    quantity: number
+    unitPrice: number
+    taxRate: number
+    productSnapshot: { name: string; unit: string; vendor: string }
+  }
+  interface AnalyticsOrder {
+    id: string
+    orderNumber: string
+    customerId: string
+    addressId: string
+    subtotal: number
+    shippingCost: number
+    taxAmount: number
+    grandTotal: number
+    placedAt: Date
+    lines: AnalyticsLine[]
+  }
+  const analyticsOrders: AnalyticsOrder[] = []
+  const today = new Date('2026-04-13T12:00:00Z')
+  for (let i = 0; i < 24; i++) {
+    const daysAgo = Math.floor(rand() * 88) + 1
+    const placedAt = new Date(today.getTime() - daysAgo * 86400000)
+    const lineCount = 1 + Math.floor(rand() * 3)
+    const pickedIdx = new Set<number>()
+    const lines: AnalyticsLine[] = []
+    let subtotal = 0
+    for (let l = 0; l < lineCount; l++) {
+      let idx = Math.floor(rand() * analyticsProductCatalog.length)
+      while (pickedIdx.has(idx)) idx = (idx + 1) % analyticsProductCatalog.length
+      pickedIdx.add(idx)
+      const p = analyticsProductCatalog[idx]
+      const quantity = 1 + Math.floor(rand() * 3)
+      const lineTotal = Number((p.unitPrice * quantity).toFixed(2))
+      subtotal += lineTotal
+      lines.push({
+        id: `line-analytics-${i.toString().padStart(3, '0')}-${l}`,
+        productId: p.productId,
+        vendorId: fincaGarciaId,
+        quantity,
+        unitPrice: p.unitPrice,
+        taxRate: p.taxRate,
+        productSnapshot: { name: p.name, unit: p.unit, vendor: 'Finca García' },
+      })
+    }
+    subtotal = Number(subtotal.toFixed(2))
+    const shippingCost = 4.95
+    const taxAmount = Number((subtotal * 0.04).toFixed(2))
+    const grandTotal = Number((subtotal + shippingCost + taxAmount).toFixed(2))
+    const customer = pick([primaryCustomer, secondaryCustomer, thirdCustomer])
+    analyticsOrders.push({
+      id: `order-analytics-${i.toString().padStart(3, '0')}`,
+      orderNumber: `DEMO-ANA-${(2000 + i).toString()}`,
+      customerId: customer.id,
+      addressId: primaryAddress.id,
+      subtotal,
+      shippingCost,
+      taxAmount,
+      grandTotal,
+      placedAt,
+      lines,
+    })
+  }
+
   for (const order of orders) {
     await db.order.upsert({
       where: { id: order.id },
@@ -1619,6 +1708,102 @@ async function main() {
     }
   }
   console.log(`  ✓ ${orders.length} pedidos demo con estados variados`)
+
+  // Upsert analytics synthetic orders (DELIVERED, single-vendor = finca-garcia)
+  for (const order of analyticsOrders) {
+    await db.order.upsert({
+      where: { id: order.id },
+      update: {
+        orderNumber: order.orderNumber,
+        customerId: order.customerId,
+        addressId: order.addressId,
+        status: 'DELIVERED',
+        paymentStatus: 'SUCCEEDED',
+        subtotal: order.subtotal,
+        shippingCost: order.shippingCost,
+        taxAmount: order.taxAmount,
+        grandTotal: order.grandTotal,
+        placedAt: order.placedAt,
+      },
+      create: {
+        id: order.id,
+        orderNumber: order.orderNumber,
+        customerId: order.customerId,
+        addressId: order.addressId,
+        status: 'DELIVERED',
+        paymentStatus: 'SUCCEEDED',
+        subtotal: order.subtotal,
+        shippingCost: order.shippingCost,
+        taxAmount: order.taxAmount,
+        grandTotal: order.grandTotal,
+        placedAt: order.placedAt,
+      },
+    })
+
+    await db.payment.upsert({
+      where: { providerRef: `mock_pi_${order.id}` },
+      update: {
+        orderId: order.id,
+        provider: 'mock',
+        amount: order.grandTotal,
+        currency: 'EUR',
+        status: 'SUCCEEDED',
+      },
+      create: {
+        orderId: order.id,
+        provider: 'mock',
+        providerRef: `mock_pi_${order.id}`,
+        amount: order.grandTotal,
+        currency: 'EUR',
+        status: 'SUCCEEDED',
+      },
+    })
+
+    await db.vendorFulfillment.upsert({
+      where: { id: `fulfillment-${order.id}-${fincaGarciaId}` },
+      update: {
+        orderId: order.id,
+        vendorId: fincaGarciaId,
+        status: 'DELIVERED',
+        carrier: 'Demo Express',
+        trackingNumber: `TRK-ANA-${order.id.slice(-3)}`,
+        shippedAt: new Date(order.placedAt.getTime() + 86400000),
+        deliveredAt: new Date(order.placedAt.getTime() + 2 * 86400000),
+      },
+      create: {
+        id: `fulfillment-${order.id}-${fincaGarciaId}`,
+        orderId: order.id,
+        vendorId: fincaGarciaId,
+        status: 'DELIVERED',
+        carrier: 'Demo Express',
+        trackingNumber: `TRK-ANA-${order.id.slice(-3)}`,
+        shippedAt: new Date(order.placedAt.getTime() + 86400000),
+        deliveredAt: new Date(order.placedAt.getTime() + 2 * 86400000),
+      },
+    })
+
+    for (const line of order.lines) {
+      await db.orderLine.upsert({
+        where: { id: line.id },
+        update: {
+          orderId: order.id,
+          productId: line.productId,
+          vendorId: line.vendorId,
+          quantity: line.quantity,
+          unitPrice: line.unitPrice,
+          taxRate: line.taxRate,
+          productSnapshot: line.productSnapshot,
+          createdAt: order.placedAt,
+        },
+        create: {
+          ...line,
+          orderId: order.id,
+          createdAt: order.placedAt,
+        },
+      })
+    }
+  }
+  console.log(`  ✓ ${analyticsOrders.length} pedidos sintéticos para analítica de liquidaciones`)
 
   await db.refund.upsert({
     where: { id: 'refund-demo-001' },
@@ -1741,7 +1926,20 @@ async function main() {
     })
   }
 
-  const settlements = [
+  interface SettlementSeed {
+    id: string
+    vendorId: string
+    periodFrom: Date
+    periodTo: Date
+    grossSales: number
+    commissions: number
+    refunds: number
+    adjustments: number
+    netPayable: number
+    status: 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'PAID'
+    paidAt: Date | null
+  }
+  const settlements: SettlementSeed[] = [
     {
       id: 'settlement-demo-001',
       vendorId: vendorsBySlug.get('finca-garcia')!.id,
@@ -1795,6 +1993,35 @@ async function main() {
       paidAt: null,
     },
   ]
+
+  // Analytics dummy data: 12 weekly settlements for finca-garcia so the trend chart has real shape.
+  const analyticsTrendBase = new Date('2026-04-12T23:59:59Z') // last Sunday before today
+  for (let w = 0; w < 12; w++) {
+    const periodTo = new Date(analyticsTrendBase.getTime() - w * 7 * 86400000)
+    const periodFrom = new Date(periodTo.getTime() - 6 * 86400000 - 23 * 3600000)
+    // Varied shape: gentle upward trend with some noise, so the bar chart looks realistic.
+    const base = 90 + (11 - w) * 6
+    const noise = ((w * 37) % 23) - 11
+    const grossSales = Number((base + noise).toFixed(2))
+    const commissions = Number((grossSales * 0.1).toFixed(2))
+    const refunds = w % 5 === 0 ? Number((grossSales * 0.08).toFixed(2)) : 0
+    const netPayable = Number((grossSales - commissions - refunds).toFixed(2))
+    const isCurrent = w === 0
+    const isPending = w === 1
+    settlements.push({
+      id: `settlement-analytics-fg-${(11 - w).toString().padStart(2, '0')}`,
+      vendorId: fincaGarciaId,
+      periodFrom,
+      periodTo,
+      grossSales,
+      commissions,
+      refunds,
+      adjustments: 0,
+      netPayable,
+      status: isCurrent ? ('DRAFT' as const) : isPending ? ('APPROVED' as const) : ('PAID' as const),
+      paidAt: isCurrent || isPending ? null : new Date(periodTo.getTime() + 2 * 86400000),
+    })
+  }
 
   for (const settlement of settlements) {
     await db.settlement.upsert({
