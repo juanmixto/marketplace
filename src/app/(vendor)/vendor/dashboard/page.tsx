@@ -91,7 +91,7 @@ export default async function VendorDashboardPage() {
                     {f.status === 'PENDING' ? 'Pendiente de confirmación' : 'Listo para enviar'}
                   </p>
                 </div>
-                <Link href="/vendor/productos"
+                <Link href="/vendor/pedidos"
                   className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
                   Ver pedidos
                 </Link>
@@ -104,14 +104,22 @@ export default async function VendorDashboardPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         {[
-          { label: 'Productos activos', value: vendor.products.length },
-          { label: 'Pedidos activos', value: vendor.fulfillments.length },
-          { label: 'Valoración', value: vendor.avgRating ? `${Number(vendor.avgRating).toFixed(1)}★` : '—' },
+          { label: 'Productos activos', value: vendor.products.length, href: '/vendor/productos' },
+          { label: 'Pedidos activos', value: vendor.fulfillments.length, href: '/vendor/pedidos' },
+          {
+            label: 'Valoración',
+            value: vendor.avgRating ? `${Number(vendor.avgRating).toFixed(1)}★` : '—',
+            href: '/vendor/valoraciones',
+          },
         ].map(s => (
-          <div key={s.label} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
-            <p className="text-2xl font-bold text-[var(--foreground)]">{s.value}</p>
+          <Link
+            key={s.label}
+            href={s.href}
+            className="group rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm transition-all hover:border-emerald-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] dark:hover:border-emerald-500/60"
+          >
+            <p className="text-2xl font-bold text-[var(--foreground)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400">{s.value}</p>
             <p className="text-sm text-[var(--muted)]">{s.label}</p>
-          </div>
+          </Link>
         ))}
       </div>
 

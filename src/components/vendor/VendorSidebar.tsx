@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   HomeIcon, ArchiveBoxIcon, ShoppingBagIcon,
   CurrencyEuroIcon, UserCircleIcon, ArrowTopRightOnSquareIcon,
+  StarIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import { vendorNavItems } from '@/lib/navigation'
@@ -13,6 +14,7 @@ const NAV_META = {
   '/vendor/dashboard':    HomeIcon,
   '/vendor/pedidos':      ShoppingBagIcon,
   '/vendor/productos':    ArchiveBoxIcon,
+  '/vendor/valoraciones': StarIcon,
   '/vendor/liquidaciones':CurrencyEuroIcon,
   '/vendor/perfil':       UserCircleIcon,
 } as const
