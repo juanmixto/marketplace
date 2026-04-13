@@ -148,8 +148,9 @@ export default async function VendorPublicPage({ params }: Props) {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
 
-          {/* Visual label badge */}
-          <span className="absolute left-4 top-4 rounded-full bg-white/20 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
+          {/* Visual label badge — solid dark pill so it stays readable on any
+              hero image (bright/washed-out photos as well as dark ones). */}
+          <span className="absolute left-4 top-4 inline-flex items-center rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white shadow-sm ring-1 ring-white/25 backdrop-blur-sm">
             {visualLabel}
           </span>
         </div>
