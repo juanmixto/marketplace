@@ -21,21 +21,59 @@ import {
   toCheckoutFormAddress,
   type SavedCheckoutAddress,
 } from '@/domains/orders/checkout'
+import {
+  SPAIN_PROVINCES,
+  SPAIN_PROVINCE_BY_PREFIX,
+  getPrefixForProvince,
+  isValidPhone,
+  postalCodeMatchesProvince,
+} from '@/domains/shipping/spain-provinces'
 import { useT } from '@/i18n'
 import { createAnalyticsItem, trackAnalyticsEvent } from '@/lib/analytics'
 
-const schema = z.object({
-  firstName: z.string().min(1, 'Requerido'),
-  lastName: z.string().min(1, 'Requerido'),
-  line1: z.string().min(5, 'Dirección demasiado corta'),
-  line2: z.string().optional(),
-  city: z.string().min(1, 'Requerido'),
-  province: z.string().min(1, 'Requerido'),
-  postalCode: z.string().regex(/^\d{5}$/, 'Código postal inválido (5 dígitos)'),
-  phone: z.string().optional(),
-  saveAddress: z.boolean().optional(),
-  selectedAddressId: z.string().optional(),
-})
+const VALID_PROVINCE_NAMES = new Set(Object.values(SPAIN_PROVINCE_BY_PREFIX))
+
+const schema = z
+  .object({
+    firstName: z.string().trim().min(1, 'Requerido'),
+    lastName: z.string().trim().min(1, 'Requerido'),
+    line1: z.string().trim().min(5, 'Dirección demasiado corta'),
+    line2: z.string().optional(),
+    city: z.string().trim().min(1, 'Requerido'),
+    province: z
+      .string()
+      .refine(v => VALID_PROVINCE_NAMES.has(v), 'Selecciona una provincia válida'),
+    postalCode: z
+      .string()
+      .trim()
+      .regex(/^\d{5}$/, 'Código postal inválido (5 dígitos)'),
+    phone: z
+      .string()
+      .trim()
+      .optional()
+      .refine(
+        v => !v || isValidPhone(v),
+        'Teléfono inválido (solo dígitos, 9-15 cifras)',
+      ),
+    saveAddress: z.boolean().optional(),
+    selectedAddressId: z.string().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (!postalCodeMatchesProvince(value.postalCode, value.province)) {
+      const prefix = getPrefixForProvince(value.province)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['postalCode'],
+        message: prefix
+          ? `El código postal de ${value.province} debe empezar por ${prefix}`
+          : 'El código postal no coincide con la provincia',
+      })
+    }
+  })
+
+function sanitizePhoneChar(input: string): string {
+  return input.replace(/[^+\d\s()\-]/g, '')
+}
 
 type FormData = z.infer<typeof schema>
 
@@ -75,9 +113,25 @@ export function CheckoutPageClient({
     handleSubmit,
     control,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
-  } = useForm<FormData>({ resolver: zodResolver(schema) })
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      firstName: userFirstName,
+      lastName: userLastName,
+      line1: '',
+      line2: '',
+      city: '',
+      province: '',
+      postalCode: '',
+      phone: '',
+      saveAddress: true,
+    },
+  })
   const watchedPostalCode = useWatch({ control, name: 'postalCode' }) ?? ''
+  const watchedProvince = useWatch({ control, name: 'province' }) ?? ''
+  const watchedPhone = useWatch({ control, name: 'phone' }) ?? ''
 
   const shipping = watchedPostalCode.length === 5
     ? calculateShippingCostFromTables({
@@ -324,14 +378,71 @@ export function CheckoutPageClient({
                   </div>
                   <Input label={t('checkout.line1')} placeholder={t('checkout.line1Placeholder')} error={errors.line1?.message} {...register('line1')} />
                   <Input label={t('checkout.line2')} {...register('line2')} />
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="col-span-2">
-                      <Input label={t('checkout.city')} error={errors.city?.message} {...register('city')} />
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="space-y-1.5 sm:col-span-3">
+                      <label className="block text-sm font-medium text-[var(--foreground)]">
+                        {t('checkout.province')}
+                      </label>
+                      <select
+                        className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
+                        value={watchedProvince}
+                        onChange={e =>
+                          setValue('province', e.target.value, {
+                            shouldValidate: true,
+                            shouldDirty: true,
+                          })
+                        }
+                      >
+                        <option value="" disabled>
+                          {t('checkout.provincePlaceholder')}
+                        </option>
+                        {SPAIN_PROVINCES.map(p => (
+                          <option key={p.prefix} value={p.name}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.province?.message && (
+                        <p className="text-xs text-red-600 dark:text-red-400">
+                          {errors.province.message}
+                        </p>
+                      )}
                     </div>
-                    <Input label={t('checkout.postalCode')} placeholder={t('checkout.postalCodePlaceholder')} error={errors.postalCode?.message} {...register('postalCode')} />
+                    <Input
+                      label={t('checkout.postalCode')}
+                      placeholder={t('checkout.postalCodePlaceholder')}
+                      inputMode="numeric"
+                      maxLength={5}
+                      error={errors.postalCode?.message}
+                      {...register('postalCode', {
+                        setValueAs: value =>
+                          typeof value === 'string'
+                            ? value.replace(/\D/g, '').slice(0, 5)
+                            : value,
+                      })}
+                    />
+                    <div className="sm:col-span-2">
+                      <Input
+                        label={t('checkout.city')}
+                        error={errors.city?.message}
+                        {...register('city')}
+                      />
+                    </div>
                   </div>
-                  <Input label={t('checkout.province')} error={errors.province?.message} {...register('province')} />
-                  <Input label={t('checkout.phone')} type="tel" {...register('phone')} />
+                  <Input
+                    label={t('checkout.phone')}
+                    type="tel"
+                    inputMode="tel"
+                    placeholder="+34 600 000 000"
+                    error={errors.phone?.message}
+                    value={watchedPhone}
+                    onChange={e =>
+                      setValue('phone', sanitizePhoneChar(e.target.value), {
+                        shouldValidate: false,
+                        shouldDirty: true,
+                      })
+                    }
+                  />
                   <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--foreground-soft)]">
                     <input type="checkbox" {...register('saveAddress')} className="rounded border-[var(--border-strong)] text-emerald-600 accent-emerald-600 dark:accent-emerald-400" />
                     {t('checkout.saveAddress')}

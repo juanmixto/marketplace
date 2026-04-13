@@ -1,5 +1,5 @@
 import { getMyVendorProfile } from '@/domains/vendors/actions'
-import { getMyVendorAddresses } from '@/domains/shipping/vendor-address-actions'
+import { getVendorAddressPrefill } from '@/domains/shipping/vendor-address-actions'
 import { VendorProfileForm } from '@/components/vendor/VendorProfileForm'
 import { VendorAddressForm } from '@/components/vendor/VendorAddressForm'
 import { StripeConnectUI } from './StripeConnectUI'
@@ -14,8 +14,7 @@ export default async function VendorPerfilPage() {
   if (!vendor) redirect('/login')
   const t = await getServerT()
 
-  const addresses = await getMyVendorAddresses()
-  const defaultAddress = addresses[0] ?? null
+  const addressPrefill = await getVendorAddressPrefill()
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -34,7 +33,7 @@ export default async function VendorPerfilPage() {
           <h2 className="font-semibold text-[var(--foreground)]">{t('vendor.shippingAddress.title')}</h2>
           <p className="text-sm text-[var(--muted)] mt-0.5">{t('vendor.shippingAddress.subtitle')}</p>
         </div>
-        <VendorAddressForm initial={defaultAddress} />
+        <VendorAddressForm initial={addressPrefill} />
       </section>
 
       <VendorProfileForm vendor={vendor} />

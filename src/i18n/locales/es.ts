@@ -213,6 +213,7 @@ const es = {
   'checkout.postalCode': 'Código postal',
   'checkout.postalCodePlaceholder': '28001',
   'checkout.province': 'Provincia',
+  'checkout.provincePlaceholder': 'Selecciona una provincia',
   'checkout.phone': 'Teléfono (opcional)',
   'checkout.saveAddress': 'Guardar esta dirección para futuros pedidos',
   'checkout.payment': 'Pago',
@@ -448,6 +449,8 @@ const es = {
   'vendor.fulfillment.addressMissing': 'Configura tu dirección de origen antes de preparar pedidos',
 
   // Vendor – shipping origin address
+  'vendor.weightGrams': 'Peso por unidad (g)',
+  'vendor.weightGramsHint': 'Usado para calcular el envío. Si no lo rellenas se asume 500 g.',
   'vendor.shippingAddress.title': 'Dirección de recogida',
   'vendor.shippingAddress.subtitle': 'Esta dirección se usará como origen de los envíos que genere el marketplace.',
   'vendor.shippingAddress.contactName': 'Persona de contacto',
@@ -460,6 +463,15 @@ const es = {
   'vendor.shippingAddress.save': 'Guardar dirección',
   'vendor.shippingAddress.saved': 'Dirección guardada',
   'vendor.shippingAddress.saveError': 'No se pudo guardar la dirección',
+  'vendor.shippingAddress.provincePlaceholder': 'Selecciona una provincia',
+  'vendor.shippingAddress.errorContactName': 'Escribe el nombre de contacto',
+  'vendor.shippingAddress.errorPhone': 'Teléfono inválido. Usa solo dígitos, 9-15 cifras',
+  'vendor.shippingAddress.errorLine1': 'Dirección demasiado corta',
+  'vendor.shippingAddress.errorCity': 'Escribe la localidad',
+  'vendor.shippingAddress.errorProvince': 'Selecciona una provincia',
+  'vendor.shippingAddress.errorPostalCodeFormat': 'El código postal debe tener 5 dígitos',
+  'vendor.shippingAddress.errorPostalCodeProvince': 'El código postal de esta provincia debe empezar por {prefix}',
+  'vendor.shippingAddress.errorPostalCodeProvinceGeneric': 'El código postal no coincide con la provincia',
 
   // Vendor – product actions menu
   'vendor.productActions.edit': 'Editar',

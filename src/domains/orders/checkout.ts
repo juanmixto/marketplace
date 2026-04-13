@@ -1,15 +1,46 @@
 import { z } from 'zod'
+import {
+  SPAIN_PROVINCE_BY_PREFIX,
+  getPrefixForProvince,
+  isValidPhone,
+  postalCodeMatchesProvince,
+} from '@/domains/shipping/spain-provinces'
 
-export const addressSchema = z.object({
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
-  line1: z.string().min(5),
-  line2: z.string().optional(),
-  city: z.string().min(1),
-  province: z.string().min(1),
-  postalCode: z.string().regex(/^\d{5}$/, 'Código postal inválido'),
-  phone: z.string().optional(),
-})
+const VALID_PROVINCE_NAMES = new Set(Object.values(SPAIN_PROVINCE_BY_PREFIX))
+
+export const addressSchema = z
+  .object({
+    firstName: z.string().trim().min(1),
+    lastName: z.string().trim().min(1),
+    line1: z.string().trim().min(5),
+    line2: z.string().optional(),
+    city: z.string().trim().min(1),
+    province: z
+      .string()
+      .trim()
+      .refine(v => VALID_PROVINCE_NAMES.has(v), 'Provincia inválida'),
+    postalCode: z
+      .string()
+      .trim()
+      .regex(/^\d{5}$/, 'Código postal inválido'),
+    phone: z
+      .string()
+      .trim()
+      .optional()
+      .refine(v => !v || isValidPhone(v), 'Teléfono inválido'),
+  })
+  .superRefine((value, ctx) => {
+    if (!postalCodeMatchesProvince(value.postalCode, value.province)) {
+      const prefix = getPrefixForProvince(value.province)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['postalCode'],
+        message: prefix
+          ? `El código postal de ${value.province} debe empezar por ${prefix}`
+          : 'El código postal no coincide con la provincia',
+      })
+    }
+  })
 
 export const checkoutSchema = z.object({
   address: addressSchema,

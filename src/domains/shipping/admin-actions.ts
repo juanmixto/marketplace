@@ -5,27 +5,13 @@ import { getActionSession } from '@/lib/action-session'
 import { redirect } from 'next/navigation'
 import { isAdmin } from '@/lib/roles'
 import { safeRevalidatePath } from '@/lib/revalidate'
-import { prepareFulfillment, refreshShipmentTracking } from '@/domains/shipping/actions'
+import { refreshShipmentTracking } from '@/domains/shipping/actions'
+import type { AdminShipmentRow } from '@/domains/shipping/admin-types'
 
 async function requireAdminSession() {
   const session = await getActionSession()
   if (!session || !isAdmin(session.user.role)) redirect('/login')
   return { session }
-}
-
-export interface AdminShipmentRow {
-  id: string
-  fulfillmentId: string
-  status: string
-  providerRef: string | null
-  carrierName: string | null
-  trackingNumber: string | null
-  trackingUrl: string | null
-  labelUrl: string | null
-  lastError: string | null
-  vendorName: string
-  orderNumber: string
-  createdAt: Date
 }
 
 export async function listShipmentsForAdmin(limit = 50): Promise<AdminShipmentRow[]> {
@@ -98,6 +84,3 @@ export async function adminRefreshTracking(shipmentId: string) {
   }
 }
 
-// Re-export to keep consumers typed.
-export type { PrepareFulfillmentResult, PrepareFulfillmentError } from '@/domains/shipping/actions'
-export { prepareFulfillment }

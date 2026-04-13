@@ -8,10 +8,7 @@ import { safeRevalidatePath } from '@/lib/revalidate'
 import { parseOrderAddressSnapshot } from '@/types/order'
 import { parseOrderLineSnapshot } from '@/domains/orders/order-line-snapshot'
 import { getShippingProvider } from '@/domains/shipping/providers'
-import {
-  ShippingError,
-  ShippingValidationError,
-} from '@/domains/shipping/domain/errors'
+import { ShippingError } from '@/domains/shipping/domain/errors'
 import type {
   ParcelItem,
   PostalAddress,
@@ -42,24 +39,10 @@ async function requireAdminSession() {
   return { session }
 }
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface PrepareFulfillmentResult {
-  ok: true
-  fulfillmentId: string
-  shipmentId: string
-  labelUrl: string | null
-  trackingNumber: string | null
-  trackingUrl: string | null
-  carrierName: string | null
-}
-
-export interface PrepareFulfillmentError {
-  ok: false
-  code: string
-  message: string
-  retryable: boolean
-}
+import type {
+  PrepareFulfillmentResult,
+  PrepareFulfillmentError,
+} from '@/domains/shipping/action-types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -623,6 +606,3 @@ async function recomputeOrderStatus(orderId: string): Promise<void> {
   }
 }
 
-// Avoid unused import warnings in strict mode (ShippingValidationError is
-// intentionally exported type for future validators).
-export type { ShippingValidationError }

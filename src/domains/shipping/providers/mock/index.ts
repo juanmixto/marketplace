@@ -33,14 +33,15 @@ export class MockShippingProvider implements ShippingProvider {
     }
     this.seq += 1
     const providerRef = `mock-${this.seq}`
+    const trackingNumber = `TRK${this.seq.toString().padStart(8, '0')}`
     const record: ShipmentRecord = {
       providerCode: 'SENDCLOUD',
       providerRef,
       status: 'LABEL_CREATED',
       carrierName: 'mock-carrier',
-      trackingNumber: `TRK${this.seq.toString().padStart(8, '0')}`,
-      trackingUrl: `https://tracking.mock/${providerRef}`,
-      labelUrl: `https://labels.mock/${providerRef}.pdf`,
+      trackingNumber,
+      trackingUrl: `/dev/mock-shipment/${providerRef}?tab=tracking&number=${trackingNumber}`,
+      labelUrl: `/dev/mock-shipment/${providerRef}?tab=label&number=${trackingNumber}`,
       labelFormat: 'pdf',
       createdAt: new Date(),
       providerMeta: { idempotencyKey: draft.idempotencyKey, reference: draft.reference },
