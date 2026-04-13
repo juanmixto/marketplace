@@ -60,7 +60,6 @@ const ALLOWLIST_FILES: ReadonlySet<string> = new Set([
   'src/app/(admin)/admin/informes/page.tsx',
   'src/app/(admin)/admin/liquidaciones/page.tsx',
   'src/app/(admin)/admin/pedidos/page.tsx',
-  'src/app/(admin)/admin/productores/page.tsx',
   'src/app/(admin)/admin/productos/page.tsx',
   // Auth flows — pending dedicated i18n PR.
   'src/app/(auth)/forgot-password/page.tsx',
