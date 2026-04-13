@@ -8,7 +8,6 @@ import { formatPrice } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import {
   PlusIcon,
-  MinusIcon,
   ExclamationTriangleIcon,
   MagnifyingGlassIcon,
   XMarkIcon,
@@ -18,7 +17,7 @@ import {
   PencilSquareIcon,
 } from '@heroicons/react/24/outline'
 import { ProductActions } from '@/components/vendor/ProductActions'
-import { adjustProductStock, submitForReview } from '@/domains/vendors/actions'
+import { setProductStock, submitForReview } from '@/domains/vendors/actions'
 import { useT } from '@/i18n'
 import type { BadgeVariant } from '@/domains/catalog/types'
 import { formatExpirationLabel, getExpirationTone, isProductExpired } from '@/domains/catalog/availability'
@@ -277,7 +276,7 @@ export function VendorProductListClient({ products }: Props) {
   )
 }
 
-function QuickStockStepper({
+function QuickStockInput({
   product,
   layout,
 }: {
@@ -286,71 +285,79 @@ function QuickStockStepper({
 }) {
   const t = useT()
   const router = useRouter()
-  const [stock, setStock] = useState(product.stock)
+  const [value, setValue] = useState<string>(String(product.stock))
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    setStock(product.stock)
+    setValue(String(product.stock))
   }, [product.stock])
 
-  function apply(delta: number) {
+  function commit() {
     if (pending) return
-    if (delta < 0 && stock + delta < 0) return
-    const optimistic = Math.max(0, stock + delta)
-    setStock(optimistic)
+    const parsed = Math.max(0, Math.floor(Number(value)))
+    if (!Number.isFinite(parsed)) {
+      setValue(String(product.stock))
+      return
+    }
+    if (parsed === product.stock) {
+      setValue(String(product.stock))
+      return
+    }
     setError(null)
     startTransition(async () => {
       try {
-        const result = await adjustProductStock({ productId: product.id, delta })
-        setStock(result.stock)
+        const result = await setProductStock({ productId: product.id, stock: parsed })
+        setValue(String(result.stock))
         router.refresh()
       } catch (err) {
-        setStock(product.stock)
+        setValue(String(product.stock))
         setError(err instanceof Error ? err.message : t('vendor.quickStock.error'))
       }
     })
   }
 
+  const numeric = Number(value)
   const tone =
-    stock === 0
-      ? 'text-red-600 dark:text-red-400'
-      : stock <= 5
-        ? 'text-amber-600 dark:text-amber-400'
-        : 'text-[var(--muted)]'
-
-  const stepperClass = layout === 'grid' ? 'gap-1' : 'gap-1.5'
-  const buttonClass =
-    'inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30'
+    numeric === 0
+      ? 'border-red-300 text-red-700 focus:border-red-500 dark:border-red-800 dark:text-red-300'
+      : numeric <= 5
+        ? 'border-amber-300 text-amber-800 focus:border-amber-500 dark:border-amber-800 dark:text-amber-300'
+        : 'border-[var(--border)] text-[var(--foreground)] focus:border-emerald-500'
 
   return (
-    <div className={layout === 'grid' ? 'flex flex-col gap-1' : 'flex flex-col items-end gap-0.5'}>
-      <div className={`flex items-center ${stepperClass}`} aria-busy={pending || undefined}>
-        <button
-          type="button"
-          onClick={() => apply(-1)}
-          disabled={pending || stock === 0}
-          aria-label={t('vendor.quickStock.decrement').replace('{name}', product.name)}
-          className={buttonClass}
-        >
-          <MinusIcon className="h-3.5 w-3.5" />
-        </button>
-        <span
-          className={`min-w-[3.5rem] text-center text-sm font-semibold tabular-nums ${tone}`}
-          aria-live="polite"
-        >
-          {stock === 0 ? t('vendor.noStock') : `${stock} ${t('vendor.inStock')}`}
-        </span>
-        <button
-          type="button"
-          onClick={() => apply(1)}
+    <div className={layout === 'grid' ? 'flex items-center gap-1.5' : 'flex items-center justify-end gap-1.5'}>
+      <label className="relative">
+        <span className="sr-only">{t('vendor.quickStock.label').replace('{name}', product.name)}</span>
+        <input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          step={1}
+          value={value}
           disabled={pending}
-          aria-label={t('vendor.quickStock.increment').replace('{name}', product.name)}
-          className={buttonClass}
-        >
-          <PlusIcon className="h-3.5 w-3.5" />
-        </button>
-      </div>
+          onChange={e => setValue(e.target.value)}
+          onFocus={e => e.currentTarget.select()}
+          onBlur={commit}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              ;(e.currentTarget as HTMLInputElement).blur()
+            } else if (e.key === 'Escape') {
+              setValue(String(product.stock))
+              ;(e.currentTarget as HTMLInputElement).blur()
+            }
+          }}
+          className={`h-8 w-16 rounded-md border bg-[var(--surface)] px-2 text-right text-sm font-semibold tabular-nums shadow-sm transition focus:outline-none focus:ring-2 focus:ring-emerald-500/30 disabled:opacity-60 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${tone}`}
+        />
+        {pending && (
+          <span
+            aria-hidden="true"
+            className="absolute right-1.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 animate-pulse rounded-full bg-emerald-500"
+          />
+        )}
+      </label>
+      <span className="text-[11px] text-[var(--muted)]">{product.unit}</span>
       {error && (
         <p className="text-[11px] text-red-600 dark:text-red-400" role="alert">
           {error}
@@ -443,7 +450,7 @@ function ProductListRow({ product, now }: { product: ProductWithCategory; now: D
 
       <div className="shrink-0 text-right">
         {product.trackStock && product.variants.length === 0 ? (
-          <QuickStockStepper product={product} layout="list" />
+          <QuickStockInput product={product} layout="list" />
         ) : product.trackStock ? (
           <p className={`text-sm font-medium ${
             product.stock === 0 ? 'text-red-600 dark:text-red-400' :
@@ -501,7 +508,7 @@ function ProductGridCard({ product, now }: { product: ProductWithCategory; now: 
           {formatPrice(Number(product.basePrice))} / {product.unit}
         </p>
         {product.trackStock && product.variants.length === 0 ? (
-          <QuickStockStepper product={product} layout="grid" />
+          <QuickStockInput product={product} layout="grid" />
         ) : product.trackStock ? (
           <p className={`text-xs font-medium ${
             product.stock === 0 ? 'text-red-600 dark:text-red-400' :

@@ -138,18 +138,18 @@ export async function updateProduct(productId: string, input: Partial<ProductInp
 }
 
 /**
- * Adjusts the stock of a product by a delta without going through review.
- * Clamped at 0. Rejected for products with active variants (stock lives on
- * the variant in that case — the vendor must edit variants explicitly).
+ * Sets the stock of a product to an absolute value without going through
+ * review. Rejected for products with active variants (stock lives on the
+ * variant in that case — the vendor must edit variants explicitly).
  */
-const stockDeltaSchema = z.object({
+const stockSetSchema = z.object({
   productId: z.string().min(1),
-  delta: z.number().int().refine(v => v !== 0, 'Delta must be non-zero'),
+  stock: z.number().int().min(0).max(1_000_000),
 })
 
-export async function adjustProductStock(input: z.infer<typeof stockDeltaSchema>) {
+export async function setProductStock(input: z.infer<typeof stockSetSchema>) {
   const { vendor } = await requireVendor()
-  const { productId, delta } = stockDeltaSchema.parse(input)
+  const { productId, stock } = stockSetSchema.parse(input)
 
   const product = await db.product.findFirst({
     where: { id: productId, vendorId: vendor.id, deletedAt: null },
@@ -161,11 +161,9 @@ export async function adjustProductStock(input: z.infer<typeof stockDeltaSchema>
     throw new Error('Productos con variantes: edita el stock por variante')
   }
 
-  const nextStock = Math.max(0, product.stock + delta)
-
   const updated = await db.product.update({
     where: { id: productId },
-    data: { stock: nextStock },
+    data: { stock },
     select: { id: true, stock: true, slug: true },
   })
 

@@ -304,8 +304,7 @@ const en: Record<TranslationKeys, string> = {
   'vendor.expiresSoon': 'Expires soon',
   'vendor.noStock': 'Out of stock',
   'vendor.inStock': 'in stock',
-  'vendor.quickStock.increment': 'Add one unit of stock to {name}',
-  'vendor.quickStock.decrement': 'Remove one unit of stock from {name}',
+  'vendor.quickStock.label': 'Stock for {name}',
   'vendor.quickStock.error': 'Could not update stock',
 
   // Vendor – product form
