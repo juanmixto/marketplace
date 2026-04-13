@@ -2,8 +2,14 @@ import { Metadata } from 'next'
 import Link from 'next/link'
 import { requireVendor } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
-import { format, nextMonday, subDays } from 'date-fns'
+import { format, nextMonday, subDays, startOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
+
+type TrendView = 'week' | 'month'
+
+interface PageProps {
+  searchParams: Promise<{ view?: string }>
+}
 
 export const metadata: Metadata = {
   title: 'Liquidaciones | Portal Productor',
@@ -45,8 +51,10 @@ const statusBadge = (status: string) => {
   )
 }
 
-export default async function Liquidaciones() {
+export default async function Liquidaciones({ searchParams }: PageProps) {
   const { user } = await requireVendor()
+  const params = await searchParams
+  const view: TrendView = params.view === 'month' ? 'month' : 'week'
 
   const vendor = await db.vendor.findUniqueOrThrow({
     where: { userId: user.id },
@@ -92,14 +100,40 @@ export default async function Liquidaciones() {
 
   const nextPaymentDay = format(nextMonday(new Date()), 'dd MMM yyyy', { locale: es })
 
-  // Revenue trend: last 12 settlements in chronological order
-  const trend = settlements
-    .slice(0, 12)
-    .map(s => ({
-      label: format(s.periodTo, 'd MMM', { locale: es }),
-      value: Number(s.netPayable),
-    }))
-    .reverse()
+  // Revenue trend: two views
+  // - week: last 12 settlements in chronological order (one bar per settlement)
+  // - month: group settlements by calendar month (periodTo), last 6 months
+  let trend: Array<{ label: string; value: number }>
+  if (view === 'month') {
+    const byMonth = new Map<string, { label: string; value: number; sortKey: number }>()
+    for (const s of settlements) {
+      const monthStart = startOfMonth(s.periodTo)
+      const key = monthStart.toISOString()
+      const existing = byMonth.get(key)
+      const amount = Number(s.netPayable)
+      if (existing) {
+        existing.value += amount
+      } else {
+        byMonth.set(key, {
+          label: format(monthStart, 'MMM yy', { locale: es }),
+          value: amount,
+          sortKey: monthStart.getTime(),
+        })
+      }
+    }
+    trend = Array.from(byMonth.values())
+      .sort((a, b) => a.sortKey - b.sortKey)
+      .slice(-6)
+      .map(({ label, value }) => ({ label, value }))
+  } else {
+    trend = settlements
+      .slice(0, 12)
+      .map(s => ({
+        label: format(s.periodTo, 'd MMM', { locale: es }),
+        value: Number(s.netPayable),
+      }))
+      .reverse()
+  }
   const trendMax = Math.max(1, ...trend.map(t => t.value))
   const trendTotal = trend.reduce((sum, t) => sum + t.value, 0)
 
@@ -168,14 +202,46 @@ export default async function Liquidaciones() {
       <div className="grid gap-4 lg:grid-cols-5">
         {/* Revenue trend */}
         <section className="rounded-lg border border-gray-200 bg-white p-6 dark:border-[var(--border)] dark:bg-[var(--surface)] lg:col-span-3">
-          <div className="flex items-baseline justify-between">
+          <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold text-gray-900 dark:text-[var(--foreground)]">
-                Facturación por semana
+                {view === 'month' ? 'Facturación por mes' : 'Facturación por semana'}
               </h2>
               <p className="text-xs text-gray-500 dark:text-[var(--muted)]">
-                Últimas {trend.length || 0} liquidaciones · Total {formatEUR(trendTotal)}
+                {view === 'month'
+                  ? `Últimos ${trend.length || 0} meses · Total ${formatEUR(trendTotal)}`
+                  : `Últimas ${trend.length || 0} liquidaciones · Total ${formatEUR(trendTotal)}`}
               </p>
+            </div>
+            <div
+              className="inline-flex rounded-md border border-gray-200 bg-gray-50 p-0.5 text-xs dark:border-[var(--border)] dark:bg-[var(--surface-raised)]"
+              role="tablist"
+              aria-label="Granularidad de la tendencia"
+            >
+              <Link
+                href="/vendor/liquidaciones?view=week"
+                role="tab"
+                aria-selected={view === 'week'}
+                className={`rounded px-3 py-1 font-medium transition-colors ${
+                  view === 'week'
+                    ? 'bg-white text-emerald-600 shadow-sm dark:bg-[var(--surface)] dark:text-emerald-400'
+                    : 'text-gray-600 hover:text-gray-900 dark:text-[var(--muted)] dark:hover:text-[var(--foreground)]'
+                }`}
+              >
+                Semana
+              </Link>
+              <Link
+                href="/vendor/liquidaciones?view=month"
+                role="tab"
+                aria-selected={view === 'month'}
+                className={`rounded px-3 py-1 font-medium transition-colors ${
+                  view === 'month'
+                    ? 'bg-white text-emerald-600 shadow-sm dark:bg-[var(--surface)] dark:text-emerald-400'
+                    : 'text-gray-600 hover:text-gray-900 dark:text-[var(--muted)] dark:hover:text-[var(--foreground)]'
+                }`}
+              >
+                Mes
+              </Link>
             </div>
           </div>
           {trend.length === 0 ? (
@@ -187,23 +253,26 @@ export default async function Liquidaciones() {
               <div
                 className="flex h-40 items-end gap-2"
                 role="img"
-                aria-label={`Facturación de las últimas ${trend.length} semanas`}
+                aria-label={
+                  view === 'month'
+                    ? `Facturación de los últimos ${trend.length} meses`
+                    : `Facturación de las últimas ${trend.length} semanas`
+                }
               >
                 {trend.map((bar, idx) => {
                   const heightPct = Math.max(2, (bar.value / trendMax) * 100)
                   const isLast = idx === trend.length - 1
                   return (
-                    <div key={idx} className="group relative flex flex-1 flex-col items-center">
-                      <div
-                        className={`w-full rounded-t transition-colors ${
-                          isLast
-                            ? 'bg-emerald-500 dark:bg-emerald-400'
-                            : 'bg-emerald-200 group-hover:bg-emerald-400 dark:bg-emerald-900/60 dark:group-hover:bg-emerald-500'
-                        }`}
-                        style={{ height: `${heightPct}%` }}
-                        title={`${bar.label}: ${formatEUR(bar.value)}`}
-                      />
-                    </div>
+                    <div
+                      key={idx}
+                      className={`flex-1 rounded-t transition-colors ${
+                        isLast
+                          ? 'bg-emerald-500 dark:bg-emerald-400'
+                          : 'bg-emerald-200 hover:bg-emerald-400 dark:bg-emerald-900/60 dark:hover:bg-emerald-500'
+                      }`}
+                      style={{ height: `${heightPct}%` }}
+                      title={`${bar.label}: ${formatEUR(bar.value)}`}
+                    />
                   )
                 })}
               </div>
