@@ -53,7 +53,9 @@ const productSchema = z.object({
   trackStock: z.coerce.boolean(),
   certifications: z.array(z.string()).default([]),
   originRegion: z.string().max(100).optional(),
-  images: z.array(z.string().url()).default([]),
+  images: z
+    .array(z.string().refine(isAllowedImageUrl, 'URL de imagen no permitida'))
+    .default([]),
   expiresAt: z.string().date().optional().nullable(),
   status: z.enum(['DRAFT', 'PENDING_REVIEW']).default('DRAFT'),
 })
