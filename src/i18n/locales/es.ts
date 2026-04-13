@@ -382,6 +382,8 @@ const es = {
   'incident.author.VENDOR': 'Productor',
   'incident.error.generic': 'No pudimos completar la operación. Inténtalo de nuevo.',
   'incident.error.tooShort': 'La descripción debe tener al menos 10 caracteres.',
+  'incident.sla.label': 'Plazo de respuesta',
+  'incident.sla.overdue': 'Vencido',
 
   // Account – nav menu
   'account.nav.orders.label': 'Mis pedidos',

@@ -384,6 +384,8 @@ const en: Record<TranslationKeys, string> = {
   'incident.author.VENDOR': 'Vendor',
   'incident.error.generic': 'We could not complete the operation. Please try again.',
   'incident.error.tooShort': 'The description must be at least 10 characters long.',
+  'incident.sla.label': 'Response deadline',
+  'incident.sla.overdue': 'Overdue',
 
   // Account – nav menu
   'account.nav.orders.label': 'My orders',

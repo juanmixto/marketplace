@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getIncidentDetail } from '@/domains/incidents/actions'
 import { IncidentAuthError } from '@/domains/incidents/errors'
+import { SlaProgress } from '@/components/incidents/SlaProgress'
 import { getServerT } from '@/i18n/server'
 import type { TranslationKeys } from '@/i18n/locales'
 import { IncidentReplyForm } from './IncidentReplyForm'
@@ -42,7 +43,7 @@ export default async function IncidentDetailPage({ params }: Props) {
       </Link>
 
       <div className="mt-4 flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold text-[var(--foreground)]">
             {t('incident.list.case')} #{incident.id.slice(-6).toUpperCase()}
           </h1>
@@ -54,6 +55,10 @@ export default async function IncidentDetailPage({ params }: Props) {
         <span className="shrink-0 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
           {t(statusKey)}
         </span>
+      </div>
+
+      <div className="mt-4">
+        <SlaProgress deadline={new Date(incident.slaDeadline)} hidden={isClosed} />
       </div>
 
       {/* Initial description */}
