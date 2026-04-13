@@ -4,6 +4,10 @@ import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { getActionSession } from '@/lib/action-session'
+import { isVendor } from '@/lib/roles'
+import { redirect } from 'next/navigation'
+import { safeRevalidatePath } from '@/lib/revalidate'
 
 const createReviewSchema = z.object({
   orderId: z.string().min(1),
@@ -128,6 +132,69 @@ export async function createReview(
   if (vendor?.slug) revalidatePath(`/productores/${vendor.slug}`)
 }
 
+const respondSchema = z.object({
+  reviewId: z.string().min(1),
+  response: z.string().trim().min(1, 'La respuesta no puede estar vacía').max(1000),
+})
+
+export async function respondToReview(input: z.infer<typeof respondSchema>) {
+  const session = await getActionSession()
+  if (!session || !isVendor(session.user.role)) redirect('/login')
+
+  const vendor = await db.vendor.findUnique({
+    where: { userId: session.user.id },
+    select: { id: true, slug: true },
+  })
+  if (!vendor) redirect('/login')
+
+  const data = respondSchema.parse(input)
+
+  const review = await db.review.findUnique({
+    where: { id: data.reviewId },
+    select: { vendorId: true, product: { select: { slug: true } } },
+  })
+  if (!review || review.vendorId !== vendor.id) {
+    throw new Error('No puedes responder a esta valoración')
+  }
+
+  await db.review.update({
+    where: { id: data.reviewId },
+    data: { vendorResponse: data.response, vendorResponseAt: new Date() },
+  })
+
+  safeRevalidatePath('/vendor/valoraciones')
+  if (review.product?.slug) revalidatePath(`/productos/${review.product.slug}`)
+  revalidatePath(`/productores/${vendor.slug}`)
+}
+
+export async function deleteReviewResponse(reviewId: string) {
+  const session = await getActionSession()
+  if (!session || !isVendor(session.user.role)) redirect('/login')
+
+  const vendor = await db.vendor.findUnique({
+    where: { userId: session.user.id },
+    select: { id: true, slug: true },
+  })
+  if (!vendor) redirect('/login')
+
+  const review = await db.review.findUnique({
+    where: { id: reviewId },
+    select: { vendorId: true, product: { select: { slug: true } } },
+  })
+  if (!review || review.vendorId !== vendor.id) {
+    throw new Error('No puedes modificar esta valoración')
+  }
+
+  await db.review.update({
+    where: { id: reviewId },
+    data: { vendorResponse: null, vendorResponseAt: null },
+  })
+
+  safeRevalidatePath('/vendor/valoraciones')
+  if (review.product?.slug) revalidatePath(`/productos/${review.product.slug}`)
+  revalidatePath(`/productores/${vendor.slug}`)
+}
+
 export async function getProductReviews(productId: string) {
   const [reviews, aggregate] = await Promise.all([
     db.review.findMany({
@@ -139,6 +206,8 @@ export async function getProductReviews(productId: string) {
         rating: true,
         body: true,
         createdAt: true,
+        vendorResponse: true,
+        vendorResponseAt: true,
         customer: {
           select: {
             firstName: true,

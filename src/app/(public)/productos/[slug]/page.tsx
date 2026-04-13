@@ -376,6 +376,14 @@ export default async function ProductDetailPage({ params }: Props) {
                 {review.body && (
                   <p className="mt-3 text-sm leading-relaxed text-[var(--foreground-soft)]">{review.body}</p>
                 )}
+                {review.vendorResponse && (
+                  <div className="mt-4 rounded-xl border-l-2 border-emerald-500 bg-emerald-50/60 p-3 dark:border-emerald-400 dark:bg-emerald-950/30">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                      {product.vendor.displayName}
+                    </p>
+                    <p className="mt-1 text-sm leading-relaxed text-[var(--foreground-soft)]">{review.vendorResponse}</p>
+                  </div>
+                )}
               </article>
             ))}
           </div>
