@@ -1,4 +1,5 @@
 import { HeartIcon, MapPinIcon, ShoppingBagIcon, UserCircleIcon } from '@heroicons/react/24/outline'
+import type { TranslationKeys } from '@/i18n/locales'
 
 export interface AppNavItem {
   href: string
@@ -6,13 +7,19 @@ export interface AppNavItem {
   available: boolean
 }
 
-export const vendorNavItems: AppNavItem[] = [
-  { href: '/vendor/dashboard', label: 'Inicio', available: true },
-  { href: '/vendor/productos', label: 'Mi catalogo', available: true },
-  { href: '/vendor/pedidos', label: 'Mis pedidos', available: true },
-  { href: '/vendor/valoraciones', label: 'Valoraciones', available: true },
-  { href: '/vendor/liquidaciones', label: 'Liquidaciones', available: true },
-  { href: '/vendor/perfil', label: 'Mi perfil', available: true },
+export interface LocalizedNavItem {
+  href: string
+  labelKey: TranslationKeys
+  available: boolean
+}
+
+export const vendorNavItems: LocalizedNavItem[] = [
+  { href: '/vendor/dashboard',     labelKey: 'vendor.nav.dashboard',   available: true },
+  { href: '/vendor/productos',     labelKey: 'vendor.nav.products',    available: true },
+  { href: '/vendor/pedidos',       labelKey: 'vendor.nav.orders',      available: true },
+  { href: '/vendor/valoraciones',  labelKey: 'vendor.nav.reviews',     available: true },
+  { href: '/vendor/liquidaciones', labelKey: 'vendor.nav.settlements', available: true },
+  { href: '/vendor/perfil',        labelKey: 'vendor.nav.profile',     available: true },
 ]
 
 export const adminNavItems: AppNavItem[] = [
@@ -59,10 +66,10 @@ export const buyerAccountMeta = {
   },
 } as const
 
-export function getAvailableNavItems(items: AppNavItem[]) {
+export function getAvailableNavItems<T extends { available: boolean }>(items: T[]): T[] {
   return items.filter(item => item.available)
 }
 
-export function getUpcomingNavItems(items: AppNavItem[]) {
+export function getUpcomingNavItems<T extends { available: boolean }>(items: T[]): T[] {
   return items.filter(item => !item.available)
 }

@@ -122,7 +122,7 @@ export function ProductForm({ categories, initialData, stripeOnboarded }: Produc
       router.push('/vendor/productos')
       router.refresh()
     } catch (error) {
-      setServerError(error instanceof Error ? error.message : 'No se pudo guardar el producto')
+      setServerError(error instanceof Error ? error.message : t('vendor.productForm.saveError'))
       setPendingAction(null)
     }
   }
@@ -297,7 +297,9 @@ export function ProductForm({ categories, initialData, stripeOnboarded }: Produc
 
       {initialData?.variants?.length ? (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-4 text-sm text-[var(--foreground-soft)]">
-          Este producto tiene {initialData.variants.length} variante{initialData.variants.length !== 1 ? 's' : ''}. La edición de variantes aún no está disponible en este formulario.
+          {initialData.variants.length === 1
+            ? t('vendor.productForm.variantsNoteOne')
+            : t('vendor.productForm.variantsNoteOther').replace('{count}', String(initialData.variants.length))}
         </div>
       ) : null}
 

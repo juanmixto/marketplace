@@ -15,31 +15,35 @@ import { updateVendorProfile } from '@/domains/vendors/actions'
 import { isAllowedImageUrl } from '@/lib/image-validation'
 import { SingleImageUpload } from './SingleImageUpload'
 import type { Vendor } from '@/generated/prisma/client'
+import { useT } from '@/i18n'
+import { useMemo } from 'react'
 
-const imageFieldSchema = z
-  .union([z.string(), z.literal(''), z.undefined()])
-  .transform(v => (v ?? '').trim())
-  .refine(
-    v => v === '' || isAllowedImageUrl(v),
-    'URL inválida. Sube una imagen o usa cloudinary.com, uploadthing.com o unsplash.com (HTTPS)',
-  )
+function buildProfileSchema(t: ReturnType<typeof useT>) {
+  const imageFieldSchema = z
+    .union([z.string(), z.literal(''), z.undefined()])
+    .transform(v => (v ?? '').trim())
+    .refine(
+      v => v === '' || isAllowedImageUrl(v),
+      t('vendor.profileForm.imageUrlError'),
+    )
+  return z.object({
+    displayName: z.string().min(3, t('vendor.profileForm.nameMin')).max(80),
+    description: z.string().max(2000).optional(),
+    location: z.string().max(100).optional(),
+    logo: imageFieldSchema,
+    coverImage: imageFieldSchema,
+    orderCutoffTime: z
+      .union([z.string().regex(/^\d{2}:\d{2}$/, t('vendor.profileForm.cutoffFormat')), z.literal(''), z.undefined()])
+      .transform(v => v || undefined),
+    preparationDays: z.coerce.number().int().min(0).max(30).optional(),
+    iban: z.string().max(34).optional(),
+    bankAccountName: z.string().max(100).optional(),
+  })
+}
 
-const profileSchema = z.object({
-  displayName: z.string().min(3, 'Mínimo 3 caracteres').max(80),
-  description: z.string().max(2000).optional(),
-  location: z.string().max(100).optional(),
-  logo: imageFieldSchema,
-  coverImage: imageFieldSchema,
-  orderCutoffTime: z
-    .union([z.string().regex(/^\d{2}:\d{2}$/, 'Formato HH:MM'), z.literal(''), z.undefined()])
-    .transform(v => v || undefined),
-  preparationDays: z.coerce.number().int().min(0).max(30).optional(),
-  iban: z.string().max(34).optional(),
-  bankAccountName: z.string().max(100).optional(),
-})
-
-type ProfileFormValues = z.infer<typeof profileSchema>
-type ProfileFormInput = z.input<typeof profileSchema>
+type ProfileSchema = ReturnType<typeof buildProfileSchema>
+type ProfileFormValues = z.infer<ProfileSchema>
+type ProfileFormInput = z.input<ProfileSchema>
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 
@@ -51,8 +55,11 @@ interface Props {
 
 export function VendorProfileForm({ vendor }: Props) {
   const router = useRouter()
+  const t = useT()
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const [serverError, setServerError] = useState<string | null>(null)
+
+  const profileSchema = useMemo(() => buildProfileSchema(t), [t])
 
   const {
     register,
@@ -96,10 +103,10 @@ export function VendorProfileForm({ vendor }: Props) {
         router.refresh()
       } catch (err) {
         setSaveState('error')
-        setServerError(err instanceof Error ? err.message : 'Error al guardar el perfil')
+        setServerError(err instanceof Error ? err.message : t('vendor.profileForm.profileSaveError'))
       }
     },
-    [router],
+    [router, t],
   )
 
   useEffect(() => {
@@ -132,31 +139,31 @@ export function VendorProfileForm({ vendor }: Props) {
     <form onSubmit={e => e.preventDefault()} className="space-y-6">
       {/* Public info */}
       <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
-        <h2 className="font-semibold text-[var(--foreground)]">Información pública</h2>
+        <h2 className="font-semibold text-[var(--foreground)]">{t('vendor.profileForm.publicInfo')}</h2>
 
         <Input
-          label="Nombre del productor"
+          label={t('vendor.profileForm.nameLabel')}
           error={errors.displayName?.message}
           {...register('displayName')}
         />
 
         <div className="space-y-1.5">
           <label htmlFor="description" className="block text-sm font-medium text-[var(--foreground)]">
-            Descripción
+            {t('vendor.profileForm.description')}
           </label>
           <textarea
             id="description"
             rows={8}
             className="w-full min-h-[12rem] resize-y rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm leading-relaxed text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
-            placeholder="Cuéntanos sobre tu explotación, tus prácticas, tu historia..."
+            placeholder={t('vendor.profileForm.descriptionPlaceholder')}
             {...register('description')}
           />
           {errors.description?.message && <p className="text-xs text-red-600 dark:text-red-400">{errors.description.message}</p>}
         </div>
 
         <Input
-          label="Ubicación"
-          placeholder="Navarra, España"
+          label={t('vendor.profileForm.location')}
+          placeholder={t('vendor.profileForm.locationPlaceholder')}
           error={errors.location?.message}
           {...register('location')}
         />
@@ -167,7 +174,7 @@ export function VendorProfileForm({ vendor }: Props) {
           render={({ field }) => (
             <SingleImageUpload
               id="vendor-logo"
-              label="Foto de perfil"
+              label={t('vendor.profileForm.logoLabel')}
               value={field.value ?? ''}
               onChange={field.onChange}
               shape="circle"
@@ -184,7 +191,7 @@ export function VendorProfileForm({ vendor }: Props) {
           render={({ field }) => (
             <SingleImageUpload
               id="vendor-cover"
-              label="Portada del escaparate"
+              label={t('vendor.profileForm.coverLabel')}
               value={field.value ?? ''}
               onChange={field.onChange}
               shape="banner"
@@ -198,21 +205,21 @@ export function VendorProfileForm({ vendor }: Props) {
 
       {/* Logistics */}
       <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
-        <h2 className="font-semibold text-[var(--foreground)]">Logística</h2>
+        <h2 className="font-semibold text-[var(--foreground)]">{t('vendor.profileForm.logistics')}</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
-            label="Hora de corte de pedidos"
+            label={t('vendor.profileForm.cutoffLabel')}
             placeholder="18:00"
-            hint="Formato HH:MM. Pedidos recibidos después se procesan al día siguiente."
+            hint={t('vendor.profileForm.cutoffHint')}
             error={errors.orderCutoffTime?.message}
             {...register('orderCutoffTime')}
           />
           <Input
-            label="Días de preparación"
+            label={t('vendor.profileForm.prepDaysLabel')}
             type="number"
             min="0"
             max="30"
-            hint="Tiempo estimado antes del envío."
+            hint={t('vendor.profileForm.prepDaysHint')}
             error={errors.preparationDays?.message}
             {...register('preparationDays')}
           />
@@ -221,34 +228,42 @@ export function VendorProfileForm({ vendor }: Props) {
 
       {/* Banking */}
       <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
-        <h2 className="font-semibold text-[var(--foreground)]">Datos bancarios</h2>
-        <p className="text-sm text-[var(--muted)]">Para recibir tus liquidaciones.</p>
+        <h2 className="font-semibold text-[var(--foreground)]">{t('vendor.profileForm.bankHeading')}</h2>
+        <p className="text-sm text-[var(--muted)]">{t('vendor.profileForm.bankSubtitle')}</p>
         <Input
-          label="IBAN"
+          label={t('vendor.profileForm.ibanLabel')}
           placeholder="ES76 2100 0418 4502 0005 1332"
-          hint="Solo se usa para transferencias de liquidación."
+          hint={t('vendor.profileForm.ibanHint')}
           error={errors.iban?.message}
           {...register('iban')}
         />
         <Input
-          label="Titular de la cuenta"
-          placeholder="Nombre del titular o empresa"
+          label={t('vendor.profileForm.accountHolderLabel')}
+          placeholder={t('vendor.profileForm.accountHolderPlaceholder')}
           error={errors.bankAccountName?.message}
           {...register('bankAccountName')}
         />
       </section>
 
-      <AutoSaveIndicator state={saveState} error={serverError} />
+      <AutoSaveIndicator state={saveState} error={serverError} t={t} />
     </form>
   )
 }
 
-function AutoSaveIndicator({ state, error }: { state: SaveState; error: string | null }) {
+function AutoSaveIndicator({
+  state,
+  error,
+  t,
+}: {
+  state: SaveState
+  error: string | null
+  t: ReturnType<typeof useT>
+}) {
   if (state === 'saving') {
     return (
       <div className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)]">
         <CloudArrowUpIcon className="h-4 w-4 animate-pulse" />
-        Guardando cambios...
+        {t('vendor.profileForm.saving')}
       </div>
     )
   }
@@ -256,7 +271,7 @@ function AutoSaveIndicator({ state, error }: { state: SaveState; error: string |
     return (
       <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-300">
         <CheckCircleIcon className="h-4 w-4" />
-        Cambios guardados automáticamente.
+        {t('vendor.profileForm.saved')}
       </div>
     )
   }
@@ -264,13 +279,13 @@ function AutoSaveIndicator({ state, error }: { state: SaveState; error: string |
     return (
       <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/35 dark:text-red-300">
         <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
-        <span>{error ?? 'Error al guardar. Reintentaremos con tu próximo cambio.'}</span>
+        <span>{error ?? t('vendor.profileForm.saveError')}</span>
       </div>
     )
   }
   return (
     <p className="text-xs text-[var(--muted)]">
-      Los cambios se guardan automáticamente mientras editas.
+      {t('vendor.profileForm.autosaveHint')}
     </p>
   )
 }

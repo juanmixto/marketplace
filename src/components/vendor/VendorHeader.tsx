@@ -6,6 +6,7 @@ import { UserCircleIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { useT } from '@/i18n'
 
 interface Props {
   user: { name?: string | null; email?: string | null }
@@ -14,6 +15,7 @@ interface Props {
 
 export function VendorHeader({ user, vendor }: Props) {
   const [open, setOpen] = useState(false)
+  const t = useT()
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-6">
@@ -22,7 +24,7 @@ export function VendorHeader({ user, vendor }: Props) {
           href="/"
           className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
         >
-          Ver tienda
+          {t('vendor.header.viewStore')}
         </Link>
         {vendor?.slug && (
           <Link
@@ -30,7 +32,7 @@ export function VendorHeader({ user, vendor }: Props) {
             target="_blank"
             className="rounded-lg px-3 py-1.5 text-sm text-[var(--muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
           >
-            Mi escaparate ↗
+            {t('vendor.header.myShowcase')} ↗
           </Link>
         )}
       </div>
@@ -58,13 +60,13 @@ export function VendorHeader({ user, vendor }: Props) {
                 onClick={() => setOpen(false)}
                 className="block rounded-lg px-3 py-2.5 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] mx-1"
               >
-                Ir a la tienda
+                {t('vendor.header.goToStore')}
               </Link>
               <button
                 onClick={() => signOut({ callbackUrl: '/login' })}
                 className="mt-1 w-full rounded-lg border-t border-[var(--border)] px-3 py-2.5 text-left text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40 mx-1 pt-2"
               >
-                Cerrar sesión
+                {t('vendor.header.signOut')}
               </button>
             </div>
           </>

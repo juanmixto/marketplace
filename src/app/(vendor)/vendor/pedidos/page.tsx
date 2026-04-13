@@ -6,21 +6,24 @@ import type { Metadata } from 'next'
 import { FulfillmentActions } from '@/components/vendor/FulfillmentActions'
 import type { BadgeVariant } from '@/domains/catalog/types'
 import { parseOrderAddressSnapshot } from '@/types/order'
+import { getServerT } from '@/i18n/server'
+import type { TranslationKeys } from '@/i18n/locales'
 
 export const metadata: Metadata = { title: 'Mis pedidos' }
 
-const STATUS_CONFIG: Record<string, { label: string; variant: BadgeVariant }> = {
-  PENDING:   { label: 'Pendiente',   variant: 'amber' },
-  CONFIRMED: { label: 'Confirmado',  variant: 'default' },
-  PREPARING: { label: 'Preparando', variant: 'default' },
-  READY:     { label: 'Listo',       variant: 'green' },
-  SHIPPED:   { label: 'Enviado',     variant: 'green' },
-  DELIVERED: { label: 'Entregado',   variant: 'green' },
-  CANCELLED: { label: 'Cancelado',   variant: 'red' },
+const STATUS_CONFIG: Record<string, { labelKey: TranslationKeys; variant: BadgeVariant }> = {
+  PENDING:   { labelKey: 'vendor.orders.statusPending',   variant: 'amber' },
+  CONFIRMED: { labelKey: 'vendor.orders.statusConfirmed', variant: 'default' },
+  PREPARING: { labelKey: 'vendor.orders.statusPreparing', variant: 'default' },
+  READY:     { labelKey: 'vendor.orders.statusReady',     variant: 'green' },
+  SHIPPED:   { labelKey: 'vendor.orders.statusShipped',   variant: 'green' },
+  DELIVERED: { labelKey: 'vendor.orders.statusDelivered', variant: 'green' },
+  CANCELLED: { labelKey: 'vendor.orders.statusCancelled', variant: 'red' },
 }
 
 export default async function VendorPedidosPage() {
   const fulfillments = await getMyFulfillments('all')
+  const t = await getServerT()
 
   const active = fulfillments.filter(f =>
     ['PENDING', 'CONFIRMED', 'PREPARING', 'READY'].includes(f.status)
@@ -29,30 +32,35 @@ export default async function VendorPedidosPage() {
     ['SHIPPED', 'DELIVERED', 'CANCELLED'].includes(f.status)
   )
 
+  const totalLabel =
+    fulfillments.length === 1
+      ? t('vendor.orders.totalOne')
+      : t('vendor.orders.totalOther').replace('{count}', String(fulfillments.length))
+
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">Mis pedidos</h1>
-        <p className="text-sm text-[var(--muted)] mt-0.5">{fulfillments.length} pedido{fulfillments.length !== 1 ? 's' : ''} en total</p>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">{t('vendor.orders.title')}</h1>
+        <p className="text-sm text-[var(--muted)] mt-0.5">{totalLabel}</p>
       </div>
 
       {fulfillments.length === 0 ? (
         <div className="rounded-xl border-2 border-dashed border-[var(--border)] py-16 text-center">
-          <p className="text-[var(--muted)]">Aún no tienes pedidos</p>
+          <p className="text-[var(--muted)]">{t('vendor.orders.empty')}</p>
         </div>
       ) : (
         <>
           {active.length > 0 && (
             <section>
-              <h2 className="text-sm font-semibold text-[var(--muted)] uppercase tracking-wide mb-3">Activos</h2>
-              <FulfillmentList fulfillments={active} />
+              <h2 className="text-sm font-semibold text-[var(--muted)] uppercase tracking-wide mb-3">{t('vendor.orders.sectionActive')}</h2>
+              <FulfillmentList fulfillments={active} t={t} />
             </section>
           )}
 
           {past.length > 0 && (
             <section>
-              <h2 className="text-sm font-semibold text-[var(--muted)] uppercase tracking-wide mb-3">Historial</h2>
-              <FulfillmentList fulfillments={past} />
+              <h2 className="text-sm font-semibold text-[var(--muted)] uppercase tracking-wide mb-3">{t('vendor.orders.sectionHistory')}</h2>
+              <FulfillmentList fulfillments={past} t={t} />
             </section>
           )}
         </>
@@ -62,12 +70,15 @@ export default async function VendorPedidosPage() {
 }
 
 type FulfillmentWithDetails = Awaited<ReturnType<typeof getMyFulfillments>>[number]
+type Translate = Awaited<ReturnType<typeof getServerT>>
 
-function FulfillmentList({ fulfillments }: { fulfillments: FulfillmentWithDetails[] }) {
+function FulfillmentList({ fulfillments, t }: { fulfillments: FulfillmentWithDetails[]; t: Translate }) {
   return (
     <div className="divide-y divide-[var(--border)] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
       {fulfillments.map(f => {
-        const statusConfig = STATUS_CONFIG[f.status] ?? { label: f.status, variant: 'default' as BadgeVariant }
+        const statusEntry = STATUS_CONFIG[f.status]
+        const statusLabel = statusEntry ? t(statusEntry.labelKey) : f.status
+        const statusVariant: BadgeVariant = statusEntry?.variant ?? 'default'
         const customer = f.order.customer
         const shippingAddress = parseOrderAddressSnapshot(f.order.shippingAddressSnapshot) ?? f.order.address
         return (
@@ -76,9 +87,9 @@ function FulfillmentList({ fulfillments }: { fulfillments: FulfillmentWithDetail
               <div>
                 <div className="flex items-center gap-2">
                   <p className="font-medium text-[var(--foreground)]">
-                    Pedido #{f.orderId.slice(-6).toUpperCase()}
+                    {t('vendor.orders.orderNumber').replace('{id}', f.orderId.slice(-6).toUpperCase())}
                   </p>
-                  <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
+                  <Badge variant={statusVariant}>{statusLabel}</Badge>
                 </div>
                 <p className="text-sm text-[var(--muted)] mt-0.5">
                   {customer.firstName} {customer.lastName} · {formatDate(f.createdAt)}
@@ -115,7 +126,7 @@ function FulfillmentList({ fulfillments }: { fulfillments: FulfillmentWithDetail
 
             {f.trackingNumber && (
               <p className="text-xs text-[var(--muted)]">
-                Seguimiento: <span className="font-mono">{f.trackingNumber}</span>
+                {t('vendor.orders.tracking')}: <span className="font-mono">{f.trackingNumber}</span>
                 {f.carrier && ` (${f.carrier})`}
               </p>
             )}

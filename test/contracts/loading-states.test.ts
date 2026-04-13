@@ -65,7 +65,7 @@ test('ProductActions Enviar a revisión button is disabled and aria-busy while i
   assert.match(src, /disabled=\{loading\}/, 'must disable while loading')
   assert.match(src, /aria-busy=\{loading \|\| undefined\}/, 'must announce busy state')
   // Label must change so a sighted user without a spinner still gets feedback.
-  assert.match(src, /loading \? 'Enviando…'/)
+  assert.match(src, /loading \? t\('vendor\.productActions\.sending'\)/)
 })
 
 test('ProductModerationActions reject button is disabled while approve is pending (#188)', () => {
