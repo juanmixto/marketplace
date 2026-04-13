@@ -1,3 +1,4 @@
+// Static page content module. See ./README.md for when to use *-copy.ts vs flat keys.
 import { DEFAULT_COMMISSION_RATE } from '@/lib/constants'
 import { BRAND_CLAIMS } from '@/lib/brand-claims'
 import type { Locale } from './locales'
