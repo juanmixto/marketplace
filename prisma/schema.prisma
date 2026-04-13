@@ -656,7 +656,7 @@ model Favorite {
 model EmailVerificationToken {
   id        String   @id @default(cuid())
   userId    String
-  token     String   @unique @default(cuid())
+  tokenHash String   @unique
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime @default(now())
@@ -664,13 +664,12 @@ model EmailVerificationToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@index([token])
 }
 
 model PasswordResetToken {
   id        String   @id @default(cuid())
   userId    String
-  token     String   @unique @default(cuid())
+  tokenHash String   @unique
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime @default(now())
@@ -678,5 +677,4 @@ model PasswordResetToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@index([token])
 }

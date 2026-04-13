@@ -18,6 +18,17 @@ import { POST as registerUser } from '@/app/api/auth/register/route'
 import { POST as requestPasswordReset } from '@/app/api/auth/forgot-password/route'
 import { POST as resetPassword } from '@/app/api/auth/reset-password/route'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
+
+// Mirror the production digest derivation. The HMAC pepper falls back to a
+// fixed dev-only value when AUTH_SECRET / NEXTAUTH_SECRET aren't set, so
+// tests get the same digest the server would compute.
+function tokenPepper(): string {
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
+  return secret ? `auth-token-pepper:${secret}` : 'auth-token-pepper:dev-only-fallback-do-not-use-in-prod'
+}
+const sha256 = (token: string) =>
+  crypto.createHmac('sha256', tokenPepper()).update(token).digest('hex')
 
 describe('Email Verification and Password Reset (#77)', () => {
   let testUserId: string
@@ -47,10 +58,26 @@ describe('Email Verification and Password Reset (#77)', () => {
       expect(token).toBeTruthy()
       expect(token.length).toBeGreaterThan(20)
 
-      const record = await db.emailVerificationToken.findUnique({ where: { token } })
+      const record = await db.emailVerificationToken.findUnique({
+        where: { tokenHash: sha256(token) },
+      })
       expect(record).toBeDefined()
       expect(record?.userId).toBe(testUserId)
       expect(record?.usedAt).toBeNull()
+    })
+
+    it('should never persist the plaintext token', async () => {
+      const token = await createEmailVerificationToken(testUserId)
+      const records = await db.emailVerificationToken.findMany({
+        where: { userId: testUserId },
+      })
+      // No record should contain the plaintext token in the hash column.
+      for (const r of records) {
+        expect(r.tokenHash).not.toBe(token)
+        expect(r.tokenHash).toBe(sha256(token))
+      }
+      // Lookup by raw token must NOT exist as a column.
+      // (compile-time guarantee via Prisma client; runtime: hash matches)
     })
 
     it('should verify email with valid token', async () => {
@@ -86,7 +113,7 @@ describe('Email Verification and Password Reset (#77)', () => {
 
       // Artificially expire the token
       await db.emailVerificationToken.update({
-        where: { token },
+        where: { tokenHash: sha256(token) },
         data: { expiresAt: new Date(Date.now() - 1000) },
       })
 
@@ -161,7 +188,11 @@ describe('Email Verification and Password Reset (#77)', () => {
         const blockedLogin = await authorizeCredentials({ email, password })
         expect(blockedLogin).toBeNull()
 
-        const verificationResult = await verifyEmailToken(tokenRecord!.token)
+        // We can't read back the plaintext token from the DB, so issue a fresh
+        // one for the same user — same code path as the email link the user
+        // would have received.
+        const freshToken = await createEmailVerificationToken(createdUser!.id)
+        const verificationResult = await verifyEmailToken(freshToken)
         expect(verificationResult.success).toBe(true)
 
         const allowedLogin = await authorizeCredentials({ email, password })
@@ -220,8 +251,21 @@ describe('Email Verification and Password Reset (#77)', () => {
       expect(result.token).toBeTruthy()
       expect(result.token?.length).toBeGreaterThan(20)
 
-      const record = await db.passwordResetToken.findUnique({ where: { token: result.token! } })
+      const record = await db.passwordResetToken.findUnique({
+        where: { tokenHash: sha256(result.token!) },
+      })
       expect(record?.userId).toBe(resetTestUserId)
+    })
+
+    it('should never persist the plaintext reset token', async () => {
+      const { token } = await createPasswordResetToken(resetTestEmail)
+      const records = await db.passwordResetToken.findMany({
+        where: { userId: resetTestUserId },
+      })
+      for (const r of records) {
+        expect(r.tokenHash).not.toBe(token)
+        expect(r.tokenHash).toBe(sha256(token!))
+      }
     })
 
     it('should not reveal if email exists (security)', async () => {
@@ -250,7 +294,7 @@ describe('Email Verification and Password Reset (#77)', () => {
       const { token } = await createPasswordResetToken(resetTestEmail)
 
       await db.passwordResetToken.update({
-        where: { token: token! },
+        where: { tokenHash: sha256(token!) },
         data: { expiresAt: new Date(Date.now() - 1000) },
       })
 
@@ -294,12 +338,56 @@ describe('Email Verification and Password Reset (#77)', () => {
       const oldToken = (await createPasswordResetToken(resetTestEmail)).token
       const newToken = (await createPasswordResetToken(resetTestEmail)).token
 
-      const oldRecord = await db.passwordResetToken.findUnique({ where: { token: oldToken! } })
-      const newRecord = await db.passwordResetToken.findUnique({ where: { token: newToken! } })
+      const oldRecord = await db.passwordResetToken.findUnique({
+        where: { tokenHash: sha256(oldToken!) },
+      })
+      const newRecord = await db.passwordResetToken.findUnique({
+        where: { tokenHash: sha256(newToken!) },
+      })
 
       // Old token should be deleted
       expect(oldRecord).toBeNull()
       expect(newRecord).toBeDefined()
+    })
+
+    it('should atomically consume the reset token under concurrency', async () => {
+      const { token } = await createPasswordResetToken(resetTestEmail)
+      const newHashA = await bcrypt.hash('concurrent-pass-a', 12)
+      const newHashB = await bcrypt.hash('concurrent-pass-b', 12)
+
+      const [resA, resB] = await Promise.all([
+        completePasswordReset(token!, newHashA),
+        completePasswordReset(token!, newHashB),
+      ])
+
+      const successCount = [resA, resB].filter(r => r.success).length
+      expect(successCount).toBe(1)
+    })
+
+    it('should atomically consume the email verification token under concurrency', async () => {
+      const concurrentEmail = `concurrent-verify-${Date.now()}@example.com`
+      const user = await db.user.create({
+        data: {
+          email: concurrentEmail,
+          firstName: 'Concurrent',
+          lastName: 'Verify',
+          passwordHash: 'test',
+          emailVerified: null,
+        },
+      })
+
+      try {
+        const token = await createEmailVerificationToken(user.id)
+        const [a, b] = await Promise.all([
+          verifyEmailToken(token),
+          verifyEmailToken(token),
+        ])
+        const successCount = [a, b].filter(r => r.success).length
+        expect(successCount).toBe(1)
+      } finally {
+        await db.emailVerificationToken.deleteMany({ where: { userId: user.id } }).catch(() => {})
+        await db.user.delete({ where: { id: user.id } }).catch(() => {})
+      }
     })
 
     it('should create password reset token through the modern forgot-password route', async () => {
@@ -343,7 +431,9 @@ describe('Email Verification and Password Reset (#77)', () => {
       const passwordValid = await bcrypt.compare('route-new-password-123', user?.passwordHash || '')
       expect(passwordValid).toBe(true)
 
-      const tokenRecord = await db.passwordResetToken.findUnique({ where: { token: token! } })
+      const tokenRecord = await db.passwordResetToken.findUnique({
+        where: { tokenHash: sha256(token!) },
+      })
       expect(tokenRecord?.usedAt).not.toBeNull()
     })
   })
