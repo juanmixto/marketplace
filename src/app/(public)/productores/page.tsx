@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 import { getVendors } from '@/domains/catalog/queries'
 import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import { buildPageMetadata } from '@/lib/seo'
-import { getVendorHeroImage, getVendorVisualLabelKey } from '@/lib/vendor-visuals'
+import { getVendorHeroImage, getVendorVisualLabelKey } from '@/domains/vendors/visuals'
 import { getServerT } from '@/i18n/server'
 
 export async function generateMetadata(): Promise<Metadata> {
