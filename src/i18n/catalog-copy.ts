@@ -1,3 +1,4 @@
+// Static page content module. See ./README.md for when to use *-copy.ts vs flat keys.
 import type { Locale } from './locales'
 
 type ProductLike = {
