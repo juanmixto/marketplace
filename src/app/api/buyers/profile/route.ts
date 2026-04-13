@@ -2,41 +2,42 @@ import { getActionSession } from '@/lib/action-session'
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { apiError, apiInternalError, apiUnauthorized, apiValidationFromZod } from '@/lib/api-response'
 
 const profileSchema = z.object({
-  firstName: z.string().min(1).max(50),
-  lastName: z.string().min(1).max(50),
-  email: z.string().email(),
+  firstName: z.string().min(1, 'El nombre es obligatorio').max(50, 'Máximo 50 caracteres'),
+  lastName: z.string().min(1, 'El apellido es obligatorio').max(50, 'Máximo 50 caracteres'),
+  email: z.string().email('Email inválido'),
 })
 
 export async function PUT(request: Request) {
   try {
     const session = await getActionSession()
     if (!session) {
-      return NextResponse.json({ message: 'No autorizado' }, { status: 401 })
+      return apiUnauthorized()
     }
 
     const body = await request.json()
-    const { firstName, lastName, email } = profileSchema.parse(body)
+    const parsed = profileSchema.safeParse(body)
+    if (!parsed.success) {
+      return apiValidationFromZod(parsed.error)
+    }
+    const { firstName, lastName, email } = parsed.data
 
-    // Check if email is already taken by another user
+    // Email-conflict surfaces as a per-field error so the client can highlight
+    // the email input directly instead of a generic banner. (#131)
     if (email !== session.user.email) {
       const existing = await db.user.findUnique({ where: { email } })
       if (existing) {
-        return NextResponse.json(
-          { message: 'Email ya está en uso' },
-          { status: 400 }
-        )
+        return apiError('Este email ya está en uso por otra cuenta', 409, 'CONFLICT', {
+          fieldErrors: { email: 'Este email ya está en uso por otra cuenta' },
+        })
       }
     }
 
     const user = await db.user.update({
       where: { id: session.user.id },
-      data: {
-        firstName,
-        lastName,
-        email,
-      },
+      data: { firstName, lastName, email },
     })
 
     return NextResponse.json({
@@ -46,16 +47,7 @@ export async function PUT(request: Request) {
       email: user.email,
     })
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { message: 'Datos inválidos' },
-        { status: 400 }
-      )
-    }
     console.error('Profile update error:', error)
-    return NextResponse.json(
-      { message: 'Error al actualizar perfil' },
-      { status: 500 }
-    )
+    return apiInternalError('Error al actualizar perfil')
   }
 }

@@ -71,6 +71,36 @@ export function BuyerProfileForm({ user }: Props) {
     resolver: zodResolver(passwordSchema),
   })
 
+  /**
+   * Surface server-side validation errors per field instead of dumping a
+   * generic banner. Routes return `{ error, code, fieldErrors? }` on 4xx;
+   * we forward fieldErrors into RHF's `setError` so the offending input is
+   * highlighted with the same UX as a client-side validation miss. (#131)
+   */
+  type ApiErrorBody = {
+    error?: string
+    message?: string
+    fieldErrors?: Record<string, string>
+  }
+
+  function applyServerFieldErrors(
+    body: ApiErrorBody,
+    setFieldError: (name: string, error: { type: string; message: string }) => void,
+    knownFields: readonly string[],
+    fallbackMessage: string
+  ) {
+    const fieldErrors = body.fieldErrors ?? {}
+    let appliedAny = false
+    for (const [field, message] of Object.entries(fieldErrors)) {
+      if (knownFields.includes(field)) {
+        setFieldError(field, { type: 'server', message })
+        appliedAny = true
+      }
+    }
+    if (appliedAny) return null
+    return body.error ?? body.message ?? fallbackMessage
+  }
+
   const onProfileSubmit = async (data: ProfileFormInput) => {
     try {
       setError(null)
@@ -83,8 +113,15 @@ export function BuyerProfileForm({ user }: Props) {
       })
 
       if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.message || t('account.profileUpdateError'))
+        const body: ApiErrorBody = await res.json().catch(() => ({}))
+        const remaining = applyServerFieldErrors(
+          body,
+          (name, err) => profileForm.setError(name as keyof ProfileFormInput, err),
+          ['firstName', 'lastName', 'email'],
+          t('account.profileUpdateError')
+        )
+        if (remaining) setError(remaining)
+        return
       }
 
       setProfileSuccess(true)
@@ -109,8 +146,15 @@ export function BuyerProfileForm({ user }: Props) {
       })
 
       if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.message || t('account.profilePasswordError'))
+        const body: ApiErrorBody = await res.json().catch(() => ({}))
+        const remaining = applyServerFieldErrors(
+          body,
+          (name, err) => passwordForm.setError(name as keyof PasswordFormInput, err),
+          ['currentPassword', 'newPassword', 'confirmPassword'],
+          t('account.profilePasswordError')
+        )
+        if (remaining) setError(remaining)
+        return
       }
 
       setPasswordSuccess(true)
