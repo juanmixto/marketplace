@@ -2,11 +2,13 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { formatPrice } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import {
   PlusIcon,
+  MinusIcon,
   ExclamationTriangleIcon,
   MagnifyingGlassIcon,
   XMarkIcon,
@@ -16,7 +18,7 @@ import {
   PencilSquareIcon,
 } from '@heroicons/react/24/outline'
 import { ProductActions } from '@/components/vendor/ProductActions'
-import { submitForReview } from '@/domains/vendors/actions'
+import { adjustProductStock, submitForReview } from '@/domains/vendors/actions'
 import { useT } from '@/i18n'
 import type { BadgeVariant } from '@/domains/catalog/types'
 import { formatExpirationLabel, getExpirationTone, isProductExpired } from '@/domains/catalog/availability'
@@ -275,6 +277,89 @@ export function VendorProductListClient({ products }: Props) {
   )
 }
 
+function QuickStockStepper({
+  product,
+  layout,
+}: {
+  product: ProductWithCategory
+  layout: 'list' | 'grid'
+}) {
+  const t = useT()
+  const router = useRouter()
+  const [stock, setStock] = useState(product.stock)
+  const [pending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setStock(product.stock)
+  }, [product.stock])
+
+  function apply(delta: number) {
+    if (pending) return
+    if (delta < 0 && stock + delta < 0) return
+    const optimistic = Math.max(0, stock + delta)
+    setStock(optimistic)
+    setError(null)
+    startTransition(async () => {
+      try {
+        const result = await adjustProductStock({ productId: product.id, delta })
+        setStock(result.stock)
+        router.refresh()
+      } catch (err) {
+        setStock(product.stock)
+        setError(err instanceof Error ? err.message : t('vendor.quickStock.error'))
+      }
+    })
+  }
+
+  const tone =
+    stock === 0
+      ? 'text-red-600 dark:text-red-400'
+      : stock <= 5
+        ? 'text-amber-600 dark:text-amber-400'
+        : 'text-[var(--muted)]'
+
+  const stepperClass = layout === 'grid' ? 'gap-1' : 'gap-1.5'
+  const buttonClass =
+    'inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30'
+
+  return (
+    <div className={layout === 'grid' ? 'flex flex-col gap-1' : 'flex flex-col items-end gap-0.5'}>
+      <div className={`flex items-center ${stepperClass}`} aria-busy={pending || undefined}>
+        <button
+          type="button"
+          onClick={() => apply(-1)}
+          disabled={pending || stock === 0}
+          aria-label={t('vendor.quickStock.decrement').replace('{name}', product.name)}
+          className={buttonClass}
+        >
+          <MinusIcon className="h-3.5 w-3.5" />
+        </button>
+        <span
+          className={`min-w-[3.5rem] text-center text-sm font-semibold tabular-nums ${tone}`}
+          aria-live="polite"
+        >
+          {stock === 0 ? t('vendor.noStock') : `${stock} ${t('vendor.inStock')}`}
+        </span>
+        <button
+          type="button"
+          onClick={() => apply(1)}
+          disabled={pending}
+          aria-label={t('vendor.quickStock.increment').replace('{name}', product.name)}
+          className={buttonClass}
+        >
+          <PlusIcon className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      {error && (
+        <p className="text-[11px] text-red-600 dark:text-red-400" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  )
+}
+
 function QuickSubmitButton({ productId }: { productId: string }) {
   const t = useT()
   const [loading, setLoading] = useState(false)
@@ -357,14 +442,16 @@ function ProductListRow({ product, now }: { product: ProductWithCategory; now: D
       </div>
 
       <div className="shrink-0 text-right">
-        {product.trackStock && (
+        {product.trackStock && product.variants.length === 0 ? (
+          <QuickStockStepper product={product} layout="list" />
+        ) : product.trackStock ? (
           <p className={`text-sm font-medium ${
             product.stock === 0 ? 'text-red-600 dark:text-red-400' :
             product.stock <= 5 ? 'text-amber-600 dark:text-amber-400' : 'text-[var(--muted)]'
           }`}>
             {product.stock === 0 ? t('vendor.noStock') : `${product.stock} ${t('vendor.inStock')}`}
           </p>
-        )}
+        ) : null}
       </div>
 
       {canQuickSubmit && <QuickSubmitButton productId={product.id} />}
@@ -413,14 +500,16 @@ function ProductGridCard({ product, now }: { product: ProductWithCategory; now: 
         <p className="text-sm text-[var(--muted)]">
           {formatPrice(Number(product.basePrice))} / {product.unit}
         </p>
-        {product.trackStock && (
+        {product.trackStock && product.variants.length === 0 ? (
+          <QuickStockStepper product={product} layout="grid" />
+        ) : product.trackStock ? (
           <p className={`text-xs font-medium ${
             product.stock === 0 ? 'text-red-600 dark:text-red-400' :
             product.stock <= 5 ? 'text-amber-600 dark:text-amber-400' : 'text-[var(--muted)]'
           }`}>
             {product.stock === 0 ? t('vendor.noStock') : `${product.stock} ${t('vendor.inStock')}`}
           </p>
-        )}
+        ) : null}
         <div className="mt-auto flex items-center gap-2 pt-2">
           <Link
             href={`/vendor/productos/${product.id}`}
