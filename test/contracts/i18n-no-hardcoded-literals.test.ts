@@ -71,14 +71,10 @@ const ALLOWLIST_FILES: ReadonlySet<string> = new Set([
   'src/app/(buyer)/checkout/pago/page.tsx',
   // Public producer detail — partially localized.
   'src/app/(public)/productores/[slug]/page.tsx',
-  // Vendor portal — pending dedicated i18n PR.
-  'src/app/(vendor)/vendor/liquidaciones/page.tsx',
-  'src/app/(vendor)/vendor/perfil/StripeConnectUI.tsx',
-  'src/app/(vendor)/vendor/dashboard/page.tsx',
-  'src/app/(vendor)/vendor/pedidos/page.tsx',
-  'src/app/(vendor)/vendor/perfil/page.tsx',
-  'src/app/(vendor)/vendor/productos/[id]/page.tsx',
-  'src/app/(vendor)/vendor/productos/nuevo/page.tsx',
+  // Vendor portal is now fully translated (#303 follow-up). Do not re-add
+  // entries here without first translating the page — see
+  // test/contracts/vendor-portal-i18n.test.ts which asserts the vendor area
+  // stays out of the allowlist.
 ])
 
 // Files we never scan — pure server/runtime concerns, no user-visible JSX.

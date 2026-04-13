@@ -5,12 +5,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
 import { advanceFulfillment } from '@/domains/vendors/actions'
+import { useT } from '@/i18n'
+import type { TranslationKeys } from '@/i18n/locales'
 
-const NEXT_ACTION: Record<string, string> = {
-  PENDING:   'Confirmar pedido',
-  CONFIRMED: 'Empezar preparación',
-  PREPARING: 'Marcar listo',
-  READY:     'Marcar enviado',
+const NEXT_ACTION_KEY: Record<string, TranslationKeys> = {
+  PENDING:   'vendor.fulfillment.confirm',
+  CONFIRMED: 'vendor.fulfillment.startPrep',
+  PREPARING: 'vendor.fulfillment.markReady',
+  READY:     'vendor.fulfillment.markShipped',
 }
 
 interface Props {
@@ -19,7 +21,9 @@ interface Props {
 }
 
 export function FulfillmentActions({ fulfillmentId, status }: Props) {
-  const nextAction = NEXT_ACTION[status]
+  const t = useT()
+  const actionKey = NEXT_ACTION_KEY[status]
+  const nextAction = actionKey ? t(actionKey) : null
   const [shipModal, setShipModal] = useState(false)
   const [tracking, setTracking] = useState('')
   const [carrier, setCarrier] = useState('')
@@ -35,7 +39,7 @@ export function FulfillmentActions({ fulfillmentId, status }: Props) {
       await advanceFulfillment(fulfillmentId, trackingNumber, carrierName)
       setShipModal(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al actualizar el pedido')
+      setError(err instanceof Error ? err.message : t('vendor.fulfillment.updateError'))
     } finally {
       setLoading(false)
     }
@@ -51,19 +55,19 @@ export function FulfillmentActions({ fulfillmentId, status }: Props) {
         <Modal
           open={shipModal}
           onClose={() => setShipModal(false)}
-          title="Confirmar envío"
+          title={t('vendor.fulfillment.confirmShipping')}
           size="sm"
         >
           <div className="p-5 space-y-4">
-            <p className="text-sm text-[var(--foreground-soft)]">Opcional: añade el número de seguimiento.</p>
+            <p className="text-sm text-[var(--foreground-soft)]">{t('vendor.fulfillment.optionalTracking')}</p>
             <Input
-              label="Número de seguimiento"
+              label={t('vendor.fulfillment.trackingLabel')}
               placeholder="ES123456789"
               value={tracking}
               onChange={e => setTracking(e.target.value)}
             />
             <Input
-              label="Transportista"
+              label={t('vendor.fulfillment.carrierLabel')}
               placeholder="Correos, MRW, DHL..."
               value={carrier}
               onChange={e => setCarrier(e.target.value)}
@@ -71,14 +75,14 @@ export function FulfillmentActions({ fulfillmentId, status }: Props) {
             {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
             <div className="flex gap-3 justify-end">
               <Button variant="secondary" size="sm" onClick={() => setShipModal(false)}>
-                Cancelar
+                {t('common.cancel')}
               </Button>
               <Button
                 size="sm"
                 isLoading={loading}
                 onClick={() => handleAdvance(tracking || undefined, carrier || undefined)}
               >
-                Confirmar envío
+                {t('vendor.fulfillment.confirmShipping')}
               </Button>
             </div>
           </div>

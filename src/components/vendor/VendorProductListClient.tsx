@@ -13,12 +13,14 @@ import type { getMyProducts } from '@/domains/vendors/actions'
 
 type ProductWithCategory = Awaited<ReturnType<typeof getMyProducts>>[number]
 
-const STATUS_CONFIG: Record<string, { label: string; variant: BadgeVariant }> = {
-  DRAFT:          { label: 'Borrador',      variant: 'default' },
-  PENDING_REVIEW: { label: 'En revisión',   variant: 'amber' },
-  ACTIVE:         { label: 'Activo',        variant: 'green' },
-  REJECTED:       { label: 'Rechazado',     variant: 'red' },
-  SUSPENDED:      { label: 'Suspendido',    variant: 'default' },
+import type { TranslationKeys } from '@/i18n/locales'
+
+const STATUS_CONFIG: Record<string, { labelKey: TranslationKeys; variant: BadgeVariant }> = {
+  DRAFT:          { labelKey: 'vendor.productsList.statusDraft',         variant: 'default' },
+  PENDING_REVIEW: { labelKey: 'vendor.productsList.statusPendingReview', variant: 'amber' },
+  ACTIVE:         { labelKey: 'vendor.productsList.statusActive',        variant: 'green' },
+  REJECTED:       { labelKey: 'vendor.productsList.statusRejected',      variant: 'red' },
+  SUSPENDED:      { labelKey: 'vendor.productsList.statusSuspended',     variant: 'default' },
 }
 
 interface Props {
@@ -38,7 +40,11 @@ export function VendorProductListClient({ products }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[var(--foreground)]">{t('vendor.myCatalog')}</h1>
-          <p className="text-sm text-[var(--muted)]">{products.length} {productsUnit(products.length)}</p>
+          <p className="text-sm text-[var(--muted)]">
+            {products.length === 1
+              ? t('vendor.productsList.productsOne')
+              : t('vendor.productsList.productsOther').replace('{count}', String(products.length))}
+          </p>
         </div>
         <Link
           href="/vendor/productos/nuevo"
@@ -55,17 +61,23 @@ export function VendorProductListClient({ products }: Props) {
           <div className="text-sm">
             {expired.length > 0 && (
               <p className="font-medium text-amber-900 dark:text-amber-300">
-                {expired.length} producto{expired.length > 1 ? 's' : ''} retirado{expired.length > 1 ? 's' : ''} por caducidad: {expired.map(product => product.name).join(', ')}
+                {(expired.length === 1
+                  ? t('vendor.productsList.expiredOne')
+                  : t('vendor.productsList.expiredOther').replace('{count}', String(expired.length))
+                ).replace('{names}', expired.map(product => product.name).join(', '))}
               </p>
             )}
             {outOfStock.length > 0 && (
               <p className="font-medium text-amber-900 dark:text-amber-300">
-                {outOfStock.length} producto{outOfStock.length > 1 ? 's' : ''} sin stock: {outOfStock.map(p => p.name).join(', ')}
+                {(outOfStock.length === 1
+                  ? t('vendor.productsList.outOfStockOne')
+                  : t('vendor.productsList.outOfStockOther').replace('{count}', String(outOfStock.length))
+                ).replace('{names}', outOfStock.map(p => p.name).join(', '))}
               </p>
             )}
             {lowStock.length > 0 && (
               <p className="text-amber-800 dark:text-amber-400 mt-0.5">
-                Stock bajo: {lowStock.map(p => `${p.name} (${p.stock})`).join(', ')}
+                {t('vendor.productsList.lowStock').replace('{items}', lowStock.map(p => `${p.name} (${p.stock})`).join(', '))}
               </p>
             )}
           </div>
@@ -84,7 +96,9 @@ export function VendorProductListClient({ products }: Props) {
         <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
           <div className="divide-y divide-[var(--border)]">
             {products.map(product => {
-              const statusConfig = STATUS_CONFIG[product.status] ?? { label: product.status, variant: 'default' }
+              const statusEntry = STATUS_CONFIG[product.status]
+              const statusLabel = statusEntry ? t(statusEntry.labelKey) : product.status
+              const statusVariant: BadgeVariant = statusEntry?.variant ?? 'default'
               const expirationTone = getExpirationTone(product.expiresAt, now)
               const expirationLabel = formatExpirationLabel(product.expiresAt, now)
               return (
@@ -98,7 +112,7 @@ export function VendorProductListClient({ products }: Props) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-[var(--foreground)] truncate">{product.name}</p>
-                      <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
+                      <Badge variant={statusVariant}>{statusLabel}</Badge>
                       {expirationTone === 'expired' && <Badge variant="red">{t('vendor.expired')}</Badge>}
                       {expirationTone === 'today' && <Badge variant="amber">{t('vendor.expiresToday')}</Badge>}
                       {expirationTone === 'soon' && <Badge variant="amber">{t('vendor.expiresSoon')}</Badge>}
@@ -120,7 +134,7 @@ export function VendorProductListClient({ products }: Props) {
                     )}
                     {product.status === 'REJECTED' && product.rejectionNote && (
                       <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                        Motivo: {product.rejectionNote}
+                        {t('vendor.productsList.rejectionReason').replace('{reason}', product.rejectionNote)}
                       </p>
                     )}
                   </div>
@@ -147,6 +161,3 @@ export function VendorProductListClient({ products }: Props) {
   )
 }
 
-function productsUnit(count: number) {
-  return count === 1 ? 'producto' : 'productos'
-}

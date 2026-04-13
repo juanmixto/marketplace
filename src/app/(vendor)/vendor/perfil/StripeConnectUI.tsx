@@ -7,6 +7,7 @@ import {
   verifyStripeOnboarding,
 } from '@/domains/vendors/stripe'
 import { CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline'
+import { useT } from '@/i18n'
 
 interface StripeConnectProps {
   onboarded: boolean
@@ -15,40 +16,40 @@ interface StripeConnectProps {
 export function StripeConnectUI({ onboarded }: StripeConnectProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const t = useT()
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [localOnboarded, setLocalOnboarded] = useState(onboarded)
 
-  // Verificar si volvemos de Stripe
   useEffect(() => {
     const stripe = searchParams.get('stripe')
     if (stripe === 'success') {
       setMessage({
         type: 'success',
-        text: 'Verificando configuración de pagos...',
+        text: t('vendor.stripe.verifying'),
       })
       verifyStripeOnboarding().then(verified => {
         if (verified) {
           setLocalOnboarded(true)
           setMessage({
             type: 'success',
-            text: '✓ Cuenta bancaria configurada correctamente',
+            text: t('vendor.stripe.verified'),
           })
           setTimeout(() => router.replace('/vendor/perfil'), 2000)
         } else {
           setMessage({
             type: 'error',
-            text: 'La verificación aún está en proceso. Intenta de nuevo en unos minutos.',
+            text: t('vendor.stripe.verifyInProgress'),
           })
         }
       })
     } else if (stripe === 'refresh') {
       setMessage({
         type: 'error',
-        text: 'Necesitamos que completes el proceso. Intenta de nuevo.',
+        text: t('vendor.stripe.refreshNeeded'),
       })
     }
-  }, [searchParams, router])
+  }, [searchParams, router, t])
 
   const handleConnect = async () => {
     setLoading(true)
@@ -60,7 +61,7 @@ export function StripeConnectUI({ onboarded }: StripeConnectProps) {
     } catch (error) {
       setMessage({
         type: 'error',
-        text: error instanceof Error ? error.message : 'Error al conectar Stripe',
+        text: error instanceof Error ? error.message : t('vendor.stripe.connectError'),
       })
       setLoading(false)
     }
@@ -72,10 +73,9 @@ export function StripeConnectUI({ onboarded }: StripeConnectProps) {
         <div className="flex items-start gap-3">
           <CheckCircleIcon className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5 dark:text-emerald-400" />
           <div>
-            <h3 className="font-semibold text-green-900 dark:text-emerald-200">Pagos configurados</h3>
+            <h3 className="font-semibold text-green-900 dark:text-emerald-200">{t('vendor.stripe.configured')}</h3>
             <p className="mt-1 text-sm text-green-800 dark:text-emerald-300">
-              Tu cuenta de Stripe está conectada. Recibirás liquidaciones semanales en tu cuenta
-              bancaria.
+              {t('vendor.stripe.configuredDesc')}
             </p>
           </div>
         </div>
@@ -101,10 +101,9 @@ export function StripeConnectUI({ onboarded }: StripeConnectProps) {
         <div className="flex items-start gap-3 mb-4">
           <ExclamationCircleIcon className="h-6 w-6 text-amber-600 flex-shrink-0 mt-0.5 dark:text-amber-400" />
           <div>
-            <h3 className="font-semibold text-[var(--foreground)]">Configurar pagos</h3>
+            <h3 className="font-semibold text-[var(--foreground)]">{t('vendor.stripe.configureTitle')}</h3>
             <p className="mt-1 text-sm text-[var(--muted)]">
-              Conecta tu cuenta bancaria para recibir pagos. Usamos Stripe para gestionar los
-              pagos de forma segura.
+              {t('vendor.stripe.configureDesc')}
             </p>
           </div>
         </div>
@@ -114,11 +113,11 @@ export function StripeConnectUI({ onboarded }: StripeConnectProps) {
           disabled={loading}
           className="w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-blue-500 dark:hover:bg-blue-400"
         >
-          {loading ? 'Conectando...' : 'Conectar con Stripe'}
+          {loading ? t('vendor.stripe.connecting') : t('vendor.stripe.connect')}
         </button>
 
         <p className="mt-3 text-xs text-[var(--muted-light)]">
-          Serás redirigido al formulario seguro de Stripe para completar tu información bancaria.
+          {t('vendor.stripe.redirectNote')}
         </p>
       </div>
     </div>

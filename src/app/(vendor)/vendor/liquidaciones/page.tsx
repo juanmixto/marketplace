@@ -3,7 +3,10 @@ import Link from 'next/link'
 import { requireVendor } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
 import { format, nextMonday, subDays, startOfMonth } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { es as esLocale, enUS as enLocale } from 'date-fns/locale'
+import { getServerT, getServerLocale } from '@/i18n/server'
+import type { TranslationKeys } from '@/i18n/locales'
+import es from '@/i18n/locales/es'
 
 type TrendView = 'week' | 'month'
 
@@ -14,41 +17,29 @@ interface PageProps {
 const monthKey = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
 
 export const metadata: Metadata = {
-  title: 'Liquidaciones | Portal Productor',
-  description: 'Ver tus liquidaciones y pagos semanales',
+  title: es['vendor.liquidaciones.metaTitle'],
+  description: es['vendor.liquidaciones.metaDescription'],
 }
 
-const formatEUR = (amount: any | null) =>
-  amount
-    ? new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(Number(amount))
-    : '—'
+const STATUS_KEYS: Record<string, TranslationKeys> = {
+  DRAFT: 'vendor.liquidaciones.statusDraft',
+  PENDING_APPROVAL: 'vendor.liquidaciones.statusPendingApproval',
+  APPROVED: 'vendor.liquidaciones.statusApproved',
+  PAID: 'vendor.liquidaciones.statusPaid',
+}
 
-const statusBadge = (status: string) => {
-  const config: Record<string, { classes: string; label: string }> = {
-    DRAFT: {
-      classes: 'bg-gray-100 text-gray-800 dark:bg-slate-800/60 dark:text-slate-300',
-      label: 'Borrador',
-    },
-    PENDING_APPROVAL: {
-      classes: 'bg-yellow-100 text-yellow-800 dark:bg-amber-950/40 dark:text-amber-300',
-      label: 'Pendiente aprobación',
-    },
-    APPROVED: {
-      classes: 'bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300',
-      label: 'Aprobada',
-    },
-    PAID: {
-      classes: 'bg-green-100 text-green-800 dark:bg-emerald-950/40 dark:text-emerald-300',
-      label: 'Pagada',
-    },
+function statusBadge(status: string, t: (k: TranslationKeys) => string) {
+  const classes: Record<string, string> = {
+    DRAFT: 'bg-gray-100 text-gray-800 dark:bg-slate-800/60 dark:text-slate-300',
+    PENDING_APPROVAL: 'bg-yellow-100 text-yellow-800 dark:bg-amber-950/40 dark:text-amber-300',
+    APPROVED: 'bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300',
+    PAID: 'bg-green-100 text-green-800 dark:bg-emerald-950/40 dark:text-emerald-300',
   }
-  const info = config[status] || {
-    classes: 'bg-gray-100 text-gray-800 dark:bg-slate-800/60 dark:text-slate-300',
-    label: status,
-  }
+  const label = STATUS_KEYS[status] ? t(STATUS_KEYS[status]) : status
+  const cls = classes[status] ?? 'bg-gray-100 text-gray-800 dark:bg-slate-800/60 dark:text-slate-300'
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${info.classes}`}>
-      {info.label}
+    <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${cls}`}>
+      {label}
     </span>
   )
 }
@@ -58,6 +49,15 @@ export default async function Liquidaciones({ searchParams }: PageProps) {
   const params = await searchParams
   const view: TrendView = params.view === 'month' ? 'month' : 'week'
   const selectedPeriod = params.period?.trim() || null
+
+  const t = await getServerT()
+  const locale = await getServerLocale()
+  const dateLocale = locale === 'en' ? enLocale : esLocale
+
+  const formatEUR = (amount: unknown | null) =>
+    amount == null
+      ? '—'
+      : new Intl.NumberFormat(locale === 'en' ? 'en-GB' : 'es-ES', { style: 'currency', currency: 'EUR' }).format(Number(amount))
 
   const vendor = await db.vendor.findUniqueOrThrow({
     where: { userId: user.id },
@@ -101,11 +101,8 @@ export default async function Liquidaciones({ searchParams }: PageProps) {
     }),
   ])
 
-  const nextPaymentDay = format(nextMonday(new Date()), 'dd MMM yyyy', { locale: es })
+  const nextPaymentDay = format(nextMonday(new Date()), 'dd MMM yyyy', { locale: dateLocale })
 
-  // Revenue trend: two views
-  // - week: last 12 settlements in chronological order (one bar per settlement)
-  // - month: group settlements by calendar month (periodTo), last 6 months
   let trend: Array<{ label: string; value: number; periodKey: string }>
   if (view === 'month') {
     const byMonth = new Map<string, { label: string; value: number; sortKey: number; periodKey: string }>()
@@ -118,7 +115,7 @@ export default async function Liquidaciones({ searchParams }: PageProps) {
         existing.value += amount
       } else {
         byMonth.set(key, {
-          label: format(monthStart, 'MMM yy', { locale: es }),
+          label: format(monthStart, 'MMM yy', { locale: dateLocale }),
           value: amount,
           sortKey: monthStart.getTime(),
           periodKey: key,
@@ -133,7 +130,7 @@ export default async function Liquidaciones({ searchParams }: PageProps) {
     trend = settlements
       .slice(0, 12)
       .map(s => ({
-        label: format(s.periodTo, 'd MMM', { locale: es }),
+        label: format(s.periodTo, 'd MMM', { locale: dateLocale }),
         value: Number(s.netPayable),
         periodKey: s.id,
       }))
@@ -142,7 +139,6 @@ export default async function Liquidaciones({ searchParams }: PageProps) {
   const trendMax = Math.max(1, ...trend.map(t => t.value))
   const trendTotal = trend.reduce((sum, t) => sum + t.value, 0)
 
-  // Filter settlements table by selected period
   const filteredSettlements = selectedPeriod
     ? view === 'month'
       ? settlements.filter(s => monthKey(startOfMonth(s.periodTo)) === selectedPeriod)
@@ -152,15 +148,14 @@ export default async function Liquidaciones({ searchParams }: PageProps) {
   if (selectedPeriod && filteredSettlements.length > 0) {
     if (view === 'month') {
       const monthStart = startOfMonth(filteredSettlements[0].periodTo)
-      selectedLabel = format(monthStart, "MMMM 'de' yyyy", { locale: es })
+      selectedLabel = format(monthStart, locale === 'en' ? 'LLLL yyyy' : "MMMM 'de' yyyy", { locale: dateLocale })
     } else {
       const s = filteredSettlements[0]
-      selectedLabel = `${format(s.periodFrom, 'd MMM', { locale: es })} — ${format(s.periodTo, 'd MMM yyyy', { locale: es })}`
+      selectedLabel = `${format(s.periodFrom, 'd MMM', { locale: dateLocale })} — ${format(s.periodTo, 'd MMM yyyy', { locale: dateLocale })}`
     }
   }
   const baseQuery = view === 'month' ? '?view=month' : '?view=week'
 
-  // Top products: aggregate OrderLines by product
   const productMap = new Map<
     string,
     { name: string; slug: string; image: string | null; unit: string; qty: number; revenue: number }
@@ -188,58 +183,65 @@ export default async function Liquidaciones({ searchParams }: PageProps) {
     .slice(0, 5)
   const topProductsMax = Math.max(1, ...topProducts.map(p => p.revenue))
 
+  const trendTitle = view === 'month' ? t('vendor.liquidaciones.trendMonthTitle') : t('vendor.liquidaciones.trendWeekTitle')
+  const trendSubtitle = (view === 'month'
+    ? t('vendor.liquidaciones.trendMonthSubtitle')
+    : t('vendor.liquidaciones.trendWeekSubtitle')
+  )
+    .replace('{n}', String(trend.length || 0))
+    .replace('{total}', formatEUR(trendTotal))
+  const trendAria = (view === 'month'
+    ? t('vendor.liquidaciones.trendMonthAria')
+    : t('vendor.liquidaciones.trendWeekAria')
+  ).replace('{n}', String(trend.length))
+
   return (
     <main className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-[var(--foreground)]">Liquidaciones</h1>
-        <p className="mt-2 text-gray-600 dark:text-[var(--muted)]">Historial de pagos semanales</p>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-[var(--foreground)]">{t('vendor.liquidaciones.title')}</h1>
+        <p className="mt-2 text-gray-600 dark:text-[var(--muted)]">{t('vendor.liquidaciones.subtitle')}</p>
       </div>
 
-      {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-[var(--border)] dark:bg-[var(--surface)]">
-          <p className="text-sm text-gray-600 dark:text-[var(--muted)]">Cobrado este mes</p>
+          <p className="text-sm text-gray-600 dark:text-[var(--muted)]">{t('vendor.liquidaciones.kpiThisMonth')}</p>
           <p className="mt-2 text-3xl font-bold text-emerald-600 dark:text-emerald-400">
             {formatEUR(thisMonthData._sum.netPayable)}
           </p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-[var(--border)] dark:bg-[var(--surface)]">
-          <p className="text-sm text-gray-600 dark:text-[var(--muted)]">Pendiente de liquidar</p>
+          <p className="text-sm text-gray-600 dark:text-[var(--muted)]">{t('vendor.liquidaciones.kpiPending')}</p>
           <p className="mt-2 text-3xl font-bold text-blue-600 dark:text-blue-400">
             {formatEUR(pendingData._sum.netPayable)}
           </p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-[var(--border)] dark:bg-[var(--surface)]">
-          <p className="text-sm text-gray-600 dark:text-[var(--muted)]">Comisiones este mes</p>
+          <p className="text-sm text-gray-600 dark:text-[var(--muted)]">{t('vendor.liquidaciones.kpiCommissions')}</p>
           <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-[var(--foreground)]">
             {formatEUR(thisMonthData._sum.commissions)}
           </p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-[var(--border)] dark:bg-[var(--surface)]">
-          <p className="text-sm text-gray-600 dark:text-[var(--muted)]">Próxima liquidación</p>
+          <p className="text-sm text-gray-600 dark:text-[var(--muted)]">{t('vendor.liquidaciones.kpiNextPayment')}</p>
           <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-[var(--foreground)]">{nextPaymentDay}</p>
         </div>
       </div>
 
-      {/* Analytics */}
       <div className="grid gap-4 lg:grid-cols-5">
-        {/* Revenue trend */}
         <section className="rounded-lg border border-gray-200 bg-white p-6 dark:border-[var(--border)] dark:bg-[var(--surface)] lg:col-span-3">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold text-gray-900 dark:text-[var(--foreground)]">
-                {view === 'month' ? 'Facturación por mes' : 'Facturación por semana'}
+                {trendTitle}
               </h2>
               <p className="text-xs text-gray-500 dark:text-[var(--muted)]">
-                {view === 'month'
-                  ? `Últimos ${trend.length || 0} meses · Total ${formatEUR(trendTotal)}`
-                  : `Últimas ${trend.length || 0} liquidaciones · Total ${formatEUR(trendTotal)}`}
+                {trendSubtitle}
               </p>
             </div>
             <div
               className="inline-flex rounded-md border border-gray-200 bg-gray-50 p-0.5 text-xs dark:border-[var(--border)] dark:bg-[var(--surface-raised)]"
               role="tablist"
-              aria-label="Granularidad de la tendencia"
+              aria-label={t('vendor.liquidaciones.trendGranAria')}
             >
               <Link
                 href="/vendor/liquidaciones?view=week"
@@ -251,7 +253,7 @@ export default async function Liquidaciones({ searchParams }: PageProps) {
                     : 'text-gray-600 hover:text-gray-900 dark:text-[var(--muted)] dark:hover:text-[var(--foreground)]'
                 }`}
               >
-                Semana
+                {t('vendor.liquidaciones.tabWeek')}
               </Link>
               <Link
                 href="/vendor/liquidaciones?view=month"
@@ -263,24 +265,20 @@ export default async function Liquidaciones({ searchParams }: PageProps) {
                     : 'text-gray-600 hover:text-gray-900 dark:text-[var(--muted)] dark:hover:text-[var(--foreground)]'
                 }`}
               >
-                Mes
+                {t('vendor.liquidaciones.tabMonth')}
               </Link>
             </div>
           </div>
           {trend.length === 0 ? (
             <p className="mt-6 text-sm text-gray-500 dark:text-[var(--muted)]">
-              Aún no hay datos para mostrar tendencia.
+              {t('vendor.liquidaciones.trendEmpty')}
             </p>
           ) : (
             <div className="mt-6">
               <div
                 className="flex h-40 items-end gap-2"
                 role="img"
-                aria-label={
-                  view === 'month'
-                    ? `Facturación de los últimos ${trend.length} meses`
-                    : `Facturación de las últimas ${trend.length} semanas`
-                }
+                aria-label={trendAria}
               >
                 {trend.map((bar, idx) => {
                   const heightPct = Math.max(2, (bar.value / trendMax) * 100)
@@ -290,6 +288,9 @@ export default async function Liquidaciones({ searchParams }: PageProps) {
                   const href = isSelected
                     ? baseQuery
                     : `${baseQuery}&period=${encodeURIComponent(bar.periodKey)}`
+                  const hint = isSelected
+                    ? t('vendor.liquidaciones.filterActive')
+                    : t('vendor.liquidaciones.clickToFilter')
                   return (
                     <Link
                       key={bar.periodKey}
@@ -301,7 +302,7 @@ export default async function Liquidaciones({ searchParams }: PageProps) {
                           : 'bg-emerald-200 hover:bg-emerald-400 dark:bg-emerald-900/60 dark:hover:bg-emerald-500'
                       } ${isSelected ? 'ring-2 ring-emerald-600 ring-offset-2 dark:ring-offset-[var(--surface)]' : ''}`}
                       style={{ height: `${heightPct}%` }}
-                      title={`${bar.label}: ${formatEUR(bar.value)}${isSelected ? ' · filtro activo' : ' · click para filtrar'}`}
+                      title={`${bar.label}: ${formatEUR(bar.value)} · ${hint}`}
                       aria-label={`${bar.label}: ${formatEUR(bar.value)}`}
                       aria-pressed={isSelected}
                     />
@@ -322,15 +323,14 @@ export default async function Liquidaciones({ searchParams }: PageProps) {
           )}
         </section>
 
-        {/* Top products */}
         <section className="rounded-lg border border-gray-200 bg-white p-6 dark:border-[var(--border)] dark:bg-[var(--surface)] lg:col-span-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-[var(--foreground)]">
-            Productos más vendidos
+            {t('vendor.liquidaciones.topTitle')}
           </h2>
-          <p className="text-xs text-gray-500 dark:text-[var(--muted)]">Últimos 90 días</p>
+          <p className="text-xs text-gray-500 dark:text-[var(--muted)]">{t('vendor.liquidaciones.topSubtitle')}</p>
           {topProducts.length === 0 ? (
             <p className="mt-6 text-sm text-gray-500 dark:text-[var(--muted)]">
-              Aún no hay ventas completadas en los últimos 90 días.
+              {t('vendor.liquidaciones.topEmpty')}
             </p>
           ) : (
             <ul className="mt-4 space-y-3">
@@ -370,35 +370,33 @@ export default async function Liquidaciones({ searchParams }: PageProps) {
         </section>
       </div>
 
-      {/* Filter chip */}
       {selectedPeriod && filteredSettlements.length > 0 && (
         <div className="flex items-center gap-2 text-sm">
-          <span className="text-gray-600 dark:text-[var(--muted)]">Filtrando por:</span>
+          <span className="text-gray-600 dark:text-[var(--muted)]">{t('vendor.liquidaciones.filteringBy')}</span>
           <Link
             href={baseQuery}
             className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950/60"
           >
             {selectedLabel ?? selectedPeriod}
             <span aria-hidden="true">✕</span>
-            <span className="sr-only">Quitar filtro</span>
+            <span className="sr-only">{t('vendor.liquidaciones.clearFilter')}</span>
           </Link>
         </div>
       )}
 
-      {/* Table */}
       {filteredSettlements.length === 0 ? (
         <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center dark:border-[var(--border)] dark:bg-[var(--surface-raised)]">
           <p className="text-gray-600 dark:text-[var(--muted)]">
             {selectedPeriod
-              ? 'No hay liquidaciones en el período seleccionado.'
-              : 'Aún no tienes liquidaciones. Los pagos se procesan semanalmente cada lunes.'}
+              ? t('vendor.liquidaciones.emptyFiltered')
+              : t('vendor.liquidaciones.emptyAll')}
           </p>
           {selectedPeriod && (
             <Link
               href={baseQuery}
               className="mt-3 inline-block text-sm font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
             >
-              Ver todas las liquidaciones
+              {t('vendor.liquidaciones.viewAll')}
             </Link>
           )}
         </div>
@@ -407,22 +405,22 @@ export default async function Liquidaciones({ searchParams }: PageProps) {
           <table className="min-w-full divide-y divide-gray-200 dark:divide-[var(--border)]">
             <thead className="bg-gray-50 dark:bg-[var(--surface-raised)]">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900 dark:text-[var(--foreground)]">Período</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900 dark:text-[var(--foreground)]">{t('vendor.liquidaciones.colPeriod')}</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900 dark:text-[var(--foreground)]">
-                  Ventas brutas
+                  {t('vendor.liquidaciones.colGross')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900 dark:text-[var(--foreground)]">
-                  Comisiones
+                  {t('vendor.liquidaciones.colCommissions')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900 dark:text-[var(--foreground)]">
-                  Reembolsos
+                  {t('vendor.liquidaciones.colRefunds')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900 dark:text-[var(--foreground)]">
-                  Neto a cobrar
+                  {t('vendor.liquidaciones.colNet')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900 dark:text-[var(--foreground)]">Estado</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900 dark:text-[var(--foreground)]">{t('vendor.liquidaciones.colStatus')}</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-900 dark:text-[var(--foreground)]">
-                  Fecha pago
+                  {t('vendor.liquidaciones.colPayDate')}
                 </th>
               </tr>
             </thead>
@@ -430,8 +428,8 @@ export default async function Liquidaciones({ searchParams }: PageProps) {
               {filteredSettlements.map(settlement => (
                 <tr key={settlement.id} className="hover:bg-gray-50 dark:hover:bg-[var(--surface-raised)]">
                   <td className="px-6 py-4 text-sm text-gray-900 dark:text-[var(--foreground)]">
-                    {format(settlement.periodFrom, 'dd MMM', { locale: es })} —{' '}
-                    {format(settlement.periodTo, 'dd MMM yyyy', { locale: es })}
+                    {format(settlement.periodFrom, 'dd MMM', { locale: dateLocale })} —{' '}
+                    {format(settlement.periodTo, 'dd MMM yyyy', { locale: dateLocale })}
                   </td>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-[var(--foreground)]">
                     {formatEUR(settlement.grossSales)}
@@ -445,10 +443,10 @@ export default async function Liquidaciones({ searchParams }: PageProps) {
                   <td className="px-6 py-4 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
                     {formatEUR(settlement.netPayable)}
                   </td>
-                  <td className="px-6 py-4 text-sm">{statusBadge(settlement.status)}</td>
+                  <td className="px-6 py-4 text-sm">{statusBadge(settlement.status, t)}</td>
                   <td className="px-6 py-4 text-sm text-gray-900 dark:text-[var(--foreground)]">
                     {settlement.paidAt
-                      ? format(settlement.paidAt, 'dd MMM yyyy', { locale: es })
+                      ? format(settlement.paidAt, 'dd MMM yyyy', { locale: dateLocale })
                       : '—'}
                   </td>
                 </tr>

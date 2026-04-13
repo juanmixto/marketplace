@@ -92,7 +92,7 @@ function ReviewCard({
     setError(null)
     const trimmed = draft.trim()
     if (!trimmed) {
-      setError('La respuesta no puede estar vacía')
+      setError(t('vendor.reviewsManager.emptyError'))
       return
     }
     startTransition(async () => {
@@ -100,19 +100,19 @@ function ReviewCard({
         await respondToReview({ reviewId: review.id, response: trimmed })
         setEditing(false)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error al guardar la respuesta')
+        setError(err instanceof Error ? err.message : t('vendor.reviewsManager.saveError'))
       }
     })
   }
 
   const remove = () => {
-    if (!confirm('¿Eliminar tu respuesta a esta valoración?')) return
+    if (!confirm(t('vendor.reviewsManager.deleteConfirm'))) return
     startTransition(async () => {
       try {
         await deleteReviewResponse(review.id)
         setDraft('')
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error al eliminar la respuesta')
+        setError(err instanceof Error ? err.message : t('vendor.reviewsManager.deleteError'))
       }
     })
   }
@@ -152,7 +152,7 @@ function ReviewCard({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                Tu respuesta
+                {t('vendor.reviewsManager.yourResponse')}
               </p>
               <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-[var(--foreground-soft)]">
                 {review.vendorResponse}
@@ -164,7 +164,7 @@ function ReviewCard({
                 onClick={() => setEditing(true)}
                 disabled={pending}
                 className="rounded-md p-1.5 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
-                aria-label="Editar respuesta"
+                aria-label={t('vendor.reviewsManager.editResponse')}
               >
                 <PencilSquareIcon className="h-4 w-4" />
               </button>
@@ -173,7 +173,7 @@ function ReviewCard({
                 onClick={remove}
                 disabled={pending}
                 className="rounded-md p-1.5 text-red-600 hover:bg-red-100 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/40"
-                aria-label="Eliminar respuesta"
+                aria-label={t('vendor.reviewsManager.deleteResponse')}
               >
                 <TrashIcon className="h-4 w-4" />
               </button>
@@ -190,7 +190,7 @@ function ReviewCard({
           className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--foreground-soft)] hover:border-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-400"
         >
           <ChatBubbleLeftIcon className="h-4 w-4" />
-          Responder
+          {t('vendor.reviewsManager.reply')}
         </button>
       )}
 
@@ -203,7 +203,7 @@ function ReviewCard({
             rows={3}
             maxLength={1000}
             disabled={pending}
-            placeholder="Escribe tu respuesta pública..."
+            placeholder={t('vendor.reviewsManager.placeholder')}
             className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
           />
           {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
@@ -220,7 +220,7 @@ function ReviewCard({
                 disabled={pending}
                 className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] disabled:opacity-50"
               >
-                Cancelar
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -228,7 +228,7 @@ function ReviewCard({
                 disabled={pending || !draft.trim()}
                 className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 dark:bg-emerald-500 dark:hover:bg-emerald-400"
               >
-                {pending ? 'Guardando...' : 'Publicar respuesta'}
+                {pending ? t('vendor.reviewsManager.saving') : t('vendor.reviewsManager.publish')}
               </button>
             </div>
           </div>

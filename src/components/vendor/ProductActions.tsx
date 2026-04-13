@@ -7,12 +7,14 @@ import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { EllipsisVerticalIcon } from '@heroicons/react/24/outline'
 import { isProductExpired } from '@/domains/catalog/availability'
+import { useT } from '@/i18n'
 
 interface Props {
   product: { id: string; name: string; status: string; slug: string; expiresAt?: Date | string | null }
 }
 
 export function ProductActions({ product }: Props) {
+  const t = useT()
   const isExpired = isProductExpired(product.expiresAt)
   const [menuOpen, setMenuOpen] = useState(false)
   const [deleteModal, setDeleteModal] = useState(false)
@@ -24,7 +26,7 @@ export function ProductActions({ product }: Props) {
     try {
       await submitForReview(product.id)
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'No se pudo enviar el producto a revisión')
+      setError(error instanceof Error ? error.message : t('vendor.productActions.sendError'))
     } finally {
       setLoading(false)
       setMenuOpen(false)
@@ -37,7 +39,7 @@ export function ProductActions({ product }: Props) {
       await deleteProduct(product.id)
       setDeleteModal(false)
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'No se pudo eliminar el producto')
+      setError(error instanceof Error ? error.message : t('vendor.productActions.deleteError'))
     } finally {
       setLoading(false)
     }
@@ -61,7 +63,7 @@ export function ProductActions({ product }: Props) {
                 className="block px-4 py-2 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
                 onClick={() => setMenuOpen(false)}
               >
-                Editar
+                {t('vendor.productActions.edit')}
               </Link>
               {['DRAFT', 'REJECTED'].includes(product.status) && (
                 <button
@@ -70,7 +72,7 @@ export function ProductActions({ product }: Props) {
                   aria-busy={loading || undefined}
                   className="block w-full px-4 py-2 text-left text-sm text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-emerald-400 dark:hover:bg-emerald-950/35"
                 >
-                  {loading ? 'Enviando…' : 'Enviar a revisión'}
+                  {loading ? t('vendor.productActions.sending') : t('vendor.productActions.sendReview')}
                 </button>
               )}
               {product.status === 'ACTIVE' && !isExpired && (
@@ -79,7 +81,7 @@ export function ProductActions({ product }: Props) {
                   target="_blank"
                   className="block px-4 py-2 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
                 >
-                  Ver en tienda ↗
+                  {t('vendor.productActions.viewInStore')}
                 </Link>
               )}
               <div className="border-t border-[var(--border)] mt-1 pt-1">
@@ -87,7 +89,7 @@ export function ProductActions({ product }: Props) {
                   onClick={() => { setDeleteModal(true); setMenuOpen(false) }}
                   className="block w-full px-4 py-2 text-left text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/35"
                 >
-                  Eliminar
+                  {t('vendor.productActions.delete')}
                 </button>
               </div>
             </div>
@@ -95,24 +97,23 @@ export function ProductActions({ product }: Props) {
         )}
       </div>
 
-      {/* Delete confirmation modal */}
       <Modal
         open={deleteModal}
         onClose={() => setDeleteModal(false)}
-        title="Eliminar producto"
+        title={t('vendor.productActions.deleteTitle')}
         size="sm"
       >
         <div className="p-5 space-y-4">
           <p className="text-sm text-[var(--foreground-soft)]">
-            ¿Eliminar <strong>{product.name}</strong>? Esta acción no se puede deshacer.
+            {t('vendor.productActions.deleteConfirm').replace('{name}', product.name)}
           </p>
           {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
           <div className="flex gap-3 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setDeleteModal(false)}>
-              Cancelar
+              {t('common.cancel')}
             </Button>
             <Button variant="danger" size="sm" isLoading={loading} onClick={handleDelete}>
-              Eliminar
+              {t('vendor.productActions.delete')}
             </Button>
           </div>
         </div>
