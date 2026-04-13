@@ -10,7 +10,8 @@ const schema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const clientIP = getClientIP(req)
-    const rateLimitResult = await checkRateLimit('forgot-password', clientIP, 5, 3600)
+    // Auth recovery surface → fail-closed under backend degradation.
+    const rateLimitResult = await checkRateLimit('forgot-password', clientIP, 5, 3600, { failClosed: true })
     if (!rateLimitResult.success) {
       return NextResponse.json(
         { message: rateLimitResult.message ?? 'Demasiadas solicitudes' },

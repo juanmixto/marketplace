@@ -15,8 +15,8 @@ export async function POST(req: NextRequest) {
 
   if (isSignIn) {
     const clientIP = getClientIP(req)
-    // 5 login attempts per IP per 15 minutes
-    const rateLimitResult = await checkRateLimit('login', clientIP, 5, 900)
+    // 5 login attempts per IP per 15 minutes; auth surface → fail-closed.
+    const rateLimitResult = await checkRateLimit('login', clientIP, 5, 900, { failClosed: true })
 
     if (!rateLimitResult.success) {
       return NextResponse.json(
