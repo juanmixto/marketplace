@@ -138,6 +138,44 @@ export async function updateProduct(productId: string, input: Partial<ProductInp
 }
 
 /**
+ * Adjusts the stock of a product by a delta without going through review.
+ * Clamped at 0. Rejected for products with active variants (stock lives on
+ * the variant in that case — the vendor must edit variants explicitly).
+ */
+const stockDeltaSchema = z.object({
+  productId: z.string().min(1),
+  delta: z.number().int().refine(v => v !== 0, 'Delta must be non-zero'),
+})
+
+export async function adjustProductStock(input: z.infer<typeof stockDeltaSchema>) {
+  const { vendor } = await requireVendor()
+  const { productId, delta } = stockDeltaSchema.parse(input)
+
+  const product = await db.product.findFirst({
+    where: { id: productId, vendorId: vendor.id, deletedAt: null },
+    include: { variants: { where: { isActive: true }, select: { id: true } } },
+  })
+  if (!product) throw new Error('Producto no encontrado')
+  if (!product.trackStock) throw new Error('Este producto no trackea stock')
+  if (product.variants.length > 0) {
+    throw new Error('Productos con variantes: edita el stock por variante')
+  }
+
+  const nextStock = Math.max(0, product.stock + delta)
+
+  const updated = await db.product.update({
+    where: { id: productId },
+    data: { stock: nextStock },
+    select: { id: true, stock: true, slug: true },
+  })
+
+  safeRevalidatePath('/vendor/productos')
+  safeRevalidatePath(`/productos/${product.slug}`)
+  revalidateCatalogExperience({ productSlug: product.slug, vendorSlug: vendor.slug })
+  return { id: updated.id, stock: updated.stock }
+}
+
+/**
  * Submits a draft product for admin review.
  */
 export async function submitForReview(productId: string) {
@@ -194,7 +232,10 @@ export async function getMyProducts() {
   return db.product.findMany({
     where: { vendorId: vendor.id, deletedAt: null },
     orderBy: { createdAt: 'desc' },
-    include: { category: { select: { name: true } } },
+    include: {
+      category: { select: { name: true } },
+      variants: { where: { isActive: true }, select: { id: true } },
+    },
   })
 }
 
