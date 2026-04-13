@@ -302,8 +302,7 @@ const es = {
   'vendor.expiresSoon': 'Caduca pronto',
   'vendor.noStock': 'Sin stock',
   'vendor.inStock': 'en stock',
-  'vendor.quickStock.increment': 'Sumar una unidad de stock a {name}',
-  'vendor.quickStock.decrement': 'Restar una unidad de stock a {name}',
+  'vendor.quickStock.label': 'Stock de {name}',
   'vendor.quickStock.error': 'No se pudo actualizar el stock',
 
   // Vendor – product form
