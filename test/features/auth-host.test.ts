@@ -44,15 +44,28 @@ test('normalizeAuthHostEnv removes private-network auth urls in development', ()
   assert.equal(env.AUTH_SECRET, 'secret')
 })
 
-test('normalizeAuthHostEnv prefers NEXT_PUBLIC_APP_URL when the dev auth host is stale', () => {
+test('normalizeAuthHostEnv drops dev auth urls even when NEXT_PUBLIC_APP_URL is localhost', () => {
+  // Both AUTH_URL and NEXT_PUBLIC_APP_URL can be stale in dev when the port
+  // drifts. Deleting them lets Auth.js resolve via `trustHost` + request host.
   const env = normalizeAuthHostEnv({
     NODE_ENV: 'development',
     AUTH_URL: 'http://192.168.1.76:3004',
     NEXT_PUBLIC_APP_URL: 'http://localhost:3000',
   })
 
-  assert.equal(env.AUTH_URL, 'http://localhost:3000')
-  assert.equal(env.NEXTAUTH_URL, 'http://localhost:3000')
+  assert.equal('AUTH_URL' in env, false)
+  assert.equal('NEXTAUTH_URL' in env, false)
+})
+
+test('normalizeAuthHostEnv still prefers an external NEXT_PUBLIC_APP_URL', () => {
+  const env = normalizeAuthHostEnv({
+    NODE_ENV: 'development',
+    AUTH_URL: 'http://localhost:3000',
+    NEXT_PUBLIC_APP_URL: 'https://preview.example.com',
+  })
+
+  assert.equal(env.AUTH_URL, 'https://preview.example.com')
+  assert.equal(env.NEXTAUTH_URL, 'https://preview.example.com')
 })
 
 test('normalizeAuthHostEnv keeps external auth url intact', () => {
