@@ -59,9 +59,9 @@ export default function ResetPasswordPage({ params }: Props) {
   if (success) {
     return (
       <div className="mx-auto max-w-md px-4 py-16">
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-6 text-center">
-          <p className="text-emerald-800 font-semibold">✓ Contraseña actualizada correctamente</p>
-          <p className="text-sm text-emerald-700 mt-2">Redirigiendo al login...</p>
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-6 text-center dark:border-emerald-800/60 dark:bg-emerald-950/40">
+          <p className="text-emerald-800 font-semibold dark:text-emerald-300">✓ Contraseña actualizada correctamente</p>
+          <p className="text-sm text-emerald-700 mt-2 dark:text-emerald-400">Redirigiendo al login...</p>
         </div>
       </div>
     )
@@ -73,7 +73,7 @@ export default function ResetPasswordPage({ params }: Props) {
         <h1 className="text-2xl font-bold text-[var(--foreground)] mb-6">Nueva contraseña</h1>
 
         {error && (
-          <div className="mb-4 p-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm">
+          <div className="mb-4 p-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm dark:border-red-800/60 dark:bg-red-950/40 dark:text-red-300">
             {error}
           </div>
         )}
@@ -114,7 +114,7 @@ export default function ResetPasswordPage({ params }: Props) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+            className="w-full rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-emerald-500/50 dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:disabled:bg-slate-700"
           >
             {loading ? 'Actualizando...' : 'Establecer nueva contraseña'}
           </button>

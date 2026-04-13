@@ -105,7 +105,7 @@ export function ReviewSection({
         <div className="md:w-32">
           {avgRating ? (
             <>
-              <div className="mb-2 text-4xl font-bold text-emerald-600">
+              <div className="mb-2 text-4xl font-bold text-emerald-600 dark:text-emerald-400">
                 {avgRating.toFixed(1)}
               </div>
               <div className="mb-2 flex gap-1">
@@ -113,10 +113,10 @@ export function ReviewSection({
                   <StarIcon key={i} className="h-5 w-5 text-yellow-400" />
                 ))}
               </div>
-              <p className="text-sm text-gray-600">{totalLabel}</p>
+              <p className="text-sm text-gray-600 dark:text-[var(--muted)]">{totalLabel}</p>
             </>
           ) : (
-            <p className="text-gray-600">{t('reviews.emptyShort')}</p>
+            <p className="text-gray-600 dark:text-[var(--muted)]">{t('reviews.emptyShort')}</p>
           )}
         </div>
 
@@ -131,14 +131,14 @@ export function ReviewSection({
               return (
                 <div
                   key={review.id}
-                  className="rounded-lg border border-gray-200 bg-white p-4"
+                  className="rounded-lg border border-gray-200 bg-white p-4 dark:border-[var(--border)] dark:bg-[var(--surface)]"
                 >
                   <div className="mb-2 flex items-start justify-between">
                     <div>
-                      <p className="font-semibold text-gray-900">
+                      <p className="font-semibold text-gray-900 dark:text-[var(--foreground)]">
                         {review.customer.firstName} {review.customer.lastName}
                       </p>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs text-gray-600 dark:text-[var(--muted)]">
                         {t('reviews.ago').replace('{time}', timeAgo)}
                       </p>
                     </div>
@@ -149,37 +149,37 @@ export function ReviewSection({
                           className={`h-4 w-4 ${
                             i <= review.rating
                               ? 'text-yellow-400'
-                              : 'text-gray-300'
+                              : 'text-gray-300 dark:text-slate-600'
                           }`}
                         />
                       ))}
                     </div>
                   </div>
                   {review.body && (
-                    <p className="text-sm text-gray-700">{review.body}</p>
+                    <p className="text-sm text-gray-700 dark:text-[var(--foreground-soft)]">{review.body}</p>
                   )}
                 </div>
               )
             })
           ) : (
-            <p className="text-center text-gray-600">{t('reviews.emptyBeFirst')}</p>
+            <p className="text-center text-gray-600 dark:text-[var(--muted)]">{t('reviews.emptyBeFirst')}</p>
           )}
         </div>
       </div>
 
       {/* Review Form */}
       {userAuthenticated && myOrderId && (
-        <div className="rounded-lg border-2 border-emerald-200 bg-emerald-50 p-6">
-          <h3 className="mb-4 font-semibold text-gray-900">{t('reviews.leave')}</h3>
+        <div className="rounded-lg border-2 border-emerald-200 bg-emerald-50 p-6 dark:border-emerald-800/60 dark:bg-emerald-950/30">
+          <h3 className="mb-4 font-semibold text-gray-900 dark:text-[var(--foreground)]">{t('reviews.leave')}</h3>
 
           {success && (
-            <div className="mb-4 rounded-lg bg-green-100 p-3 text-green-800">
+            <div className="mb-4 rounded-lg bg-green-100 p-3 text-green-800 dark:bg-emerald-950/40 dark:text-emerald-300">
               ✓ {t('reviews.success')}
             </div>
           )}
 
           {error && (
-            <div className="mb-4 rounded-lg bg-red-100 p-3 text-red-800">
+            <div className="mb-4 rounded-lg bg-red-100 p-3 text-red-800 dark:bg-red-950/40 dark:text-red-300">
               ✗ {error}
             </div>
           )}
@@ -187,7 +187,7 @@ export function ReviewSection({
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Star Rating */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-900">
+              <label className="mb-2 block text-sm font-medium text-gray-900 dark:text-[var(--foreground)]">
                 {t('reviews.rating')} *
               </label>
               <div className="flex gap-2">
@@ -207,7 +207,7 @@ export function ReviewSection({
                     {i <= rating ? (
                       <StarIcon className="h-8 w-8 text-yellow-400" />
                     ) : (
-                      <StarOutlineIcon className="h-8 w-8 text-gray-400 hover:text-yellow-300" />
+                      <StarOutlineIcon className="h-8 w-8 text-gray-400 hover:text-yellow-300 dark:text-slate-500" />
                     )}
                   </button>
                 ))}
@@ -216,7 +216,7 @@ export function ReviewSection({
 
             {/* Comments */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-900">
+              <label className="mb-2 block text-sm font-medium text-gray-900 dark:text-[var(--foreground)]">
                 {t('reviews.commentOptional')}
               </label>
               <textarea
@@ -225,16 +225,16 @@ export function ReviewSection({
                 maxLength={1000}
                 disabled={isPending}
                 placeholder={t('reviews.commentPlaceholderShort')}
-                className="block w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200 disabled:bg-gray-100"
+                className="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200 disabled:bg-gray-100 dark:border-[var(--border)] dark:bg-[var(--surface)] dark:text-[var(--foreground)] dark:placeholder-[var(--muted-light)] dark:focus:ring-emerald-900/60 dark:disabled:bg-[var(--surface-raised)]"
                 rows={3}
               />
-              <p className="mt-1 text-xs text-gray-600">{body.length}/1000</p>
+              <p className="mt-1 text-xs text-gray-600 dark:text-[var(--muted)]">{body.length}/1000</p>
             </div>
 
             <button
               type="submit"
               disabled={!rating || isPending}
-              className="w-full rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              className="w-full rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:disabled:bg-slate-700"
             >
               {isPending ? t('reviews.submitting') : t('reviews.submit')}
             </button>
@@ -243,8 +243,8 @@ export function ReviewSection({
       )}
 
       {!userAuthenticated && (
-        <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-6 text-center">
-          <p className="text-sm text-blue-900">{t('reviews.loginPrompt')}</p>
+        <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-6 text-center dark:border-blue-800/60 dark:bg-blue-950/30">
+          <p className="text-sm text-blue-900 dark:text-blue-300">{t('reviews.loginPrompt')}</p>
         </div>
       )}
     </div>
