@@ -6,7 +6,7 @@ import {
   FAVORITES_UNAVAILABLE_MESSAGE,
   isFavoritesTableMissingError,
   withFavoritesGuard,
-} from '@/lib/favorites'
+} from '@/domains/catalog/favorites'
 
 const addFavoriteSchema = z.object({
   productId: z.string().min(1),
