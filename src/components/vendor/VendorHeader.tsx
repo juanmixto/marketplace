@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { UserCircleIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 interface Props {
   user: { name?: string | null; email?: string | null }
@@ -34,7 +35,10 @@ export function VendorHeader({ user, vendor }: Props) {
         )}
       </div>
 
-      <div className="relative">
+      <div className="flex items-center gap-1">
+        <ThemeToggle />
+
+        <div className="relative">
         <button
           onClick={() => setOpen(v => !v)}
           className="flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
@@ -65,6 +69,7 @@ export function VendorHeader({ user, vendor }: Props) {
             </div>
           </>
         )}
+        </div>
       </div>
     </header>
   )

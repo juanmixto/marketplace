@@ -10,7 +10,6 @@ import {
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import { adminNavItems } from '@/lib/navigation'
-import { ThemeToggle } from '@/components/ThemeToggle'
 
 const NAV_META = {
   '/admin/dashboard':    HomeIcon,
@@ -80,10 +79,6 @@ export function AdminSidebar() {
           <ArrowTopRightOnSquareIcon className="h-4 w-4" />
           Ver tienda
         </Link>
-        <div className="flex items-center justify-between px-3 py-1">
-          <span className="text-xs text-[var(--muted)]">Tema</span>
-          <ThemeToggle />
-        </div>
       </div>
     </aside>
   )
