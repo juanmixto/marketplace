@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -49,6 +50,7 @@ interface Props {
 }
 
 export function VendorProfileForm({ vendor }: Props) {
+  const router = useRouter()
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const [serverError, setServerError] = useState<string | null>(null)
 
@@ -88,12 +90,16 @@ export function VendorProfileForm({ vendor }: Props) {
         await updateVendorProfile(values)
         lastSavedJsonRef.current = JSON.stringify(values)
         setSaveState('saved')
+        // Refresh server components so the vendor layout sidebar (which reads
+        // displayName/logo from the DB) reflects the new values without needing
+        // a full page reload.
+        router.refresh()
       } catch (err) {
         setSaveState('error')
         setServerError(err instanceof Error ? err.message : 'Error al guardar el perfil')
       }
     },
-    [],
+    [router],
   )
 
   useEffect(() => {
@@ -140,8 +146,8 @@ export function VendorProfileForm({ vendor }: Props) {
           </label>
           <textarea
             id="description"
-            rows={4}
-            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
+            rows={8}
+            className="w-full min-h-[12rem] resize-y rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm leading-relaxed text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
             placeholder="Cuéntanos sobre tu explotación, tus prácticas, tu historia..."
             {...register('description')}
           />
