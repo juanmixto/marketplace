@@ -3,6 +3,7 @@
  * Supports 'mock' (dev) and 'stripe' (production).
  * Switch via PAYMENT_PROVIDER env var.
  */
+import crypto from 'crypto'
 import { getServerEnv } from '@/lib/env'
 
 export interface PaymentIntent {
@@ -38,7 +39,7 @@ export async function createPaymentIntent(
   const env = getServerEnv()
 
   if (env.paymentProvider === 'mock') {
-    const id = `mock_pi_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    const id = `mock_pi_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`
     return { id, clientSecret: `${id}_secret`, amount: amountCents }
   }
 
