@@ -107,34 +107,34 @@ enum CommissionType {
 // ─── Identity & Auth ──────────────────────────────────────────────────────────
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  emailVerified DateTime?
-  passwordHash  String?
-  firstName     String
-  lastName      String
-  image         String?
-  role          UserRole  @default(CUSTOMER)
-  isActive      Boolean   @default(true)
-  deletedAt     DateTime?
-  consentAcceptedAt DateTime?
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  emailVerified        DateTime?
+  passwordHash         String?
+  firstName            String
+  lastName             String
+  image                String?
+  role                 UserRole  @default(CUSTOMER)
+  isActive             Boolean   @default(true)
+  deletedAt            DateTime?
+  consentAcceptedAt    DateTime?
   passwordResetToken   String?   @unique
   passwordResetExpires DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  accounts                  Account[]
-  sessions                  Session[]
-  vendor                    Vendor?
-  orders                    Order[]
-  cart                      Cart?
-  cart_items                CartItem[]
-  addresses                 Address[]
-  incidents                 Incident[]
-  reviews                   Review[]
-  favorites                 Favorite[]
-  emailVerificationTokens   EmailVerificationToken[]
-  passwordResetTokens       PasswordResetToken[]
+  accounts                Account[]
+  sessions                Session[]
+  vendor                  Vendor?
+  orders                  Order[]
+  cart                    Cart?
+  cart_items              CartItem[]
+  addresses               Address[]
+  incidents               Incident[]
+  reviews                 Review[]
+  favorites               Favorite[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
 
   @@index([email])
   @@index([role])
@@ -179,28 +179,28 @@ model VerificationToken {
 // ─── Catalog ──────────────────────────────────────────────────────────────────
 
 model Vendor {
-  id               String       @id @default(cuid())
-  userId           String       @unique
-  slug             String       @unique
-  displayName      String
-  description      String?      @db.Text
-  logo             String?
-  coverImage       String?
-  location         String?
-  status           VendorStatus @default(APPLYING)
-  commissionRate   Decimal      @default(0.12) @db.Decimal(5, 4)
-  avgRating        Decimal?     @db.Decimal(3, 2)
-  totalReviews     Int          @default(0)
-  orderCutoffTime  String?
-  preparationDays  Int?         @default(2)
-  iban             String?
-  bankAccountName  String?
-  stripeAccountId  String?
-  stripeOnboarded  Boolean      @default(false)
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  id              String       @id @default(cuid())
+  userId          String       @unique
+  slug            String       @unique
+  displayName     String
+  description     String?      @db.Text
+  logo            String?
+  coverImage      String?
+  location        String?
+  status          VendorStatus @default(APPLYING)
+  commissionRate  Decimal      @default(0.12) @db.Decimal(5, 4)
+  avgRating       Decimal?     @db.Decimal(3, 2)
+  totalReviews    Int          @default(0)
+  orderCutoffTime String?
+  preparationDays Int?         @default(2)
+  iban            String?
+  bankAccountName String?
+  stripeAccountId String?
+  stripeOnboarded Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
-  user         User               @relation(fields: [userId], references: [id])
+  user         User                @relation(fields: [userId], references: [id])
   products     Product[]
   fulfillments VendorFulfillment[]
   settlements  Settlement[]
@@ -211,17 +211,17 @@ model Vendor {
 }
 
 model Category {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   name        String
-  slug        String    @unique
+  slug        String   @unique
   description String?
   icon        String?
   image       String?
   parentId    String?
-  sortOrder   Int       @default(0)
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
   children Category[] @relation("CategoryTree")
@@ -269,6 +269,10 @@ model Product {
   @@index([vendorId, status])
   @@index([expiresAt])
   @@index([slug])
+  // Cursor pagination on /productos orders by [createdAt desc, id desc]
+  // filtered by status. Composite index keeps page N constant-time
+  // regardless of N. See #89.
+  @@index([status, createdAt(sort: Desc), id(sort: Desc)])
 }
 
 model ProductVariant {
@@ -292,10 +296,10 @@ model ProductVariant {
 // ─── Cart ─────────────────────────────────────────────────────────────────────
 
 model Cart {
-  id        String     @id @default(cuid())
-  userId    String     @unique
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   items CartItem[]
@@ -347,23 +351,23 @@ model Address {
 }
 
 model Order {
-  id            String        @id @default(cuid())
-  orderNumber   String        @unique
-  customerId    String
-  addressId     String?
+  id                      String        @id @default(cuid())
+  orderNumber             String        @unique
+  customerId              String
+  addressId               String?
   shippingAddressSnapshot Json?
-  status        OrderStatus   @default(PLACED)
-  paymentStatus PaymentStatus @default(PENDING)
-  subtotal      Decimal       @db.Decimal(10, 2)
-  shippingCost  Decimal       @default(0) @db.Decimal(10, 2)
-  taxAmount     Decimal       @db.Decimal(10, 2)
-  grandTotal    Decimal       @db.Decimal(10, 2)
-  notes         String?
-  placedAt      DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  status                  OrderStatus   @default(PLACED)
+  paymentStatus           PaymentStatus @default(PENDING)
+  subtotal                Decimal       @db.Decimal(10, 2)
+  shippingCost            Decimal       @default(0) @db.Decimal(10, 2)
+  taxAmount               Decimal       @db.Decimal(10, 2)
+  grandTotal              Decimal       @db.Decimal(10, 2)
+  notes                   String?
+  placedAt                DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
 
-  customer     User               @relation(fields: [customerId], references: [id])
-  address      Address?           @relation(fields: [addressId], references: [id])
+  customer     User                @relation(fields: [customerId], references: [id])
+  address      Address?            @relation(fields: [addressId], references: [id])
   lines        OrderLine[]
   payments     Payment[]
   fulfillments VendorFulfillment[]
@@ -599,16 +603,16 @@ model ShippingZone {
 }
 
 model ShippingRate {
-  id             String       @id @default(cuid())
+  id             String   @id @default(cuid())
   zoneId         String
   name           String
-  minWeight      Decimal?     @db.Decimal(8, 3)
-  maxWeight      Decimal?     @db.Decimal(8, 3)
-  minOrderAmount Decimal?     @db.Decimal(10, 2)
-  price          Decimal      @db.Decimal(10, 2)
-  freeAbove      Decimal?     @db.Decimal(10, 2)
-  isActive       Boolean      @default(true)
-  createdAt      DateTime     @default(now())
+  minWeight      Decimal? @db.Decimal(8, 3)
+  maxWeight      Decimal? @db.Decimal(8, 3)
+  minOrderAmount Decimal? @db.Decimal(10, 2)
+  price          Decimal  @db.Decimal(10, 2)
+  freeAbove      Decimal? @db.Decimal(10, 2)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
 
   zone ShippingZone @relation(fields: [zoneId], references: [id])
 }
@@ -657,12 +661,12 @@ model Favorite {
 // ─── Authentication Tokens ────────────────────────────────────────────────────
 
 model EmailVerificationToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -670,12 +674,12 @@ model EmailVerificationToken {
 }
 
 model PasswordResetToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
