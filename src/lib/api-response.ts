@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import type { ZodError } from 'zod'
 
 /**
  * Canonical error-response helpers for /api routes.
@@ -29,18 +30,63 @@ export interface ApiErrorBody {
   error: string
   code: ApiErrorCode
   details?: unknown
+  /**
+   * Map of field path → human-readable message for form-style validation
+   * errors. The client surfaces these inline next to the offending input
+   * instead of a generic "Datos inválidos" banner. (#131)
+   */
+  fieldErrors?: Record<string, string>
+}
+
+export interface ApiErrorOptions {
+  details?: unknown
+  fieldErrors?: Record<string, string>
+  headers?: Record<string, string>
 }
 
 export function apiError(
   message: string,
   status: number,
   code: ApiErrorCode = 'INTERNAL_ERROR',
-  details?: unknown,
+  detailsOrOptions?: unknown | ApiErrorOptions,
   extraHeaders?: Record<string, string>
 ): NextResponse<ApiErrorBody> {
+  // Back-compat: accept either the legacy (details, headers) tuple or the
+  // newer options bag with fieldErrors.
+  const opts: ApiErrorOptions =
+    detailsOrOptions != null
+      && typeof detailsOrOptions === 'object'
+      && !Array.isArray(detailsOrOptions)
+      && ('fieldErrors' in detailsOrOptions || 'details' in detailsOrOptions || 'headers' in detailsOrOptions)
+      ? (detailsOrOptions as ApiErrorOptions)
+      : { details: detailsOrOptions, headers: extraHeaders }
+
   const body: ApiErrorBody = { error: message, code }
-  if (details !== undefined) body.details = details
-  return NextResponse.json(body, { status, headers: extraHeaders })
+  if (opts.details !== undefined) body.details = opts.details
+  if (opts.fieldErrors !== undefined) body.fieldErrors = opts.fieldErrors
+  return NextResponse.json(body, { status, headers: opts.headers })
+}
+
+/**
+ * Flatten a Zod error into a `{ field: 'message' }` map keyed by dotted path.
+ * Returns the first message encountered for each path, which is what users
+ * actually want to read next to the input.
+ */
+export function zodFieldErrors(error: ZodError): Record<string, string> {
+  const map: Record<string, string> = {}
+  for (const issue of error.issues) {
+    const path = issue.path.join('.')
+    if (path && map[path] === undefined) {
+      map[path] = issue.message
+    }
+  }
+  return map
+}
+
+export function apiValidationFromZod(error: ZodError, fallbackMessage = 'Revisa los datos del formulario') {
+  const fieldErrors = zodFieldErrors(error)
+  const firstMessage = Object.values(fieldErrors)[0] ?? fallbackMessage
+  return apiError(firstMessage, 422, 'VALIDATION_ERROR', { fieldErrors })
 }
 
 export const apiBadRequest = (message: string, details?: unknown) =>
