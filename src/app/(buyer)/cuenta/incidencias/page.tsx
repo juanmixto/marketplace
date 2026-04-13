@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { getMyIncidents } from '@/domains/incidents/actions'
 import { getServerT } from '@/i18n/server'
 import type { TranslationKeys } from '@/i18n/locales'
+import { SlaProgress } from '@/components/incidents/SlaProgress'
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT()
@@ -28,6 +29,8 @@ export default async function IncidentsListPage() {
           {incidents.map(incident => {
             const typeKey = `incident.type.${incident.type}` as TranslationKeys
             const statusKey = `incident.status.${incident.status}` as TranslationKeys
+            const isClosed =
+              incident.status === 'RESOLVED' || incident.status === 'CLOSED'
             return (
               <li key={incident.id}>
                 <Link
@@ -47,17 +50,21 @@ export default async function IncidentsListPage() {
                     </div>
                     <span
                       className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
-                        incident.slaOverdue
-                          ? 'bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300'
-                          : incident.status === 'RESOLVED' || incident.status === 'CLOSED'
-                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                        isClosed
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                          : incident.slaOverdue
+                            ? 'bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300'
                             : 'bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300'
                       }`}
                     >
-                      {incident.slaOverdue
-                        ? `${t('incident.list.sla')}: ${t('incident.list.slaOverdue')}`
-                        : t(statusKey)}
+                      {t(statusKey)}
                     </span>
+                  </div>
+                  <div className="mt-3">
+                    <SlaProgress
+                      deadline={new Date(incident.slaDeadline)}
+                      hidden={isClosed}
+                    />
                   </div>
                 </Link>
               </li>
