@@ -20,7 +20,15 @@ import { POST as resetPassword } from '@/app/api/auth/reset-password/route'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 
-const sha256 = (token: string) => crypto.createHash('sha256').update(token).digest('hex')
+// Mirror the production digest derivation. The HMAC pepper falls back to a
+// fixed dev-only value when AUTH_SECRET / NEXTAUTH_SECRET aren't set, so
+// tests get the same digest the server would compute.
+function tokenPepper(): string {
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
+  return secret ? `auth-token-pepper:${secret}` : 'auth-token-pepper:dev-only-fallback-do-not-use-in-prod'
+}
+const sha256 = (token: string) =>
+  crypto.createHmac('sha256', tokenPepper()).update(token).digest('hex')
 
 describe('Email Verification and Password Reset (#77)', () => {
   let testUserId: string

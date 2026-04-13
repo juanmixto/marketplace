@@ -13,8 +13,32 @@ import crypto from 'crypto'
 const TOKEN_EXPIRY_EMAIL_VERIFICATION = 24 * 60 * 60 * 1000 // 24 hours
 const TOKEN_EXPIRY_PASSWORD_RESET = 60 * 60 * 1000 // 1 hour
 
+/**
+ * Derive the at-rest digest for a token.
+ *
+ * We HMAC-sign with a server-side secret instead of plain SHA-256 so that
+ * a database/backup leak alone is not enough to recover any token: an
+ * attacker would also need the server pepper. The token itself is full
+ * 256-bit entropy from `crypto.randomBytes`, so a fast keyed hash is the
+ * right primitive — slow KDFs (bcrypt/argon) are designed for low-entropy
+ * passwords, not high-entropy secrets, and would only add latency here.
+ */
 function hashToken(token: string): string {
-  return crypto.createHash('sha256').update(token).digest('hex')
+  return crypto.createHmac('sha256', getTokenPepper()).update(token).digest('hex')
+}
+
+let cachedPepper: string | null = null
+function getTokenPepper(): string {
+  if (cachedPepper !== null) return cachedPepper
+  // AUTH_SECRET is required in production by getServerEnv(); fall back to a
+  // dev-only constant in test/CI so unit tests don't need to wire it up.
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
+  if (secret && secret.length > 0) {
+    cachedPepper = `auth-token-pepper:${secret}`
+  } else {
+    cachedPepper = 'auth-token-pepper:dev-only-fallback-do-not-use-in-prod'
+  }
+  return cachedPepper
 }
 
 /**
