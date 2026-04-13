@@ -67,9 +67,10 @@ export function ProductActions({ product }: Props) {
                 <button
                   onClick={handleSubmitReview}
                   disabled={loading}
-                  className="block w-full px-4 py-2 text-left text-sm text-emerald-700 transition hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/35"
+                  aria-busy={loading || undefined}
+                  className="block w-full px-4 py-2 text-left text-sm text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-emerald-400 dark:hover:bg-emerald-950/35"
                 >
-                  Enviar a revisión
+                  {loading ? 'Enviando…' : 'Enviar a revisión'}
                 </button>
               )}
               {product.status === 'ACTIVE' && !isExpired && (
