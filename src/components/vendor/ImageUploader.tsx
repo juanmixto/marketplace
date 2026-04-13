@@ -22,6 +22,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { useT } from '@/i18n'
+import { compressImage } from '@/lib/image-compress'
 
 const MAX_IMAGES = 6
 const MAX_BYTES = 5 * 1024 * 1024
@@ -48,10 +49,14 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
   const remainingSlots = Math.max(0, MAX_IMAGES - urls.length - uploading.length)
 
   const uploadFile = useCallback(
-    async (file: File) => {
+    async (rawFile: File) => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-      setUploading(prev => [...prev, { id, name: file.name }])
+      setUploading(prev => [...prev, { id, name: rawFile.name }])
       try {
+        const file = await compressImage(rawFile, 'product')
+        if (file.size > MAX_BYTES) {
+          throw new Error(t('vendor.upload.tooLarge'))
+        }
         const formData = new FormData()
         formData.append('file', file)
         const response = await fetch('/api/upload', {
@@ -67,7 +72,7 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
       } catch (uploadError) {
         setError(
           uploadError instanceof Error
-            ? `${file.name}: ${uploadError.message}`
+            ? `${rawFile.name}: ${uploadError.message}`
             : t('vendor.upload.error')
         )
       } finally {
@@ -86,10 +91,6 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
       for (const file of files) {
         if (!ACCEPTED_TYPES.has(file.type)) {
           setError(`${file.name}: ${t('vendor.upload.unsupported')}`)
-          continue
-        }
-        if (file.size > MAX_BYTES) {
-          setError(`${file.name}: ${t('vendor.upload.tooLarge')}`)
           continue
         }
         await uploadFile(file)

@@ -51,6 +51,51 @@ test('createProduct persists a vendor product and deleteProduct performs a soft 
   assert.equal(deleted?.status, 'SUSPENDED')
 })
 
+test('createProduct accepts local /uploads/ paths and rejects arbitrary URLs', async () => {
+  const { user } = await createVendorUser()
+  useTestSession(buildSession(user.id, 'VENDOR'))
+
+  const created = await createProduct({
+    name: 'Calabacín bio',
+    description: 'De la huerta',
+    categoryId: undefined,
+    basePrice: 2.5,
+    compareAtPrice: undefined,
+    taxRate: 0.1,
+    unit: 'kg',
+    stock: 8,
+    trackStock: true,
+    certifications: [],
+    originRegion: 'Navarra',
+    images: ['/uploads/products/vendor-x/abc.jpg'],
+    expiresAt: undefined,
+    status: 'DRAFT',
+  })
+  const stored = await db.product.findUnique({ where: { id: created.id } })
+  assert.deepEqual(stored?.images, ['/uploads/products/vendor-x/abc.jpg'])
+
+  await assert.rejects(
+    () =>
+      createProduct({
+        name: 'Calabacín bio 2',
+        description: 'De la huerta',
+        categoryId: undefined,
+        basePrice: 2.5,
+        compareAtPrice: undefined,
+        taxRate: 0.1,
+        unit: 'kg',
+        stock: 8,
+        trackStock: true,
+        certifications: [],
+        originRegion: 'Navarra',
+        images: ['http://evil.example.com/x.jpg'],
+        expiresAt: undefined,
+        status: 'DRAFT',
+      }),
+    /URL de imagen no permitida/i,
+  )
+})
+
 test('deleteProduct rejects products with active orders', async () => {
   const { user, vendor } = await createVendorUser()
   const customer = await db.user.create({

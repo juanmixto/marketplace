@@ -13,7 +13,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { updateVendorProfile } from '@/domains/vendors/actions'
 import { isAllowedImageUrl } from '@/lib/image-validation'
-import { SingleImageUpload } from './SingleImageUpload'
+import { VendorHeroUpload } from './VendorHeroUpload'
 import type { Vendor } from '@/generated/prisma/client'
 import { useT } from '@/i18n'
 import { useMemo } from 'react'
@@ -171,33 +171,26 @@ export function VendorProfileForm({ vendor }: Props) {
         <Controller
           control={control}
           name="logo"
-          render={({ field }) => (
-            <SingleImageUpload
-              id="vendor-logo"
-              label={t('vendor.profileForm.logoLabel')}
-              value={field.value ?? ''}
-              onChange={field.onChange}
-              shape="circle"
+          render={({ field: logoField }) => (
+            <Controller
+              control={control}
+              name="coverImage"
+              render={({ field: coverField }) => (
+                <VendorHeroUpload
+                  coverLabel={t('vendor.profileForm.coverLabel')}
+                  logoLabel={t('vendor.profileForm.logoLabel')}
+                  coverValue={coverField.value ?? ''}
+                  logoValue={logoField.value ?? ''}
+                  onCoverChange={coverField.onChange}
+                  onLogoChange={logoField.onChange}
+                />
+              )}
             />
           )}
         />
         {errors.logo?.message && (
           <p className="text-xs text-red-600 dark:text-red-400">{errors.logo.message}</p>
         )}
-
-        <Controller
-          control={control}
-          name="coverImage"
-          render={({ field }) => (
-            <SingleImageUpload
-              id="vendor-cover"
-              label={t('vendor.profileForm.coverLabel')}
-              value={field.value ?? ''}
-              onChange={field.onChange}
-              shape="banner"
-            />
-          )}
-        />
         {errors.coverImage?.message && (
           <p className="text-xs text-red-600 dark:text-red-400">{errors.coverImage.message}</p>
         )}
