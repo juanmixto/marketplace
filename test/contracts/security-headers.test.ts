@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { buildContentSecurityPolicy, getSecurityHeaders } from '@/lib/security-headers'
-import nextConfig, { buildHeaderRules } from '../next.config'
+import nextConfig, { buildHeaderRules } from '../../next.config'
 
 test('getSecurityHeaders exposes the core browser hardening headers', () => {
   const previousAppUrl = process.env.NEXT_PUBLIC_APP_URL

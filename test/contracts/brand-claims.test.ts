@@ -7,7 +7,7 @@ function readSource(path: string) {
 }
 
 test('brand claims are centralized with ownership and update guidance', () => {
-  const claims = readSource('../src/domains/vendors/brand-claims.ts')
+  const claims = readSource('../../src/domains/vendors/brand-claims.ts')
 
   assert.match(claims, /owner:/)
   assert.match(claims, /source:/)
@@ -18,11 +18,11 @@ test('brand claims are centralized with ownership and update guidance', () => {
 
 test('public brand copy no longer hardcodes the old business figures', () => {
   const pages = [
-    '../src/app/(public)/sobre-nosotros/page.tsx',
-    '../src/app/(public)/como-vender/page.tsx',
-    '../src/app/(public)/page.tsx',
-    '../src/app/(public)/faq/page.tsx',
-    '../src/app/(public)/contacto/page.tsx',
+    '../../src/app/(public)/sobre-nosotros/page.tsx',
+    '../../src/app/(public)/como-vender/page.tsx',
+    '../../src/app/(public)/page.tsx',
+    '../../src/app/(public)/faq/page.tsx',
+    '../../src/app/(public)/contacto/page.tsx',
   ]
 
   for (const path of pages) {

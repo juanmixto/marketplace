@@ -5,7 +5,7 @@
  * Run with: npm test -- stock-concurrency.test.ts
  */
 
-import { describe, it, expect, beforeAll, afterAll } from './test-helpers'
+import { describe, it, expect, beforeAll, afterAll } from '../test-helpers'
 import { db } from '@/lib/db'
 import { createOrder } from '@/domains/orders/actions'
 import type { CheckoutFormData } from '@/domains/orders/checkout'

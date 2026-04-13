@@ -48,11 +48,11 @@ test('catalog copy auto-translates new vendor products and exposes translation b
 })
 
 test('catalog components use locale-aware copy helpers instead of hardcoded Spanish strings', () => {
-  const card = readSource('../src/components/catalog/ProductCard.tsx')
-  const filters = readSource('../src/components/catalog/ProductFiltersPanel.tsx')
-  const sort = readSource('../src/components/catalog/SortSelect.tsx')
-  const productsPage = readSource('../src/app/(public)/productos/page.tsx')
-  const detailPage = readSource('../src/app/(public)/productos/[slug]/page.tsx')
+  const card = readSource('../../src/components/catalog/ProductCard.tsx')
+  const filters = readSource('../../src/components/catalog/ProductFiltersPanel.tsx')
+  const sort = readSource('../../src/components/catalog/SortSelect.tsx')
+  const productsPage = readSource('../../src/app/(public)/productos/page.tsx')
+  const detailPage = readSource('../../src/app/(public)/productos/[slug]/page.tsx')
 
   assert.match(card, /getLocalizedProductCopy\(/)
   assert.match(card, /locale\?: Locale/)

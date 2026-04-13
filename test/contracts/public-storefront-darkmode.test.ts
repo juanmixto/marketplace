@@ -7,7 +7,7 @@ function readSource(path: string) {
 }
 
 test('SortSelect preserves existing filters when updating sort order', () => {
-  const source = readSource('../src/components/catalog/SortSelect.tsx')
+  const source = readSource('../../src/components/catalog/SortSelect.tsx')
 
   assert.match(source, /useSearchParams/)
   assert.match(source, /params\.set\('orden', value\)/)
@@ -16,7 +16,7 @@ test('SortSelect preserves existing filters when updating sort order', () => {
 })
 
 test('Header interactions expose focus-visible treatment in dark mode', () => {
-  const source = readSource('../src/components/layout/Header.tsx')
+  const source = readSource('../../src/components/layout/Header.tsx')
 
   assert.match(source, /focus-visible:ring-2/)
   assert.match(source, /focus-visible:ring-offset-\[var\(--background\)\]/)
@@ -25,9 +25,9 @@ test('Header interactions expose focus-visible treatment in dark mode', () => {
 })
 
 test('Catalog cards and filters add stronger contrast and focus states', () => {
-  const card = readSource('../src/components/catalog/ProductCard.tsx')
-  const filters = readSource('../src/components/catalog/ProductFiltersPanel.tsx')
-  const purchase = readSource('../src/components/catalog/ProductPurchasePanel.tsx')
+  const card = readSource('../../src/components/catalog/ProductCard.tsx')
+  const filters = readSource('../../src/components/catalog/ProductFiltersPanel.tsx')
+  const purchase = readSource('../../src/components/catalog/ProductPurchasePanel.tsx')
 
   assert.match(card, /hover:border-\[var\(--border-strong\)\]/)
   assert.match(card, /focus-visible:ring-2/)
@@ -38,8 +38,8 @@ test('Catalog cards and filters add stronger contrast and focus states', () => {
 })
 
 test('Review UI improves dark contrast for stars and textarea focus', () => {
-  const stars = readSource('../src/components/reviews/StarRating.tsx')
-  const reviewForm = readSource('../src/components/reviews/ReviewFormButton.tsx')
+  const stars = readSource('../../src/components/reviews/StarRating.tsx')
+  const reviewForm = readSource('../../src/components/reviews/ReviewFormButton.tsx')
 
   assert.match(stars, /dark:text-amber-700/)
   assert.match(reviewForm, /focus-visible:ring-amber-400\/40/)

@@ -83,7 +83,7 @@ test('firstPendingReviewProductId returns null when nothing is pending (#204)', 
 
 test('orders list page deep-links the pending-review badge to the first unreviewed product (#204)', () => {
   const src = readFileSync(
-    new URL('../src/app/(buyer)/cuenta/pedidos/page.tsx', import.meta.url),
+    new URL('../../src/app/(buyer)/cuenta/pedidos/page.tsx', import.meta.url),
     'utf8'
   )
   // The badge must use the first-pending helper and build a fragment URL,
@@ -98,7 +98,7 @@ test('orders list page deep-links the pending-review badge to the first unreview
 
 test('OrderDetailClient renders id="review-{productId}" anchors on every line (#204)', () => {
   const src = readFileSync(
-    new URL('../src/app/(buyer)/cuenta/pedidos/[id]/OrderDetailClient.tsx', import.meta.url),
+    new URL('../../src/app/(buyer)/cuenta/pedidos/[id]/OrderDetailClient.tsx', import.meta.url),
     'utf8'
   )
   // Anchor target for the deep-link from the order list. Must be on the row,

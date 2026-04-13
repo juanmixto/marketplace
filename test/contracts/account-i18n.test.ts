@@ -7,7 +7,7 @@ function readSource(path: string) {
 }
 
 test('SignOutButton uses useT instead of hardcoded Spanish text', () => {
-  const source = readSource('../src/components/auth/SignOutButton.tsx')
+  const source = readSource('../../src/components/auth/SignOutButton.tsx')
 
   assert.match(source, /useT/)
   assert.match(source, /t\('signOut'\)/)

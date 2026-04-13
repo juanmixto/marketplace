@@ -7,7 +7,7 @@ function readSource(path: string) {
 }
 
 test('favorites page uses getServerT for i18n instead of hardcoded strings', () => {
-  const source = readSource('../src/app/(buyer)/cuenta/favoritos/page.tsx')
+  const source = readSource('../../src/app/(buyer)/cuenta/favoritos/page.tsx')
 
   assert.match(source, /getServerT/)
   assert.match(source, /t\('favorites\.title'\)/)
@@ -16,7 +16,7 @@ test('favorites page uses getServerT for i18n instead of hardcoded strings', () 
 })
 
 test('FavoritosClient uses useT hook for i18n', () => {
-  const source = readSource('../src/app/(buyer)/cuenta/favoritos/FavoritosClient.tsx')
+  const source = readSource('../../src/app/(buyer)/cuenta/favoritos/FavoritosClient.tsx')
 
   assert.match(source, /useT/)
   assert.match(source, /t\('favorites\.emptyTitle'\)/)
@@ -27,7 +27,7 @@ test('FavoritosClient uses useT hook for i18n', () => {
 })
 
 test('FavoritosClient uses useCartStore for add-to-cart instead of console.log stub', () => {
-  const source = readSource('../src/app/(buyer)/cuenta/favoritos/FavoritosClient.tsx')
+  const source = readSource('../../src/app/(buyer)/cuenta/favoritos/FavoritosClient.tsx')
 
   assert.match(source, /useCartStore/)
   assert.match(source, /addItem/)
@@ -36,7 +36,7 @@ test('FavoritosClient uses useCartStore for add-to-cart instead of console.log s
 })
 
 test('FavoritosClient syncs with favorites store on remove', () => {
-  const source = readSource('../src/app/(buyer)/cuenta/favoritos/FavoritosClient.tsx')
+  const source = readSource('../../src/app/(buyer)/cuenta/favoritos/FavoritosClient.tsx')
 
   assert.match(source, /useFavoritesStore/)
 })
@@ -72,7 +72,7 @@ test('favorites i18n keys exist in both Spanish and English locales', async () =
 })
 
 test('favorites page uses dynamic generateMetadata instead of static metadata export', () => {
-  const source = readSource('../src/app/(buyer)/cuenta/favoritos/page.tsx')
+  const source = readSource('../../src/app/(buyer)/cuenta/favoritos/page.tsx')
 
   assert.match(source, /generateMetadata/)
   // Should not have static `export const metadata`

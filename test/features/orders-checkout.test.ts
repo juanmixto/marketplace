@@ -153,7 +153,7 @@ test('toCheckoutFormAddress maps a saved address into checkout form values', () 
 })
 
 test('createOrder runs a stock precheck BEFORE creating a Stripe PaymentIntent (#133)', () => {
-  const actions = readSource('../src/domains/orders/actions.ts')
+  const actions = readSource('../../src/domains/orders/actions.ts')
 
   // The precheck loop must exist with the recognizable shortage message...
   assert.match(actions, /Stock insuficiente: \$\{stockShortages\.join/, 'must surface a clear stock-shortage error')
@@ -174,28 +174,28 @@ test('createOrder runs a stock precheck BEFORE creating a Stripe PaymentIntent (
 test('createOrder still validates stock atomically inside the transaction (#133)', () => {
   // The precheck is best-effort. The transactional FOR UPDATE check must
   // remain in place to defeat the race window between the read and the write.
-  const actions = readSource('../src/domains/orders/actions.ts')
+  const actions = readSource('../../src/domains/orders/actions.ts')
   assert.match(actions, /FOR UPDATE/, 'transactional row lock must still be present')
   assert.match(actions, /Stock insuficiente para/, 'transactional check must still throw on shortage')
 })
 
 test('checkout success redirects to the confirmation page instead of leaving the buyer without feedback', () => {
-  const checkoutClient = readSource('../src/components/buyer/CheckoutPageClient.tsx')
-  const stripeForm = readSource('../src/components/checkout/StripeCheckoutForm.tsx')
+  const checkoutClient = readSource('../../src/components/buyer/CheckoutPageClient.tsx')
+  const stripeForm = readSource('../../src/components/checkout/StripeCheckoutForm.tsx')
 
   assert.match(checkoutClient, /\/checkout\/confirmacion\?orderNumber=/)
   assert.match(stripeForm, /\/checkout\/confirmacion\?orderNumber=/)
 })
 
 test('checkout client avoids the empty-cart fallback while the confirmation redirect is in flight', () => {
-  const checkoutClient = readSource('../src/components/buyer/CheckoutPageClient.tsx')
+  const checkoutClient = readSource('../../src/components/buyer/CheckoutPageClient.tsx')
 
   assert.match(checkoutClient, /setCompletedOrderNumber\(orderNumber\)/)
   assert.match(checkoutClient, /items\.length === 0 && step !== 'processing' && !completedOrderNumber/)
 })
 
 test('checkout new-address form is collapsed by default when saved addresses exist', () => {
-  const checkoutClient = readSource('../src/components/buyer/CheckoutPageClient.tsx')
+  const checkoutClient = readSource('../../src/components/buyer/CheckoutPageClient.tsx')
 
   assert.match(checkoutClient, /showNewAddressForm/, 'showNewAddressForm state must exist')
   assert.match(checkoutClient, /setShowNewAddressForm\(false\)/, 'must collapse form when a saved address is selected')
@@ -204,20 +204,20 @@ test('checkout new-address form is collapsed by default when saved addresses exi
 })
 
 test('DireccionesClient clears isDefault on sibling addresses when a new default is saved', () => {
-  const src = readSource('../src/app/(buyer)/cuenta/direcciones/DireccionesClient.tsx')
+  const src = readSource('../../src/app/(buyer)/cuenta/direcciones/DireccionesClient.tsx')
 
   assert.match(src, /savedAddress\.isDefault/, 'must check savedAddress.isDefault')
   assert.match(src, /isDefault: false/, 'must clear isDefault on siblings')
 })
 
 test('DireccionesClient skips the map pass when saved address is not default', () => {
-  const src = readSource('../src/app/(buyer)/cuenta/direcciones/DireccionesClient.tsx')
+  const src = readSource('../../src/app/(buyer)/cuenta/direcciones/DireccionesClient.tsx')
 
   assert.match(src, /savedAddress\.isDefault[\s\S]{0,60}addresses\.map/, 'must only map when isDefault is true')
 })
 
 test('catalog revalidation uses immediate tag expiry so buyers see stock updates right away', () => {
-  const revalidateSource = readSource('../src/lib/revalidate.ts')
+  const revalidateSource = readSource('../../src/lib/revalidate.ts')
 
   assert.match(revalidateSource, /updateTag\(tag\)/)
 })

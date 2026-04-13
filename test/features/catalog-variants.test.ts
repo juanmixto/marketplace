@@ -109,8 +109,8 @@ test('getAvailableStockForPurchase: variant selected but product has no active v
 })
 
 test('variant-aware product UI defaults to a concrete variant before adding to cart', () => {
-  const purchasePanel = readSource('../src/components/catalog/ProductPurchasePanel.tsx')
-  const productCard = readSource('../src/components/catalog/ProductCard.tsx')
+  const purchasePanel = readSource('../../src/components/catalog/ProductPurchasePanel.tsx')
+  const productCard = readSource('../../src/components/catalog/ProductCard.tsx')
 
   assert.match(purchasePanel, /const defaultVariant = getDefaultVariant\(product\)/)
   assert.match(purchasePanel, /useState<string>\(defaultVariant\?\.id \?\? ''\)/)
