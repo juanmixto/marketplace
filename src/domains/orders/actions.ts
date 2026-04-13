@@ -179,6 +179,41 @@ export async function createOrder(
     }
   })
 
+  // Stock precheck (#133): bail out BEFORE creating a Stripe PaymentIntent
+  // when the latest committed stock is already insufficient. The transaction
+  // below still uses FOR UPDATE to catch the race window between this read
+  // and the write, but without this fast path the user would land on the
+  // Stripe payment page only to have the order fail at submit, leaving us
+  // with an orphaned PaymentIntent we'd have to cancel.
+  const stockShortages: string[] = []
+  for (const item of validatedItems) {
+    const product = products.find(p => p.id === item.productId)
+    if (!product || !product.trackStock) continue
+
+    if (item.variantId) {
+      const variant = product.variants.find(v => v.id === item.variantId)
+      if (!variant || variant.stock == null) continue
+      if (variant.stock < item.quantity) {
+        const variantName = variant.name ? ` (${variant.name})` : ''
+        stockShortages.push(
+          `"${product.name}"${variantName} — solo quedan ${variant.stock} ` +
+          `${variant.stock === 1 ? 'unidad' : 'unidades'}, pediste ${item.quantity}`
+        )
+      }
+    } else {
+      if (product.stock < item.quantity) {
+        stockShortages.push(
+          `"${product.name}" — solo quedan ${product.stock} ` +
+          `${product.stock === 1 ? 'unidad' : 'unidades'}, pediste ${item.quantity}`
+        )
+      }
+    }
+  }
+
+  if (stockShortages.length > 0) {
+    throw new Error(`Stock insuficiente: ${stockShortages.join('; ')}`)
+  }
+
   // Calculate totals
   const pricing = calculateOrderPricing(
     lines.map(line => ({
