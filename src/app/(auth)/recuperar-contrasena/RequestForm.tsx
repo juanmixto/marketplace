@@ -57,7 +57,7 @@ export function RequestForm() {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Success message */}
       {success && (
-        <div className="rounded-lg bg-emerald-50 p-4 text-emerald-800">
+        <div className="rounded-lg bg-emerald-50 p-4 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
           ✓ {' '}
           <strong>{t('auth.recoverySent')}</strong> {t('auth.recoverySentDesc')}
         </div>
@@ -65,14 +65,14 @@ export function RequestForm() {
 
       {/* Error message */}
       {error && (
-        <div className="rounded-lg bg-red-50 p-4 text-red-800">
+        <div className="rounded-lg bg-red-50 p-4 text-red-800 dark:bg-red-950/40 dark:text-red-300">
           ✗ {error}
         </div>
       )}
 
       {/* Email */}
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-900">
+        <label htmlFor="email" className="block text-sm font-medium text-gray-900 dark:text-[var(--foreground)]">
           {t('auth.recoveryEmail')}
         </label>
         <input
@@ -80,9 +80,9 @@ export function RequestForm() {
           type="email"
           id="email"
           placeholder={t('auth.recoveryEmailPlaceholder')}
-          className="mt-2 block w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-900 placeholder-gray-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+          className="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 placeholder-gray-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-[var(--border)] dark:bg-[var(--surface-raised)] dark:text-[var(--foreground)] dark:placeholder-[var(--muted-light)] dark:focus:ring-emerald-900/60"
         />
-        {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>}
+        {errors.email && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.email.message}</p>}
       </div>
 
       {/* Submit button */}

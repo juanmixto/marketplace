@@ -79,7 +79,7 @@ export function ContactForm() {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {success && <div className="rounded-lg bg-accent-soft p-4 text-foreground">{formCopy.success}</div>}
 
-      {error && <div className="rounded-lg bg-red-50 p-4 text-red-800">✗ {error}</div>}
+      {error && <div className="rounded-lg bg-red-50 p-4 text-red-800 dark:bg-red-950/40 dark:text-red-300">✗ {error}</div>}
 
       <div>
         <label htmlFor="nombre" className="block text-sm font-medium text-foreground">
@@ -92,7 +92,7 @@ export function ContactForm() {
           placeholder={formCopy.namePlaceholder}
           className="mt-2 block w-full rounded-lg border border-border px-4 py-2 text-foreground placeholder-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft"
         />
-        {errors.nombre && <p className="mt-1 text-sm text-red-600">{errors.nombre.message}</p>}
+        {errors.nombre && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.nombre.message}</p>}
       </div>
 
       <div>
@@ -106,7 +106,7 @@ export function ContactForm() {
           placeholder={formCopy.emailPlaceholder}
           className="mt-2 block w-full rounded-lg border border-border px-4 py-2 text-foreground placeholder-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft"
         />
-        {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>}
+        {errors.email && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.email.message}</p>}
       </div>
 
       <div>
@@ -125,7 +125,7 @@ export function ContactForm() {
             </option>
           ))}
         </select>
-        {errors.asunto && <p className="mt-1 text-sm text-red-600">{errors.asunto.message}</p>}
+        {errors.asunto && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.asunto.message}</p>}
       </div>
 
       <div>
@@ -139,7 +139,7 @@ export function ContactForm() {
           placeholder={formCopy.messagePlaceholder}
           className="mt-2 block w-full rounded-lg border border-border px-4 py-2 text-foreground placeholder-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft"
         />
-        {errors.mensaje && <p className="mt-1 text-sm text-red-600">{errors.mensaje.message}</p>}
+        {errors.mensaje && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.mensaje.message}</p>}
       </div>
 
       <div className="flex items-start gap-3">
@@ -154,10 +154,10 @@ export function ContactForm() {
           <a href="/privacidad" className="text-accent hover:underline">
             {formCopy.privacyPolicy}
           </a>
-          {errors.privacidad && <span className="text-red-600">*</span>}
+          {errors.privacidad && <span className="text-red-600 dark:text-red-400">*</span>}
         </label>
       </div>
-      {errors.privacidad && <p className="text-sm text-red-600">{errors.privacidad.message}</p>}
+      {errors.privacidad && <p className="text-sm text-red-600 dark:text-red-400">{errors.privacidad.message}</p>}
 
       <button
         type="submit"

@@ -21,7 +21,7 @@ export default async function Valoraciones() {
   if (!vendor) {
     return (
       <main className="space-y-6">
-        <div className="rounded-lg bg-yellow-50 p-4 text-yellow-800">
+        <div className="rounded-lg bg-yellow-50 p-4 text-yellow-800 dark:bg-amber-950/40 dark:text-amber-300">
           {t('reviews.vendorPage.noVendor')}
         </div>
       </main>
@@ -61,16 +61,16 @@ export default async function Valoraciones() {
   return (
     <main className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">{t('reviews.vendorPage.title')}</h1>
-        <p className="mt-2 text-gray-600">{t('reviews.vendorPage.subtitle')}</p>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-[var(--foreground)]">{t('reviews.vendorPage.title')}</h1>
+        <p className="mt-2 text-gray-600 dark:text-[var(--muted)]">{t('reviews.vendorPage.subtitle')}</p>
       </div>
 
       {reviews.length === 0 ? (
-        <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-          <p className="text-lg text-gray-600">{t('reviews.vendorPage.empty')}</p>
+        <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center dark:border-[var(--border)] dark:bg-[var(--surface-raised)]">
+          <p className="text-lg text-gray-600 dark:text-[var(--muted)]">{t('reviews.vendorPage.empty')}</p>
         </div>
       ) : (
-        <div className="rounded-lg bg-white p-6 shadow">
+        <div className="rounded-lg bg-white p-6 shadow dark:bg-[var(--surface)] dark:shadow-black/30">
           <VendorReviewsSection
             reviews={reviews}
             avgRating={aggregate._avg.rating ? Number(aggregate._avg.rating) : null}
