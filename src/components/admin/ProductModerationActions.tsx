@@ -52,7 +52,7 @@ export function ProductModerationActions({ productId, productName, status }: Pro
         <Button size="sm" isLoading={loading} onClick={handleApprove}>
           Aprobar
         </Button>
-        <Button size="sm" variant="danger" onClick={() => setRejectModal(true)}>
+        <Button size="sm" variant="danger" disabled={loading} onClick={() => setRejectModal(true)}>
           Rechazar
         </Button>
       </div>
