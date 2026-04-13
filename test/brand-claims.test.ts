@@ -7,7 +7,7 @@ function readSource(path: string) {
 }
 
 test('brand claims are centralized with ownership and update guidance', () => {
-  const claims = readSource('../src/lib/brand-claims.ts')
+  const claims = readSource('../src/domains/vendors/brand-claims.ts')
 
   assert.match(claims, /owner:/)
   assert.match(claims, /source:/)

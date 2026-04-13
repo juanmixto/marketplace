@@ -77,7 +77,7 @@ Conventions for new `*-copy.ts` modules:
 
 Server-side helpers sometimes generate "dictionary" data (badges, vendor visuals, status chips) that is later rendered as text. **Do not return the resolved string from the helper.** Return an i18n **key** instead, and resolve it in the component with `t(...)`.
 
-Reference implementation: [`src/lib/vendor-visuals.ts`](../lib/vendor-visuals.ts) (see the `labelKey` field, established in PR #228).
+Reference implementation: [`src/domains/vendors/visuals.ts`](../domains/vendors/visuals.ts) (see the `labelKey` field, established in PR #228).
 
 Why:
 

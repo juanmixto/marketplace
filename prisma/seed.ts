@@ -1,7 +1,7 @@
 import { PrismaPg } from '@prisma/adapter-pg'
 import bcrypt from 'bcryptjs'
 import { PrismaClient } from '../src/generated/prisma/client'
-import { getDemoProductImages } from '../src/lib/demo-product-images'
+import { getDemoProductImages } from '../src/domains/catalog/demo-product-images'
 import { getServerEnv } from '../src/lib/env'
 
 const adapter = new PrismaPg({ connectionString: getServerEnv().databaseUrl })
