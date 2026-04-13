@@ -534,6 +534,20 @@ const es = {
   'vendor.productForm.variantsNoteOther': 'Este producto tiene {count} variantes. La edición de variantes aún no está disponible en este formulario.',
   'vendor.productForm.saveError': 'No se pudo guardar el producto',
 
+  // Vendor – hero upload (cover + logo)
+  'vendor.heroUpload.changeCover': 'Cambiar portada',
+  'vendor.heroUpload.uploadCover': 'Subir portada',
+  'vendor.heroUpload.removeCover': 'Quitar portada',
+  'vendor.heroUpload.changeLogo': 'Cambiar foto de perfil',
+  'vendor.heroUpload.uploadLogo': 'Subir foto de perfil',
+  'vendor.heroUpload.removeLogo': 'Quitar foto de perfil',
+  'vendor.heroUpload.toggleUrls': 'Pegar URL',
+  'vendor.heroUpload.toggleUrlsHide': 'Ocultar URL',
+  'vendor.heroUpload.unsupported': 'Formato no soportado. Usa JPG, PNG o WebP.',
+  'vendor.heroUpload.tooLarge': 'La imagen supera los 5 MB.',
+  'vendor.heroUpload.uploadError': 'Error al subir la imagen',
+  'vendor.heroUpload.urlNotAllowed': 'URL no permitida. Usa cloudinary.com, uploadthing.com o unsplash.com.',
+
   // Vendor – reviews manager
   'vendor.reviewsManager.yourResponse': 'Tu respuesta',
   'vendor.reviewsManager.reply': 'Responder',

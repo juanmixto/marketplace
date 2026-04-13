@@ -19,9 +19,9 @@ import { db } from '@/lib/db'
 import { VendorReviewsSection } from './VendorReviewsSection'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { absoluteUrl, buildPageMetadata } from '@/lib/seo'
-import { getServerLocale } from '@/i18n/server'
+import { getServerLocale, getServerT } from '@/i18n/server'
 import { getCatalogCopy, getLocalizedCertificationCopy } from '@/i18n/catalog-copy'
-import { getVendorHeroImage, getVendorVisualLabel } from '@/domains/vendors/visuals'
+import { getVendorHeroImage, getVendorVisualLabelKey } from '@/domains/vendors/visuals'
 import { Badge } from '@/components/ui/badge'
 import { StarRating } from '@/components/reviews/StarRating'
 import { auth } from '@/lib/auth'
@@ -56,11 +56,12 @@ export default async function VendorPublicPage({ params }: Props) {
   const { slug } = await params
   const locale = await getServerLocale()
   const copy = getCatalogCopy(locale)
+  const t = await getServerT()
   const vendor = await getVendorBySlug(slug)
   if (!vendor) notFound()
 
   const heroImage = getVendorHeroImage(vendor)
-  const visualLabel = getVendorVisualLabel(vendor)
+  const visualLabel = t(getVendorVisualLabelKey(vendor))
 
   const [reviews, aggregate] = await Promise.all([
     db.review.findMany({

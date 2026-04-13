@@ -536,6 +536,20 @@ const en: Record<TranslationKeys, string> = {
   'vendor.productForm.variantsNoteOther': 'This product has {count} variants. Variant editing is not yet available in this form.',
   'vendor.productForm.saveError': 'Could not save the product',
 
+  // Vendor – hero upload (cover + logo)
+  'vendor.heroUpload.changeCover': 'Change cover',
+  'vendor.heroUpload.uploadCover': 'Upload cover',
+  'vendor.heroUpload.removeCover': 'Remove cover',
+  'vendor.heroUpload.changeLogo': 'Change profile photo',
+  'vendor.heroUpload.uploadLogo': 'Upload profile photo',
+  'vendor.heroUpload.removeLogo': 'Remove profile photo',
+  'vendor.heroUpload.toggleUrls': 'Paste URL',
+  'vendor.heroUpload.toggleUrlsHide': 'Hide URL',
+  'vendor.heroUpload.unsupported': 'Unsupported format. Use JPG, PNG or WebP.',
+  'vendor.heroUpload.tooLarge': 'Image exceeds 5 MB.',
+  'vendor.heroUpload.uploadError': 'Failed to upload the image',
+  'vendor.heroUpload.urlNotAllowed': 'URL not allowed. Use cloudinary.com, uploadthing.com or unsplash.com.',
+
   // Vendor – reviews manager
   'vendor.reviewsManager.yourResponse': 'Your response',
   'vendor.reviewsManager.reply': 'Reply',

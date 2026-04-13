@@ -11,7 +11,7 @@ import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import { CheckBadgeIcon, TruckIcon, ShieldCheckIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
 import { useLocale, useT } from '@/i18n'
 import type { TranslationKeys } from '@/i18n'
-import { getVendorHeroImage, getVendorVisualLabel } from '@/domains/vendors/visuals'
+import { getVendorHeroImage, getVendorVisualLabelKey } from '@/domains/vendors/visuals'
 
 interface HomePageClientProps {
   featured: ProductWithVendor[]
@@ -301,7 +301,7 @@ export function HomePageClient({ featured, categories, vendors, heroStats, publi
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {vendors.map(v => {
               const heroImage = getVendorHeroImage(v)
-              const visualLabel = getVendorVisualLabel(v)
+              const visualLabel = t(getVendorVisualLabelKey(v))
 
               return (
                 <Link
