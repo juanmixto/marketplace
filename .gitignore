@@ -38,6 +38,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# user-uploaded images (LocalUploader writes here in dev/self-hosted)
+/public/uploads/*
+!/public/uploads/.gitkeep
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

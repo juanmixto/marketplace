@@ -159,14 +159,14 @@ export default async function VendorPublicPage({ params }: Props) {
         <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-8">
           <div className="flex items-end gap-4 sm:gap-6">
             {/* Logo */}
-            <div className="flex h-20 w-20 sm:h-24 sm:w-24 shrink-0 items-center justify-center rounded-2xl border-2 border-white/30 bg-white/10 text-4xl sm:text-5xl backdrop-blur-md shadow-lg">
+            <div className="flex h-20 w-20 sm:h-24 sm:w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white/30 bg-white/10 text-4xl sm:text-5xl backdrop-blur-md shadow-lg">
               {vendor.logo ? (
                 <Image
                   src={vendor.logo}
                   alt={copy.vendor.logoAlt(vendor.displayName)}
                   width={96}
                   height={96}
-                  className="rounded-2xl object-cover"
+                  className="h-full w-full rounded-full object-cover"
                 />
               ) : (
                 '🌾'
