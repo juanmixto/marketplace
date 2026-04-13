@@ -7,7 +7,7 @@ function readSource(path: string) {
 }
 
 test('global layout advertises metadataBase and social metadata defaults', () => {
-  const layout = readSource('../src/app/layout.tsx')
+  const layout = readSource('../../src/app/layout.tsx')
 
   assert.match(layout, /metadataBase: SITE_METADATA_BASE/)
   assert.match(layout, /openGraph:/)
@@ -17,11 +17,11 @@ test('global layout advertises metadataBase and social metadata defaults', () =>
 
 test('public pages expose canonical metadata and social cards', () => {
   const sources = [
-    '../src/app/(public)/page.tsx',
-    '../src/app/(public)/contacto/page.tsx',
-    '../src/app/(public)/productos/page.tsx',
-    '../src/app/(public)/productores/page.tsx',
-    '../src/app/(public)/buscar/page.tsx',
+    '../../src/app/(public)/page.tsx',
+    '../../src/app/(public)/contacto/page.tsx',
+    '../../src/app/(public)/productos/page.tsx',
+    '../../src/app/(public)/productores/page.tsx',
+    '../../src/app/(public)/buscar/page.tsx',
   ]
 
   for (const path of sources) {
@@ -29,19 +29,19 @@ test('public pages expose canonical metadata and social cards', () => {
     assert.match(source, /buildPageMetadata|title: \{ absolute: SITE_NAME \}/)
   }
 
-  assert.match(readSource('../src/app/(public)/buscar/page.tsx'), /noindex: true/)
-  assert.match(readSource('../src/app/(public)/page.tsx'), /JsonLd/)
-  assert.match(readSource('../src/app/(public)/productos/[slug]/page.tsx'), /JsonLd/)
-  assert.match(readSource('../src/app/(public)/productores/[slug]/page.tsx'), /JsonLd/)
+  assert.match(readSource('../../src/app/(public)/buscar/page.tsx'), /noindex: true/)
+  assert.match(readSource('../../src/app/(public)/page.tsx'), /JsonLd/)
+  assert.match(readSource('../../src/app/(public)/productos/[slug]/page.tsx'), /JsonLd/)
+  assert.match(readSource('../../src/app/(public)/productores/[slug]/page.tsx'), /JsonLd/)
 })
 
 test('social image routes exist for open graph and twitter cards', () => {
-  assert.match(readSource('../src/app/opengraph-image.tsx'), /ImageResponse/)
-  assert.match(readSource('../src/app/twitter-image.tsx'), /ImageResponse/)
+  assert.match(readSource('../../src/app/opengraph-image.tsx'), /ImageResponse/)
+  assert.match(readSource('../../src/app/twitter-image.tsx'), /ImageResponse/)
 })
 
 test('public layout no longer depends on auth() and stays cache-friendly', () => {
-  const layout = readSource('../src/app/(public)/layout.tsx')
+  const layout = readSource('../../src/app/(public)/layout.tsx')
 
   assert.doesNotMatch(layout, /auth\(\)/)
   assert.match(layout, /<Header \/>/)

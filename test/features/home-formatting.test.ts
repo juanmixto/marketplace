@@ -32,14 +32,14 @@ test('buildHomeStats shows zero values when there is no live catalog yet', () =>
 })
 
 test('home page client uses locale-aware helpers for quick-access cards and category labels', () => {
-  const source = readSource('../src/app/(public)/HomePageClient.tsx')
+  const source = readSource('../../src/app/(public)/HomePageClient.tsx')
 
   assert.match(source, /getPublicPortalLinks\(locale\)/)
   assert.match(source, /translateCategoryLabel\(cat\.slug, cat\.name, locale\)/)
 })
 
 test('home category cards expose professional metadata and accessible navigation labels', () => {
-  const source = readSource('../src/app/(public)/HomePageClient.tsx')
+  const source = readSource('../../src/app/(public)/HomePageClient.tsx')
 
   assert.match(source, /sections\.browseByCatDesc/)
   assert.match(source, /aria-label=\{`\$\{label\} · \$\{countLabel\}`\}/)
@@ -47,7 +47,7 @@ test('home category cards expose professional metadata and accessible navigation
 })
 
 test('home quick access, featured products and vendor sections use the refined professional layout', () => {
-  const source = readSource('../src/app/(public)/HomePageClient.tsx')
+  const source = readSource('../../src/app/(public)/HomePageClient.tsx')
 
   assert.match(source, /quickAccessDesc/)
   assert.match(source, /sections\.featuredDesc/)

@@ -3,7 +3,7 @@
  * Verifies data export and account deletion (right of access & right to be forgotten)
  */
 
-import { describe, it, expect, beforeAll, afterAll } from './test-helpers'
+import { describe, it, expect, beforeAll, afterAll } from '../test-helpers'
 import { db } from '@/lib/db'
 
 describe('GDPR Compliance (#95)', () => {

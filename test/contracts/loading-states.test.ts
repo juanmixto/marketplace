@@ -16,7 +16,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
 function read(path: string): string {
-  return readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
+  return readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8')
 }
 
 test('shared Button component sets aria-busy when isLoading (#188)', () => {

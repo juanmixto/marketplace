@@ -21,7 +21,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
 const SRC = readFileSync(
-  new URL('../src/components/buyer/CartPageClient.tsx', import.meta.url),
+  new URL('../../src/components/buyer/CartPageClient.tsx', import.meta.url),
   'utf8'
 )
 
@@ -78,7 +78,7 @@ test('cart store updates remain synchronous (the optimistic guarantee, #132)', (
   // optimistic-update + revert-on-error wiring. This test fires when that
   // refactor lands so we remember to expand the contract first.
   const storeSrc = readFileSync(
-    new URL('../src/domains/orders/cart-store.ts', import.meta.url),
+    new URL('../../src/domains/orders/cart-store.ts', import.meta.url),
     'utf8'
   )
   // Match: addItem / removeItem / updateQty are *not* declared async.

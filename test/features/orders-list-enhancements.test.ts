@@ -7,20 +7,20 @@ function readSource(path: string) {
 }
 
 test('orders list page renders product names alongside thumbnails', () => {
-  const source = readSource('../src/app/(buyer)/cuenta/pedidos/page.tsx')
+  const source = readSource('../../src/app/(buyer)/cuenta/pedidos/page.tsx')
 
   assert.match(source, /line\.product\.name/)
   assert.match(source, /truncate/)
 })
 
 test('orders list page shows quantity per line item', () => {
-  const source = readSource('../src/app/(buyer)/cuenta/pedidos/page.tsx')
+  const source = readSource('../../src/app/(buyer)/cuenta/pedidos/page.tsx')
 
   assert.match(source, /line\.quantity/)
 })
 
 test('orders list page shows item count summary with total articles and products', () => {
-  const source = readSource('../src/app/(buyer)/cuenta/pedidos/page.tsx')
+  const source = readSource('../../src/app/(buyer)/cuenta/pedidos/page.tsx')
 
   assert.match(source, /totalItems/)
   assert.match(source, /productCount/)
@@ -30,7 +30,7 @@ test('orders list page shows item count summary with total articles and products
 })
 
 test('orders list page displays payment status badge', () => {
-  const source = readSource('../src/app/(buyer)/cuenta/pedidos/page.tsx')
+  const source = readSource('../../src/app/(buyer)/cuenta/pedidos/page.tsx')
 
   assert.match(source, /PAYMENT_STATUS_LABELS/)
   assert.match(source, /order\.paymentStatus/)
@@ -38,7 +38,7 @@ test('orders list page displays payment status badge', () => {
 })
 
 test('PAYMENT_STATUS_LABELS exists in shared constants with expected keys', () => {
-  const source = readSource('../src/lib/constants.ts')
+  const source = readSource('../../src/lib/constants.ts')
 
   assert.match(source, /PAYMENT_STATUS_LABELS/)
   assert.match(source, /PENDING/)

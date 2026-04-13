@@ -3,7 +3,7 @@
  * Verifies single source of truth for inventory
  */
 
-import { describe, it, expect, beforeAll, afterAll } from './test-helpers'
+import { describe, it, expect, beforeAll, afterAll } from '../test-helpers'
 import { db } from '@/lib/db'
 import {
   getEffectiveStockForProduct,

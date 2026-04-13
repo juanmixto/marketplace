@@ -2,7 +2,7 @@
  * Settlement Calculation and Approval Tests (#88)
  */
 
-import { describe, it, expect, beforeAll, afterAll } from './test-helpers'
+import { describe, it, expect, beforeAll, afterAll } from '../test-helpers'
 import { db } from '@/lib/db'
 import { calculateSettlement, upsertSettlement, generateSettlementsForPeriod } from '@/domains/settlements/calculate'
 

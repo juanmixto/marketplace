@@ -30,8 +30,8 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
-const APP_DIR = new URL('../src/app/', import.meta.url).pathname
-const REPO_ROOT = new URL('../', import.meta.url).pathname
+const APP_DIR = new URL('../../src/app/', import.meta.url).pathname
+const REPO_ROOT = new URL('../../', import.meta.url).pathname
 
 // ─── allowlist ────────────────────────────────────────────────────────────────
 //

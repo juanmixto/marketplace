@@ -141,7 +141,7 @@ test('BuyerProfileForm forwards server fieldErrors into RHF setError (#131)', ()
   // banner. This keeps the contract honest if someone later refactors the
   // submit handler.
   const form = require('node:fs').readFileSync(
-    new URL('../src/components/buyer/BuyerProfileForm.tsx', import.meta.url),
+    new URL('../../src/components/buyer/BuyerProfileForm.tsx', import.meta.url),
     'utf8'
   ) as string
 
