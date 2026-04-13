@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { useT } from '@/i18n'
 import { approveVendor, rejectVendor, suspendVendor } from '@/domains/admin/actions'
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function VendorModerationActions({ vendorId, status }: Props) {
+  const t = useT()
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -19,7 +21,7 @@ export function VendorModerationActions({ vendorId, status }: Props) {
     try {
       await action()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error')
+      setError(err instanceof Error ? err.message : t('adminProducers.actions.error'))
     } finally {
       setLoading(null)
     }
@@ -36,7 +38,7 @@ export function VendorModerationActions({ vendorId, status }: Props) {
             isLoading={loading === 'approve'}
             onClick={() => run(() => approveVendor(vendorId), 'approve')}
           >
-            Aprobar
+            {t('adminProducers.actions.approve')}
           </Button>
           <Button
             size="sm"
@@ -44,7 +46,7 @@ export function VendorModerationActions({ vendorId, status }: Props) {
             isLoading={loading === 'reject'}
             onClick={() => run(() => rejectVendor(vendorId), 'reject')}
           >
-            Rechazar
+            {t('adminProducers.actions.reject')}
           </Button>
         </>
       )}
@@ -56,7 +58,7 @@ export function VendorModerationActions({ vendorId, status }: Props) {
           isLoading={loading === 'suspend'}
           onClick={() => run(() => suspendVendor(vendorId), 'suspend')}
         >
-          Suspender
+          {t('adminProducers.actions.suspend')}
         </Button>
       )}
 
@@ -66,7 +68,7 @@ export function VendorModerationActions({ vendorId, status }: Props) {
           isLoading={loading === 'approve'}
           onClick={() => run(() => approveVendor(vendorId), 'approve')}
         >
-          Reactivar
+          {t('adminProducers.actions.reactivate')}
         </Button>
       )}
     </div>
