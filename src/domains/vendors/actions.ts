@@ -295,11 +295,18 @@ const profileSchema = z.object({
   description: z.string().max(2000).optional(),
   location: z.string().max(100).optional(),
   logo: z
-    .union([z.string().url(), z.literal('')])
+    .union([z.string(), z.literal('')])
     .optional()
-    .transform(v => (v ? v : null))
+    .transform(v => (v ? v.trim() : null))
     .refine(v => v === null || isAllowedImageUrl(v), {
-      message: 'Dominio no permitido. Usa cloudinary.com, uploadthing.com o unsplash.com',
+      message: 'Imagen no permitida. Súbela desde tu equipo o pega una URL permitida.',
+    }),
+  coverImage: z
+    .union([z.string(), z.literal('')])
+    .optional()
+    .transform(v => (v ? v.trim() : null))
+    .refine(v => v === null || isAllowedImageUrl(v), {
+      message: 'Imagen no permitida. Súbela desde tu equipo o pega una URL permitida.',
     }),
   orderCutoffTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   preparationDays: z.coerce.number().int().min(0).max(30).optional(),
