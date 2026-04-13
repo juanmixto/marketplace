@@ -58,7 +58,7 @@ export function ProductCard({ product, locale = 'es' }: ProductCardProps) {
   return (
     <article
       className={[
-        'group flex h-full flex-col overflow-hidden rounded-2xl',
+        'group flex h-full flex-col rounded-2xl',
         'border border-[var(--border)] bg-[var(--surface)]',
         'shadow-sm hover:border-[var(--border-strong)] hover:shadow-md hover:-translate-y-1',
         'transition-all duration-200',
@@ -68,7 +68,7 @@ export function ProductCard({ product, locale = 'es' }: ProductCardProps) {
         href={`/productos/${product.slug}`}
         className="flex flex-1 flex-col focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
       >
-        <div className="relative aspect-square overflow-hidden bg-[var(--surface-raised)]">
+        <div className="relative aspect-square overflow-hidden rounded-t-2xl bg-[var(--surface-raised)]">
           {product.images?.[0] ? (
             <Image
               src={product.images[0]}
