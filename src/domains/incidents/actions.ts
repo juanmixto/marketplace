@@ -28,23 +28,11 @@ import { getActionSession } from '@/lib/action-session'
 import { redirect } from 'next/navigation'
 import { isAdminRole } from '@/lib/roles'
 import { IncidentStatus, IncidentType } from '@/generated/prisma/enums'
-
-// 72h SLA on first response, per the issue.
-export const INCIDENT_SLA_HOURS = 72
-
-export class IncidentAuthError extends Error {
-  constructor(message = 'No autorizado') {
-    super(message)
-    this.name = 'IncidentAuthError'
-  }
-}
-
-export class IncidentValidationError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'IncidentValidationError'
-  }
-}
+import {
+  INCIDENT_SLA_HOURS,
+  IncidentAuthError,
+  IncidentValidationError,
+} from './errors'
 
 const openIncidentSchema = z.object({
   orderId: z.string().min(1),
