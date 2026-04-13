@@ -440,6 +440,14 @@ const en: Record<TranslationKeys, string> = {
   'vendor.fulfillment.trackingLabel': 'Tracking number',
   'vendor.fulfillment.carrierLabel': 'Carrier',
   'vendor.fulfillment.updateError': 'Failed to update the order',
+  'vendor.fulfillment.prepare': 'Prepare order',
+  'vendor.fulfillment.preparing': 'Generating label…',
+  'vendor.fulfillment.printLabel': 'Print label',
+  'vendor.fulfillment.viewTracking': 'View tracking',
+  'vendor.fulfillment.retryLabel': 'Retry label',
+  'vendor.fulfillment.markIncident': 'Report incident',
+  'vendor.fulfillment.labelFailed': 'Could not generate the label',
+  'vendor.fulfillment.addressMissing': 'Set up your origin address before preparing orders',
 
   // Vendor – product actions menu
   'vendor.productActions.edit': 'Edit',

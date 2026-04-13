@@ -249,9 +249,6 @@ export async function getMyProduct(productId: string) {
 
 const VALID_TRANSITIONS: Partial<Record<FulfillmentStatus, FulfillmentStatus>> = {
   PENDING: 'CONFIRMED',
-  CONFIRMED: 'PREPARING',
-  PREPARING: 'READY',
-  READY: 'SHIPPED',
 }
 
 /**
@@ -325,6 +322,16 @@ export async function getMyFulfillments(filter?: 'active' | 'urgent' | 'shipped'
     },
     orderBy: { createdAt: 'asc' },
     include: {
+      shipment: {
+        select: {
+          id: true,
+          status: true,
+          labelUrl: true,
+          trackingUrl: true,
+          trackingNumber: true,
+          carrierName: true,
+        },
+      },
       order: {
         include: {
           lines: {

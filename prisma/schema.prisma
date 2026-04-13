@@ -59,10 +59,36 @@ enum FulfillmentStatus {
   PENDING
   CONFIRMED
   PREPARING
+  LABEL_REQUESTED
+  LABEL_FAILED
   READY
   SHIPPED
   DELIVERED
+  INCIDENT
   CANCELLED
+}
+
+enum ShippingProviderCode {
+  SENDCLOUD
+}
+
+enum ShipmentStatus {
+  DRAFT
+  LABEL_REQUESTED
+  LABEL_CREATED
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  EXCEPTION
+  CANCELLED
+  FAILED
+}
+
+enum ShipmentEventSource {
+  SYSTEM
+  PROVIDER_WEBHOOK
+  MANUAL_ADMIN
+  MANUAL_VENDOR
 }
 
 enum IncidentStatus {
@@ -205,9 +231,34 @@ model Vendor {
   fulfillments VendorFulfillment[]
   settlements  Settlement[]
   reviews      Review[]
+  addresses    VendorAddress[]
+
+  preferredShippingProvider ShippingProviderCode?
 
   @@index([status])
   @@index([slug])
+}
+
+model VendorAddress {
+  id          String   @id @default(cuid())
+  vendorId    String
+  label       String?
+  contactName String
+  phone       String
+  line1       String
+  line2       String?
+  city        String
+  province    String
+  postalCode  String
+  countryCode String   @default("ES")
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  vendor       Vendor              @relation(fields: [vendorId], references: [id])
+  fulfillments VendorFulfillment[]
+
+  @@index([vendorId, isDefault])
 }
 
 model Category {
@@ -439,12 +490,76 @@ model VendorFulfillment {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
-  order  Order  @relation(fields: [orderId], references: [id])
-  vendor Vendor @relation(fields: [vendorId], references: [id])
+  vendorAddressId String?
+
+  order         Order          @relation(fields: [orderId], references: [id])
+  vendor        Vendor         @relation(fields: [vendorId], references: [id])
+  vendorAddress VendorAddress? @relation(fields: [vendorAddressId], references: [id])
+  shipment      Shipment?
 
   @@index([orderId])
   @@index([vendorId, status])
   @@index([vendorId, createdAt])
+}
+
+model Shipment {
+  id            String               @id @default(cuid())
+  fulfillmentId String               @unique
+  providerCode  ShippingProviderCode
+  providerRef   String?
+  status        ShipmentStatus       @default(DRAFT)
+
+  fromAddressSnapshot Json
+  toAddressSnapshot   Json
+
+  weightGrams Int
+  parcelCount Int @default(1)
+
+  carrierName    String?
+  trackingNumber String?
+  trackingUrl    String?
+  labelUrl       String?
+  labelFormat    String?
+  labelPrintedAt DateTime?
+
+  labelRequestedAt DateTime?
+  labelCreatedAt   DateTime?
+  handedOverAt     DateTime?
+  deliveredAt      DateTime?
+  cancelledAt      DateTime?
+  failedAt         DateTime?
+  lastError        String?
+
+  idempotencyKey String @unique
+
+  providerMeta Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  fulfillment VendorFulfillment @relation(fields: [fulfillmentId], references: [id])
+  events      ShipmentEvent[]
+
+  @@index([status])
+  @@index([providerCode, providerRef])
+  @@index([trackingNumber])
+}
+
+model ShipmentEvent {
+  id         String              @id @default(cuid())
+  shipmentId String
+  source     ShipmentEventSource
+  type       String
+  status     ShipmentStatus?
+  message    String?
+  payload    Json?
+  occurredAt DateTime
+  createdAt  DateTime            @default(now())
+
+  shipment Shipment @relation(fields: [shipmentId], references: [id])
+
+  @@index([shipmentId, occurredAt])
+  @@index([type])
 }
 
 model OrderEvent {

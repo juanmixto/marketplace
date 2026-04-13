@@ -438,6 +438,14 @@ const es = {
   'vendor.fulfillment.trackingLabel': 'Número de seguimiento',
   'vendor.fulfillment.carrierLabel': 'Transportista',
   'vendor.fulfillment.updateError': 'Error al actualizar el pedido',
+  'vendor.fulfillment.prepare': 'Preparar pedido',
+  'vendor.fulfillment.preparing': 'Generando etiqueta…',
+  'vendor.fulfillment.printLabel': 'Imprimir etiqueta',
+  'vendor.fulfillment.viewTracking': 'Ver seguimiento',
+  'vendor.fulfillment.retryLabel': 'Reintentar etiqueta',
+  'vendor.fulfillment.markIncident': 'Marcar incidencia',
+  'vendor.fulfillment.labelFailed': 'No se pudo generar la etiqueta',
+  'vendor.fulfillment.addressMissing': 'Configura tu dirección de origen antes de preparar pedidos',
 
   // Vendor – product actions menu
   'vendor.productActions.edit': 'Editar',

@@ -24,9 +24,12 @@ export const FULFILLMENT_STATUS_LABELS_ADMIN: Record<FulfillmentStatus, string> 
   PENDING: 'Pendiente',
   CONFIRMED: 'Confirmado',
   PREPARING: 'Preparando',
+  LABEL_REQUESTED: 'Pidiendo etiqueta',
+  LABEL_FAILED: 'Error etiqueta',
   READY: 'Listo',
   SHIPPED: 'Enviado',
   DELIVERED: 'Entregado',
+  INCIDENT: 'Incidencia',
   CANCELLED: 'Cancelado',
 }
 
