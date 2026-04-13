@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ShoppingCartIcon,
   UserCircleIcon,
@@ -41,6 +41,18 @@ interface HeaderProps {
 export function Header({ user, cartCount = 0 }: HeaderProps) {
   const { data: session } = useSession()
   const currentUser = user ?? session?.user ?? null
+  // When the parent layout cannot pass `user` (e.g. the public layout, which
+  // must stay cache-friendly and may not call auth()), we depend on the
+  // client-side useSession() to learn the user. That resolves *after*
+  // hydration, so the SSR pass would otherwise render the not-logged-in
+  // state and a vendor would briefly see "Portal productor" linking to
+  // /login instead of "Panel productor" linking to /vendor/dashboard (#319).
+  // Gate user-dependent UI on a mounted flag so the wrong state never
+  // appears in the SSR HTML; routes that already pass `user` keep
+  // rendering immediately.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  const userContextReady = user !== undefined || mounted
   const [mobileOpen,  setMobileOpen]  = useState(false)
   const [catOpen,     setCatOpen]     = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
@@ -118,7 +130,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
             {t('producers')}
           </Link>
 
-          {!currentUser && (
+          {userContextReady && !currentUser && (
             <Link
               href="/login?callbackUrl=%2Fvendor%2Fdashboard"
               className="hidden rounded-lg px-2 py-1 text-sm font-medium text-[var(--foreground-soft)] transition-colors hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] lg:block"
@@ -151,7 +163,12 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
             <LanguageToggle className="hidden sm:flex" />
             <ThemeToggle />
 
-            {currentUser ? (
+            {!userContextReady ? (
+              // Neutral placeholder while we wait for client-side session
+              // resolution; matches the width of the auth buttons to prevent
+              // layout shift after hydration.
+              <div className="hidden h-9 w-44 md:block" aria-hidden />
+            ) : currentUser ? (
               <>
                 {!isBuyerPortal && (
                   <Link
@@ -294,7 +311,9 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
 
             <div className="mx-0 my-2 border-t border-[var(--border)]" />
 
-            {user ? (
+            {!userContextReady ? (
+              <div className="h-12" aria-hidden />
+            ) : currentUser ? (
               <>
                 {!isBuyerPortal && (
                   <Link
@@ -338,7 +357,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
             <div className="mx-0 my-2 border-t border-[var(--border)] sm:hidden" />
             <div className="flex items-center justify-between gap-3 px-1 pt-1 sm:hidden">
               <LanguageToggle />
-              {!user && (
+              {userContextReady && !currentUser && (
                 <Link
                   href="/login?callbackUrl=%2Fvendor%2Fdashboard"
                   onClick={() => setMobileOpen(false)}
