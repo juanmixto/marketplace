@@ -101,6 +101,15 @@ export default async function VendorPublicPage({ params }: Props) {
     { month: 'long', year: 'numeric' },
   )
 
+  const breadcrumbData = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: copy.breadcrumbs.home, item: absoluteUrl('/') },
+      { '@type': 'ListItem', position: 2, name: copy.vendor.breadcrumbProducers, item: absoluteUrl('/productores') },
+      { '@type': 'ListItem', position: 3, name: vendor.displayName, item: absoluteUrl(`/productores/${vendor.slug}`) },
+    ],
+  }
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
@@ -123,6 +132,7 @@ export default async function VendorPublicPage({ params }: Props) {
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
       <JsonLd data={structuredData} />
+      <JsonLd data={breadcrumbData} />
 
       {/* ── Breadcrumb ── */}
       <nav aria-label="Breadcrumb" className="py-4 text-sm text-[var(--muted)]">
