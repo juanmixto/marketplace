@@ -162,7 +162,6 @@ export function VendorProfileForm({ vendor }: Props) {
             <SingleImageUpload
               id="vendor-logo"
               label="Foto de perfil"
-              hint="Se muestra redonda junto al nombre de tu tienda. Sube un JPG/PNG/WebP (máx. 5 MB) o pega una URL."
               value={field.value ?? ''}
               onChange={field.onChange}
               shape="circle"
@@ -179,8 +178,7 @@ export function VendorProfileForm({ vendor }: Props) {
           render={({ field }) => (
             <SingleImageUpload
               id="vendor-cover"
-              label="Imagen de portada"
-              hint="Se usa como fondo del escaparate de tu tienda. Recomendado 1600×500. Si la dejas vacía usaremos una imagen por defecto."
+              label="Portada del escaparate"
               value={field.value ?? ''}
               onChange={field.onChange}
               shape="banner"

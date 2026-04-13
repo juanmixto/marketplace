@@ -1,7 +1,13 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { ArrowUpTrayIcon, XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import {
+  CameraIcon,
+  PhotoIcon,
+  XMarkIcon,
+  ExclamationTriangleIcon,
+  LinkIcon,
+} from '@heroicons/react/24/outline'
 import { isAllowedImageUrl } from '@/lib/image-validation'
 
 const MAX_BYTES = 5 * 1024 * 1024
@@ -9,28 +15,29 @@ const ACCEPTED = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 interface Props {
   label: string
-  hint?: string
   value: string
   onChange: (url: string) => void
   shape?: 'circle' | 'square' | 'banner'
   id: string
 }
 
-export function SingleImageUpload({ label, hint, value, onChange, shape = 'square', id }: Props) {
+export function SingleImageUpload({ label, value, onChange, shape = 'square', id }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
+  const [dragActive, setDragActive] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showUrlInput, setShowUrlInput] = useState(false)
   const [manualUrl, setManualUrl] = useState(value)
 
-  const previewValid = value !== '' && isAllowedImageUrl(value)
+  const hasImage = value !== '' && isAllowedImageUrl(value)
 
   const isBanner = shape === 'banner'
-  const previewShapeClass =
-    shape === 'circle'
-      ? 'h-24 w-24 rounded-full'
-      : isBanner
-        ? 'aspect-[4/1] w-full rounded-xl'
-        : 'h-24 w-24 rounded-xl'
+  const isCircle = shape === 'circle'
+  const frameClass = isCircle
+    ? 'h-32 w-32 rounded-full'
+    : isBanner
+      ? 'aspect-[4/1] w-full rounded-2xl'
+      : 'h-32 w-32 rounded-2xl'
 
   async function upload(file: File) {
     setError(null)
@@ -61,10 +68,24 @@ export function SingleImageUpload({ label, hint, value, onChange, shape = 'squar
     }
   }
 
-  function handleRemove() {
+  function openPicker() {
+    if (uploading) return
+    inputRef.current?.click()
+  }
+
+  function handleRemove(event: React.MouseEvent) {
+    event.stopPropagation()
     onChange('')
     setManualUrl('')
     if (inputRef.current) inputRef.current.value = ''
+  }
+
+  function handleDrop(event: React.DragEvent<HTMLButtonElement>) {
+    event.preventDefault()
+    setDragActive(false)
+    if (uploading) return
+    const file = event.dataTransfer.files?.[0]
+    if (file) void upload(file)
   }
 
   function commitManualUrl() {
@@ -75,77 +96,115 @@ export function SingleImageUpload({ label, hint, value, onChange, shape = 'squar
       return
     }
     if (!isAllowedImageUrl(trimmed)) {
-      setError('URL no permitida. Usa cloudinary.com, uploadthing.com, unsplash.com o una imagen subida aquí.')
+      setError('URL no permitida. Usa cloudinary.com, uploadthing.com o unsplash.com.')
       return
     }
     setError(null)
     onChange(trimmed)
   }
 
+  const EmptyIcon = isCircle ? CameraIcon : PhotoIcon
+
   return (
     <div className="space-y-2">
-      <label htmlFor={id} className="block text-sm font-medium text-[var(--foreground)]">
-        {label}
-      </label>
-      {hint && <p className="text-xs text-[var(--muted)]">{hint}</p>}
-
-      <div className={isBanner ? 'space-y-3' : 'flex items-start gap-4'}>
-        {previewValid && (
-          <div className={`relative shrink-0 overflow-hidden border border-[var(--border)] bg-[var(--surface-raised,transparent)] ${previewShapeClass}`}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={value} alt="Vista previa" className="h-full w-full object-cover" />
-          </div>
-        )}
-        <div className={isBanner ? 'space-y-2' : 'flex-1 space-y-2 min-w-0'}>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              disabled={uploading}
-              className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:border-emerald-400 hover:text-emerald-700 disabled:opacity-60 dark:hover:border-emerald-600 dark:hover:text-emerald-300"
-            >
-              {uploading ? (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-300 border-t-emerald-600" />
-              ) : (
-                <ArrowUpTrayIcon className="h-4 w-4" />
-              )}
-              {uploading ? 'Subiendo...' : 'Subir desde mi equipo'}
-            </button>
-            {previewValid && (
-              <button
-                type="button"
-                onClick={handleRemove}
-                className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-red-600 hover:border-red-300 dark:text-red-400 dark:hover:border-red-800"
-              >
-                <XMarkIcon className="h-4 w-4" />
-                Quitar
-              </button>
-            )}
-          </div>
-          <input
-            ref={inputRef}
-            id={`${id}-file`}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="hidden"
-            onChange={event => {
-              const file = event.target.files?.[0]
-              if (file) void upload(file)
-            }}
-          />
-          <div>
-            <input
-              id={id}
-              type="text"
-              value={manualUrl}
-              onChange={e => setManualUrl(e.target.value)}
-              onBlur={commitManualUrl}
-              placeholder="...o pega una URL (cloudinary, unsplash, uploadthing)"
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
-            />
-          </div>
-        </div>
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-[var(--foreground)]">{label}</span>
+        <button
+          type="button"
+          onClick={() => setShowUrlInput(v => !v)}
+          className="inline-flex items-center gap-1 text-xs text-[var(--muted)] hover:text-emerald-600 dark:hover:text-emerald-400"
+        >
+          <LinkIcon className="h-3.5 w-3.5" />
+          {showUrlInput ? 'Ocultar URL' : 'Pegar URL'}
+        </button>
       </div>
+
+      <button
+        type="button"
+        onClick={openPicker}
+        onDragEnter={e => {
+          e.preventDefault()
+          if (!uploading) setDragActive(true)
+        }}
+        onDragOver={e => {
+          e.preventDefault()
+          if (!uploading) setDragActive(true)
+        }}
+        onDragLeave={e => {
+          e.preventDefault()
+          setDragActive(false)
+        }}
+        onDrop={handleDrop}
+        aria-label={hasImage ? `Cambiar ${label.toLowerCase()}` : `Subir ${label.toLowerCase()}`}
+        className={`group relative block overflow-hidden border-2 border-dashed transition ${frameClass} ${
+          dragActive
+            ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/30'
+            : hasImage
+              ? 'border-transparent'
+              : 'border-[var(--border)] bg-[var(--surface-raised)] hover:border-emerald-400 hover:bg-emerald-50/40 dark:hover:border-emerald-600 dark:hover:bg-emerald-950/20'
+        } ${uploading ? 'cursor-wait' : 'cursor-pointer'}`}
+      >
+        {hasImage ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={value} alt="" className="h-full w-full object-cover" />
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 text-sm font-medium text-white opacity-0 transition group-hover:bg-black/45 group-hover:opacity-100 group-focus-visible:bg-black/45 group-focus-visible:opacity-100">
+              <span className="inline-flex items-center gap-1.5">
+                <CameraIcon className="h-4 w-4" />
+                Cambiar
+              </span>
+            </span>
+          </>
+        ) : (
+          <span className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-center text-[var(--muted)]">
+            <EmptyIcon className="h-7 w-7" />
+            <span className="text-xs font-medium">
+              {isBanner ? 'Arrastra o haz clic para subir' : 'Subir foto'}
+            </span>
+          </span>
+        )}
+
+        {uploading && (
+          <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-white">
+            <span className="h-6 w-6 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+          </span>
+        )}
+      </button>
+
+      {hasImage && !uploading && (
+        <button
+          type="button"
+          onClick={handleRemove}
+          className="inline-flex items-center gap-1 text-xs text-[var(--muted)] hover:text-red-600 dark:hover:text-red-400"
+        >
+          <XMarkIcon className="h-3.5 w-3.5" />
+          Quitar imagen
+        </button>
+      )}
+
+      <input
+        ref={inputRef}
+        id={`${id}-file`}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={event => {
+          const file = event.target.files?.[0]
+          if (file) void upload(file)
+        }}
+      />
+
+      {showUrlInput && (
+        <input
+          id={id}
+          type="text"
+          value={manualUrl}
+          onChange={e => setManualUrl(e.target.value)}
+          onBlur={commitManualUrl}
+          placeholder="https://res.cloudinary.com/..."
+          className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
+        />
+      )}
 
       {error && (
         <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400">
