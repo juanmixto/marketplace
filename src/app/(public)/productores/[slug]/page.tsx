@@ -112,13 +112,18 @@ export default async function VendorPublicPage({ params }: Props) {
   }
   const structuredData = {
     '@context': 'https://schema.org',
-    '@type': 'Organization',
+    '@type': 'LocalBusiness',
+    '@id': absoluteUrl(`/productores/${vendor.slug}#business`),
     name: vendor.displayName,
     description: vendor.description ?? undefined,
     url: absoluteUrl(`/productores/${vendor.slug}`),
     image: vendor.logo ? [absoluteUrl(vendor.logo)] : undefined,
+    logo: vendor.logo ? absoluteUrl(vendor.logo) : undefined,
     address: vendor.location
       ? { '@type': 'PostalAddress', addressLocality: vendor.location, addressCountry: 'ES' }
+      : undefined,
+    areaServed: vendor.location
+      ? { '@type': 'Place', name: vendor.location }
       : undefined,
     aggregateRating: vendor.avgRating
       ? {
