@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { getProductBySlug, getProducts } from '@/domains/catalog/queries'
 import { Badge } from '@/components/ui/badge'
 import { ProductPurchasePanel } from '@/components/catalog/ProductPurchasePanel'
@@ -290,9 +291,19 @@ export default async function ProductDetailPage({ params }: Props) {
               </p>
             </div>
             <div className="flex items-start gap-4 p-5">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-3xl dark:bg-emerald-950/40">
-                🌾
-              </div>
+              {product.vendor.logo ? (
+                <Image
+                  src={product.vendor.logo}
+                  alt={product.vendor.displayName}
+                  width={56}
+                  height={56}
+                  className="h-14 w-14 shrink-0 rounded-2xl object-cover"
+                />
+              ) : (
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-3xl dark:bg-emerald-950/40">
+                  🌾
+                </div>
+              )}
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-[var(--foreground)]">{product.vendor.displayName}</p>
                 {product.vendor.location && (
