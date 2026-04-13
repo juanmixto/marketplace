@@ -152,6 +152,33 @@ test('toCheckoutFormAddress maps a saved address into checkout form values', () 
   })
 })
 
+test('createOrder runs a stock precheck BEFORE creating a Stripe PaymentIntent (#133)', () => {
+  const actions = readSource('../src/domains/orders/actions.ts')
+
+  // The precheck loop must exist with the recognizable shortage message...
+  assert.match(actions, /Stock insuficiente: \$\{stockShortages\.join/, 'must surface a clear stock-shortage error')
+
+  // ...and it must run before createPaymentIntent so we never charge a buyer
+  // we can't fulfil. Capture both code positions and assert ordering.
+  const precheckIndex = actions.indexOf('stockShortages')
+  const paymentIntentIndex = actions.indexOf('createPaymentIntent(')
+
+  assert.ok(precheckIndex > 0, 'precheck must exist in createOrder')
+  assert.ok(paymentIntentIndex > 0, 'createPaymentIntent call must exist')
+  assert.ok(
+    precheckIndex < paymentIntentIndex,
+    'stock precheck must run before createPaymentIntent (no orphan PaymentIntents)'
+  )
+})
+
+test('createOrder still validates stock atomically inside the transaction (#133)', () => {
+  // The precheck is best-effort. The transactional FOR UPDATE check must
+  // remain in place to defeat the race window between the read and the write.
+  const actions = readSource('../src/domains/orders/actions.ts')
+  assert.match(actions, /FOR UPDATE/, 'transactional row lock must still be present')
+  assert.match(actions, /Stock insuficiente para/, 'transactional check must still throw on shortage')
+})
+
 test('checkout success redirects to the confirmation page instead of leaving the buyer without feedback', () => {
   const checkoutClient = readSource('../src/components/buyer/CheckoutPageClient.tsx')
   const stripeForm = readSource('../src/components/checkout/StripeCheckoutForm.tsx')
