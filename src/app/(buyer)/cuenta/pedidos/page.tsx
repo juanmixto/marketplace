@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { RepeatOrderButton } from '@/components/buyer/RepeatOrderButton'
 import type { Metadata } from 'next'
 import { getServerT } from '@/i18n/server'
-import { countPendingReviewsInOrder } from '@/domains/reviews/pending-policy'
+import { countPendingReviewsInOrder, firstPendingReviewProductId } from '@/domains/reviews/pending-policy'
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT()
@@ -71,6 +71,13 @@ export default async function MisPedidosPage() {
               pendingReviews === 1
                 ? t('pendingReviews.badgeCountOne')
                 : t('pendingReviews.badgeCountOther').replace('{count}', String(pendingReviews))
+            // Deep-link to the first unreviewed product so the buyer lands on
+            // the form they need to fill, not at the top of the page. (#204)
+            const firstPendingProductId =
+              order.status === 'DELIVERED' ? firstPendingReviewProductId(order) : null
+            const pendingHref = firstPendingProductId
+              ? `/cuenta/pedidos/${order.id}#review-${firstPendingProductId}`
+              : `/cuenta/pedidos/${order.id}#reseñas`
             return (
             <article
               key={order.id}
@@ -120,7 +127,7 @@ export default async function MisPedidosPage() {
 
               {pendingReviews > 0 && (
                 <Link
-                  href={`/cuenta/pedidos/${order.id}#reseñas`}
+                  href={pendingHref}
                   className="mt-4 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 transition hover:border-amber-300 hover:bg-amber-100 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:border-amber-700 dark:hover:bg-amber-950/60"
                 >
                   <StarIcon className="h-5 w-5 shrink-0 text-amber-500 dark:text-amber-300" />
