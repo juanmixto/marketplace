@@ -26,7 +26,12 @@ function getPreferredDevAuthUrl(env: NodeJS.ProcessEnv) {
 
   try {
     const parsed = new URL(candidate)
-    return parsed.hostname === '0.0.0.0' ? null : candidate
+    if (parsed.hostname === '0.0.0.0') return null
+    // A private-network candidate is just as likely to be stale as AUTH_URL
+    // (dev port drifts when 3000 is taken). Prefer request-host resolution via
+    // `trustHost: true` in auth.ts instead of pinning a possibly wrong port.
+    if (isPrivateNetworkHost(parsed.hostname)) return null
+    return candidate
   } catch {
     return null
   }
