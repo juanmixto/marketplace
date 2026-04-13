@@ -104,7 +104,15 @@ export function OrderDetailClient({ order, nuevo, reviewEligibility }: Props) {
             const snapshot = parseOrderLineSnapshot(line.productSnapshot)
 
             return (
-              <div key={line.id} className="flex items-center gap-4 px-5 py-4">
+              <div
+                key={line.id}
+                // Stable anchor target for deep-links from the order list
+                // pending-review badge (#204): /cuenta/pedidos/{id}#review-{productId}
+                // The id stays on the row even when the product is already
+                // reviewed, so the URL fragment is meaningful regardless of state.
+                id={`review-${line.productId}`}
+                className="flex scroll-mt-24 items-center gap-4 px-5 py-4"
+              >
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-[var(--surface-raised)]">
                   {line.product.images?.[0]
                     ? <Image src={line.product.images[0]} alt={line.product.name} fill className="object-cover" sizes="56px" />
