@@ -44,9 +44,6 @@ next-env.d.ts
 
 /src/generated/prisma
 
-# Local-mode uploads (#31). Production uses cloud blob storage instead.
-/public/uploads/
-
 # Local wiki source is published to the GitHub wiki repo separately
 docs/wiki/
 .claude/
