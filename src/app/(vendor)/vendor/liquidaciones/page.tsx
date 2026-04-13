@@ -148,9 +148,16 @@ export default async function Liquidaciones({ searchParams }: PageProps) {
       ? settlements.filter(s => monthKey(startOfMonth(s.periodTo)) === selectedPeriod)
       : settlements.filter(s => s.id === selectedPeriod)
     : settlements
-  const selectedLabel = selectedPeriod
-    ? trend.find(t => t.periodKey === selectedPeriod)?.label ?? null
-    : null
+  let selectedLabel: string | null = null
+  if (selectedPeriod && filteredSettlements.length > 0) {
+    if (view === 'month') {
+      const monthStart = startOfMonth(filteredSettlements[0].periodTo)
+      selectedLabel = format(monthStart, "MMMM 'de' yyyy", { locale: es })
+    } else {
+      const s = filteredSettlements[0]
+      selectedLabel = `${format(s.periodFrom, 'd MMM', { locale: es })} — ${format(s.periodTo, 'd MMM yyyy', { locale: es })}`
+    }
+  }
   const baseQuery = view === 'month' ? '?view=month' : '?view=week'
 
   // Top products: aggregate OrderLines by product
