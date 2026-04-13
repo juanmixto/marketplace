@@ -1,6 +1,6 @@
 import { getMyVendorProfile } from '@/domains/vendors/actions'
 import { VendorProfileForm } from '@/components/vendor/VendorProfileForm'
-import { StripeConnectUI } from '@/app/(vendor)/perfil/StripeConnectUI'
+import { StripeConnectUI } from './StripeConnectUI'
 import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 

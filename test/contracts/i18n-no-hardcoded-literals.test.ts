@@ -72,8 +72,8 @@ const ALLOWLIST_FILES: ReadonlySet<string> = new Set([
   // Public producer detail — partially localized.
   'src/app/(public)/productores/[slug]/page.tsx',
   // Vendor portal — pending dedicated i18n PR.
-  'src/app/(vendor)/liquidaciones/page.tsx',
-  'src/app/(vendor)/perfil/StripeConnectUI.tsx',
+  'src/app/(vendor)/vendor/liquidaciones/page.tsx',
+  'src/app/(vendor)/vendor/perfil/StripeConnectUI.tsx',
   'src/app/(vendor)/vendor/dashboard/page.tsx',
   'src/app/(vendor)/vendor/pedidos/page.tsx',
   'src/app/(vendor)/vendor/perfil/page.tsx',
