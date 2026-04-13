@@ -8,7 +8,14 @@ import { Badge } from '@/components/ui/badge'
 import { CheckCircleIcon } from '@heroicons/react/24/solid'
 import { parseOrderLineSnapshot } from '@/domains/orders/order-line-snapshot'
 import { ReviewFormButton } from '@/components/reviews/ReviewFormButton'
+import { ReportProblemLink } from '@/components/buyer/ReportProblemLink'
 import { useT } from '@/i18n'
+
+const REPORTABLE_ORDER_STATUSES = new Set([
+  'DELIVERED',
+  'SHIPPED',
+  'PARTIALLY_SHIPPED',
+])
 
 type OrderStatus = keyof typeof ORDER_STATUS_LABELS
 type FulfillmentStatus = keyof typeof FULFILLMENT_STATUS_LABELS
@@ -197,6 +204,10 @@ export function OrderDetailClient({ order, nuevo, reviewEligibility }: Props) {
             {order.address.postalCode} {order.address.city}, {order.address.province}
           </p>
         </div>
+      )}
+
+      {REPORTABLE_ORDER_STATUSES.has(order.status as string) && (
+        <ReportProblemLink orderId={order.id} />
       )}
 
       <div className="mt-6">

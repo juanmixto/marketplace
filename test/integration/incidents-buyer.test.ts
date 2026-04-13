@@ -4,11 +4,13 @@ import {
   addIncidentMessage,
   getIncidentDetail,
   getMyIncidents,
-  IncidentAuthError,
-  IncidentValidationError,
-  INCIDENT_SLA_HOURS,
   openIncident,
 } from '@/domains/incidents/actions'
+import {
+  INCIDENT_SLA_HOURS,
+  IncidentAuthError,
+  IncidentValidationError,
+} from '@/domains/incidents/errors'
 import { db } from '@/lib/db'
 import {
   buildSession,
