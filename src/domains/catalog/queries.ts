@@ -4,7 +4,7 @@ import { PAGINATION_DEFAULTS } from '@/lib/constants'
 import { getAvailableProductWhere } from '@/domains/catalog/availability'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 import { getDemoProductImages } from '@/domains/catalog/demo-product-images'
-import { expandSearchQuery } from '@/lib/search-translation'
+import { expandSearchQuery } from '@/domains/catalog/search-translation'
 
 export interface ProductFilters {
   categorySlug?: string
