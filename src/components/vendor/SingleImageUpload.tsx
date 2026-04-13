@@ -24,11 +24,12 @@ export function SingleImageUpload({ label, hint, value, onChange, shape = 'squar
 
   const previewValid = value !== '' && isAllowedImageUrl(value)
 
+  const isBanner = shape === 'banner'
   const previewShapeClass =
     shape === 'circle'
       ? 'h-24 w-24 rounded-full'
-      : shape === 'banner'
-        ? 'h-28 w-full rounded-xl'
+      : isBanner
+        ? 'aspect-[4/1] w-full rounded-xl'
         : 'h-24 w-24 rounded-xl'
 
   async function upload(file: File) {
@@ -88,14 +89,14 @@ export function SingleImageUpload({ label, hint, value, onChange, shape = 'squar
       </label>
       {hint && <p className="text-xs text-[var(--muted)]">{hint}</p>}
 
-      <div className="flex items-start gap-4">
+      <div className={isBanner ? 'space-y-3' : 'flex items-start gap-4'}>
         {previewValid && (
           <div className={`relative shrink-0 overflow-hidden border border-[var(--border)] bg-[var(--surface-raised,transparent)] ${previewShapeClass}`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={value} alt="Vista previa" className="h-full w-full object-cover" />
           </div>
         )}
-        <div className="flex-1 space-y-2">
+        <div className={isBanner ? 'space-y-2' : 'flex-1 space-y-2 min-w-0'}>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
