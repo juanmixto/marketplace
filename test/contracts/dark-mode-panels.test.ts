@@ -79,7 +79,7 @@ function assertDarkPaired(relPath: string) {
 // acts as opt-in protection against the same class of regression.
 const GUARDED_FILES = [
   'src/app/(vendor)/vendor/liquidaciones/page.tsx',
-  'src/app/(vendor)/valoraciones/page.tsx',
+  'src/app/(vendor)/vendor/valoraciones/page.tsx',
   'src/app/(auth)/recuperar-contrasena/page.tsx',
   'src/app/(auth)/recuperar-contrasena/RequestForm.tsx',
   'src/app/(auth)/recuperar-contrasena/nueva/page.tsx',
