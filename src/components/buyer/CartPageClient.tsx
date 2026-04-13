@@ -97,7 +97,10 @@ export function CartPageClient({ shippingSettings }: Props) {
       <h1 className="mb-8 text-2xl font-bold text-[var(--foreground)]">{t('cart.title')} ({itemCount()})</h1>
 
       <div className="grid gap-8 lg:grid-cols-3">
-        <div className="order-last space-y-3 lg:order-first lg:col-span-2">
+        <div
+          className="order-last space-y-3 lg:order-first lg:col-span-2"
+          aria-busy={checkingStock || undefined}
+        >
           {hasBlockingIssues && (
             <div
               role="alert"
@@ -189,7 +192,13 @@ export function CartPageClient({ shippingSettings }: Props) {
                         type="button"
                         onClick={() => updateQty(item.productId, item.quantity - 1, item.variantId)}
                         aria-label={`Reducir cantidad de ${item.name}`}
-                        className="rounded-l-lg p-1.5 hover:bg-[var(--surface-raised)]"
+                        // Disable when quantity===1 so the user can't accidentally
+                        // remove the item by clicking minus repeatedly. The trash
+                        // icon is the explicit removal affordance. Also disable
+                        // during the stock check so the optimistic update doesn't
+                        // race against the in-flight verification (#132).
+                        disabled={item.quantity <= 1 || checkingStock}
+                        className="rounded-l-lg p-1.5 transition hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         <MinusIcon className="h-3.5 w-3.5 text-[var(--foreground-soft)]" />
                       </button>
@@ -199,20 +208,21 @@ export function CartPageClient({ shippingSettings }: Props) {
                         max={available ?? undefined}
                         inputMode="numeric"
                         value={item.quantity}
+                        disabled={checkingStock}
                         onChange={event => {
                           const nextQuantity = Number.parseInt(event.target.value, 10)
-                          if (Number.isNaN(nextQuantity)) return
+                          if (Number.isNaN(nextQuantity) || nextQuantity < 1) return
                           updateQty(item.productId, nextQuantity, item.variantId)
                         }}
-                        className="w-12 bg-transparent text-center text-sm font-medium text-[var(--foreground)] focus:outline-none"
+                        className="w-12 bg-transparent text-center text-sm font-medium text-[var(--foreground)] focus:outline-none disabled:opacity-60"
                         aria-label={`Cantidad de ${item.name}`}
                       />
                       <button
                         type="button"
                         onClick={() => updateQty(item.productId, item.quantity + 1, item.variantId)}
                         aria-label={`Aumentar cantidad de ${item.name}`}
-                        disabled={available !== null && item.quantity >= available}
-                        className="rounded-r-lg p-1.5 hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-40"
+                        disabled={checkingStock || (available !== null && item.quantity >= available)}
+                        className="rounded-r-lg p-1.5 transition hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         <PlusIcon className="h-3.5 w-3.5 text-[var(--foreground-soft)]" />
                       </button>
@@ -221,7 +231,8 @@ export function CartPageClient({ shippingSettings }: Props) {
                       type="button"
                       onClick={() => removeItem(item.productId, item.variantId)}
                       aria-label={`Eliminar ${item.name} del carrito`}
-                      className="text-[var(--muted)] hover:text-red-600 dark:hover:text-red-400"
+                      disabled={checkingStock}
+                      className="text-[var(--muted)] transition hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:text-red-400"
                     >
                       <TrashIcon className="h-4 w-4" />
                     </button>
@@ -237,7 +248,8 @@ export function CartPageClient({ shippingSettings }: Props) {
             type="button"
             onClick={clearCart}
             aria-label={t('cart.clearCart')}
-            className="mt-2 text-sm text-[var(--muted)] hover:text-red-600 dark:hover:text-red-400"
+            disabled={checkingStock}
+            className="mt-2 text-sm text-[var(--muted)] transition hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:text-red-400"
           >
             {t('cart.clearCart')}
           </button>
