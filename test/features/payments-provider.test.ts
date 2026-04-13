@@ -26,6 +26,21 @@ test('createPaymentIntent returns a mock client secret in mock mode', async () =
   })
 })
 
+test('createPaymentIntent ignores connect destination in mock mode (#48)', async () => {
+  // Connect destination charges only apply when PAYMENT_PROVIDER=stripe.
+  // In mock mode the option is harmlessly ignored — the same mock intent
+  // shape is returned, so the orders action can pass `connect` unconditionally.
+  await withMockEnv(async () => {
+    const intent = await createPaymentIntent(
+      2495,
+      { orderId: 'ord_123' },
+      { connect: { vendorAccountId: 'acct_test_123', applicationFeeAmountCents: 300 } }
+    )
+    assert.match(intent.id, /^mock_pi_/)
+    assert.equal(intent.amount, 2495)
+  })
+})
+
 test('confirmMockPayment accepts mock payment intents', async () => {
   await assert.doesNotReject(() => confirmMockPayment('mock_pi_123_secret'))
 })
