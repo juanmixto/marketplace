@@ -367,6 +367,23 @@ const en: Record<TranslationKeys, string> = {
   'vendor.header.goToStore': 'Go to store',
   'vendor.header.signOut': 'Sign out',
 
+  // Portal switcher (shared header control)
+  'portalSwitcher.label': 'Switch panel',
+  'portalSwitcher.current': 'Current panel',
+  'portalSwitcher.buyer.title': 'Storefront',
+  'portalSwitcher.buyer.desc': 'Shop as a customer',
+  'portalSwitcher.vendor.title': 'Producer panel',
+  'portalSwitcher.vendor.desc': 'Manage your store',
+  'portalSwitcher.admin.title': 'Admin panel',
+  'portalSwitcher.admin.desc': 'Marketplace administration',
+
+  // Impersonation banner (admin-support viewing a vendor panel)
+  'impersonation.banner.prefix': 'Viewing as',
+  'impersonation.banner.admin': 'admin',
+  'impersonation.banner.expiresIn': 'expires in',
+  'impersonation.banner.readOnly': 'read only',
+  'impersonation.banner.end': 'End session',
+
   // Vendor – nav labels
   'vendor.nav.dashboard': 'Home',
   'vendor.nav.products': 'My catalog',
