@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { createCheckoutOrder } from '@/domains/orders/actions'
+import { previewPromotionsForCart, type PromotionPreviewResult } from '@/domains/promotions/checkout'
 import { formatPrice } from '@/lib/utils'
 import { SafeImage } from '@/components/catalog/SafeImage'
 import {
@@ -133,7 +134,7 @@ export function CheckoutPageClient({
   const watchedProvince = useWatch({ control, name: 'province' }) ?? ''
   const watchedPhone = useWatch({ control, name: 'phone' }) ?? ''
 
-  const shipping = watchedPostalCode.length === 5
+  const baseShipping = watchedPostalCode.length === 5
     ? calculateShippingCostFromTables({
         postalCode: watchedPostalCode,
         subtotal: sub,
@@ -142,7 +143,72 @@ export function CheckoutPageClient({
         fallbackCost: fallbackShippingCost,
       })
     : fallbackShippingCost
-  const total = sub + shipping
+
+  // Phase 2 of the promotions RFC — coupon input + discount preview.
+  const [promoCodeInput, setPromoCodeInput] = useState('')
+  const [appliedCode, setAppliedCode] = useState<string | null>(null)
+  const [promoPreview, setPromoPreview] = useState<PromotionPreviewResult | null>(null)
+  const [promoError, setPromoError] = useState<string | null>(null)
+  const [promoPending, setPromoPending] = useState(false)
+
+  const subtotalDiscount = promoPreview?.subtotalDiscount ?? 0
+  const shippingDiscount = promoPreview?.shippingDiscount ?? 0
+  const shipping = Math.max(0, baseShipping - shippingDiscount)
+  const total = Math.max(0, sub - subtotalDiscount + shipping)
+
+  useEffect(() => {
+    let cancelled = false
+    if (items.length === 0) {
+      setPromoPreview(null)
+      return
+    }
+
+    setPromoPending(true)
+    previewPromotionsForCart({
+      items: items.map(i => ({
+        productId: i.productId,
+        variantId: i.variantId,
+        quantity: i.quantity,
+      })),
+      code: appliedCode,
+      shippingCost: baseShipping,
+    })
+      .then(result => {
+        if (cancelled) return
+        setPromoPreview(result)
+        if (appliedCode && result.unknownCodes.includes(appliedCode.toUpperCase())) {
+          setPromoError(t('checkout.promo.invalidCode').replace('{code}', appliedCode))
+          setAppliedCode(null)
+        } else {
+          setPromoError(null)
+        }
+      })
+      .catch(() => {
+        if (cancelled) return
+        setPromoPreview(null)
+      })
+      .finally(() => {
+        if (!cancelled) setPromoPending(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [items, appliedCode, baseShipping, t])
+
+  function handleApplyPromoCode() {
+    const trimmed = promoCodeInput.trim().toUpperCase()
+    if (!trimmed) return
+    setPromoError(null)
+    setAppliedCode(trimmed)
+  }
+
+  function handleClearPromoCode() {
+    setPromoCodeInput('')
+    setAppliedCode(null)
+    setPromoError(null)
+  }
+
   const hasTrackedCheckoutRef = useRef(false)
 
   useEffect(() => {
@@ -267,11 +333,15 @@ export function CheckoutPageClient({
         quantity: i.quantity,
       }))
 
-      const result = await createCheckoutOrder(cartItems, {
-        address: data,
-        saveAddress: data.saveAddress,
-        selectedAddressId: selectedAddressId ?? undefined,
-      })
+      const result = await createCheckoutOrder(
+        cartItems,
+        {
+          address: data,
+          saveAddress: data.saveAddress,
+          selectedAddressId: selectedAddressId ?? undefined,
+        },
+        { promotionCode: appliedCode }
+      )
 
       if (!result.ok) {
         setServerError(result.error)
@@ -510,15 +580,79 @@ export function CheckoutPageClient({
               <div className="flex justify-between text-[var(--foreground-soft)]">
                 <span>{t('cart.subtotal')}</span><span>{formatPrice(sub)}</span>
               </div>
+              {subtotalDiscount > 0 && (
+                <div className="flex justify-between text-emerald-700 dark:text-emerald-400">
+                  <span className="flex items-center gap-1">
+                    {t('checkout.promo.discountLine')}
+                    {promoPreview?.appliedByVendor[0]?.name && (
+                      <span className="text-xs text-[var(--muted)]">
+                        ({promoPreview.appliedByVendor[0].name}
+                        {promoPreview.appliedByVendor.length > 1 ? '…' : ''})
+                      </span>
+                    )}
+                  </span>
+                  <span>−{formatPrice(subtotalDiscount)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-[var(--foreground-soft)]">
                 <span>{t('cart.shipping')}</span>
                 <span>{shipping === 0 ? <span className="text-emerald-600 dark:text-emerald-400">{t('cart.shippingFree')}</span> : formatPrice(shipping)}</span>
               </div>
-              {shipping > 0 && (
+              {shippingDiscount > 0 && (
+                <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                  {t('checkout.promo.freeShippingApplied')}
+                </p>
+              )}
+              {shipping > 0 && shippingDiscount === 0 && (
                 <p className="text-xs text-[var(--muted-light)]">
                   {t('checkout.shippingHint')}
                 </p>
               )}
+
+              {/* Coupon code input */}
+              <div className="mt-3 border-t border-[var(--border)] pt-3">
+                <label className="block text-xs font-medium text-[var(--foreground-soft)]">
+                  {t('checkout.promo.label')}
+                </label>
+                {appliedCode ? (
+                  <div className="mt-1 flex items-center justify-between gap-2 rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs dark:border-emerald-800 dark:bg-emerald-950/40">
+                    <span className="font-mono font-semibold text-emerald-800 dark:text-emerald-300">
+                      {appliedCode}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleClearPromoCode}
+                      className="text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300"
+                    >
+                      {t('checkout.promo.remove')}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-1 flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={promoCodeInput}
+                      onChange={e => setPromoCodeInput(e.target.value.toUpperCase())}
+                      placeholder={t('checkout.promo.placeholder')}
+                      className="h-9 flex-1 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 font-mono text-xs uppercase text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyPromoCode}
+                      disabled={!promoCodeInput.trim() || promoPending}
+                      className="h-9 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-xs font-semibold text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] disabled:opacity-60"
+                    >
+                      {t('checkout.promo.apply')}
+                    </button>
+                  </div>
+                )}
+                {promoError && (
+                  <p className="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">
+                    {promoError}
+                  </p>
+                )}
+              </div>
+
               <div className="flex justify-between border-t border-[var(--border)] pt-2 text-base font-bold text-[var(--foreground)]">
                 <span>{t('cart.total')}</span><span>{formatPrice(total)}</span>
               </div>
