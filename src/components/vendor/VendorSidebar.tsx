@@ -5,20 +5,21 @@ import { usePathname } from 'next/navigation'
 import {
   HomeIcon, ArchiveBoxIcon, ShoppingBagIcon,
   CurrencyEuroIcon, UserCircleIcon, ArrowTopRightOnSquareIcon,
-  StarIcon, TagIcon,
+  StarIcon, TagIcon, ArrowPathIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import { vendorNavItems } from '@/lib/navigation'
 import { useT } from '@/i18n'
 
 const NAV_META = {
-  '/vendor/dashboard':    HomeIcon,
-  '/vendor/pedidos':      ShoppingBagIcon,
-  '/vendor/productos':    ArchiveBoxIcon,
-  '/vendor/promociones':  TagIcon,
-  '/vendor/valoraciones': StarIcon,
-  '/vendor/liquidaciones':CurrencyEuroIcon,
-  '/vendor/perfil':       UserCircleIcon,
+  '/vendor/dashboard':     HomeIcon,
+  '/vendor/pedidos':       ShoppingBagIcon,
+  '/vendor/productos':     ArchiveBoxIcon,
+  '/vendor/promociones':   TagIcon,
+  '/vendor/suscripciones': ArrowPathIcon,
+  '/vendor/valoraciones':  StarIcon,
+  '/vendor/liquidaciones': CurrencyEuroIcon,
+  '/vendor/perfil':        UserCircleIcon,
 } as const
 
 interface Props {
