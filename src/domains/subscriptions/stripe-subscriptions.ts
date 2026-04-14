@@ -210,6 +210,88 @@ export async function ensureStripeCustomerId(
   return customer.id
 }
 
+// ─── Phase 4b-γ: lifecycle operations (cancel / pause / resume) ──────────────
+
+/**
+ * Cancels a Stripe Subscription at period end (the buyer keeps access to
+ * the current cycle they already paid for). Mock mode is a no-op so the
+ * existing buyer-actions tests that pre-date the Stripe integration
+ * continue to pass without a subscription id on the local row.
+ *
+ * Stripe will emit a `customer.subscription.deleted` event at the end of
+ * the cycle — the webhook handler from phase 4b-α will then flip the
+ * local row to CANCELED. Cancelling here only marks it for cancelation
+ * in Stripe; the local row stays in whatever status it was in so the
+ * buyer still sees their current cycle until Stripe terminates it.
+ */
+export async function cancelStripeSubscription(
+  stripeSubscriptionId: string | null
+): Promise<void> {
+  if (!stripeSubscriptionId) return
+  const env = getServerEnv()
+  if (env.paymentProvider === 'mock') return
+
+  const Stripe = (await import('stripe')).default
+  const stripe = new Stripe(env.stripeSecretKey!)
+  await stripe.subscriptions.update(stripeSubscriptionId, {
+    cancel_at_period_end: true,
+  })
+}
+
+/**
+ * Immediately cancels a Stripe Subscription (no further charges, no
+ * proration). Used when the buyer asks for a hard cancel instead of
+ * running out the current cycle.
+ */
+export async function cancelStripeSubscriptionNow(
+  stripeSubscriptionId: string | null
+): Promise<void> {
+  if (!stripeSubscriptionId) return
+  const env = getServerEnv()
+  if (env.paymentProvider === 'mock') return
+
+  const Stripe = (await import('stripe')).default
+  const stripe = new Stripe(env.stripeSecretKey!)
+  await stripe.subscriptions.cancel(stripeSubscriptionId)
+}
+
+/**
+ * Pauses invoice collection for a Stripe Subscription. Stripe keeps the
+ * row around but stops generating invoices until `pause_collection` is
+ * cleared via {@link resumeStripeSubscription}. Mock mode is a no-op.
+ */
+export async function pauseStripeSubscription(
+  stripeSubscriptionId: string | null
+): Promise<void> {
+  if (!stripeSubscriptionId) return
+  const env = getServerEnv()
+  if (env.paymentProvider === 'mock') return
+
+  const Stripe = (await import('stripe')).default
+  const stripe = new Stripe(env.stripeSecretKey!)
+  await stripe.subscriptions.update(stripeSubscriptionId, {
+    pause_collection: { behavior: 'void' },
+  })
+}
+
+/**
+ * Resumes invoice collection on a previously paused Stripe Subscription.
+ * Mock mode is a no-op.
+ */
+export async function resumeStripeSubscription(
+  stripeSubscriptionId: string | null
+): Promise<void> {
+  if (!stripeSubscriptionId) return
+  const env = getServerEnv()
+  if (env.paymentProvider === 'mock') return
+
+  const Stripe = (await import('stripe')).default
+  const stripe = new Stripe(env.stripeSecretKey!)
+  await stripe.subscriptions.update(stripeSubscriptionId, {
+    pause_collection: null,
+  })
+}
+
 export interface SubscriptionCheckoutInput {
   customerId: string
   stripePriceId: string
