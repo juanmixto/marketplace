@@ -131,12 +131,73 @@ export async function createSubscriptionPlan(input: SubscriptionPlanInput) {
   }
 }
 
+/**
+ * Plain-JS shape the list and single-plan helpers return. Serialized
+ * eagerly because Prisma's Decimal crashes the RSC serializer — the
+ * vendor list page passes these rows straight to a client component.
+ */
+export interface SerializedSubscriptionPlanListRow {
+  id: string
+  vendorId: string
+  productId: string
+  cadence: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY'
+  priceSnapshot: number
+  taxRateSnapshot: number
+  cutoffDayOfWeek: number
+  stripePriceId: string | null
+  archivedAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+  product: {
+    id: string
+    name: string
+    slug: string
+    images: string[]
+    unit: string
+  }
+}
+
+type SubscriptionPlanListRowFromDb = Awaited<
+  ReturnType<typeof db.subscriptionPlan.findFirst<{
+    include: {
+      product: {
+        select: {
+          id: true
+          name: true
+          slug: true
+          images: true
+          unit: true
+        }
+      }
+    }
+  }>>
+>
+
+function serializePlanListRow(
+  row: NonNullable<SubscriptionPlanListRowFromDb>
+): SerializedSubscriptionPlanListRow {
+  return {
+    id: row.id,
+    vendorId: row.vendorId,
+    productId: row.productId,
+    cadence: row.cadence,
+    priceSnapshot: Number(row.priceSnapshot),
+    taxRateSnapshot: Number(row.taxRateSnapshot),
+    cutoffDayOfWeek: row.cutoffDayOfWeek,
+    stripePriceId: row.stripePriceId,
+    archivedAt: row.archivedAt,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    product: row.product,
+  }
+}
+
 export async function listMySubscriptionPlans(
   filter: 'active' | 'archived' | 'all' = 'active'
-) {
+): Promise<SerializedSubscriptionPlanListRow[]> {
   const { vendor } = await requireVendor()
 
-  return db.subscriptionPlan.findMany({
+  const rows = await db.subscriptionPlan.findMany({
     where: {
       vendorId: vendor.id,
       ...(filter === 'active' && { archivedAt: null }),
@@ -149,16 +210,35 @@ export async function listMySubscriptionPlans(
       },
     },
   })
+  return rows.map(serializePlanListRow)
 }
 
 export async function getMySubscriptionPlan(planId: string) {
   const { vendor } = await requireVendor()
-  return db.subscriptionPlan.findFirst({
+  const row = await db.subscriptionPlan.findFirst({
     where: { id: planId, vendorId: vendor.id },
     include: {
       product: { select: { id: true, name: true, slug: true } },
     },
   })
+  if (!row) return null
+  // Less-used single-row helper — return a serialized-enough shape too
+  // so callers get a consistent type surface. Product is narrower here
+  // than in the list helper (no images/unit) by design.
+  return {
+    id: row.id,
+    vendorId: row.vendorId,
+    productId: row.productId,
+    cadence: row.cadence,
+    priceSnapshot: Number(row.priceSnapshot),
+    taxRateSnapshot: Number(row.taxRateSnapshot),
+    cutoffDayOfWeek: row.cutoffDayOfWeek,
+    stripePriceId: row.stripePriceId,
+    archivedAt: row.archivedAt,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    product: row.product,
+  }
 }
 
 export async function archiveSubscriptionPlan(planId: string) {

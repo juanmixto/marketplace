@@ -179,15 +179,82 @@ export async function createPromotion(input: PromotionInput) {
 }
 
 /**
+ * Serializes a Prisma promotion row with its included product/category
+ * into a plain-JS shape the RSC boundary accepts. Prisma's `Decimal`
+ * instances crash the server→client serializer in Next 16 — so we
+ * convert them to JS numbers eagerly. Kept local to this module so the
+ * test integration tests keep working unchanged (they just call
+ * `Number(promo.value)` which is idempotent on real numbers).
+ */
+type PromotionRowFromDb = Awaited<
+  ReturnType<typeof db.promotion.findFirst<{
+    include: {
+      product: { select: { id: true; name: true; slug: true } }
+      category: { select: { id: true; name: true; slug: true } }
+    }
+  }>>
+>
+
+export type SerializedPromotion = {
+  id: string
+  vendorId: string
+  name: string
+  code: string | null
+  kind: 'PERCENTAGE' | 'FIXED_AMOUNT' | 'FREE_SHIPPING'
+  scope: 'PRODUCT' | 'VENDOR' | 'CATEGORY'
+  value: number
+  productId: string | null
+  categoryId: string | null
+  minSubtotal: number | null
+  maxRedemptions: number | null
+  perUserLimit: number | null
+  redemptionCount: number
+  startsAt: Date
+  endsAt: Date
+  archivedAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+  product: { id: string; name: string; slug: string } | null
+  category: { id: string; name: string; slug: string } | null
+}
+
+function serializePromotion(
+  row: NonNullable<PromotionRowFromDb>
+): SerializedPromotion {
+  return {
+    id: row.id,
+    vendorId: row.vendorId,
+    name: row.name,
+    code: row.code,
+    kind: row.kind,
+    scope: row.scope,
+    value: Number(row.value),
+    productId: row.productId,
+    categoryId: row.categoryId,
+    minSubtotal: row.minSubtotal !== null ? Number(row.minSubtotal) : null,
+    maxRedemptions: row.maxRedemptions,
+    perUserLimit: row.perUserLimit,
+    redemptionCount: row.redemptionCount,
+    startsAt: row.startsAt,
+    endsAt: row.endsAt,
+    archivedAt: row.archivedAt,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    product: row.product,
+    category: row.category,
+  }
+}
+
+/**
  * Lists the current vendor's promotions, optionally filtered by archived
  * state. Default: non-archived first, most recent first.
  */
 export async function listMyPromotions(
   filter: 'active' | 'archived' | 'all' = 'active'
-) {
+): Promise<SerializedPromotion[]> {
   const { vendor } = await requireVendor()
 
-  return db.promotion.findMany({
+  const rows = await db.promotion.findMany({
     where: {
       vendorId: vendor.id,
       ...(filter === 'active' && { archivedAt: null }),
@@ -199,17 +266,21 @@ export async function listMyPromotions(
       category: { select: { id: true, name: true, slug: true } },
     },
   })
+  return rows.map(serializePromotion)
 }
 
-export async function getMyPromotion(promotionId: string) {
+export async function getMyPromotion(
+  promotionId: string
+): Promise<SerializedPromotion | null> {
   const { vendor } = await requireVendor()
-  return db.promotion.findFirst({
+  const row = await db.promotion.findFirst({
     where: { id: promotionId, vendorId: vendor.id },
     include: {
       product: { select: { id: true, name: true, slug: true } },
       category: { select: { id: true, name: true, slug: true } },
     },
   })
+  return row ? serializePromotion(row) : null
 }
 
 /**
