@@ -120,8 +120,35 @@ test('startSubscriptionCheckout returns a mock Checkout Session URL and persists
     planId: plan.id,
     shippingAddressId: address.id,
   })
-  assert.ok(result.url.includes('/cuenta/suscripciones'))
-  assert.ok(result.url.includes(plan.id))
+
+  // Regression guard for #checkout-redirect-malformed: the mock provider
+  // used to naively do `${successUrl}?mock_session=…`, which produced
+  // `?checkout=success?mock_session=…` — browsers reject this as it has
+  // two `?`. Parse the URL and assert each query param is present exactly
+  // once, and that there's only a single `?` in the string.
+  //
+  // Also a regression guard for #checkout-port-drift: the redirect must be
+  // SAME-ORIGIN (relative) so a misconfigured APP_URL pointing at a
+  // different dev port cannot land the browser on a dead port. Returning
+  // a relative URL lets the browser resolve against the current origin.
+  assert.ok(
+    result.url.startsWith('/cuenta/suscripciones'),
+    `expected same-origin relative URL, got: ${result.url}`,
+  )
+  assert.ok(
+    !/^https?:\/\//i.test(result.url),
+    `mock checkout URL must not include an origin, got: ${result.url}`,
+  )
+  const parsed = new URL(result.url, 'http://localhost')
+  assert.equal(parsed.pathname, '/cuenta/suscripciones')
+  assert.equal(parsed.searchParams.get('checkout'), 'success')
+  assert.ok(parsed.searchParams.get('mock_session')?.startsWith('cs_mock_'))
+  assert.equal(parsed.searchParams.get('planId'), plan.id)
+  assert.equal(
+    (result.url.match(/\?/g) ?? []).length,
+    1,
+    `expected exactly one '?' in mock checkout URL, got: ${result.url}`,
+  )
 
   const refreshed = await db.user.findUnique({ where: { id: buyer.id } })
   assert.equal(refreshed?.stripeCustomerId, `cus_mock_${buyer.id}`)
