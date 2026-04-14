@@ -22,7 +22,13 @@ test('buyer account only exposes implemented links as available', () => {
 
   assert.deepEqual(
     available.map(item => item.href),
-    ['/cuenta/pedidos', '/cuenta/direcciones', '/cuenta/favoritos', '/cuenta/perfil']
+    [
+      '/cuenta/pedidos',
+      '/cuenta/suscripciones',
+      '/cuenta/direcciones',
+      '/cuenta/favoritos',
+      '/cuenta/perfil',
+    ]
   )
   assert.deepEqual(upcoming.map(item => item.href), [])
 })

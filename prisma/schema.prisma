@@ -148,6 +148,13 @@ enum SubscriptionCadence {
   MONTHLY
 }
 
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELED
+  PAST_DUE
+}
+
 // ─── Identity & Auth ──────────────────────────────────────────────────────────
 
 model User {
@@ -177,6 +184,7 @@ model User {
   incidents               Incident[]
   reviews                 Review[]
   favorites               Favorite[]
+  subscriptions           Subscription[]
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
 
@@ -419,8 +427,9 @@ model Address {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orders Order[]
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders        Order[]
+  subscriptions Subscription[]
 
   @@index([userId])
 }
@@ -806,14 +815,53 @@ model SubscriptionPlan {
   // next scheduled delivery. e.g. cutoff=5 (Friday) for a Monday drop.
   cutoffDayOfWeek  Int
 
-  // Reserved for phase 4. Stripe Price id for the recurring charge.
+  // Reserved for phase 4b. Stripe Price id for the recurring charge.
   stripePriceId    String?
   archivedAt       DateTime?
 
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
 
+  subscriptions    Subscription[]
+
   @@index([vendorId, archivedAt])
+}
+
+// Phase 4a of the promotions & subscriptions RFC. Buyer-facing instance of
+// a SubscriptionPlan. Phase 4a only models the domain + vendor-only flow —
+// Stripe Subscriptions, renewal webhooks and the public subscribe CTA
+// land in phase 4b. Until the SUBSCRIPTIONS_BUYER_BETA env flag is set to
+// 'true' the server action that creates new rows refuses to run, so no
+// buyer can end up with a dangling "subscribed but never charged" record.
+model Subscription {
+  id                    String             @id @default(cuid())
+  buyerId               String
+  buyer                 User               @relation(fields: [buyerId], references: [id])
+  planId                String
+  plan                  SubscriptionPlan   @relation(fields: [planId], references: [id])
+  shippingAddressId     String
+  shippingAddress       Address            @relation(fields: [shippingAddressId], references: [id])
+
+  status                SubscriptionStatus @default(ACTIVE)
+  // Computed from the plan cadence on every cycle transition. Renewals
+  // (phase 4b) will read this to schedule the next charge.
+  currentPeriodEnd      DateTime
+  nextDeliveryAt        DateTime
+  // Array of ISO-dates (YYYY-MM-DD) the buyer asked to skip. Stored as
+  // JSON so we can also persist optional notes per skip in the future
+  // without a migration.
+  skippedDeliveries     Json               @default("[]")
+
+  // Reserved for phase 4b.
+  stripeSubscriptionId  String?            @unique
+
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  canceledAt            DateTime?
+
+  @@unique([buyerId, planId])
+  @@index([buyerId, status])
+  @@index([planId, status])
 }
 
 // ─── Logistics ────────────────────────────────────────────────────────────────

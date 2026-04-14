@@ -1,4 +1,4 @@
-import { HeartIcon, MapPinIcon, ShoppingBagIcon, UserCircleIcon } from '@heroicons/react/24/outline'
+import { ArrowPathIcon, HeartIcon, MapPinIcon, ShoppingBagIcon, UserCircleIcon } from '@heroicons/react/24/outline'
 import type { TranslationKeys } from '@/i18n/locales'
 
 export interface AppNavItem {
@@ -40,6 +40,7 @@ export const adminNavItems: AppNavItem[] = [
 
 export const buyerAccountItems: AppNavItem[] = [
   { href: '/cuenta/pedidos', label: 'Mis pedidos', available: true },
+  { href: '/cuenta/suscripciones', label: 'Mis suscripciones', available: true },
   { href: '/cuenta/direcciones', label: 'Mis direcciones', available: true },
   { href: '/cuenta/favoritos', label: 'Mis favoritos', available: true },
   { href: '/cuenta/perfil', label: 'Datos personales', available: true },
@@ -50,6 +51,11 @@ export const buyerAccountMeta = {
     icon: ShoppingBagIcon,
     labelKey: 'account.nav.orders.label',
     descKey:  'account.nav.orders.desc',
+  },
+  '/cuenta/suscripciones': {
+    icon: ArrowPathIcon,
+    labelKey: 'account.nav.subscriptions.label',
+    descKey:  'account.nav.subscriptions.desc',
   },
   '/cuenta/direcciones': {
     icon: MapPinIcon,
