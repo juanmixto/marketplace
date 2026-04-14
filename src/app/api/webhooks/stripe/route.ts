@@ -28,6 +28,7 @@ import {
   computeFirstDeliveryAt,
   computeCurrentPeriodEnd,
 } from '@/domains/subscriptions/cadence'
+import { sendSubscriptionPaymentFailedEmail } from '@/domains/subscriptions/emails'
 import type Stripe from 'stripe'
 
 type WebhookEvent = {
@@ -460,7 +461,15 @@ async function handleInvoicePaymentFailed(invoice: {
   if (!invoice.subscription) return
   const subscription = await db.subscription.findUnique({
     where: { stripeSubscriptionId: invoice.subscription },
-    select: { id: true, status: true },
+    include: {
+      buyer: { select: { email: true, firstName: true } },
+      plan: {
+        include: {
+          product: { select: { name: true } },
+          vendor: { select: { displayName: true } },
+        },
+      },
+    },
   })
   if (!subscription) return
   if (subscription.status === 'PAST_DUE' || subscription.status === 'CANCELED') return
@@ -469,6 +478,16 @@ async function handleInvoicePaymentFailed(invoice: {
     where: { id: subscription.id },
     data: { status: 'PAST_DUE' },
   })
+
+  // Phase 4b-δ: email the buyer so they can update their card. Best-effort.
+  if (subscription.buyer.email) {
+    await sendSubscriptionPaymentFailedEmail({
+      to: subscription.buyer.email,
+      customerName: subscription.buyer.firstName || 'cliente',
+      productName: subscription.plan.product.name,
+      vendorName: subscription.plan.vendor.displayName,
+    })
+  }
 }
 
 async function handleSubscriptionSync(
