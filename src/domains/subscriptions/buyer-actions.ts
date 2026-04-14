@@ -13,8 +13,11 @@ import {
   isBeforeCutoff,
 } from '@/domains/subscriptions/cadence'
 import {
+  cancelStripeSubscription,
   createSubscriptionCheckoutSession,
   ensureStripeCustomerId,
+  pauseStripeSubscription,
+  resumeStripeSubscription,
 } from '@/domains/subscriptions/stripe-subscriptions'
 
 /**
@@ -236,6 +239,23 @@ export async function cancelSubscription(id: string) {
     where: { id },
     data: { status: 'CANCELED', canceledAt: new Date() },
   })
+
+  // Phase 4b-γ: tell Stripe to stop billing. We run the Stripe call
+  // AFTER the local update so a Stripe outage leaves us with a correctly
+  // canceled local row that the reconcile webhook (customer.subscription.
+  // deleted, phase 4b-α) will later confirm. If Stripe errors we log
+  // and still return the local row — the buyer sees their cancel
+  // reflected in our UI, which is the minimum we can promise.
+  try {
+    await cancelStripeSubscription(sub.stripeSubscriptionId)
+  } catch (err) {
+    console.error('[subscriptions] Stripe cancel failed — local row is canceled, Stripe will need manual reconcile', {
+      subscriptionId: id,
+      stripeSubscriptionId: sub.stripeSubscriptionId,
+      error: err,
+    })
+  }
+
   safeRevalidatePath('/cuenta/suscripciones')
   return updated
 }
@@ -252,6 +272,21 @@ export async function pauseSubscription(id: string) {
     where: { id },
     data: { status: 'PAUSED' },
   })
+
+  // Phase 4b-γ: mirror the pause into Stripe so invoice collection
+  // stops. If Stripe errors we log and keep the local row paused —
+  // the next customer.subscription.updated webhook will reconcile if
+  // Stripe's own state diverges.
+  try {
+    await pauseStripeSubscription(sub.stripeSubscriptionId)
+  } catch (err) {
+    console.error('[subscriptions] Stripe pause failed — local row is paused, Stripe will need manual reconcile', {
+      subscriptionId: id,
+      stripeSubscriptionId: sub.stripeSubscriptionId,
+      error: err,
+    })
+  }
+
   safeRevalidatePath('/cuenta/suscripciones')
   return updated
 }
@@ -277,6 +312,19 @@ export async function resumeSubscription(id: string) {
       currentPeriodEnd,
     },
   })
+
+  // Phase 4b-γ: resume invoice collection in Stripe. Same failure
+  // posture as pause/cancel — log and keep the local row in sync.
+  try {
+    await resumeStripeSubscription(sub.stripeSubscriptionId)
+  } catch (err) {
+    console.error('[subscriptions] Stripe resume failed — local row is active, Stripe will need manual reconcile', {
+      subscriptionId: id,
+      stripeSubscriptionId: sub.stripeSubscriptionId,
+      error: err,
+    })
+  }
+
   safeRevalidatePath('/cuenta/suscripciones')
   return updated
 }
