@@ -10,7 +10,7 @@ import {
 } from '@/lib/navigation'
 
 test('navigation helpers split available and upcoming sections correctly', () => {
-  assert.equal(getAvailableNavItems(vendorNavItems).length, 6)
+  assert.equal(getAvailableNavItems(vendorNavItems).length, 7)
   assert.equal(getUpcomingNavItems(vendorNavItems).length, 0)
   assert.equal(getAvailableNavItems(adminNavItems).length, 11)
   assert.equal(getUpcomingNavItems(adminNavItems).length, 0)
