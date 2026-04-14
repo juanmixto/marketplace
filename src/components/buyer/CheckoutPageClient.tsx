@@ -468,17 +468,18 @@ export function CheckoutPageClient({
                     </button>
                   )}
                   <div className="grid grid-cols-2 gap-3">
-                    <Input label={t('checkout.firstName')} error={errors.firstName?.message} {...register('firstName')} />
-                    <Input label={t('checkout.lastName')} error={errors.lastName?.message} {...register('lastName')} />
+                    <Input label={t('checkout.firstName')} autoComplete="given-name" error={errors.firstName?.message} {...register('firstName')} />
+                    <Input label={t('checkout.lastName')} autoComplete="family-name" error={errors.lastName?.message} {...register('lastName')} />
                   </div>
-                  <Input label={t('checkout.line1')} placeholder={t('checkout.line1Placeholder')} error={errors.line1?.message} {...register('line1')} />
-                  <Input label={t('checkout.line2')} {...register('line2')} />
+                  <Input label={t('checkout.line1')} autoComplete="address-line1" placeholder={t('checkout.line1Placeholder')} error={errors.line1?.message} {...register('line1')} />
+                  <Input label={t('checkout.line2')} autoComplete="address-line2" {...register('line2')} />
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <div className="space-y-1.5 sm:col-span-3">
                       <label className="block text-sm font-medium text-[var(--foreground)]">
                         {t('checkout.province')}
                       </label>
                       <select
+                        autoComplete="address-level1"
                         className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
                         value={watchedProvince}
                         onChange={e =>
@@ -507,6 +508,7 @@ export function CheckoutPageClient({
                       label={t('checkout.postalCode')}
                       placeholder={t('checkout.postalCodePlaceholder')}
                       inputMode="numeric"
+                      autoComplete="postal-code"
                       maxLength={5}
                       error={errors.postalCode?.message}
                       {...register('postalCode', {
@@ -519,6 +521,7 @@ export function CheckoutPageClient({
                     <div className="sm:col-span-2">
                       <Input
                         label={t('checkout.city')}
+                        autoComplete="address-level2"
                         error={errors.city?.message}
                         {...register('city')}
                       />
@@ -528,6 +531,7 @@ export function CheckoutPageClient({
                     label={t('checkout.phone')}
                     type="tel"
                     inputMode="tel"
+                    autoComplete="tel"
                     placeholder="+34 600 000 000"
                     error={errors.phone?.message}
                     value={watchedPhone}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocale } from '@/i18n'
 import { AddToCartButton } from '@/components/catalog/AddToCartButton'
 import {
@@ -51,6 +51,8 @@ export function ProductPurchasePanel({
   const { locale } = useLocale()
   const copy = getCatalogCopy(locale)
   const [quantity, setQuantity] = useState(1)
+  const inlineCtaRef = useRef<HTMLDivElement>(null)
+  const [showStickyCta, setShowStickyCta] = useState(false)
 
   const product = {
     basePrice,
@@ -93,6 +95,24 @@ export function ProductPurchasePanel({
       setSelectedVariantId(defaultVariant.id)
     }
   }, [defaultVariant, requiresVariantSelection, selectedVariant, selectedVariantId])
+
+  useEffect(() => {
+    const target = inlineCtaRef.current
+    if (!target || typeof IntersectionObserver === 'undefined') return
+
+    const observer = new IntersectionObserver(
+      entries => {
+        const entry = entries[0]
+        if (!entry) return
+        // Show the sticky CTA only once the inline button has scrolled out of
+        // view — avoids a duplicate action stacked on top of the canonical one.
+        setShowStickyCta(!entry.isIntersecting)
+      },
+      { rootMargin: '0px 0px -20% 0px', threshold: 0 },
+    )
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     trackAnalyticsEvent('view_item', {
@@ -266,7 +286,7 @@ export function ProductPurchasePanel({
         </div>
       </div>
 
-      <div className="mt-6">
+      <div ref={inlineCtaRef} className="mt-6">
         <AddToCartButton
           productId={productId}
           variantId={selectedVariant?.id}
@@ -281,6 +301,61 @@ export function ProductPurchasePanel({
           vendorId={vendorId}
           vendorName={vendorName}
         />
+      </div>
+
+      {/* Mobile sticky CTA — revealed once the inline add-to-cart scrolls out
+          of view. Keeps the primary action always a thumb away on phones.
+          Hidden from desktop so the inline panel stays canonical there. */}
+      <MobileStickyCta
+        visible={showStickyCta}
+        price={displayPrice}
+        unit={localizedUnit}
+      >
+        <AddToCartButton
+          productId={productId}
+          variantId={selectedVariant?.id}
+          variantName={selectedVariant?.name}
+          disabled={!canAddToCart || isOutOfStock}
+          quantity={quantity}
+          productName={productName}
+          price={displayPrice}
+          slug={slug}
+          image={image}
+          unit={localizedUnit}
+          vendorId={vendorId}
+          vendorName={vendorName}
+          size="md"
+          className="min-w-[9rem]"
+        />
+      </MobileStickyCta>
+    </div>
+  )
+}
+
+interface MobileStickyCtaProps {
+  visible: boolean
+  price: number
+  unit: string
+  children: React.ReactNode
+}
+
+function MobileStickyCta({ visible, price, unit, children }: MobileStickyCtaProps) {
+  return (
+    <div
+      aria-hidden={!visible}
+      className={`fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] bg-[var(--surface)]/95 px-4 pt-3 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.25)] backdrop-blur transition-transform duration-200 md:hidden ${
+        visible ? 'translate-y-0' : 'translate-y-full pointer-events-none'
+      }`}
+      style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-base font-bold text-[var(--foreground)]">
+            {formatPrice(price)}
+            <span className="ml-1 text-xs font-normal text-[var(--muted)]">/ {unit}</span>
+          </p>
+        </div>
+        {children}
       </div>
     </div>
   )

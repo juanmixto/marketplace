@@ -55,6 +55,7 @@ export const viewport: Viewport = {
     { media: '(prefers-color-scheme: dark)', color: THEME_COLORS.dark },
   ],
   colorScheme: 'light dark',
+  viewportFit: 'cover',
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

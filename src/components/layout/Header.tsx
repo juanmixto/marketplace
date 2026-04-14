@@ -73,6 +73,16 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
     // flicker as the drawer drags along.
     if (mobileOpen) setHideMobileSearch(false)
   }, [mobileOpen])
+
+  useEffect(() => {
+    if (!mobileOpen) return
+    const { body } = document
+    const previousOverflow = body.style.overflow
+    body.style.overflow = 'hidden'
+    return () => {
+      body.style.overflow = previousOverflow
+    }
+  }, [mobileOpen])
   useEffect(() => {
     function handleScroll() {
       if (mobileOpenRef.current) return
@@ -304,7 +314,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
               onClick={() => setMobileOpen(v => !v)}
               aria-expanded={mobileOpen}
               aria-label={mobileOpen ? t('close_menu') : t('open_menu')}
-              className="rounded-xl p-2 text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] md:hidden"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl p-2.5 text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] md:hidden"
             >
               {mobileOpen ? <XMarkIcon className="h-5 w-5" /> : <Bars3Icon className="h-5 w-5" />}
             </button>

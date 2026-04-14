@@ -22,6 +22,10 @@ export function Modal({ open, onClose, title, children, size = 'md', className }
   useEffect(() => {
     if (!open) return
 
+    const { body } = document
+    const previousOverflow = body.style.overflow
+    body.style.overflow = 'hidden'
+
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose()
@@ -47,6 +51,7 @@ export function Modal({ open, onClose, title, children, size = 'md', className }
     return () => {
       document.removeEventListener('keydown', onKey)
       window.clearTimeout(frame)
+      body.style.overflow = previousOverflow
     }
   }, [open, onClose])
 
@@ -109,7 +114,7 @@ export function Modal({ open, onClose, title, children, size = 'md', className }
               type="button"
               onClick={onClose}
               aria-label="Cerrar modal"
-              className="rounded-lg p-1.5 text-[var(--muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2.5 text-[var(--muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
             >
               <XMarkIcon className="h-5 w-5" />
             </button>

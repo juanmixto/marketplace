@@ -93,7 +93,7 @@ export function CartPageClient({ shippingSettings }: Props) {
   const total = sub + shipping
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-5xl px-4 py-10 pb-28 sm:px-6 lg:px-8 lg:pb-10">
       <h1 className="mb-8 text-2xl font-bold text-[var(--foreground)]">{t('cart.title')} ({itemCount()})</h1>
 
       <div className="grid gap-8 lg:grid-cols-3">
@@ -298,6 +298,30 @@ export function CartPageClient({ shippingSettings }: Props) {
               {t('cart.continueShopping')}
             </Link>
           </div>
+        </div>
+      </div>
+
+      {/* Mobile sticky checkout bar — keeps the primary action one tap away
+          regardless of scroll position. Hidden on desktop where the summary
+          sidebar is already sticky. */}
+      <div
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] bg-[var(--surface)]/95 px-4 pt-3 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.25)] backdrop-blur lg:hidden"
+        style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs text-[var(--muted)]">{t('cart.total')}</p>
+            <p className="truncate text-lg font-bold text-[var(--foreground)]">{formatPrice(total)}</p>
+          </div>
+          {hasBlockingIssues ? (
+            <Button size="md" disabled className="min-w-[10rem]">
+              {t('cart.toCheckout')}
+            </Button>
+          ) : (
+            <Link href="/checkout" className="shrink-0">
+              <Button size="md" className="min-w-[10rem]">{t('cart.toCheckout')}</Button>
+            </Link>
+          )}
         </div>
       </div>
     </div>

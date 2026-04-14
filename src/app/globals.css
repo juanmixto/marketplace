@@ -73,6 +73,14 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Safe-area insets for notch / home indicator on iOS (viewport-fit=cover). */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
 /* Subtle texture overlay in light mode */
 body::before {
   content: '';

@@ -25,7 +25,7 @@ function MobileFiltersInner({ categories }: Props) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label={`Abrir filtros${activeCount > 0 ? ` (${activeCount} activos)` : ''}`}
-        className="flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] shadow-sm transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] lg:hidden"
+        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm font-medium text-[var(--foreground-soft)] shadow-sm transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] lg:hidden"
       >
         <FunnelIcon className="h-4 w-4" />
         Filtros
