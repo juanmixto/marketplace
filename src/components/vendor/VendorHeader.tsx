@@ -2,11 +2,12 @@
 
 import { signOut } from 'next-auth/react'
 import { useState } from 'react'
-import { UserCircleIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
+import { UserCircleIcon, ChevronDownIcon, Bars3Icon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useT } from '@/i18n'
+import { useSidebar } from '@/components/layout/SidebarProvider'
 
 interface Props {
   user: { name?: string | null; email?: string | null }
@@ -16,13 +17,24 @@ interface Props {
 export function VendorHeader({ user, vendor }: Props) {
   const [open, setOpen] = useState(false)
   const t = useT()
+  const { openMobile } = useSidebar()
+  const openMenuLabel = t('vendor.sidebar.openMenu')
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-6">
+    <header className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-4 md:px-6">
       <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={openMobile}
+          className="md:hidden rounded-lg p-1.5 text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
+          aria-label={openMenuLabel}
+          title={openMenuLabel}
+        >
+          <Bars3Icon className="h-5 w-5" />
+        </button>
         <Link
           href="/"
-          className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
+          className="hidden sm:inline-flex rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
         >
           {t('vendor.header.viewStore')}
         </Link>
@@ -30,7 +42,7 @@ export function VendorHeader({ user, vendor }: Props) {
           <Link
             href={`/productores/${vendor.slug}`}
             target="_blank"
-            className="rounded-lg px-3 py-1.5 text-sm text-[var(--muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
+            className="hidden sm:inline-flex rounded-lg px-3 py-1.5 text-sm text-[var(--muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
           >
             {t('vendor.header.myShowcase')} ↗
           </Link>
