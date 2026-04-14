@@ -142,6 +142,12 @@ enum PromotionScope {
   CATEGORY
 }
 
+enum SubscriptionCadence {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
 // ─── Identity & Auth ──────────────────────────────────────────────────────────
 
 model User {
@@ -238,13 +244,14 @@ model Vendor {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
-  user         User                @relation(fields: [userId], references: [id])
-  products     Product[]
-  fulfillments VendorFulfillment[]
-  settlements  Settlement[]
-  reviews      Review[]
-  addresses    VendorAddress[]
-  promotions   Promotion[]
+  user              User                @relation(fields: [userId], references: [id])
+  products          Product[]
+  fulfillments      VendorFulfillment[]
+  settlements       Settlement[]
+  reviews           Review[]
+  addresses         VendorAddress[]
+  promotions        Promotion[]
+  subscriptionPlans SubscriptionPlan[]
 
   preferredShippingProvider ShippingProviderCode?
 
@@ -323,14 +330,15 @@ model Product {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  vendor     Vendor           @relation(fields: [vendorId], references: [id])
-  category   Category?        @relation(fields: [categoryId], references: [id])
-  variants   ProductVariant[]
-  orderLines OrderLine[]
-  cartItems  CartItem[]
-  reviews    Review[]
-  favorites  Favorite[]
-  promotions Promotion[]
+  vendor            Vendor             @relation(fields: [vendorId], references: [id])
+  category          Category?          @relation(fields: [categoryId], references: [id])
+  variants          ProductVariant[]
+  orderLines        OrderLine[]
+  cartItems         CartItem[]
+  reviews           Review[]
+  favorites         Favorite[]
+  promotions        Promotion[]
+  subscriptionPlan  SubscriptionPlan?
 
   @@index([status, categoryId])
   @@index([vendorId, status])
@@ -773,6 +781,39 @@ model Promotion {
   @@unique([vendorId, code])
   @@index([vendorId, archivedAt])
   @@index([vendorId, startsAt, endsAt])
+}
+
+// ─── Subscriptions ────────────────────────────────────────────────────────────
+// Phase 3 of the promotions & subscriptions RFC. Vendors can now mark one
+// product as a subscription "box" with a fixed cadence. The buyer-facing
+// purchase flow (Stripe Subscriptions, skip, pause, cancel) lands in phase
+// 4 — at which point this model will be joined by a `Subscription` model
+// representing an actual buyer subscription instance.
+
+model SubscriptionPlan {
+  id               String              @id @default(cuid())
+  vendorId         String
+  vendor           Vendor              @relation(fields: [vendorId], references: [id])
+  productId        String              @unique
+  product          Product             @relation(fields: [productId], references: [id])
+
+  cadence          SubscriptionCadence
+  // Prices and tax rates are snapshotted on the plan so a later product
+  // edit does not retroactively change the amount charged on renewals.
+  priceSnapshot    Decimal             @db.Decimal(10, 2)
+  taxRateSnapshot  Decimal             @db.Decimal(4, 3)
+  // 0 = Sunday … 6 = Saturday. The vendor's skip/cancel deadline for the
+  // next scheduled delivery. e.g. cutoff=5 (Friday) for a Monday drop.
+  cutoffDayOfWeek  Int
+
+  // Reserved for phase 4. Stripe Price id for the recurring charge.
+  stripePriceId    String?
+  archivedAt       DateTime?
+
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([vendorId, archivedAt])
 }
 
 // ─── Logistics ────────────────────────────────────────────────────────────────
