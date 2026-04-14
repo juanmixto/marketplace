@@ -171,6 +171,10 @@ model User {
   consentAcceptedAt    DateTime?
   passwordResetToken   String?   @unique
   passwordResetExpires DateTime?
+  // Phase 4b-β: created lazily on the first subscription checkout so we
+  // can attach the same Stripe Customer to every future Checkout Session
+  // and every renewal invoice.
+  stripeCustomerId     String?   @unique
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 

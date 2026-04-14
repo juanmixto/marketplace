@@ -20,6 +20,9 @@ import { absoluteUrl, buildPageMetadata } from '@/lib/seo'
 import { getCatalogCopy, getLocalizedCertificationCopy, getLocalizedProductCopy } from '@/i18n/catalog-copy'
 import { getServerLocale } from '@/i18n/server'
 import { translateCategoryLabel } from '@/lib/portals'
+import { getServerEnv } from '@/lib/env'
+import { getActionSession } from '@/lib/action-session'
+import { SubscribeToBoxButton } from '@/components/catalog/SubscribeToBoxButton'
 
 export const revalidate = 300
 
@@ -89,6 +92,27 @@ export default async function ProductDetailPage({ params }: Props) {
     limit: 4,
   }).then(r => r.products.filter(p => p.id !== product.id).slice(0, 4))
   const reviewSummary = await getProductReviews(product.id)
+
+  // Phase 4b-β: compute whether to show the "Subscribe" CTA. Hidden
+  // unless the buyer beta flag is on, the vendor has published an
+  // active plan AND it has been successfully provisioned in Stripe.
+  const subscribeFlagOn = getServerEnv().subscriptionsBuyerBeta
+  const sessionForSubscribe = subscribeFlagOn ? await getActionSession() : null
+  const showSubscribeCta = Boolean(
+    subscribeFlagOn &&
+    product.subscriptionPlan &&
+    !product.subscriptionPlan.archivedAt &&
+    product.subscriptionPlan.stripePriceId
+  )
+  let defaultAddressIdForSubscribe: string | null = null
+  if (showSubscribeCta && sessionForSubscribe) {
+    const defaultAddress = await db.address.findFirst({
+      where: { userId: sessionForSubscribe.user.id },
+      orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }],
+      select: { id: true },
+    })
+    defaultAddressIdForSubscribe = defaultAddress?.id ?? null
+  }
   const breadcrumbData = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -266,6 +290,16 @@ export default async function ProductDetailPage({ params }: Props) {
               isActive: variant.isActive,
             }))}
           />
+
+          {showSubscribeCta && product.subscriptionPlan && (
+            <SubscribeToBoxButton
+              planId={product.subscriptionPlan.id}
+              cadence={product.subscriptionPlan.cadence}
+              priceEur={Number(product.subscriptionPlan.priceSnapshot)}
+              unit={localizedProduct.unit}
+              defaultAddressId={defaultAddressIdForSubscribe}
+            />
+          )}
 
           {/* Trust strip */}
           <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs text-[var(--muted)]">

@@ -813,6 +813,14 @@ const es = {
   'account.subscriptions.resume': 'Reanudar',
   'account.subscriptions.cancel': 'Cancelar',
   'account.subscriptions.errorGeneric': 'No se ha podido completar la operación',
+
+  // Catalog – subscribe CTA (phase 4b-β)
+  'catalog.subscribe.title': 'Recíbelo de forma recurrente',
+  'catalog.subscribe.body': 'Suscríbete a este producto y recibe una entrega {cadence} a {price} / {unit}. Puedes saltarte entregas, pausar o cancelar cuando quieras.',
+  'catalog.subscribe.cta': 'Suscribirme a la caja',
+  'catalog.subscribe.loading': 'Redirigiendo al pago…',
+  'catalog.subscribe.needsAddress': 'Añade una dirección de envío en tu cuenta antes de suscribirte.',
+  'catalog.subscribe.errorGeneric': 'No se ha podido iniciar la suscripción. Inténtalo de nuevo en unos segundos.',
   'account.comingSoon': 'Próximamente',
   'account.gdpr.title': 'Privacidad y Datos',
   'account.gdpr.desc': 'De conformidad con el RGPD, tienes derecho a acceder, exportar o eliminar tus datos personales.',

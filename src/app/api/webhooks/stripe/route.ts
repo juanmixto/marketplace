@@ -19,8 +19,15 @@ import { recordWebhookDeadLetter } from '@/domains/payments/webhook-dlq'
 import { getServerEnv } from '@/lib/env'
 import {
   mapStripeSubscriptionStatus,
+  parseStripeInvoiceEvent,
   parseStripeSubscriptionEvent,
+  type StripeSubscriptionEventPayload,
 } from '@/domains/subscriptions/stripe-subscriptions'
+import { materializeSubscriptionRenewal } from '@/domains/subscriptions/renewal'
+import {
+  computeFirstDeliveryAt,
+  computeCurrentPeriodEnd,
+} from '@/domains/subscriptions/cadence'
 import type Stripe from 'stripe'
 
 type WebhookEvent = {
@@ -110,6 +117,15 @@ export async function POST(req: NextRequest) {
       // is a no-op) so we do not need the OrderEvent dedupe table here.
       // Phase 4b-β will add `invoice.paid` / `invoice.payment_failed`
       // handling that materializes Orders + VendorFulfillments.
+      case 'customer.subscription.created': {
+        const parsed = parseStripeSubscriptionEvent(event.data.object)
+        if (!parsed) {
+          logInvalidWebhookPayload(event)
+          break
+        }
+        await handleSubscriptionCreated(parsed)
+        break
+      }
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted': {
         const parsed = parseStripeSubscriptionEvent(event.data.object)
@@ -118,6 +134,28 @@ export async function POST(req: NextRequest) {
           break
         }
         await handleSubscriptionSync(parsed, event.type)
+        break
+      }
+      // Phase 4b-β: when Stripe charges a renewal invoice, materialize
+      // an Order + OrderLine + VendorFulfillment so the vendor sees a
+      // pending fulfillment in their dashboard just like a one-off
+      // purchase. Idempotent via Payment.providerRef = invoice.id.
+      case 'invoice.paid': {
+        const invoice = parseStripeInvoiceEvent(event.data.object)
+        if (!invoice || !invoice.subscription) {
+          logInvalidWebhookPayload(event)
+          break
+        }
+        await handleInvoicePaid(invoice)
+        break
+      }
+      case 'invoice.payment_failed': {
+        const invoice = parseStripeInvoiceEvent(event.data.object)
+        if (!invoice || !invoice.subscription) {
+          logInvalidWebhookPayload(event)
+          break
+        }
+        await handleInvoicePaymentFailed(invoice)
         break
       }
     }
@@ -297,6 +335,139 @@ async function handlePaymentFailed(providerRef: string, eventId?: string) {
       error,
     })
     throw error
+  })
+}
+
+async function handleSubscriptionCreated(
+  payload: StripeSubscriptionEventPayload
+) {
+  // Idempotent: if we already have a local row tied to this Stripe
+  // subscription id, this is a replay and we skip straight to the sync
+  // path below.
+  const existing = await db.subscription.findUnique({
+    where: { stripeSubscriptionId: payload.id },
+    select: { id: true },
+  })
+  if (existing) {
+    await handleSubscriptionSync(payload, 'customer.subscription.updated')
+    return
+  }
+
+  // The buyer action put the planId, buyerId and shippingAddressId into
+  // the Checkout Session metadata, which Stripe copies onto the
+  // resulting Subscription. Without these we cannot create a local row
+  // — log at error level and bail so Stripe retries.
+  const meta = payload.metadata ?? {}
+  const planId = meta.marketplacePlanId
+  const buyerId = meta.marketplaceBuyerId
+  const shippingAddressId = meta.marketplaceShippingAddressId
+  if (!planId || !buyerId || !shippingAddressId) {
+    console.error('[stripe-webhook][subscription-created][missing-metadata]', {
+      stripeSubscriptionId: payload.id,
+      metadata: meta,
+    })
+    return
+  }
+
+  const plan = await db.subscriptionPlan.findUnique({
+    where: { id: planId },
+    select: { id: true, cadence: true, archivedAt: true },
+  })
+  if (!plan || plan.archivedAt) {
+    console.error('[stripe-webhook][subscription-created][plan-missing]', {
+      planId,
+      stripeSubscriptionId: payload.id,
+    })
+    return
+  }
+
+  const address = await db.address.findFirst({
+    where: { id: shippingAddressId, userId: buyerId },
+    select: { id: true },
+  })
+  if (!address) {
+    console.error('[stripe-webhook][subscription-created][address-missing]', {
+      buyerId,
+      shippingAddressId,
+      stripeSubscriptionId: payload.id,
+    })
+    return
+  }
+
+  const now = new Date()
+  const nextDeliveryAt = computeFirstDeliveryAt(now, plan.cadence)
+  const currentPeriodEnd = computeCurrentPeriodEnd(nextDeliveryAt, plan.cadence)
+
+  await db.subscription.upsert({
+    where: {
+      buyerId_planId: { buyerId, planId: plan.id },
+    },
+    create: {
+      buyerId,
+      planId: plan.id,
+      shippingAddressId: address.id,
+      status: mapStripeSubscriptionStatus(payload.status, payload.pause_collection),
+      nextDeliveryAt,
+      currentPeriodEnd,
+      stripeSubscriptionId: payload.id,
+    },
+    update: {
+      // The buyer had a prior CANCELED sub for the same plan (we block
+      // this in subscribeToPlan but Stripe retries may resurface it).
+      // Overwrite the row in place so there is only ever one.
+      status: mapStripeSubscriptionStatus(payload.status, payload.pause_collection),
+      shippingAddressId: address.id,
+      nextDeliveryAt,
+      currentPeriodEnd,
+      stripeSubscriptionId: payload.id,
+      canceledAt: null,
+    },
+  })
+}
+
+async function handleInvoicePaid(invoice: {
+  id: string
+  subscription: string | null
+  amount_paid: number
+}) {
+  if (!invoice.subscription) return
+  const subscription = await db.subscription.findUnique({
+    where: { stripeSubscriptionId: invoice.subscription },
+    select: { id: true },
+  })
+  if (!subscription) {
+    // Likely: the `customer.subscription.created` event has not arrived
+    // yet (Stripe does not guarantee delivery order). Log at info and
+    // rely on Stripe's retry to deliver this event again after the
+    // created event has been processed.
+    console.info('[stripe-webhook][invoice-paid][subscription-not-found]', {
+      stripeSubscriptionId: invoice.subscription,
+      invoiceId: invoice.id,
+    })
+    return
+  }
+  await materializeSubscriptionRenewal({
+    invoiceId: invoice.id,
+    subscriptionId: subscription.id,
+    amountPaidCents: invoice.amount_paid,
+  })
+}
+
+async function handleInvoicePaymentFailed(invoice: {
+  id: string
+  subscription: string | null
+}) {
+  if (!invoice.subscription) return
+  const subscription = await db.subscription.findUnique({
+    where: { stripeSubscriptionId: invoice.subscription },
+    select: { id: true, status: true },
+  })
+  if (!subscription) return
+  if (subscription.status === 'PAST_DUE' || subscription.status === 'CANCELED') return
+
+  await db.subscription.update({
+    where: { id: subscription.id },
+    data: { status: 'PAST_DUE' },
   })
 }
 

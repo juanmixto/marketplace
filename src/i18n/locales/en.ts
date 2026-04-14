@@ -815,6 +815,14 @@ const en: Record<TranslationKeys, string> = {
   'account.subscriptions.resume': 'Resume',
   'account.subscriptions.cancel': 'Cancel',
   'account.subscriptions.errorGeneric': 'The operation could not be completed',
+
+  // Catalog – subscribe CTA (phase 4b-β)
+  'catalog.subscribe.title': 'Receive it on a recurring basis',
+  'catalog.subscribe.body': 'Subscribe to this product and get a {cadence} delivery at {price} / {unit}. You can skip, pause or cancel any time.',
+  'catalog.subscribe.cta': 'Subscribe to the box',
+  'catalog.subscribe.loading': 'Redirecting to checkout…',
+  'catalog.subscribe.needsAddress': 'Add a shipping address to your account before subscribing.',
+  'catalog.subscribe.errorGeneric': 'Could not start the subscription. Please try again in a few seconds.',
   'account.comingSoon': 'Coming soon',
   'account.gdpr.title': 'Privacy and Data',
   'account.gdpr.desc': 'In accordance with GDPR, you have the right to access, export or delete your personal data.',
