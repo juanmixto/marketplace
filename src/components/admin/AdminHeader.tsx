@@ -7,12 +7,15 @@ import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useSidebar } from '@/components/layout/SidebarProvider'
+import { PortalSwitcher } from '@/components/layout/PortalSwitcher'
+import type { AvailablePortal } from '@/lib/portals'
 
 interface Props {
   user: { name?: string | null; email?: string | null; role: string }
+  portals?: AvailablePortal[]
 }
 
-export function AdminHeader({ user }: Props) {
+export function AdminHeader({ user, portals = [] }: Props) {
   const [open, setOpen] = useState(false)
   const { openMobile } = useSidebar()
 
@@ -41,6 +44,7 @@ export function AdminHeader({ user }: Props) {
       </div>
 
       <div className="flex items-center gap-1">
+        <PortalSwitcher portals={portals} current="admin" />
         <ThemeToggle />
 
         <div className="relative">
