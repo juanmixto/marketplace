@@ -1,91 +1,191 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { createPromotion } from '@/domains/promotions/actions'
+import { createPromotion, updatePromotion, type SerializedPromotion } from '@/domains/promotions/actions'
 import { useT } from '@/i18n'
+import {
+  ProductPicker,
+  PRODUCT_STATUS_ORDER,
+  type PickerProductStatus,
+} from '@/components/vendor/ProductPicker'
 
 const formSchema = z
   .object({
-    name: z.string().min(3, 'Mínimo 3 caracteres').max(100),
+    name: z.string().trim().min(3, 'Mínimo 3 caracteres').max(100, 'Máximo 100 caracteres'),
     code: z
       .string()
       .trim()
-      .max(40)
+      .max(40, 'Máximo 40 caracteres')
       .regex(/^[A-Z0-9_-]*$/i, 'Solo letras, números, guiones y guiones bajos')
       .optional()
       .or(z.literal('')),
     kind: z.enum(['PERCENTAGE', 'FIXED_AMOUNT', 'FREE_SHIPPING']),
-    value: z.coerce.number().min(0),
+    value: z.coerce.number({ error: 'Introduce un número válido' }).min(0, 'Debe ser 0 o mayor'),
     scope: z.enum(['PRODUCT', 'VENDOR', 'CATEGORY']),
     productId: z.string().optional().or(z.literal('')),
     categoryId: z.string().optional().or(z.literal('')),
     minSubtotal: z
-      .union([z.coerce.number().min(0), z.literal(''), z.null(), z.undefined()])
+      .union([
+        z.coerce.number().min(0, 'Debe ser 0 o mayor').max(1_000_000, 'Demasiado alto'),
+        z.literal(''),
+        z.null(),
+        z.undefined(),
+      ])
       .transform(v => (v === '' || v == null ? undefined : v)),
     maxRedemptions: z
-      .union([z.coerce.number().int().positive().max(1_000_000), z.literal(''), z.null(), z.undefined()])
+      .union([
+        z.coerce.number().int('Debe ser un entero').positive('Debe ser mayor que 0').max(1_000_000, 'Demasiado alto'),
+        z.literal(''),
+        z.null(),
+        z.undefined(),
+      ])
       .transform(v => (v === '' || v == null ? undefined : v)),
     perUserLimit: z
-      .union([z.coerce.number().int().positive().max(1000), z.literal(''), z.null(), z.undefined()])
+      .union([
+        z.coerce.number().int('Debe ser un entero').positive('Debe ser mayor que 0').max(1000, 'Máximo 1000'),
+        z.literal(''),
+        z.null(),
+        z.undefined(),
+      ])
       .transform(v => (v === '' || v == null ? 1 : v)),
     startsAt: z.string().min(1, 'Requerido'),
     endsAt: z.string().min(1, 'Requerido'),
+  })
+  .superRefine((data, ctx) => {
+    if (data.kind === 'PERCENTAGE') {
+      if (data.value <= 0 || data.value > 100) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['value'],
+          message: 'El porcentaje debe estar entre 1 y 100',
+        })
+      }
+    } else if (data.kind === 'FIXED_AMOUNT') {
+      if (data.value <= 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['value'],
+          message: 'El importe debe ser mayor que 0',
+        })
+      }
+      if (data.value > 1_000_000) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['value'],
+          message: 'Importe demasiado alto',
+        })
+      }
+    }
+
+    if (data.scope === 'PRODUCT' && !data.productId) {
+      ctx.addIssue({ code: 'custom', path: ['productId'], message: 'Selecciona un producto' })
+    }
+    if (data.scope === 'CATEGORY' && !data.categoryId) {
+      ctx.addIssue({ code: 'custom', path: ['categoryId'], message: 'Selecciona una categoría' })
+    }
+
+    const starts = new Date(data.startsAt).getTime()
+    const ends = new Date(data.endsAt).getTime()
+    if (Number.isNaN(starts) || Number.isNaN(ends)) {
+      ctx.addIssue({ code: 'custom', path: ['startsAt'], message: 'Fechas inválidas' })
+      return
+    }
+    if (ends <= starts) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['endsAt'],
+        message: 'La fecha de fin debe ser posterior a la de inicio',
+      })
+    }
   })
 
 type FormInput = z.input<typeof formSchema>
 type FormValues = z.output<typeof formSchema>
 
+type ProductStatus = PickerProductStatus
+
 interface Props {
-  products: { id: string; name: string }[]
+  products: { id: string; name: string; status: ProductStatus }[]
   categories: { id: string; name: string }[]
+  /** Pass a serialized promotion to render the form in edit mode. */
+  initial?: SerializedPromotion
 }
 
-export function PromotionForm({ products, categories }: Props) {
+export function PromotionForm({ products, categories, initial }: Props) {
   const t = useT()
   const router = useRouter()
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
+  const isEdit = Boolean(initial)
+
   const today = new Date()
   const in7Days = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
+
+  const defaultValues: FormInput = initial
+    ? {
+        name: initial.name,
+        code: initial.code ?? '',
+        kind: initial.kind,
+        value: initial.kind === 'FREE_SHIPPING' ? 0 : initial.value,
+        scope: initial.scope,
+        productId: initial.productId ?? '',
+        categoryId: initial.categoryId ?? '',
+        minSubtotal: initial.minSubtotal ?? undefined,
+        maxRedemptions: initial.maxRedemptions ?? undefined,
+        perUserLimit: initial.perUserLimit ?? 1,
+        startsAt: formatDateForInput(new Date(initial.startsAt)),
+        endsAt: formatDateForInput(new Date(initial.endsAt)),
+      }
+    : {
+        name: '',
+        code: '',
+        kind: 'PERCENTAGE',
+        value: 10,
+        scope: 'VENDOR',
+        productId: '',
+        categoryId: '',
+        minSubtotal: undefined,
+        maxRedemptions: undefined,
+        perUserLimit: 1,
+        startsAt: formatDateForInput(today),
+        endsAt: formatDateForInput(in7Days),
+      }
 
   const {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormInput, unknown, FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: '',
-      code: '',
-      kind: 'PERCENTAGE',
-      value: 10,
-      scope: 'VENDOR',
-      productId: '',
-      categoryId: '',
-      minSubtotal: undefined,
-      maxRedemptions: undefined,
-      perUserLimit: 1,
-      startsAt: formatDateForInput(today),
-      endsAt: formatDateForInput(in7Days),
-    },
+    defaultValues,
   })
 
   const kind = watch('kind')
   const scope = watch('scope')
+  const productId = watch('productId')
+
+  // Active products first, then pending review, then drafts, then the rest.
+  // Within each bucket we preserve the incoming order (already createdAt
+  // desc from getMyProducts).
+  const sortedProducts = useMemo(
+    () => [...products].sort((a, b) => PRODUCT_STATUS_ORDER[a.status] - PRODUCT_STATUS_ORDER[b.status]),
+    [products],
+  )
 
   function onSubmit(values: FormValues) {
     setServerError(null)
     startTransition(async () => {
       try {
-        await createPromotion({
+        const payload = {
           name: values.name,
           code: values.code ? values.code.toUpperCase() : null,
           kind: values.kind,
@@ -98,11 +198,21 @@ export function PromotionForm({ products, categories }: Props) {
           perUserLimit: values.perUserLimit ?? null,
           startsAt: new Date(values.startsAt).toISOString(),
           endsAt: new Date(values.endsAt).toISOString(),
-        })
+        }
+        if (initial) {
+          await updatePromotion(initial.id, payload)
+        } else {
+          await createPromotion(payload)
+        }
         router.push('/vendor/promociones')
         router.refresh()
       } catch (err) {
-        setServerError(err instanceof Error ? err.message : t('vendor.promotions.errorGeneric'))
+        const raw = err instanceof Error ? err.message : ''
+        // Never surface raw ZodError JSON or stack-ish messages to the user.
+        const looksLikeZod = raw.startsWith('[') || raw.includes('"code"') || raw.includes('"path"')
+        const friendly =
+          !raw || looksLikeZod || raw.length > 200 ? t('vendor.promotions.errorGeneric') : raw
+        setServerError(friendly)
       }
     })
   }
@@ -130,34 +240,44 @@ export function PromotionForm({ products, categories }: Props) {
         <Input {...register('code')} placeholder="SUMMER10" className="font-mono uppercase" />
       </Field>
 
-      <Field label={t('vendor.promotions.formKind')} error={errors.kind?.message}>
-        <select
-          {...register('kind')}
-          className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
-        >
-          <option value="PERCENTAGE">{t('vendor.promotions.kindPercentage')}</option>
-          <option value="FIXED_AMOUNT">{t('vendor.promotions.kindFixed')}</option>
-          <option value="FREE_SHIPPING">{t('vendor.promotions.kindFreeShipping')}</option>
-        </select>
-      </Field>
-
-      {kind !== 'FREE_SHIPPING' && (
-        <Field
-          label={
-            kind === 'PERCENTAGE'
-              ? t('vendor.promotions.formValuePercentage')
-              : t('vendor.promotions.formValueFixed')
-          }
-          error={errors.value?.message}
-        >
-          <Input
-            type="number"
-            step={kind === 'PERCENTAGE' ? '1' : '0.01'}
-            min={0}
-            {...register('value')}
-          />
+      <div className={`grid gap-4 ${kind !== 'FREE_SHIPPING' ? 'sm:grid-cols-2' : ''}`}>
+        <Field label={t('vendor.promotions.formKind')} error={errors.kind?.message}>
+          <select
+            {...register('kind')}
+            className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+          >
+            <option value="PERCENTAGE">{t('vendor.promotions.kindPercentage')}</option>
+            <option value="FIXED_AMOUNT">{t('vendor.promotions.kindFixed')}</option>
+            <option value="FREE_SHIPPING">{t('vendor.promotions.kindFreeShipping')}</option>
+          </select>
         </Field>
-      )}
+
+        {kind !== 'FREE_SHIPPING' && (
+          <Field
+            label={
+              kind === 'PERCENTAGE'
+                ? t('vendor.promotions.formValuePercentage')
+                : t('vendor.promotions.formValueFixed')
+            }
+            error={errors.value?.message}
+          >
+            <div className="relative">
+              <Input
+                type="number"
+                inputMode="decimal"
+                step={kind === 'PERCENTAGE' ? '1' : '0.01'}
+                min={kind === 'PERCENTAGE' ? 1 : 0.01}
+                max={kind === 'PERCENTAGE' ? 100 : 1_000_000}
+                className="pr-9"
+                {...register('value')}
+              />
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-medium text-[var(--muted)]">
+                {kind === 'PERCENTAGE' ? '%' : '€'}
+              </span>
+            </div>
+          </Field>
+        )}
+      </div>
 
       <Field label={t('vendor.promotions.formScope')} error={errors.scope?.message}>
         <select
@@ -172,17 +292,15 @@ export function PromotionForm({ products, categories }: Props) {
 
       {scope === 'PRODUCT' && (
         <Field label={t('vendor.promotions.formProduct')} error={errors.productId?.message}>
-          <select
-            {...register('productId')}
-            className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
-          >
-            <option value="">{t('vendor.promotions.formProductPlaceholder')}</option>
-            {products.map(p => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+          <input type="hidden" {...register('productId')} />
+          <ProductPicker
+            products={sortedProducts}
+            value={productId ?? ''}
+            onChange={id =>
+              setValue('productId', id, { shouldDirty: true, shouldValidate: true })
+            }
+            placeholder={t('vendor.promotions.formProductPlaceholder')}
+          />
         </Field>
       )}
 
@@ -213,13 +331,40 @@ export function PromotionForm({ products, categories }: Props) {
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label={t('vendor.promotions.formMinSubtotal')} error={errors.minSubtotal?.message}>
-          <Input type="number" step="0.01" min={0} {...register('minSubtotal')} />
+          <div className="relative">
+            <Input
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min={0}
+              max={1_000_000}
+              className="pr-9"
+              {...register('minSubtotal')}
+            />
+            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-medium text-[var(--muted)]">
+              €
+            </span>
+          </div>
         </Field>
         <Field label={t('vendor.promotions.formMaxRedemptions')} error={errors.maxRedemptions?.message}>
-          <Input type="number" min={1} {...register('maxRedemptions')} />
+          <Input
+            type="number"
+            inputMode="numeric"
+            step="1"
+            min={1}
+            max={1_000_000}
+            {...register('maxRedemptions')}
+          />
         </Field>
         <Field label={t('vendor.promotions.formPerUserLimit')} error={errors.perUserLimit?.message}>
-          <Input type="number" min={1} {...register('perUserLimit')} />
+          <Input
+            type="number"
+            inputMode="numeric"
+            step="1"
+            min={1}
+            max={1000}
+            {...register('perUserLimit')}
+          />
         </Field>
       </div>
 
@@ -230,7 +375,9 @@ export function PromotionForm({ products, categories }: Props) {
         <Button type="submit" disabled={isSubmitting || isPending}>
           {isSubmitting || isPending
             ? t('vendor.promotions.saving')
-            : t('vendor.promotions.save')}
+            : isEdit
+              ? t('vendor.promotions.saveChanges')
+              : t('vendor.promotions.save')}
         </Button>
       </div>
     </form>

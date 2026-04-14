@@ -9,6 +9,7 @@ import { createPaymentIntent } from '@/domains/payments/provider'
 import {
   calculateOrderPricing,
   checkoutSchema,
+  checkoutWithSavedAddressSchema,
   orderItemsSchema,
   type CheckoutFormData,
 } from '@/domains/orders/checkout'
@@ -123,7 +124,67 @@ export async function createOrder(
   const sessionUserId = session.user.id
 
   const validatedItems = orderItemsSchema.parse(items)
-  const validated = checkoutSchema.parse(formData)
+  // If the buyer picked a saved address, the server resolves the real
+  // address from the DB and ignores the submitted address payload. Use
+  // the lenient schema so a stale field (e.g. a phone that no longer
+  // matches the current regex on a years-old saved address) cannot block
+  // the checkout. The real address is loaded here and used to hydrate
+  // `validated.address` so every downstream snapshot / stock / order
+  // path keeps working unchanged.
+  const hasSelectedAddress =
+    typeof formData.selectedAddressId === 'string' && formData.selectedAddressId.length > 0
+  let validated: CheckoutFormData
+  if (hasSelectedAddress) {
+    // Lenient parse so a stale field on the submitted payload cannot
+    // block the saved-address happy path.
+    const parsedLenient = checkoutWithSavedAddressSchema.parse(formData)
+    const savedAddress = await db.address.findFirst({
+      where: { id: parsedLenient.selectedAddressId, userId: sessionUserId },
+      select: {
+        firstName: true,
+        lastName: true,
+        line1: true,
+        line2: true,
+        city: true,
+        province: true,
+        postalCode: true,
+        phone: true,
+      },
+    })
+    if (savedAddress) {
+      validated = {
+        address: {
+          firstName: savedAddress.firstName,
+          lastName: savedAddress.lastName,
+          line1: savedAddress.line1,
+          line2: savedAddress.line2 ?? undefined,
+          city: savedAddress.city,
+          province: savedAddress.province,
+          postalCode: savedAddress.postalCode,
+          phone: savedAddress.phone ?? undefined,
+        },
+        saveAddress: false,
+        selectedAddressId: parsedLenient.selectedAddressId,
+      }
+    } else {
+      // Fallback: the saved address was removed. Try to honor the
+      // submitted address via the strict schema. If that also fails we
+      // throw a friendly error telling the buyer to fix the form.
+      console.warn('[checkout] saved address not found, falling back to submitted address', {
+        userId: sessionUserId,
+        selectedAddressId: parsedLenient.selectedAddressId,
+      })
+      try {
+        validated = checkoutSchema.parse(formData)
+      } catch {
+        throw new Error(
+          'La dirección guardada ya no está disponible. Elige otra o añade una nueva para continuar.'
+        )
+      }
+    }
+  } else {
+    validated = checkoutSchema.parse(formData)
+  }
   const promotionCode = options.promotionCode?.trim().toUpperCase() || null
 
   // Load products with current prices

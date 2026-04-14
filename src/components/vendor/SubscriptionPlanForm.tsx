@@ -6,10 +6,11 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
-import { createSubscriptionPlan } from '@/domains/subscriptions/actions'
+import { createSubscriptionPlan, updateSubscriptionPlan } from '@/domains/subscriptions/actions'
 import { useT } from '@/i18n'
 import type { TranslationKeys } from '@/i18n/locales'
 import { formatPrice } from '@/lib/utils'
+import { ProductPicker, type PickerProductStatus } from '@/components/vendor/ProductPicker'
 
 const formSchema = z.object({
   productId: z.string().min(1, 'Selecciona un producto'),
@@ -21,47 +22,94 @@ type FormInput = z.input<typeof formSchema>
 type FormValues = z.output<typeof formSchema>
 
 interface Props {
-  products: { id: string; name: string; basePrice: number; unit: string }[]
+  products: {
+    id: string
+    name: string
+    basePrice: number
+    unit: string
+    status: PickerProductStatus
+  }[]
+  /**
+   * Present only in edit mode. Product and cadence are locked (the
+   * product is tied to the plan via @@unique, and the cadence is tied
+   * to the immutable Stripe Price). Only the cutoff day can change.
+   */
+  initial?: {
+    id: string
+    productId: string
+    productName: string
+    productUnit: string
+    priceSnapshot: number
+    cadence: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY'
+    cutoffDayOfWeek: number
+  }
 }
 
-const DAY_KEYS: TranslationKeys[] = [
-  'vendor.subscriptionPlans.day0',
-  'vendor.subscriptionPlans.day1',
-  'vendor.subscriptionPlans.day2',
-  'vendor.subscriptionPlans.day3',
-  'vendor.subscriptionPlans.day4',
-  'vendor.subscriptionPlans.day5',
-  'vendor.subscriptionPlans.day6',
+const CADENCE_OPTIONS: {
+  value: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY'
+  labelKey: TranslationKeys
+}[] = [
+  { value: 'WEEKLY',   labelKey: 'vendor.subscriptionPlans.cadenceWeekly'   },
+  { value: 'BIWEEKLY', labelKey: 'vendor.subscriptionPlans.cadenceBiweekly' },
+  { value: 'MONTHLY',  labelKey: 'vendor.subscriptionPlans.cadenceMonthly'  },
 ]
 
-export function SubscriptionPlanForm({ products }: Props) {
+// Monday-first display order. The schema still stores the ISO day-of-week
+// value where Sunday=0 … Saturday=6, so the button value maps back to that.
+const DAYS_MON_FIRST: { value: number; shortKey: TranslationKeys }[] = [
+  { value: 1, shortKey: 'vendor.subscriptionPlans.dayShortMon' },
+  { value: 2, shortKey: 'vendor.subscriptionPlans.dayShortTue' },
+  { value: 3, shortKey: 'vendor.subscriptionPlans.dayShortWed' },
+  { value: 4, shortKey: 'vendor.subscriptionPlans.dayShortThu' },
+  { value: 5, shortKey: 'vendor.subscriptionPlans.dayShortFri' },
+  { value: 6, shortKey: 'vendor.subscriptionPlans.dayShortSat' },
+  { value: 0, shortKey: 'vendor.subscriptionPlans.dayShortSun' },
+]
+
+export function SubscriptionPlanForm({ products, initial }: Props) {
   const t = useT()
   const router = useRouter()
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
+  const isEdit = Boolean(initial)
+
   const {
-    register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormInput, unknown, FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      productId: products[0]?.id ?? '',
-      cadence: 'WEEKLY',
-      cutoffDayOfWeek: 5, // Friday — standard for Monday drops
-    },
+    defaultValues: initial
+      ? {
+          productId: initial.productId,
+          cadence: initial.cadence,
+          cutoffDayOfWeek: initial.cutoffDayOfWeek,
+        }
+      : {
+          productId: products[0]?.id ?? '',
+          cadence: 'WEEKLY',
+          cutoffDayOfWeek: 5, // Friday — standard for Monday drops
+        },
   })
 
   const productId = watch('productId')
+  const cadence = watch('cadence')
+  const cutoffDayOfWeek = watch('cutoffDayOfWeek')
   const selected = products.find(p => p.id === productId)
 
   function onSubmit(values: FormValues) {
     setServerError(null)
     startTransition(async () => {
       try {
-        await createSubscriptionPlan(values)
+        if (initial) {
+          await updateSubscriptionPlan(initial.id, {
+            cutoffDayOfWeek: values.cutoffDayOfWeek,
+          })
+        } else {
+          await createSubscriptionPlan(values)
+        }
         router.push('/vendor/suscripciones')
         router.refresh()
       } catch (err) {
@@ -72,7 +120,7 @@ export function SubscriptionPlanForm({ products }: Props) {
     })
   }
 
-  if (products.length === 0) {
+  if (!isEdit && products.length === 0) {
     return (
       <div className="rounded-xl border-2 border-dashed border-[var(--border)] p-8 text-center">
         <p className="text-[var(--muted)]">
@@ -81,6 +129,11 @@ export function SubscriptionPlanForm({ products }: Props) {
       </div>
     )
   }
+
+  const cutoffHintKey: TranslationKeys =
+    cadence === 'WEEKLY'   ? 'vendor.subscriptionPlans.formCutoffHintWeekly'   :
+    cadence === 'BIWEEKLY' ? 'vendor.subscriptionPlans.formCutoffHintBiweekly' :
+    'vendor.subscriptionPlans.formCutoffHintMonthly'
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -94,52 +147,110 @@ export function SubscriptionPlanForm({ products }: Props) {
       )}
 
       <Field label={t('vendor.subscriptionPlans.formProduct')} error={errors.productId?.message}>
-        <select
-          {...register('productId')}
-          className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
-        >
-          {products.map(p => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-        {selected && (
+        {isEdit && initial ? (
+          <div className="flex h-10 items-center justify-between gap-2 rounded-md border border-[var(--border)] bg-[var(--surface-raised)] px-3 text-sm text-[var(--foreground-soft)]">
+            <span className="truncate">{initial.productName}</span>
+            <span className="shrink-0 text-xs text-[var(--muted)]">
+              {t('vendor.subscriptionPlans.lockedField')}
+            </span>
+          </div>
+        ) : (
+          <ProductPicker
+            products={products}
+            value={productId ?? ''}
+            onChange={id => setValue('productId', id, { shouldDirty: true, shouldValidate: true })}
+            placeholder={t('vendor.subscriptionPlans.formProduct')}
+            allowClear={false}
+          />
+        )}
+        {isEdit && initial ? (
           <p className="mt-1 text-xs text-[var(--muted)]">
             {t('vendor.subscriptionPlans.priceSnapshotHint').replace(
               '{price}',
-              `${formatPrice(selected.basePrice)} / ${selected.unit}`
+              `${formatPrice(initial.priceSnapshot)} / ${initial.productUnit}`
             )}
           </p>
+        ) : (
+          selected && (
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              {t('vendor.subscriptionPlans.priceSnapshotHint').replace(
+                '{price}',
+                `${formatPrice(selected.basePrice)} / ${selected.unit}`
+              )}
+            </p>
+          )
         )}
       </Field>
 
       <Field label={t('vendor.subscriptionPlans.formCadence')} error={errors.cadence?.message}>
-        <select
-          {...register('cadence')}
-          className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+        <div
+          role="radiogroup"
+          aria-label={t('vendor.subscriptionPlans.formCadence')}
+          className="grid grid-cols-3 gap-2"
         >
-          <option value="WEEKLY">{t('vendor.subscriptionPlans.cadenceWeekly')}</option>
-          <option value="BIWEEKLY">{t('vendor.subscriptionPlans.cadenceBiweekly')}</option>
-          <option value="MONTHLY">{t('vendor.subscriptionPlans.cadenceMonthly')}</option>
-        </select>
+          {CADENCE_OPTIONS.map(opt => {
+            const active = cadence === opt.value
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                disabled={isEdit}
+                onClick={() => {
+                  if (isEdit) return
+                  setValue('cadence', opt.value, { shouldDirty: true, shouldValidate: true })
+                }}
+                className={`h-10 rounded-lg border px-3 text-sm font-semibold transition ${
+                  active
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-800 shadow-sm dark:border-emerald-400 dark:bg-emerald-950/40 dark:text-emerald-200'
+                    : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]'
+                } ${isEdit && !active ? 'cursor-not-allowed opacity-50' : ''}`}
+              >
+                {t(opt.labelKey)}
+              </button>
+            )
+          })}
+        </div>
+        {isEdit && (
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            {t('vendor.subscriptionPlans.cadenceLocked')}
+          </p>
+        )}
       </Field>
 
       <Field
         label={t('vendor.subscriptionPlans.formCutoffDay')}
         error={errors.cutoffDayOfWeek?.message}
-        hint={t('vendor.subscriptionPlans.formCutoffHint')}
+        hint={t(cutoffHintKey)}
       >
-        <select
-          {...register('cutoffDayOfWeek')}
-          className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+        <div
+          role="radiogroup"
+          aria-label={t('vendor.subscriptionPlans.formCutoffDay')}
+          className="grid grid-cols-7 gap-1.5"
         >
-          {DAY_KEYS.map((key, index) => (
-            <option key={key} value={index}>
-              {t(key)}
-            </option>
-          ))}
-        </select>
+          {DAYS_MON_FIRST.map(day => {
+            const active = Number(cutoffDayOfWeek) === day.value
+            return (
+              <button
+                key={day.value}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() =>
+                  setValue('cutoffDayOfWeek', day.value, { shouldDirty: true, shouldValidate: true })
+                }
+                className={`h-10 rounded-lg border text-xs font-semibold transition ${
+                  active
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-800 shadow-sm dark:border-emerald-400 dark:bg-emerald-950/40 dark:text-emerald-200'
+                    : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]'
+                }`}
+              >
+                {t(day.shortKey)}
+              </button>
+            )
+          })}
+        </div>
       </Field>
 
       <div className="flex items-center justify-end gap-3 pt-2">
@@ -153,7 +264,9 @@ export function SubscriptionPlanForm({ products }: Props) {
         <Button type="submit" disabled={isSubmitting || isPending}>
           {isSubmitting || isPending
             ? t('vendor.subscriptionPlans.saving')
-            : t('vendor.subscriptionPlans.save')}
+            : isEdit
+              ? t('vendor.subscriptionPlans.saveChanges')
+              : t('vendor.subscriptionPlans.save')}
         </Button>
       </div>
     </form>
@@ -172,7 +285,7 @@ function Field({
   children: React.ReactNode
 }) {
   return (
-    <label className="block">
+    <div className="block">
       <span className="block text-sm font-medium text-[var(--foreground-soft)]">{label}</span>
       <div className="mt-1">{children}</div>
       {hint && !error && <p className="mt-1 text-xs text-[var(--muted)]">{hint}</p>}
@@ -181,6 +294,6 @@ function Field({
           {error}
         </p>
       )}
-    </label>
+    </div>
   )
 }

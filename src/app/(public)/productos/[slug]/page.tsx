@@ -23,6 +23,8 @@ import { translateCategoryLabel } from '@/lib/portals'
 import { getServerEnv } from '@/lib/env'
 import { getActionSession } from '@/lib/action-session'
 import { SubscribeToBoxButton } from '@/components/catalog/SubscribeToBoxButton'
+import { getActivePromotionsForProduct } from '@/domains/promotions/public'
+import { ProductPromotions } from '@/components/catalog/ProductPromotions'
 
 export const revalidate = 300
 
@@ -92,6 +94,11 @@ export default async function ProductDetailPage({ params }: Props) {
     limit: 4,
   }).then(r => r.products.filter(p => p.id !== product.id).slice(0, 4))
   const reviewSummary = await getProductReviews(product.id)
+  const activePromotions = await getActivePromotionsForProduct({
+    productId: product.id,
+    vendorId: product.vendor.id,
+    categoryId: product.categoryId ?? null,
+  })
 
   // Phase 4b-β: compute whether to show the "Subscribe" CTA. Hidden
   // unless the buyer beta flag is on, the vendor has published an
@@ -252,6 +259,8 @@ export default async function ProductDetailPage({ params }: Props) {
           {localizedProduct.description && (
             <p className="mt-5 text-[var(--foreground-soft)] leading-relaxed">{localizedProduct.description}</p>
           )}
+
+          <ProductPromotions promotions={activePromotions} locale={locale} />
 
           {/* Origin highlight */}
           {product.originRegion && (

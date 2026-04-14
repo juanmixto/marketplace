@@ -115,6 +115,7 @@ export function CheckoutPageClient({
     control,
     reset,
     setValue,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -179,8 +180,9 @@ export function CheckoutPageClient({
         if (appliedCode && result.unknownCodes.includes(appliedCode.toUpperCase())) {
           setPromoError(t('checkout.promo.invalidCode').replace('{code}', appliedCode))
           setAppliedCode(null)
-        } else {
-          setPromoError(null)
+          // Do NOT clear promoError on the follow-up preview run — the
+          // error is only cleared by explicit user action (apply/clear),
+          // otherwise it flashes away before the user can read it.
         }
       })
       .catch(() => {
@@ -363,13 +365,36 @@ export function CheckoutPageClient({
     }
   }
 
+  // When the user picks a saved address, the server trusts the stored
+  // row and ignores the client address payload (see `createOrder` →
+  // `validated.selectedAddressId`). Client-side validation must therefore
+  // not block that path: an older saved address with a value that no
+  // longer matches the current zod regex would silently fail the hidden
+  // form and leave the submit button doing nothing. This guard submits
+  // directly in that case, bypassing the form validator entirely.
+  function handleConfirmClick(e: React.MouseEvent<HTMLButtonElement>) {
+    if (!selectedAddressId || showNewAddressForm) return
+    e.preventDefault()
+    void onSubmit(getValues())
+  }
+
+  // When validation fails on a hidden address form, surface a friendly
+  // error AND reveal the form so the user can actually see what is wrong.
+  function handleInvalid(formErrors: Record<string, unknown>) {
+    if (!showNewAddressForm && !selectedAddressId) {
+      setShowNewAddressForm(true)
+    }
+    console.warn('[checkout] form validation blocked submission', formErrors)
+    setServerError(t('checkout.reviewAddressError'))
+  }
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
       <h1 className="mb-8 text-2xl font-bold text-[var(--foreground)]">{t('checkout.title')}</h1>
 
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit, handleInvalid)} className="space-y-6">
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <h2 className="mb-4 font-semibold text-[var(--foreground)]">{t('checkout.address')}</h2>
               {loadingAddresses && (
@@ -543,6 +568,7 @@ export function CheckoutPageClient({
               type="submit"
               size="lg"
               className="w-full"
+              onClick={handleConfirmClick}
               isLoading={isSubmitting || step === 'processing'}
             >
               {step === 'processing' ? t('checkout.processing') : `${t('checkout.confirm')} · ${formatPrice(total)}`}

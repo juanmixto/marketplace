@@ -10,6 +10,7 @@ import {
   ArchiveBoxIcon,
   ArrowUturnLeftIcon,
   InformationCircleIcon,
+  PencilSquareIcon,
 } from '@heroicons/react/24/outline'
 import { Badge } from '@/components/ui/badge'
 import { formatPrice } from '@/lib/utils'
@@ -235,7 +236,7 @@ function PlanRow({ plan }: { plan: Plan }) {
           )}
         </div>
 
-        <div className="shrink-0">
+        <div className="flex shrink-0 items-center gap-2">
           {isArchived ? (
             <button
               type="button"
@@ -247,15 +248,24 @@ function PlanRow({ plan }: { plan: Plan }) {
               {t('vendor.subscriptionPlans.unarchive')}
             </button>
           ) : (
-            <button
-              type="button"
-              onClick={handleArchive}
-              disabled={pending}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 disabled:opacity-60 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/40"
-            >
-              <ArchiveBoxIcon className="h-4 w-4" />
-              {t('vendor.subscriptionPlans.archive')}
-            </button>
+            <>
+              <Link
+                href={`/vendor/suscripciones/${plan.id}/editar`}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-semibold text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)]"
+              >
+                <PencilSquareIcon className="h-4 w-4" />
+                {t('vendor.subscriptionPlans.edit')}
+              </Link>
+              <button
+                type="button"
+                onClick={handleArchive}
+                disabled={pending}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 disabled:opacity-60 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/40"
+              >
+                <ArchiveBoxIcon className="h-4 w-4" />
+                {t('vendor.subscriptionPlans.archive')}
+              </button>
+            </>
           )}
         </div>
       </div>

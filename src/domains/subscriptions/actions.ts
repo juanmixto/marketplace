@@ -241,6 +241,43 @@ export async function getMySubscriptionPlan(planId: string) {
   }
 }
 
+/**
+ * Updates the editable fields of an existing plan. Only `cutoffDayOfWeek`
+ * can change after creation: the product is locked by `@@unique(productId)`
+ * and by the price snapshot (changing it would silently alter what past
+ * subscribers agreed to), and the cadence is locked by the immutable
+ * Stripe Price object provisioned at creation time. Archived plans cannot
+ * be edited — reactivate first.
+ */
+const updateSubscriptionPlanSchema = z.object({
+  cutoffDayOfWeek: z.coerce.number().int().min(0).max(6),
+})
+
+export async function updateSubscriptionPlan(
+  planId: string,
+  input: z.infer<typeof updateSubscriptionPlanSchema>,
+) {
+  const { vendor } = await requireVendor()
+  const data = updateSubscriptionPlanSchema.parse(input)
+
+  const plan = await db.subscriptionPlan.findFirst({
+    where: { id: planId, vendorId: vendor.id },
+    select: { id: true, archivedAt: true },
+  })
+  if (!plan) throw new Error('Plan de suscripción no encontrado')
+  if (plan.archivedAt) {
+    throw new Error('Reactiva el plan antes de editarlo')
+  }
+
+  const updated = await db.subscriptionPlan.update({
+    where: { id: planId },
+    data: { cutoffDayOfWeek: data.cutoffDayOfWeek },
+  })
+
+  safeRevalidatePath('/vendor/suscripciones')
+  return updated
+}
+
 export async function archiveSubscriptionPlan(planId: string) {
   const { vendor } = await requireVendor()
 

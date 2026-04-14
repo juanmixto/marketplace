@@ -179,6 +179,79 @@ export async function createPromotion(input: PromotionInput) {
 }
 
 /**
+ * Updates an existing promotion owned by the authenticated vendor. Mirrors
+ * `createPromotion` but scoped to a single row. Archived promotions cannot
+ * be edited — the vendor must reactivate first.
+ */
+export async function updatePromotion(promotionId: string, input: PromotionInput) {
+  const { vendor } = await requireVendor()
+  const data = promotionSchema.parse(input)
+
+  const current = await db.promotion.findFirst({
+    where: { id: promotionId, vendorId: vendor.id },
+    select: { id: true, archivedAt: true },
+  })
+  if (!current) throw new Error('Promoción no encontrada')
+  if (current.archivedAt) {
+    throw new Error('Reactiva la promoción antes de editarla')
+  }
+
+  const code = data.code && data.code.length > 0 ? data.code.toUpperCase() : null
+
+  if (code) {
+    const clash = await db.promotion.findFirst({
+      where: {
+        vendorId: vendor.id,
+        code,
+        NOT: { id: promotionId },
+      },
+      select: { id: true },
+    })
+    if (clash) {
+      throw new Error('Ya tienes otra promoción con ese código')
+    }
+  }
+
+  if (data.scope === 'PRODUCT' && data.productId) {
+    const product = await db.product.findFirst({
+      where: { id: data.productId, vendorId: vendor.id, deletedAt: null },
+      select: { id: true },
+    })
+    if (!product) throw new Error('Producto no encontrado')
+  }
+  if (data.scope === 'CATEGORY' && data.categoryId) {
+    const category = await db.category.findUnique({
+      where: { id: data.categoryId },
+      select: { id: true },
+    })
+    if (!category) throw new Error('Categoría no encontrada')
+  }
+
+  const value = data.kind === 'FREE_SHIPPING' ? 0 : data.value
+
+  const updated = await db.promotion.update({
+    where: { id: promotionId },
+    data: {
+      name: data.name,
+      code,
+      kind: data.kind,
+      value,
+      scope: data.scope,
+      productId: data.scope === 'PRODUCT' ? data.productId ?? null : null,
+      categoryId: data.scope === 'CATEGORY' ? data.categoryId ?? null : null,
+      minSubtotal: data.minSubtotal ?? null,
+      maxRedemptions: data.maxRedemptions ?? null,
+      perUserLimit: data.perUserLimit ?? 1,
+      startsAt: new Date(data.startsAt),
+      endsAt: new Date(data.endsAt),
+    },
+  })
+
+  safeRevalidatePath('/vendor/promociones')
+  return updated
+}
+
+/**
  * Serializes a Prisma promotion row with its included product/category
  * into a plain-JS shape the RSC boundary accepts. Prisma's `Decimal`
  * instances crash the server→client serializer in Next 16 — so we

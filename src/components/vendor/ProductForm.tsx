@@ -8,7 +8,7 @@ import { z } from 'zod'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { CERTIFICATIONS, TAX_RATES } from '@/lib/constants'
-import { createProduct, updateProduct } from '@/domains/vendors/actions'
+import { createProduct, updateProduct, updateProductVariants } from '@/domains/vendors/actions'
 import { formatExpirationDateInput } from '@/domains/catalog/availability'
 import { parseAndValidateImages } from '@/lib/image-validation'
 import { ImageUploader } from '@/components/vendor/ImageUploader'
@@ -61,12 +61,50 @@ interface ProductFormProps {
 }
 
 
+type VariantRow = {
+  /** Database id when persisted, null for rows added in this session. */
+  id: string | null
+  /** Stable react key across renders, including for unsaved rows. */
+  key: string
+  name: string
+  priceModifier: string
+  stock: string
+  isActive: boolean
+}
+
+function variantRowFromDb(variant: ProductVariant): VariantRow {
+  return {
+    id: variant.id,
+    key: variant.id,
+    name: variant.name,
+    priceModifier: Number(variant.priceModifier).toString(),
+    stock: String(variant.stock),
+    isActive: variant.isActive,
+  }
+}
+
+function makeEmptyVariantRow(): VariantRow {
+  return {
+    id: null,
+    key: `new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name: '',
+    priceModifier: '0',
+    stock: '0',
+    isActive: true,
+  }
+}
+
 export function ProductForm({ categories, initialData, stripeOnboarded }: ProductFormProps) {
   const router = useRouter()
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [pendingAction, setPendingAction] = useState<'DRAFT' | 'PENDING_REVIEW' | null>(null)
   const t = useT()
+
+  const [variants, setVariants] = useState<VariantRow[]>(
+    () => initialData?.variants?.map(variantRowFromDb) ?? [],
+  )
+  const [variantError, setVariantError] = useState<string | null>(null)
 
   const {
     register,
@@ -104,6 +142,7 @@ export function ProductForm({ categories, initialData, stripeOnboarded }: Produc
 
   async function onSubmit(values: ProductFormValues) {
     setServerError(null)
+    setVariantError(null)
 
     const { valid: images } = parseAndValidateImages(values.imagesText)
 
@@ -117,9 +156,40 @@ export function ProductForm({ categories, initialData, stripeOnboarded }: Produc
       expiresAt: values.expiresAt ?? undefined,
     }
 
+    // Validate variants before anything touches the server.
+    const normalizedVariants: {
+      id: string | null
+      name: string
+      priceModifier: number
+      stock: number
+      isActive: boolean
+    }[] = []
+    for (const v of variants) {
+      const name = v.name.trim()
+      if (!name) {
+        setVariantError(t('vendor.productForm.variantsErrorName'))
+        return
+      }
+      const priceModifier = Number(v.priceModifier)
+      if (!Number.isFinite(priceModifier)) {
+        setVariantError(t('vendor.productForm.variantsErrorPrice'))
+        return
+      }
+      const stock = Number(v.stock)
+      if (!Number.isInteger(stock) || stock < 0) {
+        setVariantError(t('vendor.productForm.variantsErrorStock'))
+        return
+      }
+      normalizedVariants.push({ id: v.id, name, priceModifier, stock, isActive: v.isActive })
+    }
+
     try {
       if (initialData) {
         await updateProduct(initialData.id, payload)
+        await updateProductVariants({
+          productId: initialData.id,
+          variants: normalizedVariants,
+        })
       } else {
         await createProduct(payload)
       }
@@ -129,6 +199,22 @@ export function ProductForm({ categories, initialData, stripeOnboarded }: Produc
       setServerError(error instanceof Error ? error.message : t('vendor.productForm.saveError'))
       setPendingAction(null)
     }
+  }
+
+  function updateVariantField<K extends keyof VariantRow>(
+    key: string,
+    field: K,
+    value: VariantRow[K],
+  ) {
+    setVariants(prev => prev.map(v => (v.key === key ? { ...v, [field]: value } : v)))
+  }
+
+  function removeVariant(key: string) {
+    setVariants(prev => prev.filter(v => v.key !== key))
+  }
+
+  function addVariant() {
+    setVariants(prev => [...prev, makeEmptyVariantRow()])
   }
 
   function toggleCertification(certification: string) {
@@ -310,11 +396,104 @@ export function ProductForm({ categories, initialData, stripeOnboarded }: Produc
         <input type="hidden" {...register('status')} />
       </div>
 
-      {initialData?.variants?.length ? (
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-4 text-sm text-[var(--foreground-soft)]">
-          {initialData.variants.length === 1
-            ? t('vendor.productForm.variantsNoteOne')
-            : t('vendor.productForm.variantsNoteOther').replace('{count}', String(initialData.variants.length))}
+      {initialData ? (
+        <div className="space-y-3 rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-[var(--foreground)]">
+                {t('vendor.productForm.variantsTitle')}
+              </p>
+              <p className="mt-0.5 text-xs text-[var(--muted)]">
+                {t('vendor.productForm.variantsHint')}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={addVariant}
+              className="shrink-0 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-semibold text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)]"
+            >
+              + {t('vendor.productForm.variantsAdd')}
+            </button>
+          </div>
+
+          {variants.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-[var(--border)] p-3 text-center text-xs text-[var(--muted)]">
+              {t('vendor.productForm.variantsEmpty')}
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {variants.map(variant => (
+                <div
+                  key={variant.key}
+                  className="grid gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 sm:grid-cols-[2fr_1fr_1fr_auto_auto] sm:items-end"
+                >
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-[var(--muted)]">
+                      {t('vendor.productForm.variantsColName')}
+                    </label>
+                    <input
+                      type="text"
+                      value={variant.name}
+                      onChange={e => updateVariantField(variant.key, 'name', e.target.value)}
+                      placeholder="500 g"
+                      maxLength={60}
+                      className="h-9 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 text-sm text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-[var(--muted)]">
+                      {t('vendor.productForm.variantsColPriceModifier')}
+                    </label>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      value={variant.priceModifier}
+                      onChange={e => updateVariantField(variant.key, 'priceModifier', e.target.value)}
+                      className="h-9 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 text-sm text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-medium text-[var(--muted)]">
+                      {t('vendor.productForm.variantsColStock')}
+                    </label>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      step="1"
+                      min={0}
+                      value={variant.stock}
+                      onChange={e => updateVariantField(variant.key, 'stock', e.target.value)}
+                      className="h-9 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 text-sm text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+                    />
+                  </div>
+                  <label className="flex items-center gap-1.5 text-xs text-[var(--foreground-soft)]">
+                    <input
+                      type="checkbox"
+                      checked={variant.isActive}
+                      onChange={e => updateVariantField(variant.key, 'isActive', e.target.checked)}
+                      className="rounded border-[var(--border-strong)] text-emerald-600 accent-emerald-600 dark:accent-emerald-400"
+                    />
+                    {t('vendor.productForm.variantsColActive')}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => removeVariant(variant.key)}
+                    className="rounded-md border border-red-200 bg-red-50 px-2 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
+                    aria-label={t('vendor.productForm.variantsRemove')}
+                  >
+                    {t('vendor.productForm.variantsRemove')}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {variantError && (
+            <p className="text-xs text-red-600 dark:text-red-400" role="alert">
+              {variantError}
+            </p>
+          )}
         </div>
       ) : null}
 

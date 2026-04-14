@@ -246,6 +246,101 @@ test('createOrder falls back to the submitted address when a saved address goes 
   })
 })
 
+test('createOrder ignores a stale submitted address when selectedAddressId resolves a saved row (regression: silent-validation blocked checkout)', async () => {
+  // Regression for #checkout-silent-validation: the client was mounting
+  // a hidden RHF form with a strict zod schema. If the user picked a
+  // saved address whose phone (or other field) no longer matched the
+  // current regex, the hidden form failed validation silently and the
+  // "Confirmar pedido" button stopped responding. This test proves the
+  // server now happily ignores the stale payload and uses the DB row.
+  const { vendor } = await createVendorUser()
+  const customer = await createUser('CUSTOMER')
+  const product = await createActiveProduct(vendor.id, { stock: 4 })
+  useTestSession(buildSession(customer.id, 'CUSTOMER'))
+
+  const savedAddress = await db.address.create({
+    data: {
+      userId: customer.id,
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      line1: 'Calle Mayor 1',
+      city: 'Madrid',
+      province: 'Madrid',
+      postalCode: '28001',
+      phone: '600111222',
+      isDefault: true,
+    },
+  })
+
+  const created = await createOrder(
+    [{ productId: product.id, quantity: 1 }],
+    {
+      // Submitted payload intentionally contains values that fail the
+      // strict client/server checkoutSchema: phone has letters, postal
+      // code is too short, province is unknown. The server must not
+      // parse these because selectedAddressId is set.
+      address: {
+        firstName: '',
+        lastName: '',
+        line1: 'x',
+        city: '',
+        province: 'NowhereLand',
+        postalCode: '1',
+        phone: 'not-a-phone',
+      },
+      saveAddress: false,
+      selectedAddressId: savedAddress.id,
+    }
+  )
+
+  const order = await db.order.findUnique({
+    where: { id: created.orderId },
+    select: { addressId: true, shippingAddressSnapshot: true },
+  })
+  assert.equal(order?.addressId, savedAddress.id)
+  // The snapshot is built from the saved DB row, not the garbage payload.
+  assert.deepEqual(order?.shippingAddressSnapshot, {
+    firstName: 'Ada',
+    lastName: 'Lovelace',
+    line1: 'Calle Mayor 1',
+    line2: null,
+    city: 'Madrid',
+    province: 'Madrid',
+    postalCode: '28001',
+    phone: '600111222',
+  })
+})
+
+test('createOrder throws a friendly error when the saved address is missing AND the submitted address is invalid', async () => {
+  const { vendor } = await createVendorUser()
+  const customer = await createUser('CUSTOMER')
+  const product = await createActiveProduct(vendor.id, { stock: 4 })
+  useTestSession(buildSession(customer.id, 'CUSTOMER'))
+
+  await assert.rejects(
+    () =>
+      createOrder(
+        [{ productId: product.id, quantity: 1 }],
+        {
+          address: {
+            firstName: '',
+            lastName: '',
+            line1: '',
+            city: '',
+            province: 'NowhereLand',
+            postalCode: '1',
+            phone: 'not-a-phone',
+          },
+          saveAddress: false,
+          selectedAddressId: 'addr_missing_and_form_invalid',
+        }
+      ),
+    (error: unknown) =>
+      error instanceof Error &&
+      /direcci[óo]n guardada ya no está disponible/i.test(error.message),
+  )
+})
+
 test('createOrder auto-assigns the default variant when the cart item arrives without variantId', async () => {
   const { vendor } = await createVendorUser()
   const customer = await createUser('CUSTOMER')

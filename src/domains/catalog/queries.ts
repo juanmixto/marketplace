@@ -180,7 +180,8 @@ async function getProductBySlugUncached(slug: string) {
           totalReviews: true,
         },
       },
-      category: { select: { name: true, slug: true } },
+      categoryId: true,
+      category: { select: { id: true, name: true, slug: true } },
       variants: { where: { isActive: true } },
       // Phase 4b-β: surface the subscription plan so the product detail
       // page can render a "Subscribe" CTA when the vendor has published

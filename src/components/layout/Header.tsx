@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ShoppingCartIcon,
   UserCircleIcon,
@@ -52,10 +52,45 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
   // rendering immediately.
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
+
   const userContextReady = user !== undefined || mounted
   const [mobileOpen,  setMobileOpen]  = useState(false)
   const [catOpen,     setCatOpen]     = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
+
+  // Mobile-only: collapse the search bar when the user scrolls down past
+  // the header, reveal again when they scroll back up or return to the
+  // top. Keeps more of the viewport free on phones without losing quick
+  // access when the user signals "I want to do something".
+  const [hideMobileSearch, setHideMobileSearch] = useState(false)
+  const lastScrollYRef = useRef(0)
+  const mobileOpenRef = useRef(false)
+  useEffect(() => {
+    mobileOpenRef.current = mobileOpen
+    // When the drawer is open, we force the search bar visible and stop
+    // toggling it on scroll. Otherwise, background scroll events (or
+    // reflow from a collapsing search bar) would make the sticky header
+    // flicker as the drawer drags along.
+    if (mobileOpen) setHideMobileSearch(false)
+  }, [mobileOpen])
+  useEffect(() => {
+    function handleScroll() {
+      if (mobileOpenRef.current) return
+      const currentY = window.scrollY
+      const lastY = lastScrollYRef.current
+      const delta = currentY - lastY
+      if (currentY < 80) {
+        setHideMobileSearch(false)
+      } else if (delta > 6) {
+        setHideMobileSearch(true)
+      } else if (delta < -6) {
+        setHideMobileSearch(false)
+      }
+      lastScrollYRef.current = currentY
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
   const pathname = usePathname()
   const { locale } = useLocale()
   const t = useT()
@@ -276,19 +311,31 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
           </div>
         </div>
 
-        {/* Mobile search bar (always visible, Amazon-style) */}
-        <form action="/buscar" className="pb-3 md:hidden">
-          <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--muted)]" />
-            <input
-              name="q"
-              type="search"
-              placeholder={t('searchMobile')}
-              aria-label={t('searchMobile')}
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] py-2.5 pl-10 pr-4 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:border-emerald-500 focus:bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
-            />
-          </div>
-        </form>
+        {/* Mobile search bar — collapses on scroll-down, reappears on
+            scroll-up or near the top of the page. */}
+        <div
+          className={cn(
+            'grid overflow-hidden transition-[grid-template-rows,opacity,padding] duration-200 ease-out md:hidden',
+            hideMobileSearch
+              ? 'grid-rows-[0fr] pb-0 opacity-0'
+              : 'grid-rows-[1fr] pb-3 opacity-100'
+          )}
+          aria-hidden={hideMobileSearch}
+        >
+          <form action="/buscar" className="min-h-0">
+            <div className="relative">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--muted)]" />
+              <input
+                name="q"
+                type="search"
+                tabIndex={hideMobileSearch ? -1 : 0}
+                placeholder={t('searchMobile')}
+                aria-label={t('searchMobile')}
+                className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] py-2.5 pl-10 pr-4 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:border-emerald-500 focus:bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
+              />
+            </div>
+          </form>
+        </div>
       </div>
 
       {/* Mobile drawer */}
