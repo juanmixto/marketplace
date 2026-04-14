@@ -6,6 +6,7 @@ import { db } from '@/lib/db'
 import { getActionSession } from '@/lib/action-session'
 import { isVendor } from '@/lib/roles'
 import { safeRevalidatePath } from '@/lib/revalidate'
+import { provisionPlanPrice } from '@/domains/subscriptions/stripe-subscriptions'
 
 /**
  * Phase 3 of the promotions & subscriptions RFC
@@ -49,6 +50,7 @@ export async function createSubscriptionPlan(input: SubscriptionPlanInput) {
     },
     select: {
       id: true,
+      name: true,
       basePrice: true,
       taxRate: true,
     },
@@ -88,8 +90,45 @@ export async function createSubscriptionPlan(input: SubscriptionPlanInput) {
     },
   })
 
-  safeRevalidatePath('/vendor/suscripciones')
-  return plan
+  // Phase 4b-α of the promotions RFC: provision a Stripe Price for the
+  // plan so phase 4b-β can create Subscriptions that reference it. The
+  // provisioning runs AFTER the row is committed — if Stripe rejects the
+  // request (invalid key, outage, bad data) we clean up the orphan row
+  // so the vendor can retry without hitting the @@unique([productId])
+  // constraint.
+  try {
+    const provisioning = await provisionPlanPrice({
+      planId: plan.id,
+      productName: product.name,
+      priceEurCents: Math.round(Number(product.basePrice) * 100),
+      cadence: data.cadence,
+      taxRate: Number(product.taxRate),
+      vendorStripeAccountId: vendor.stripeAccountId ?? null,
+    })
+    const updated = await db.subscriptionPlan.update({
+      where: { id: plan.id },
+      data: { stripePriceId: provisioning.stripePriceId },
+    })
+    safeRevalidatePath('/vendor/suscripciones')
+    return updated
+  } catch (error) {
+    await db.subscriptionPlan
+      .delete({ where: { id: plan.id } })
+      .catch(cleanupError => {
+        console.error(
+          '[subscriptions] failed to clean up orphan plan after Stripe provisioning error',
+          { planId: plan.id, cleanupError }
+        )
+      })
+    console.error('[subscriptions] Stripe Price provisioning failed', {
+      planId: plan.id,
+      productId: product.id,
+      error,
+    })
+    throw new Error(
+      'No se pudo crear el plan en el proveedor de pagos. Inténtalo de nuevo en unos segundos.'
+    )
+  }
 }
 
 export async function listMySubscriptionPlans(

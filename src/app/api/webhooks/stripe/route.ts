@@ -17,6 +17,10 @@ import {
 } from '@/domains/orders/order-event-payload'
 import { recordWebhookDeadLetter } from '@/domains/payments/webhook-dlq'
 import { getServerEnv } from '@/lib/env'
+import {
+  mapStripeSubscriptionStatus,
+  parseStripeSubscriptionEvent,
+} from '@/domains/subscriptions/stripe-subscriptions'
 import type Stripe from 'stripe'
 
 type WebhookEvent = {
@@ -99,6 +103,21 @@ export async function POST(req: NextRequest) {
           break
         }
         await handlePaymentFailed(pi.id, event.id)
+        break
+      }
+      // Phase 4b-α: subscription lifecycle. The handler is idempotent by
+      // construction (state-based sync — applying the same status twice
+      // is a no-op) so we do not need the OrderEvent dedupe table here.
+      // Phase 4b-β will add `invoice.paid` / `invoice.payment_failed`
+      // handling that materializes Orders + VendorFulfillments.
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted': {
+        const parsed = parseStripeSubscriptionEvent(event.data.object)
+        if (!parsed) {
+          logInvalidWebhookPayload(event)
+          break
+        }
+        await handleSubscriptionSync(parsed, event.type)
         break
       }
     }
@@ -278,6 +297,54 @@ async function handlePaymentFailed(providerRef: string, eventId?: string) {
       error,
     })
     throw error
+  })
+}
+
+async function handleSubscriptionSync(
+  payload: { id: string; status: string; pause_collection?: unknown; canceled_at?: number | null },
+  eventType: 'customer.subscription.updated' | 'customer.subscription.deleted'
+) {
+  const subscription = await db.subscription.findUnique({
+    where: { stripeSubscriptionId: payload.id },
+    select: { id: true, status: true, canceledAt: true },
+  })
+
+  if (!subscription) {
+    // Phase 4b-α: buyers cannot subscribe yet (no public subscribe flow),
+    // so most events will arrive with a stripeSubscriptionId that is not
+    // in our DB. This is expected and a no-op. Logged at info level so we
+    // can spot wiring issues in phase 4b-β when the public flow opens.
+    console.info('[stripe-webhook][subscription-not-found]', {
+      stripeSubscriptionId: payload.id,
+      eventType,
+    })
+    return
+  }
+
+  // `customer.subscription.deleted` is Stripe's terminal cancelation
+  // event — trust it over whatever `status` says on the object.
+  const nextStatus =
+    eventType === 'customer.subscription.deleted'
+      ? 'CANCELED'
+      : mapStripeSubscriptionStatus(payload.status, payload.pause_collection)
+
+  if (subscription.status === nextStatus) {
+    // Idempotent no-op — the row is already in the state this event
+    // asks for. Common when Stripe retries a webhook.
+    return
+  }
+
+  const canceledAt =
+    nextStatus === 'CANCELED'
+      ? subscription.canceledAt ?? new Date()
+      : null
+
+  await db.subscription.update({
+    where: { id: subscription.id },
+    data: {
+      status: nextStatus,
+      canceledAt,
+    },
   })
 }
 
