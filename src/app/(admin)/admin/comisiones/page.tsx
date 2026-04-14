@@ -120,7 +120,7 @@ export default async function AdminCommissionRulesPage() {
       </form>
 
       <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
-        <div className="grid grid-cols-[1fr,1fr,0.8fr,0.8fr,0.9fr,0.9fr,auto] gap-4 border-b border-[var(--border)] px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+        <div className="grid grid-cols-[1fr_1fr_0.8fr_0.8fr_0.9fr_0.9fr_auto] gap-4 border-b border-[var(--border)] px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
           <span>Ámbito</span>
           <span>Fallback</span>
           <span>Tipo</span>
@@ -137,7 +137,7 @@ export default async function AdminCommissionRulesPage() {
             const hasConflict = rule.isActive && activeConflictKeys.has(conflictKey)
 
             return (
-              <div key={rule.id} className="grid grid-cols-[1fr,1fr,0.8fr,0.8fr,0.9fr,0.9fr,auto] gap-4 px-5 py-4 text-sm items-start">
+              <div key={rule.id} className="grid grid-cols-[1fr_1fr_0.8fr_0.8fr_0.9fr_0.9fr_auto] gap-4 px-5 py-4 text-sm items-start">
                 <div>
                   <p className="font-medium text-[var(--foreground)]">{vendor?.displayName ?? category?.name ?? 'Global manual'}</p>
                   <p className="text-xs text-[var(--muted)]">

@@ -56,7 +56,7 @@ export default async function AdminAuditPage({ searchParams }: PageProps) {
         <p className="mt-1 text-sm text-[var(--muted)]">Historial de acciones administrativas y cambios sensibles.</p>
       </div>
 
-      <form className="grid gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 md:grid-cols-[1fr,1fr,auto]">
+      <form className="grid gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 md:grid-cols-[1fr_1fr_auto]">
         <label className="space-y-1.5">
           <span className="text-sm font-medium text-[var(--foreground)]">Accion</span>
           <select
@@ -98,7 +98,7 @@ export default async function AdminAuditPage({ searchParams }: PageProps) {
       </form>
 
       <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
-        <div className="grid grid-cols-[1.1fr,0.9fr,0.8fr,1fr,0.9fr,1.2fr] gap-4 border-b border-[var(--border)] px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+        <div className="grid grid-cols-[1.1fr_0.9fr_0.8fr_1fr_0.9fr_1.2fr] gap-4 border-b border-[var(--border)] px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
           <span>Fecha</span>
           <span>Accion</span>
           <span>Entidad</span>
@@ -111,7 +111,7 @@ export default async function AdminAuditPage({ searchParams }: PageProps) {
             const actor = usersById.get(log.actorId)
 
             return (
-              <div key={log.id} className="grid grid-cols-[1.1fr,0.9fr,0.8fr,1fr,0.9fr,1.2fr] gap-4 px-5 py-4 text-sm">
+              <div key={log.id} className="grid grid-cols-[1.1fr_0.9fr_0.8fr_1fr_0.9fr_1.2fr] gap-4 px-5 py-4 text-sm">
                 <div>
                   <p className="font-medium text-[var(--foreground)]">{formatDate(log.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}</p>
                   <p className="text-xs text-[var(--muted)]">{log.entityId}</p>

@@ -29,6 +29,7 @@ interface Props {
     q?: string
     status?: string
     payment?: string
+    incidents?: string
     order?: string
     page?: string
   }>
@@ -83,22 +84,43 @@ function formatEventLabel(type: string) {
   }
 }
 
-function buildOrderHref(baseParams: { q?: string; status?: string; payment?: string }, orderId: string) {
-  const params = new URLSearchParams()
+type BaseParams = { q?: string; status?: string; payment?: string; incidents?: string }
+
+function appendBaseParams(params: URLSearchParams, baseParams: BaseParams) {
   if (baseParams.q) params.set('q', baseParams.q)
   if (baseParams.status && baseParams.status !== 'all') params.set('status', baseParams.status)
   if (baseParams.payment && baseParams.payment !== 'all') params.set('payment', baseParams.payment)
+  if (baseParams.incidents && baseParams.incidents !== 'all') params.set('incidents', baseParams.incidents)
+}
+
+function buildOrderHref(baseParams: BaseParams, orderId: string) {
+  const params = new URLSearchParams()
+  appendBaseParams(params, baseParams)
   params.set('order', orderId)
   return `/admin/pedidos?${params.toString()}`
 }
 
-function buildPageHref(baseParams: { q?: string; status?: string; payment?: string; order?: string }, page: number) {
+function buildPageHref(baseParams: BaseParams & { order?: string }, page: number) {
   const params = new URLSearchParams()
-  if (baseParams.q) params.set('q', baseParams.q)
-  if (baseParams.status && baseParams.status !== 'all') params.set('status', baseParams.status)
-  if (baseParams.payment && baseParams.payment !== 'all') params.set('payment', baseParams.payment)
+  appendBaseParams(params, baseParams)
   if (baseParams.order) params.set('order', baseParams.order)
   if (page > 1) params.set('page', String(page))
+  const query = params.toString()
+  return query ? `/admin/pedidos?${query}` : '/admin/pedidos'
+}
+
+function buildFilterHref(
+  baseParams: BaseParams,
+  next: { status?: string | null; payment?: string | null; incidents?: string | null },
+) {
+  const params = new URLSearchParams()
+  if (baseParams.q) params.set('q', baseParams.q)
+  const nextStatus = next.status !== undefined ? next.status : baseParams.status
+  const nextPayment = next.payment !== undefined ? next.payment : baseParams.payment
+  const nextIncidents = next.incidents !== undefined ? next.incidents : baseParams.incidents
+  if (nextStatus && nextStatus !== 'all') params.set('status', nextStatus)
+  if (nextPayment && nextPayment !== 'all') params.set('payment', nextPayment)
+  if (nextIncidents && nextIncidents !== 'all') params.set('incidents', nextIncidents)
   const query = params.toString()
   return query ? `/admin/pedidos?${query}` : '/admin/pedidos'
 }
@@ -108,12 +130,14 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
   const q = params.q?.trim() ?? ''
   const status = params.status === '' ? 'all' : params.status
   const payment = params.payment === '' ? 'all' : params.payment
+  const incidents = params.incidents === 'open' ? 'open' : 'all'
   const page = Number.isFinite(Number(params.page)) ? Math.max(Number(params.page), 1) : 1
 
   const data = await getAdminOrdersPageData({
     q,
     status: ORDER_STATUS_OPTIONS.includes((status ?? 'all') as typeof ORDER_STATUS_OPTIONS[number]) ? (status as typeof ORDER_STATUS_OPTIONS[number]) : 'all',
     payment: PAYMENT_STATUS_OPTIONS.includes((payment ?? 'all') as typeof PAYMENT_STATUS_OPTIONS[number]) ? (payment as typeof PAYMENT_STATUS_OPTIONS[number]) : 'all',
+    incidents,
     page,
   })
 
@@ -140,9 +164,30 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Pedidos activos" value={data.stats.activeOrders} tone="blue" description="En curso o pendientes de entrega" />
-        <MetricCard label="Pago pendiente" value={data.stats.pendingPayments} tone="amber" description="Requieren seguimiento de cobro" />
-        <MetricCard label="Con incidencia" value={data.stats.ordersWithIncidents} tone="red" description="Pedidos con soporte activo" />
+        <MetricCard
+          label="Pedidos activos"
+          value={data.stats.activeOrders}
+          tone="blue"
+          description="En curso o pendientes de entrega"
+          href={buildFilterHref({ q, status, payment, incidents }, { status: status === 'PROCESSING' ? 'all' : 'PROCESSING' })}
+          active={status === 'PROCESSING'}
+        />
+        <MetricCard
+          label="Pago pendiente"
+          value={data.stats.pendingPayments}
+          tone="amber"
+          description="Requieren seguimiento de cobro"
+          href={buildFilterHref({ q, status, payment, incidents }, { payment: payment === 'PENDING' ? 'all' : 'PENDING' })}
+          active={payment === 'PENDING'}
+        />
+        <MetricCard
+          label="Con incidencia"
+          value={data.stats.ordersWithIncidents}
+          tone="red"
+          description="Pedidos con soporte activo"
+          href={buildFilterHref({ q, status, payment, incidents }, { incidents: incidents === 'open' ? 'all' : 'open' })}
+          active={incidents === 'open'}
+        />
         <MetricCard label="Ticket medio" value={formatPrice(data.stats.averageTicket)} tone="emerald" description="Promedio sobre el filtro actual" />
       </div>
 
@@ -153,15 +198,28 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
             <p className="mt-1 text-sm text-[var(--muted)]">Encuentra pedidos por número, cliente, producto, localidad o productor.</p>
           </div>
           <div className="flex flex-wrap gap-2 text-xs text-[var(--muted)]">
-            {Object.entries(data.statusCounts).map(([key, value]) => (
-              <span key={key} className="rounded-full border border-[var(--border)] bg-[var(--surface-raised)] px-2.5 py-1">
-                {ORDER_STATUS_LABELS[key] ?? key}: {value}
-              </span>
-            ))}
+            {Object.entries(data.statusCounts).map(([key, value]) => {
+              const isActive = status === key
+              return (
+                <Link
+                  key={key}
+                  href={buildFilterHref({ q, status, payment, incidents }, { status: isActive ? 'all' : key })}
+                  aria-pressed={isActive}
+                  className={cn(
+                    'rounded-full border px-2.5 py-1 transition-colors',
+                    isActive
+                      ? 'border-emerald-500/70 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                      : 'border-[var(--border)] bg-[var(--surface-raised)] hover:border-[var(--border-strong)] hover:text-[var(--foreground)]',
+                  )}
+                >
+                  {ORDER_STATUS_LABELS[key] ?? key}: {value}
+                </Link>
+              )
+            })}
           </div>
         </CardHeader>
         <CardBody>
-          <form className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr),minmax(0,0.9fr),minmax(0,0.9fr),auto,auto] lg:items-end">
+          <form className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_auto_auto] lg:items-end">
             <Input
               name="q"
               label="Buscar"
@@ -213,7 +271,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
         </CardBody>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr),minmax(360px,0.95fr)]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.95fr)]">
         <Card className="overflow-hidden rounded-2xl">
           <CardHeader className="flex items-center justify-between">
             <div>
@@ -235,7 +293,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
               return (
                 <Link
                   key={order.id}
-                  href={buildOrderHref({ q, status, payment }, order.id)}
+                  href={buildOrderHref({ q, status, payment, incidents }, order.id)}
                   className={cn(
                     'block px-5 py-4 transition-colors hover:bg-[var(--surface-raised)]/70',
                     selectedOrder?.id === order.id && 'bg-emerald-50/60 dark:bg-emerald-950/20'
@@ -264,7 +322,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
                     </div>
                   </div>
 
-                  <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1.1fr),minmax(0,0.9fr),auto]">
+                  <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)_auto]">
                     <div>
                       <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">Productos</p>
                       <div className="mt-1 flex flex-wrap gap-2">
@@ -322,7 +380,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
               </p>
               <div className="flex items-center gap-2">
                 <Link
-                  href={buildPageHref({ q, status, payment }, data.pagination.page - 1)}
+                  href={buildPageHref({ q, status, payment, incidents }, data.pagination.page - 1)}
                   aria-disabled={data.pagination.page <= 1}
                   className={cn(
                     'inline-flex h-9 items-center rounded-lg border border-[var(--border)] px-3 font-medium',
@@ -334,7 +392,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
                   Anterior
                 </Link>
                 <Link
-                  href={buildPageHref({ q, status, payment }, data.pagination.page + 1)}
+                  href={buildPageHref({ q, status, payment, incidents }, data.pagination.page + 1)}
                   aria-disabled={data.pagination.page >= data.pagination.totalPages}
                   className={cn(
                     'inline-flex h-9 items-center rounded-lg border border-[var(--border)] px-3 font-medium',
@@ -350,7 +408,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
           )}
         </Card>
 
-        <Card className="rounded-2xl xl:sticky xl:top-24 xl:self-start">
+        <Card className="rounded-2xl">
           {selectedOrder ? (
             <>
               <CardHeader className="space-y-4">
@@ -572,11 +630,15 @@ function MetricCard({
   value,
   description,
   tone,
+  href,
+  active,
 }: {
   label: string
   value: string | number
   description: string
   tone: 'emerald' | 'amber' | 'red' | 'blue'
+  href?: string
+  active?: boolean
 }) {
   const toneClasses = {
     emerald: 'text-emerald-700 dark:text-emerald-400',
@@ -585,13 +647,34 @@ function MetricCard({
     blue: 'text-blue-700 dark:text-blue-400',
   }
 
+  const body = (
+    <CardBody>
+      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-light)]">{label}</p>
+      <p className={cn('mt-2 text-3xl font-bold', toneClasses[tone])}>{value}</p>
+      <p className="mt-1 text-sm text-[var(--muted)]">{description}</p>
+    </CardBody>
+  )
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        aria-pressed={active}
+        className={cn(
+          'block rounded-2xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40',
+          active && 'ring-2 ring-emerald-500/50',
+        )}
+      >
+        <Card className="rounded-2xl hover:border-[var(--border-strong)] hover:shadow-md">
+          {body}
+        </Card>
+      </Link>
+    )
+  }
+
   return (
     <Card className="rounded-2xl">
-      <CardBody>
-        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-light)]">{label}</p>
-        <p className={cn('mt-2 text-3xl font-bold', toneClasses[tone])}>{value}</p>
-        <p className="mt-1 text-sm text-[var(--muted)]">{description}</p>
-      </CardBody>
+      {body}
     </Card>
   )
 }
