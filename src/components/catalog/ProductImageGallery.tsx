@@ -90,7 +90,7 @@ export function ProductImageGallery({ images, alt }: Props) {
               type="button"
               onClick={prev}
               aria-label="Imagen anterior"
-              className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/55 p-2 text-white shadow-md transition-opacity hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:p-1.5 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+              className="absolute left-2 top-1/2 inline-flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 p-2.5 text-white shadow-md transition-opacity hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:min-h-0 sm:min-w-0 sm:p-1.5 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
             >
               <ChevronLeftIcon className="h-5 w-5" />
             </button>
@@ -99,24 +99,26 @@ export function ProductImageGallery({ images, alt }: Props) {
               type="button"
               onClick={next}
               aria-label="Imagen siguiente"
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/55 p-2 text-white shadow-md transition-opacity hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:p-1.5 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+              className="absolute right-2 top-1/2 inline-flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 p-2.5 text-white shadow-md transition-opacity hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:min-h-0 sm:min-w-0 sm:p-1.5 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
             >
               <ChevronRightIcon className="h-5 w-5" />
             </button>
 
-            <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5 sm:hidden">
+            <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1 sm:hidden">
               {validImages.map((url, i) => (
                 <button
                   key={url}
                   type="button"
                   onClick={() => setActiveIndex(i)}
                   aria-label={`Ir a imagen ${i + 1}`}
-                  className={`rounded-full transition-all ${
-                    i === safeIndex
-                      ? 'h-1.5 w-4 bg-white'
-                      : 'h-1.5 w-1.5 bg-white/50'
-                  }`}
-                />
+                  className="flex h-8 w-8 items-center justify-center"
+                >
+                  <span
+                    className={`block rounded-full transition-all ${
+                      i === safeIndex ? 'h-1.5 w-4 bg-white' : 'h-1.5 w-1.5 bg-white/60'
+                    }`}
+                  />
+                </button>
               ))}
             </div>
           </>

@@ -141,6 +141,64 @@ test('checkout address form exposes autoComplete tokens for mobile prefill', () 
   }
 })
 
+test('buyer profile form exposes autoComplete tokens', () => {
+  const source = read('src/components/buyer/BuyerProfileForm.tsx')
+  const required = [
+    'autoComplete="given-name"',
+    'autoComplete="family-name"',
+    'autoComplete="email"',
+    'autoComplete="current-password"',
+    'autoComplete="new-password"',
+  ]
+  for (const token of required) {
+    assert.ok(source.includes(token), `BuyerProfileForm must declare ${token}`)
+  }
+})
+
+test('buyer addresses form exposes autoComplete tokens and numeric postal code', () => {
+  const source = read('src/app/(buyer)/cuenta/direcciones/DireccionesClient.tsx')
+  const required = [
+    'autoComplete="given-name"',
+    'autoComplete="family-name"',
+    'autoComplete="address-line1"',
+    'autoComplete="address-line2"',
+    'autoComplete="address-level1"',
+    'autoComplete="address-level2"',
+    'autoComplete="postal-code"',
+  ]
+  for (const token of required) {
+    assert.ok(source.includes(token), `DireccionesClient must declare ${token}`)
+  }
+  assert.match(source, /inputMode="numeric"/, 'postal-code input must use inputMode="numeric"')
+})
+
+test('buyer address card actions meet 44px tap-target minimum', () => {
+  const source = read('src/app/(buyer)/cuenta/direcciones/DireccionesClient.tsx')
+  // The three action buttons (edit / set default / delete) now share min-h-11 —
+  // contract keeps that from regressing back to bare text-links.
+  const matches = source.match(/min-h-11/g) ?? []
+  assert.ok(matches.length >= 3, `address actions must keep min-h-11 on edit/default/delete (found ${matches.length})`)
+})
+
+test('PDP image gallery controls meet 44px tap-target minimum on mobile', () => {
+  const source = read('src/components/catalog/ProductImageGallery.tsx')
+  // Chevron buttons must be at least 44px on mobile (sm: resets to compact).
+  assert.match(
+    source,
+    /min-h-11 min-w-11[^"]*sm:min-h-0/,
+    'gallery prev/next must use min-h-11 min-w-11 on mobile, reset on sm+',
+  )
+})
+
+test('vendor review response actions meet 44px tap-target minimum', () => {
+  const source = read('src/components/vendor/VendorReviewsManager.tsx')
+  const matches = source.match(/min-h-11 min-w-11/g) ?? []
+  assert.ok(
+    matches.length >= 2,
+    `edit + delete vendor-response buttons must use min-h-11 min-w-11 (found ${matches.length})`,
+  )
+})
+
 test('PDP purchase panel renders a mobile-only sticky add-to-cart bar', () => {
   const source = read('src/components/catalog/ProductPurchasePanel.tsx')
   assert.match(source, /function MobileStickyCta/, 'ProductPurchasePanel must declare a MobileStickyCta helper')
