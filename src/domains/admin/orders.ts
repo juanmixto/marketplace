@@ -5,6 +5,7 @@ export interface AdminOrderFilters {
   q?: string
   status?: OrderStatus | 'all'
   payment?: PaymentStatus | 'all'
+  incidents?: 'open' | 'all'
   page?: number
   pageSize?: number
 }
@@ -54,6 +55,9 @@ function buildOrderWhere(filters: AdminOrderFilters): Prisma.OrderWhereInput {
 
   if (filters.status && filters.status !== 'all') where.status = filters.status
   if (filters.payment && filters.payment !== 'all') where.paymentStatus = filters.payment
+  if (filters.incidents === 'open') {
+    where.incidents = { some: { status: { in: OPEN_INCIDENT_STATUSES } } }
+  }
 
   return where
 }

@@ -174,7 +174,7 @@ export function ProductCard({ product, locale = 'es' }: ProductCardProps) {
         <div className="flex items-center gap-2">
           <Link
             href={`/productos/${product.slug}`}
-            className="hidden h-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] px-3 text-sm font-semibold text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] sm:inline-flex"
+            className="hidden h-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] px-3 text-sm font-semibold text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] lg:inline-flex"
           >
             {copy.actions.viewDetail}
           </Link>
@@ -193,7 +193,7 @@ export function ProductCard({ product, locale = 'es' }: ProductCardProps) {
             vendorName={product.vendor?.displayName ?? ''}
             compact
             size="md"
-            className="flex-1 shadow-sm"
+            className="flex-1 min-w-0 shadow-sm"
           />
         </div>
       </div>
