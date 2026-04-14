@@ -248,8 +248,17 @@ export async function getMyProduct(productId: string) {
 
 // ─── Fulfillment (pedidos) ────────────────────────────────────────────────────
 
+// Manual advance path for vendors who do NOT use the Sendcloud automation:
+// PENDING → CONFIRMED → PREPARING → READY → SHIPPED. The Sendcloud branch
+// (CONFIRMED → LABEL_REQUESTED → READY | LABEL_FAILED) is driven by webhooks
+// and lives in the shipping domain, not here. LABEL_FAILED falls back to
+// manual so the vendor can print their own label and mark the order READY.
 const VALID_TRANSITIONS: Partial<Record<FulfillmentStatus, FulfillmentStatus>> = {
   PENDING: 'CONFIRMED',
+  CONFIRMED: 'PREPARING',
+  PREPARING: 'READY',
+  LABEL_FAILED: 'READY',
+  READY: 'SHIPPED',
 }
 
 /**
