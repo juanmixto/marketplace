@@ -223,6 +223,13 @@ const es = {
   'checkout.processing': 'Procesando pedido...',
   'checkout.yourOrder': 'Tu pedido',
   'checkout.shippingHint': 'El coste se ajusta automáticamente según el código postal y la zona de envío.',
+  'checkout.promo.label': '¿Tienes un código de descuento?',
+  'checkout.promo.placeholder': 'Introduce tu código',
+  'checkout.promo.apply': 'Aplicar',
+  'checkout.promo.remove': 'Quitar',
+  'checkout.promo.discountLine': 'Descuento',
+  'checkout.promo.freeShippingApplied': 'Envío gratis aplicado gracias a la promoción',
+  'checkout.promo.invalidCode': 'El código "{code}" no es válido o ya no está disponible',
 
   // Order detail
   'order.confirmed': '¡Pedido confirmado!',

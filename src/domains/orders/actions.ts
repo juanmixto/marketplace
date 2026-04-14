@@ -8,7 +8,6 @@ import { generateOrderNumber } from '@/lib/utils'
 import { createPaymentIntent } from '@/domains/payments/provider'
 import {
   calculateOrderPricing,
-  calculateOrderTotalsWithShippingCost,
   checkoutSchema,
   orderItemsSchema,
   type CheckoutFormData,
@@ -28,6 +27,11 @@ import { getShippingCost } from '@/domains/shipping/calculator'
 import { getActionSession } from '@/lib/action-session'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { createPaymentConfirmedEventPayload } from '@/domains/orders/order-event-payload'
+import {
+  evaluatePromotions,
+  type EvaluableCartLine,
+} from '@/domains/promotions/evaluation'
+import { countBuyerRedemptions, loadEvaluablePromotions } from '@/domains/promotions/loader'
 
 export interface CartItemInput {
   productId: string
@@ -47,6 +51,10 @@ export type CreateCheckoutOrderResult =
     error: string
   }
 
+function roundCurrency2(value: number): number {
+  return Math.round(value * 100) / 100
+}
+
 function isMissingShippingAddressSnapshotColumnError(error: unknown) {
   return error instanceof Error
     && /P2022|column .*does not exist|shippingAddressSnapshot/i.test(error.message)
@@ -60,7 +68,7 @@ function getCheckoutErrorMessage(error: unknown) {
   if (error instanceof Error) {
     const message = error.message.trim()
 
-    if (/stock insuficiente|carrito vac[íi]o|no disponible|ya no esta disponible|ya no está disponible|debes seleccionar una variante|c[óo]digo postal|requerid/i.test(message)) {
+    if (/stock insuficiente|carrito vac[íi]o|no disponible|ya no esta disponible|ya no está disponible|debes seleccionar una variante|c[óo]digo postal|requerid|promoci[óo]n|c[óo]digo "/i.test(message)) {
       return message
     }
 
@@ -107,7 +115,8 @@ function getCheckoutErrorMessage(error: unknown) {
  */
 export async function createOrder(
   items: CartItemInput[],
-  formData: CheckoutFormData
+  formData: CheckoutFormData,
+  options: { promotionCode?: string | null } = {}
 ): Promise<{ orderId: string; clientSecret: string; orderNumber: string }> {
   const session = await getActionSession()
   if (!session) redirect('/login')
@@ -115,6 +124,7 @@ export async function createOrder(
 
   const validatedItems = orderItemsSchema.parse(items)
   const validated = checkoutSchema.parse(formData)
+  const promotionCode = options.promotionCode?.trim().toUpperCase() || null
 
   // Load products with current prices
   const products = await db.product.findMany({
@@ -232,19 +242,74 @@ export async function createOrder(
       taxRate: Number(line.taxRate),
     }))
   )
-  const shippingCost = await getShippingCost(validated.address.postalCode, pricing.subtotal)
-  const { subtotal, taxAmount, grandTotal } = calculateOrderTotalsWithShippingCost(
-    lines.map(line => ({
-      unitPrice: Number(line.unitPrice),
-      quantity: line.quantity,
-      taxRate: Number(line.taxRate),
-    })),
-    shippingCost
-  )
+  const baseShippingCost = await getShippingCost(validated.address.postalCode, pricing.subtotal)
 
   // Determine unique vendors (used both for the order record and for the
   // Stripe Connect destination-charge decision below).
   const vendorIds = [...new Set(lines.map(l => l.vendorId))]
+
+  // Phase 2 of the promotions RFC: evaluate promotions, compute per-vendor
+  // discounts and apply them to the order totals. This block is OPTIMISTIC:
+  // it reads the redemption counts without a lock. The lock + atomic
+  // redemption increment runs inside the order transaction below, so a race
+  // that makes a promotion unredeemable between now and then throws and
+  // rolls the whole thing back before we charge the buyer.
+  const productMetaById = new Map(products.map(p => [p.id, p]))
+  const evaluableLines: EvaluableCartLine[] = lines.map(line => {
+    const product = productMetaById.get(line.productId)
+    return {
+      productId: line.productId,
+      vendorId: line.vendorId,
+      categoryId: product?.categoryId ?? null,
+      quantity: line.quantity,
+      unitPrice: Number(line.unitPrice),
+    }
+  })
+  const evaluationNow = new Date()
+  const candidatePromotions = await loadEvaluablePromotions({
+    vendorIds,
+    code: promotionCode,
+    now: evaluationNow,
+  })
+  const buyerRedemptions = await countBuyerRedemptions(
+    sessionUserId,
+    candidatePromotions.map(p => p.id)
+  )
+  const evaluation = evaluatePromotions({
+    lines: evaluableLines,
+    promotions: candidatePromotions,
+    code: promotionCode,
+    now: evaluationNow,
+    shippingCost: baseShippingCost,
+    buyerRedemptionsByPromotionId: buyerRedemptions,
+  })
+
+  const appliedByVendorId = evaluation.applied
+  const discountTotal = evaluation.subtotalDiscount
+  const shippingCost = roundCurrency2(
+    Math.max(0, baseShippingCost - evaluation.shippingDiscount)
+  )
+
+  // Reject the order upfront if the buyer typed a code that did not match
+  // any eligible promotion — otherwise the buyer would go through checkout
+  // and silently not receive the discount they expected.
+  if (promotionCode && evaluation.unknownCodes.length > 0) {
+    throw new Error(
+      `El código "${promotionCode}" no es válido o ya no está disponible.`
+    )
+  }
+
+  // Apply discount to subtotal for the downstream grand total. Tax is
+  // included in unit prices, so we reduce the reported taxAmount
+  // proportionally — keeps the reporting honest without changing the
+  // accounting model.
+  const subtotalBeforeDiscount = pricing.subtotal
+  const subtotalAfterDiscount = roundCurrency2(subtotalBeforeDiscount - discountTotal)
+  const taxRatio =
+    subtotalBeforeDiscount > 0 ? subtotalAfterDiscount / subtotalBeforeDiscount : 1
+  const subtotal = subtotalAfterDiscount
+  const taxAmount = roundCurrency2(pricing.taxAmount * taxRatio)
+  const grandTotal = roundCurrency2(subtotal + shippingCost)
 
   // Stripe Connect destination charges (#48):
   // For single-vendor orders where that vendor has completed Stripe Connect
@@ -405,6 +470,31 @@ export async function createOrder(
         }
       }
 
+      // Phase 2 promotions: atomically claim the redemption budget for
+      // every promotion we plan to apply. If another order drained the
+      // budget between the evaluation read and this write, the UPDATE
+      // affects 0 rows and we throw, rolling back stock + order. The
+      // guard uses an explicit WHERE clause so maxRedemptions is enforced
+      // at the SQL level rather than trusted from the in-memory snapshot.
+      for (const applied of appliedByVendorId.values()) {
+        const updated = await (tx.$executeRaw as any)`
+          UPDATE "Promotion"
+          SET "redemptionCount" = "redemptionCount" + 1,
+              "updatedAt" = NOW()
+          WHERE id = ${applied.promotionId}
+            AND "archivedAt" IS NULL
+            AND (
+              "maxRedemptions" IS NULL
+              OR "redemptionCount" < "maxRedemptions"
+            )
+        `
+        if (updated === 0) {
+          throw new Error(
+            'La promoción seleccionada ya no está disponible. Recarga el carrito e inténtalo de nuevo.'
+          )
+        }
+      }
+
       return tx.order.create({
         data: {
           orderNumber: generateOrderNumber(),
@@ -412,6 +502,7 @@ export async function createOrder(
           addressId: addressId ?? null,
           ...(includeShippingAddressSnapshot ? { shippingAddressSnapshot } : {}),
           subtotal,
+          discountTotal,
           shippingCost,
           taxAmount,
           grandTotal,
@@ -428,7 +519,17 @@ export async function createOrder(
             },
           },
           fulfillments: {
-            create: vendorIds.map(vendorId => ({ vendorId, status: 'PENDING' })),
+            create: vendorIds.map(vendorId => {
+              const applied = appliedByVendorId.get(vendorId)
+              return {
+                vendorId,
+                status: 'PENDING' as const,
+                promotionId: applied?.promotionId ?? null,
+                discountAmount: applied
+                  ? roundCurrency2(applied.discountAmount + applied.shippingDiscount)
+                  : 0,
+              }
+            }),
           },
         },
       })
@@ -472,10 +573,11 @@ export async function createOrder(
 
 export async function createCheckoutOrder(
   items: CartItemInput[],
-  formData: CheckoutFormData
+  formData: CheckoutFormData,
+  options: { promotionCode?: string | null } = {}
 ): Promise<CreateCheckoutOrderResult> {
   try {
-    const created = await createOrder(items, formData)
+    const created = await createOrder(items, formData, options)
 
     if (created.clientSecret.startsWith('mock_')) {
       try {

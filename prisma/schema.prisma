@@ -426,6 +426,7 @@ model Order {
   status                  OrderStatus   @default(PLACED)
   paymentStatus           PaymentStatus @default(PENDING)
   subtotal                Decimal       @db.Decimal(10, 2)
+  discountTotal           Decimal       @default(0) @db.Decimal(10, 2)
   shippingCost            Decimal       @default(0) @db.Decimal(10, 2)
   taxAmount               Decimal       @db.Decimal(10, 2)
   grandTotal              Decimal       @db.Decimal(10, 2)
@@ -508,14 +509,22 @@ model VendorFulfillment {
 
   vendorAddressId String?
 
+  // Phase 2 of the promotions RFC: one promotion per vendor fulfillment,
+  // locked at order time. Free shipping promotions zero the vendor's share
+  // of the shipping line via Order.shippingCost recalculation, not here.
+  promotionId    String?
+  discountAmount Decimal           @default(0) @db.Decimal(10, 2)
+
   order         Order          @relation(fields: [orderId], references: [id])
   vendor        Vendor         @relation(fields: [vendorId], references: [id])
   vendorAddress VendorAddress? @relation(fields: [vendorAddressId], references: [id])
   shipment      Shipment?
+  promotion     Promotion?     @relation(fields: [promotionId], references: [id])
 
   @@index([orderId])
   @@index([vendorId, status])
   @@index([vendorId, createdAt])
+  @@index([promotionId])
 }
 
 model Shipment {
@@ -758,6 +767,8 @@ model Promotion {
 
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
+
+  fulfillments    VendorFulfillment[]
 
   @@unique([vendorId, code])
   @@index([vendorId, archivedAt])
