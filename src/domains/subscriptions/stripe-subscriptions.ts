@@ -325,9 +325,18 @@ export async function createSubscriptionCheckoutSession(
     const id = `cs_mock_${Date.now()}_${input.metadata.marketplacePlanId}`
     // Mock checkout success URL — the buyer flow redirects here in dev
     // mode, and a dedicated mock-confirmation route (phase 4b-β follow-up)
-    // can pick up the metadata. For phase 4b-β the URL is informational.
-    const url = `${input.successUrl}?mock_session=${id}&planId=${input.metadata.marketplacePlanId}`
-    return { id, url }
+    // can pick up the metadata. Build the URL through the URL API so any
+    // existing query string on `successUrl` (e.g. `?checkout=success`) is
+    // merged with `&`, not concatenated into a malformed `?a?b` string
+    // that the browser rejects. We return a SAME-ORIGIN relative URL
+    // (pathname + search) so that a misconfigured `APP_URL` pointing at
+    // a different dev port cannot make the redirect land on a port
+    // where nothing is listening — the browser resolves relative URLs
+    // against the current origin it is already on.
+    const url = new URL(input.successUrl)
+    url.searchParams.set('mock_session', id)
+    url.searchParams.set('planId', input.metadata.marketplacePlanId)
+    return { id, url: `${url.pathname}${url.search}` }
   }
 
   const Stripe = (await import('stripe')).default

@@ -48,6 +48,33 @@ export const checkoutSchema = z.object({
   selectedAddressId: z.string().min(1).optional(),
 })
 
+/**
+ * Lenient sibling of `checkoutSchema` used when the buyer picks a saved
+ * address. The server resolves the real address from the DB row and
+ * ignores the submitted `address` payload, so we must NOT hard-fail when
+ * a stale field on the form (e.g. an older phone format) would otherwise
+ * throw — that was the root cause of the "checkout submit button does
+ * nothing" bug: the hidden form failed client-side validation silently
+ * and the user had no way to recover.
+ */
+export const checkoutWithSavedAddressSchema = z.object({
+  address: z
+    .object({
+      firstName: z.string().optional(),
+      lastName: z.string().optional(),
+      line1: z.string().optional(),
+      line2: z.string().optional(),
+      city: z.string().optional(),
+      province: z.string().optional(),
+      postalCode: z.string().optional(),
+      phone: z.string().optional(),
+    })
+    .passthrough()
+    .optional(),
+  saveAddress: z.boolean().optional(),
+  selectedAddressId: z.string().min(1),
+})
+
 export type CheckoutFormData = z.infer<typeof checkoutSchema>
 
 export interface SavedCheckoutAddress {
