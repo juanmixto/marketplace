@@ -6,23 +6,25 @@ import {
   HomeIcon, ShoppingBagIcon, TruckIcon, UsersIcon, ArchiveBoxIcon,
   ScaleIcon, Cog6ToothIcon, ClipboardDocumentListIcon,
   CurrencyEuroIcon, ExclamationTriangleIcon, ChartBarIcon,
-  ArrowTopRightOnSquareIcon,
+  ArrowTopRightOnSquareIcon, TagIcon, ArrowPathIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import { adminNavItems } from '@/lib/navigation'
 
 const NAV_META = {
-  '/admin/dashboard':    HomeIcon,
-  '/admin/pedidos':      ShoppingBagIcon,
-  '/admin/productores':  UsersIcon,
-  '/admin/productos':    ArchiveBoxIcon,
-  '/admin/envios':       TruckIcon,
-  '/admin/comisiones':   ScaleIcon,
-  '/admin/configuracion':Cog6ToothIcon,
-  '/admin/auditoria':    ClipboardDocumentListIcon,
-  '/admin/liquidaciones':CurrencyEuroIcon,
-  '/admin/incidencias':  ExclamationTriangleIcon,
-  '/admin/informes':     ChartBarIcon,
+  '/admin/dashboard':     HomeIcon,
+  '/admin/pedidos':       ShoppingBagIcon,
+  '/admin/productores':   UsersIcon,
+  '/admin/productos':     ArchiveBoxIcon,
+  '/admin/promociones':   TagIcon,
+  '/admin/suscripciones': ArrowPathIcon,
+  '/admin/envios':        TruckIcon,
+  '/admin/comisiones':    ScaleIcon,
+  '/admin/configuracion': Cog6ToothIcon,
+  '/admin/auditoria':     ClipboardDocumentListIcon,
+  '/admin/liquidaciones': CurrencyEuroIcon,
+  '/admin/incidencias':   ExclamationTriangleIcon,
+  '/admin/informes':      ChartBarIcon,
 } as const
 
 export function AdminSidebar() {
