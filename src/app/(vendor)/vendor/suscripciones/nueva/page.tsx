@@ -20,7 +20,7 @@ export default async function NewSubscriptionPlanPage() {
       status: 'ACTIVE',
       subscriptionPlan: { is: null },
     },
-    select: { id: true, name: true, basePrice: true, unit: true },
+    select: { id: true, name: true, basePrice: true, unit: true, status: true },
     orderBy: { name: 'asc' },
   })
 
@@ -40,6 +40,7 @@ export default async function NewSubscriptionPlanPage() {
           name: p.name,
           basePrice: Number(p.basePrice),
           unit: p.unit,
+          status: p.status,
         }))}
       />
     </div>

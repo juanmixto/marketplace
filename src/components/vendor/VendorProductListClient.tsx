@@ -350,10 +350,8 @@ function AlertLine({
 
 function QuickStockInput({
   product,
-  layout,
 }: {
   product: ProductWithCategory
-  layout: 'list' | 'grid'
 }) {
   const t = useT()
   const router = useRouter()
@@ -398,7 +396,7 @@ function QuickStockInput({
         : 'border-[var(--border)] text-[var(--foreground)] focus:border-emerald-500'
 
   return (
-    <div className={layout === 'grid' ? 'flex items-center gap-1.5' : 'flex items-center justify-end gap-1.5'}>
+    <div className="flex items-center justify-end gap-1.5">
       <label className="relative">
         <span className="sr-only">{t('vendor.quickStock.label').replace('{name}', product.name)}</span>
         <input
@@ -531,7 +529,7 @@ function ProductListRow({ product, now }: { product: ProductWithCategory; now: D
 
       <div className="relative z-[2] shrink-0 text-right">
         {product.trackStock && product.variants.length === 0 ? (
-          <QuickStockInput product={product} layout="list" />
+          <QuickStockInput product={product} />
         ) : product.trackStock ? (
           <p className={`text-sm font-medium ${
             product.stock === 0 ? 'text-red-600 dark:text-red-400' :
@@ -581,15 +579,15 @@ function ProductGridCard({ product, now }: { product: ProductWithCategory; now: 
         <span className="sr-only">{t('vendor.preview.ariaOpen').replace('{name}', product.name)}</span>
       </Link>
 
-      <div className="relative z-[1] aspect-[4/3] w-full overflow-hidden bg-[var(--surface-raised)]">
+      <div className="relative z-[1] aspect-[4/3] w-full overflow-hidden bg-[var(--surface-raised)] pointer-events-none">
         {product.images?.[0]
           ? <Image src={product.images[0]} alt={product.name} fill className="object-cover transition group-hover:scale-[1.02]" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" />
           : <div className="flex h-full items-center justify-center text-5xl">🌿</div>}
-        <div className="absolute right-2 top-2 z-[2]">
+        <div className="absolute right-2 top-2 z-[2] pointer-events-auto">
           <ProductActions product={product} />
         </div>
       </div>
-      <div className="relative z-[1] flex flex-1 flex-col gap-2 p-4">
+      <div className="relative z-[1] flex flex-1 flex-col gap-2 p-4 pointer-events-none">
         <div className="flex items-start justify-between gap-2">
           <p className="font-semibold text-[var(--foreground)] leading-snug line-clamp-2">{product.name}</p>
         </div>
@@ -599,22 +597,24 @@ function ProductGridCard({ product, now }: { product: ProductWithCategory; now: 
           {expirationTone === 'today' && <Badge variant="amber">{t('vendor.expiresToday')}</Badge>}
           {expirationTone === 'soon' && <Badge variant="amber">{t('vendor.expiresSoon')}</Badge>}
         </div>
-        <p className="text-sm text-[var(--muted)]">
-          {formatPrice(Number(product.basePrice))} / {product.unit}
-        </p>
-        {product.trackStock && product.variants.length === 0 ? (
-          <div className="relative z-[2]">
-            <QuickStockInput product={product} layout="grid" />
-          </div>
-        ) : product.trackStock ? (
-          <p className={`text-xs font-medium ${
-            product.stock === 0 ? 'text-red-600 dark:text-red-400' :
-            product.stock <= 5 ? 'text-amber-600 dark:text-amber-400' : 'text-[var(--muted)]'
-          }`}>
-            {product.stock === 0 ? t('vendor.noStock') : `${product.stock} ${t('vendor.inStock')}`}
+        <div className="flex items-center justify-between gap-2">
+          <p className="min-w-0 truncate text-sm text-[var(--muted)]">
+            {formatPrice(Number(product.basePrice))} / {product.unit}
           </p>
-        ) : null}
-        <div className="relative z-[2] mt-auto flex items-center gap-2 pt-2">
+          {product.trackStock && product.variants.length === 0 ? (
+            <div className="relative z-[2] shrink-0 pointer-events-auto">
+              <QuickStockInput product={product} />
+            </div>
+          ) : product.trackStock ? (
+            <p className={`shrink-0 text-xs font-medium ${
+              product.stock === 0 ? 'text-red-600 dark:text-red-400' :
+              product.stock <= 5 ? 'text-amber-600 dark:text-amber-400' : 'text-[var(--muted)]'
+            }`}>
+              {product.stock === 0 ? t('vendor.noStock') : `${product.stock} ${t('vendor.inStock')}`}
+            </p>
+          ) : null}
+        </div>
+        <div className="relative z-[2] mt-auto flex items-center gap-2 pt-2 pointer-events-auto">
           <Link
             href={`/vendor/productos/${product.id}`}
             className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-semibold text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)]"

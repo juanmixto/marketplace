@@ -9,6 +9,7 @@ import {
   ArchiveBoxIcon,
   ArrowUturnLeftIcon,
   InformationCircleIcon,
+  PencilSquareIcon,
 } from '@heroicons/react/24/outline'
 import { Badge } from '@/components/ui/badge'
 import { formatPrice } from '@/lib/utils'
@@ -217,7 +218,7 @@ function PromotionRow({ promo, now }: { promo: Promotion; now: Date }) {
           {error && <p className="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{error}</p>}
         </div>
 
-        <div className="shrink-0">
+        <div className="flex shrink-0 items-center gap-2">
           {promo.archivedAt ? (
             <button
               type="button"
@@ -229,15 +230,24 @@ function PromotionRow({ promo, now }: { promo: Promotion; now: Date }) {
               {t('vendor.promotions.unarchive')}
             </button>
           ) : (
-            <button
-              type="button"
-              onClick={handleArchive}
-              disabled={pending}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 disabled:opacity-60 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/40"
-            >
-              <ArchiveBoxIcon className="h-4 w-4" />
-              {t('vendor.promotions.archive')}
-            </button>
+            <>
+              <Link
+                href={`/vendor/promociones/${promo.id}/editar`}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-semibold text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)]"
+              >
+                <PencilSquareIcon className="h-4 w-4" />
+                {t('vendor.promotions.edit')}
+              </Link>
+              <button
+                type="button"
+                onClick={handleArchive}
+                disabled={pending}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 disabled:opacity-60 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/40"
+              >
+                <ArchiveBoxIcon className="h-4 w-4" />
+                {t('vendor.promotions.archive')}
+              </button>
+            </>
           )}
         </div>
       </div>

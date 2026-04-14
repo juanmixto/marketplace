@@ -138,6 +138,95 @@ export async function updateProduct(productId: string, input: Partial<ProductInp
   return updated
 }
 
+// ─── Variant sync ─────────────────────────────────────────────────────────────
+
+const variantInputSchema = z.object({
+  id: z.string().optional().nullable(),
+  name: z.string().trim().min(1, 'Nombre requerido').max(60, 'Máximo 60 caracteres'),
+  priceModifier: z.coerce.number().min(-10_000).max(10_000),
+  stock: z.coerce.number().int().min(0).max(1_000_000),
+  isActive: z.coerce.boolean(),
+})
+
+const syncVariantsSchema = z.object({
+  productId: z.string().min(1),
+  variants: z.array(variantInputSchema).max(50, 'Máximo 50 variantes por producto'),
+})
+
+export type VariantInput = z.infer<typeof variantInputSchema>
+
+/**
+ * Full diff-sync of a product's variants: updates existing rows by id,
+ * creates rows with no id, and removes rows that vanished from the
+ * payload. A variant cannot be hard-deleted if it is referenced by an
+ * order line or a cart item — in that case we soft-delete by flipping
+ * `isActive=false` so historical data keeps resolving.
+ */
+export async function updateProductVariants(input: z.infer<typeof syncVariantsSchema>) {
+  const { vendor } = await requireVendor()
+  const { productId, variants } = syncVariantsSchema.parse(input)
+
+  const product = await db.product.findFirst({
+    where: { id: productId, vendorId: vendor.id, deletedAt: null },
+    include: { variants: true },
+  })
+  if (!product) throw new Error('Producto no encontrado')
+
+  const incomingIds = new Set(variants.map(v => v.id).filter((x): x is string => Boolean(x)))
+  const toDelete = product.variants.filter(v => !incomingIds.has(v.id))
+
+  await db.$transaction(async tx => {
+    for (const v of variants) {
+      if (v.id) {
+        const exists = product.variants.some(existing => existing.id === v.id)
+        if (!exists) continue
+        await tx.productVariant.update({
+          where: { id: v.id },
+          data: {
+            name: v.name,
+            priceModifier: v.priceModifier,
+            stock: v.stock,
+            isActive: v.isActive,
+          },
+        })
+      } else {
+        const sku = `${product.slug.slice(0, 20)}-${Date.now().toString(36)}-${Math.random()
+          .toString(36)
+          .slice(2, 6)}`
+        await tx.productVariant.create({
+          data: {
+            productId: product.id,
+            sku,
+            name: v.name,
+            priceModifier: v.priceModifier,
+            stock: v.stock,
+            isActive: v.isActive,
+          },
+        })
+      }
+    }
+
+    for (const v of toDelete) {
+      const [orderLines, cartItems] = await Promise.all([
+        tx.orderLine.count({ where: { variantId: v.id } }),
+        tx.cartItem.count({ where: { variantId: v.id } }),
+      ])
+      if (orderLines > 0 || cartItems > 0) {
+        await tx.productVariant.update({
+          where: { id: v.id },
+          data: { isActive: false },
+        })
+      } else {
+        await tx.productVariant.delete({ where: { id: v.id } })
+      }
+    }
+  })
+
+  safeRevalidatePath('/vendor/productos')
+  safeRevalidatePath(`/productos/${product.slug}`)
+  revalidateCatalogExperience({ productSlug: product.slug, vendorSlug: vendor.slug })
+}
+
 /**
  * Sets the stock of a product to an absolute value without going through
  * review. Rejected for products with active variants (stock lives on the
