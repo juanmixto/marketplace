@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { ArrowPathIcon } from '@heroicons/react/24/outline'
 import { Badge } from '@/components/ui/badge'
 import { formatPrice } from '@/lib/utils'
@@ -89,6 +90,7 @@ export function AdminSubscriptionsClient({ data }: Props) {
                   <th className="px-4 py-2 text-right">{t('adminSubscriptions.col.price')}</th>
                   <th className="px-4 py-2 text-right">{t('adminSubscriptions.col.subscribers')}</th>
                   <th className="px-4 py-2 text-left">{t('adminSubscriptions.col.state')}</th>
+                  <th className="px-4 py-2 text-right">&nbsp;</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
@@ -192,6 +194,14 @@ function PlanRow({ plan }: { plan: SubscriptionPlanRow }) {
         ) : (
           <Badge variant="green">{t('adminSubscriptions.plan.active')}</Badge>
         )}
+      </td>
+      <td className="px-4 py-3 text-right">
+        <Link
+          href={`/admin/suscripciones/${plan.id}/edit`}
+          className="text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+        >
+          Editar
+        </Link>
       </td>
     </tr>
   )
