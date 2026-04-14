@@ -187,11 +187,62 @@ export async function startSubscriptionCheckout(
   return { url: checkout.url }
 }
 
+/**
+ * Plain-JS shape returned to server components. Decimal fields on the
+ * joined plan are converted to numbers so the row crosses the RSC
+ * boundary cleanly. The tests call Number() on these values already,
+ * which is a no-op on real numbers.
+ */
+export interface SerializedBuyerSubscription {
+  id: string
+  buyerId: string
+  planId: string
+  shippingAddressId: string
+  status: 'ACTIVE' | 'PAUSED' | 'CANCELED' | 'PAST_DUE'
+  currentPeriodEnd: Date
+  nextDeliveryAt: Date
+  skippedDeliveries: unknown
+  stripeSubscriptionId: string | null
+  createdAt: Date
+  updatedAt: Date
+  canceledAt: Date | null
+  plan: {
+    id: string
+    cadence: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY'
+    priceSnapshot: number
+    taxRateSnapshot: number
+    cutoffDayOfWeek: number
+    product: {
+      id: string
+      name: string
+      slug: string
+      images: string[]
+      unit: string
+    }
+    vendor: {
+      id: string
+      slug: string
+      displayName: string
+    }
+  }
+  shippingAddress: {
+    id: string
+    firstName: string
+    lastName: string
+    line1: string
+    line2: string | null
+    city: string
+    province: string
+    postalCode: string
+    country: string
+  }
+}
+
 export async function listMySubscriptions(
   filter: 'active' | 'canceled' | 'all' = 'all'
-) {
+): Promise<SerializedBuyerSubscription[]> {
   const { buyerId } = await requireBuyer()
-  return db.subscription.findMany({
+  const rows = await db.subscription.findMany({
     where: {
       buyerId,
       ...(filter === 'active' && { status: { not: 'CANCELED' } }),
@@ -208,6 +259,41 @@ export async function listMySubscriptions(
       shippingAddress: true,
     },
   })
+
+  return rows.map(row => ({
+    id: row.id,
+    buyerId: row.buyerId,
+    planId: row.planId,
+    shippingAddressId: row.shippingAddressId,
+    status: row.status,
+    currentPeriodEnd: row.currentPeriodEnd,
+    nextDeliveryAt: row.nextDeliveryAt,
+    skippedDeliveries: row.skippedDeliveries,
+    stripeSubscriptionId: row.stripeSubscriptionId,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    canceledAt: row.canceledAt,
+    plan: {
+      id: row.plan.id,
+      cadence: row.plan.cadence,
+      priceSnapshot: Number(row.plan.priceSnapshot),
+      taxRateSnapshot: Number(row.plan.taxRateSnapshot),
+      cutoffDayOfWeek: row.plan.cutoffDayOfWeek,
+      product: row.plan.product,
+      vendor: row.plan.vendor,
+    },
+    shippingAddress: {
+      id: row.shippingAddress.id,
+      firstName: row.shippingAddress.firstName,
+      lastName: row.shippingAddress.lastName,
+      line1: row.shippingAddress.line1,
+      line2: row.shippingAddress.line2,
+      city: row.shippingAddress.city,
+      province: row.shippingAddress.province,
+      postalCode: row.shippingAddress.postalCode,
+      country: row.shippingAddress.country,
+    },
+  }))
 }
 
 export async function getMySubscription(id: string) {
