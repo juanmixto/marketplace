@@ -118,31 +118,46 @@ export function VendorProductListClient({ products }: Props) {
         </Link>
       </div>
 
-      {/* Stock alerts */}
+      {/* Stock alerts — interactive: each product name links to its editor */}
       {(lowStock.length > 0 || outOfStock.length > 0 || expired.length > 0) && (
         <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-800 dark:bg-amber-950/30">
           <ExclamationTriangleIcon className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-          <div className="text-sm">
+          <div className="text-sm min-w-0 flex-1 space-y-1.5">
             {expired.length > 0 && (
-              <p className="font-medium text-amber-900 dark:text-amber-300">
-                {(expired.length === 1
-                  ? t('vendor.productsList.expiredOne')
-                  : t('vendor.productsList.expiredOther').replace('{count}', String(expired.length))
-                ).replace('{names}', expired.map(product => product.name).join(', '))}
-              </p>
+              <AlertLine
+                labelKey={
+                  expired.length === 1
+                    ? 'vendor.productsList.expiredOne'
+                    : 'vendor.productsList.expiredOther'
+                }
+                count={expired.length}
+                products={expired}
+                fixLabel={t('vendor.productsList.alertFixExpired')}
+                tone="strong"
+              />
             )}
             {outOfStock.length > 0 && (
-              <p className="font-medium text-amber-900 dark:text-amber-300">
-                {(outOfStock.length === 1
-                  ? t('vendor.productsList.outOfStockOne')
-                  : t('vendor.productsList.outOfStockOther').replace('{count}', String(outOfStock.length))
-                ).replace('{names}', outOfStock.map(p => p.name).join(', '))}
-              </p>
+              <AlertLine
+                labelKey={
+                  outOfStock.length === 1
+                    ? 'vendor.productsList.outOfStockOne'
+                    : 'vendor.productsList.outOfStockOther'
+                }
+                count={outOfStock.length}
+                products={outOfStock}
+                fixLabel={t('vendor.productsList.alertFixStock')}
+                tone="strong"
+              />
             )}
             {lowStock.length > 0 && (
-              <p className="text-amber-800 dark:text-amber-400 mt-0.5">
-                {t('vendor.productsList.lowStock').replace('{items}', lowStock.map(p => `${p.name} (${p.stock})`).join(', '))}
-              </p>
+              <AlertLine
+                labelKey="vendor.productsList.lowStock"
+                count={lowStock.length}
+                products={lowStock}
+                renderItem={p => `${p.name} (${p.stock})`}
+                fixLabel={t('vendor.productsList.alertFixStock')}
+                tone="soft"
+              />
             )}
           </div>
         </div>
@@ -273,6 +288,63 @@ export function VendorProductListClient({ products }: Props) {
         </>
       )}
     </div>
+  )
+}
+
+function AlertLine({
+  labelKey,
+  count,
+  products,
+  renderItem,
+  fixLabel,
+  tone,
+}: {
+  labelKey: TranslationKeys
+  count: number
+  products: ProductWithCategory[]
+  renderItem?: (p: ProductWithCategory) => string
+  fixLabel: string
+  tone: 'strong' | 'soft'
+}) {
+  const t = useT()
+  const template = t(labelKey).replace('{count}', String(count))
+  // Template contains either {names} or {items}
+  const placeholder = template.includes('{names}') ? '{names}' : '{items}'
+  const [prefix, suffix = ''] = template.split(placeholder)
+
+  const toneClass =
+    tone === 'strong'
+      ? 'font-medium text-amber-900 dark:text-amber-300'
+      : 'text-amber-800 dark:text-amber-400'
+
+  return (
+    <p className={toneClass}>
+      <span>{prefix}</span>
+      {products.map((p, i) => (
+        <span key={p.id}>
+          <Link
+            href={`/vendor/productos/${p.id}`}
+            className="font-semibold underline decoration-amber-400/60 underline-offset-2 hover:text-amber-700 hover:decoration-amber-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 dark:hover:text-amber-200"
+          >
+            {renderItem ? renderItem(p) : p.name}
+          </Link>
+          {i < products.length - 1 && <span>, </span>}
+        </span>
+      ))}
+      <span>{suffix}</span>
+      {products.length > 0 && (
+        <>
+          {' '}
+          <Link
+            href={`/vendor/productos/${products[0].id}`}
+            className="ml-1 inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2 py-0.5 text-xs font-semibold text-amber-800 shadow-sm hover:bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-900/40"
+          >
+            <PencilSquareIcon className="h-3 w-3" />
+            {fixLabel}
+          </Link>
+        </>
+      )}
+    </p>
   )
 }
 
@@ -411,14 +483,23 @@ function ProductListRow({ product, now }: { product: ProductWithCategory; now: D
   const canQuickSubmit = product.status === 'DRAFT' || product.status === 'REJECTED'
 
   return (
-    <div className="flex items-center gap-4 p-4 transition-colors hover:bg-[var(--surface-raised)]">
-      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-[var(--surface-raised)]">
+    <div className="group relative flex items-center gap-4 p-4 transition-colors hover:bg-[var(--surface-raised)]">
+      {/* Stretched link covering the whole row — buyer preview */}
+      <Link
+        href={`/vendor/productos/${product.id}/preview`}
+        aria-label={t('vendor.preview.ariaOpen').replace('{name}', product.name)}
+        className="absolute inset-0 z-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+      >
+        <span className="sr-only">{t('vendor.preview.ariaOpen').replace('{name}', product.name)}</span>
+      </Link>
+
+      <div className="relative z-[1] h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-[var(--surface-raised)]">
         {product.images?.[0]
           ? <Image src={product.images[0]} alt={product.name} fill className="object-cover" sizes="64px" />
           : <div className="flex h-full items-center justify-center text-2xl">🌿</div>}
       </div>
 
-      <div className="flex-1 min-w-0">
+      <div className="relative z-[1] flex-1 min-w-0 pointer-events-none">
         <div className="flex items-center gap-2 flex-wrap">
           <p className="font-medium text-[var(--foreground)] truncate">{product.name}</p>
           <Badge variant={statusVariant}>{statusLabel}</Badge>
@@ -448,7 +529,7 @@ function ProductListRow({ product, now }: { product: ProductWithCategory; now: D
         )}
       </div>
 
-      <div className="shrink-0 text-right">
+      <div className="relative z-[2] shrink-0 text-right">
         {product.trackStock && product.variants.length === 0 ? (
           <QuickStockInput product={product} layout="list" />
         ) : product.trackStock ? (
@@ -461,17 +542,23 @@ function ProductListRow({ product, now }: { product: ProductWithCategory; now: D
         ) : null}
       </div>
 
-      {canQuickSubmit && <QuickSubmitButton productId={product.id} />}
+      {canQuickSubmit && (
+        <div className="relative z-[2]">
+          <QuickSubmitButton productId={product.id} />
+        </div>
+      )}
 
       <Link
         href={`/vendor/productos/${product.id}`}
         aria-label={t('vendor.productActions.edit')}
-        className="shrink-0 rounded-lg p-2 text-[var(--muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
+        className="relative z-[2] shrink-0 rounded-lg p-2 text-[var(--muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
       >
         <PencilSquareIcon className="h-5 w-5" />
       </Link>
 
-      <ProductActions product={product} />
+      <div className="relative z-[2]">
+        <ProductActions product={product} />
+      </div>
     </div>
   )
 }
@@ -485,16 +572,24 @@ function ProductGridCard({ product, now }: { product: ProductWithCategory; now: 
   const canQuickSubmit = product.status === 'DRAFT' || product.status === 'REJECTED'
 
   return (
-    <div className="group flex flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm transition hover:shadow-md">
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-[var(--surface-raised)]">
+    <div className="group relative flex flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm transition hover:shadow-md">
+      <Link
+        href={`/vendor/productos/${product.id}/preview`}
+        aria-label={t('vendor.preview.ariaOpen').replace('{name}', product.name)}
+        className="absolute inset-0 z-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+      >
+        <span className="sr-only">{t('vendor.preview.ariaOpen').replace('{name}', product.name)}</span>
+      </Link>
+
+      <div className="relative z-[1] aspect-[4/3] w-full overflow-hidden bg-[var(--surface-raised)]">
         {product.images?.[0]
           ? <Image src={product.images[0]} alt={product.name} fill className="object-cover transition group-hover:scale-[1.02]" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" />
           : <div className="flex h-full items-center justify-center text-5xl">🌿</div>}
-        <div className="absolute right-2 top-2">
+        <div className="absolute right-2 top-2 z-[2]">
           <ProductActions product={product} />
         </div>
       </div>
-      <div className="flex flex-1 flex-col gap-2 p-4">
+      <div className="relative z-[1] flex flex-1 flex-col gap-2 p-4">
         <div className="flex items-start justify-between gap-2">
           <p className="font-semibold text-[var(--foreground)] leading-snug line-clamp-2">{product.name}</p>
         </div>
@@ -508,7 +603,9 @@ function ProductGridCard({ product, now }: { product: ProductWithCategory; now: 
           {formatPrice(Number(product.basePrice))} / {product.unit}
         </p>
         {product.trackStock && product.variants.length === 0 ? (
-          <QuickStockInput product={product} layout="grid" />
+          <div className="relative z-[2]">
+            <QuickStockInput product={product} layout="grid" />
+          </div>
         ) : product.trackStock ? (
           <p className={`text-xs font-medium ${
             product.stock === 0 ? 'text-red-600 dark:text-red-400' :
@@ -517,7 +614,7 @@ function ProductGridCard({ product, now }: { product: ProductWithCategory; now: 
             {product.stock === 0 ? t('vendor.noStock') : `${product.stock} ${t('vendor.inStock')}`}
           </p>
         ) : null}
-        <div className="mt-auto flex items-center gap-2 pt-2">
+        <div className="relative z-[2] mt-auto flex items-center gap-2 pt-2">
           <Link
             href={`/vendor/productos/${product.id}`}
             className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-semibold text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)]"
