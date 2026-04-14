@@ -44,6 +44,13 @@ export const FINANCE_ADMIN_ROLES: readonly UserRole[] = [
   UserRole.SUPERADMIN,
 ]
 
+export const CATALOG_ADMIN_ROLES: readonly UserRole[] = [
+  UserRole.ADMIN_CATALOG,
+  UserRole.SUPERADMIN,
+]
+
+export const SUPERADMIN_ROLES: readonly UserRole[] = [UserRole.SUPERADMIN]
+
 export function hasRole<Role extends UserRole>(
   role: UserRole | null | undefined,
   allowedRoles: readonly Role[]
@@ -65,6 +72,14 @@ export function isOpsAdminRole(role?: UserRole | null): role is typeof OPS_ADMIN
 
 export function isFinanceAdminRole(role?: UserRole | null): role is typeof FINANCE_ADMIN_ROLES[number] {
   return hasRole(role, FINANCE_ADMIN_ROLES)
+}
+
+export function isCatalogAdminRole(role?: UserRole | null): role is typeof CATALOG_ADMIN_ROLES[number] {
+  return hasRole(role, CATALOG_ADMIN_ROLES)
+}
+
+export function isSuperadminRole(role?: UserRole | null): role is typeof UserRole.SUPERADMIN {
+  return hasRole(role, SUPERADMIN_ROLES)
 }
 
 export const isAdmin = isAdminRole

@@ -61,6 +61,10 @@ const ALLOWLIST_FILES: ReadonlySet<string> = new Set([
   'src/app/(admin)/admin/liquidaciones/page.tsx',
   'src/app/(admin)/admin/pedidos/page.tsx',
   'src/app/(admin)/admin/productos/page.tsx',
+  'src/app/(admin)/admin/productos/[id]/edit/page.tsx', // Admin-only edit surface — not localized yet.
+  'src/app/(admin)/admin/productores/[id]/edit/page.tsx', // Admin-only edit surface — not localized yet.
+  'src/app/(admin)/admin/promociones/[id]/edit/page.tsx', // Admin-only edit surface — not localized yet.
+  'src/app/(admin)/admin/suscripciones/[id]/edit/page.tsx', // Admin-only edit surface — not localized yet.
   // Auth flows — pending dedicated i18n PR.
   'src/app/(auth)/forgot-password/page.tsx',
   'src/app/(auth)/recuperar-contrasena/nueva/ResetForm.tsx',

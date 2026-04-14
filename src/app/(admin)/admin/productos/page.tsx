@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { db } from '@/lib/db'
 import { formatDate, formatPrice } from '@/lib/utils'
 import { AdminStatusBadge } from '@/components/admin/AdminStatusBadge'
@@ -67,12 +68,18 @@ export default async function AdminProductsPage() {
               <div>
                 <AdminStatusBadge label={product.status} tone={getProductStatusTone(product.status)} />
               </div>
-              <div>
+              <div className="flex items-center gap-3">
                 <ProductModerationActions
                   productId={product.id}
                   productName={product.name}
                   status={product.status}
                 />
+                <Link
+                  href={`/admin/productos/${product.id}/edit`}
+                  className="text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+                >
+                  Editar
+                </Link>
               </div>
             </div>
           ))}
