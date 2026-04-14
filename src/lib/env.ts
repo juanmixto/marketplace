@@ -14,6 +14,12 @@ const baseEnvSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
   CONTACT_EMAIL: z.string().email().optional(),
   PAYMENT_PROVIDER: z.enum(['mock', 'stripe']).default('mock'),
+  // Phase 4a of the promotions & subscriptions RFC. When unset or 'false',
+  // the buyer subscription flow is dormant: server actions refuse to
+  // create new subscriptions and the "Mis suscripciones" buyer page shows
+  // a disabled banner. Flip to 'true' in staging once Stripe Subscriptions
+  // are wired in phase 4b.
+  SUBSCRIPTIONS_BUYER_BETA: z.enum(['true', 'false']).default('false'),
 })
 
 export function parseServerEnv(env: NodeJS.ProcessEnv) {
@@ -46,6 +52,7 @@ export function parseServerEnv(env: NodeJS.ProcessEnv) {
     stripeWebhookSecret: parsed.STRIPE_WEBHOOK_SECRET,
     stripePublishableKey: parsed.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
     contactEmail: parsed.CONTACT_EMAIL,
+    subscriptionsBuyerBeta: parsed.SUBSCRIPTIONS_BUYER_BETA === 'true',
   }
 }
 
