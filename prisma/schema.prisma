@@ -130,6 +130,18 @@ enum CommissionType {
   TIERED
 }
 
+enum PromotionKind {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FREE_SHIPPING
+}
+
+enum PromotionScope {
+  PRODUCT
+  VENDOR
+  CATEGORY
+}
+
 // ─── Identity & Auth ──────────────────────────────────────────────────────────
 
 model User {
@@ -232,6 +244,7 @@ model Vendor {
   settlements  Settlement[]
   reviews      Review[]
   addresses    VendorAddress[]
+  promotions   Promotion[]
 
   preferredShippingProvider ShippingProviderCode?
 
@@ -274,9 +287,10 @@ model Category {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
-  children Category[] @relation("CategoryTree")
-  products Product[]
+  parent     Category?   @relation("CategoryTree", fields: [parentId], references: [id])
+  children   Category[]  @relation("CategoryTree")
+  products   Product[]
+  promotions Promotion[]
 
   @@index([slug])
   @@index([parentId])
@@ -316,6 +330,7 @@ model Product {
   cartItems  CartItem[]
   reviews    Review[]
   favorites  Favorite[]
+  promotions Promotion[]
 
   @@index([status, categoryId])
   @@index([vendorId, status])
@@ -707,6 +722,46 @@ model Settlement {
 
   @@index([vendorId, status])
   @@index([periodFrom, periodTo])
+}
+
+// ─── Promotions ───────────────────────────────────────────────────────────────
+// Phase 1 of the promotions RFC (docs/rfcs/0001-promotions-and-subscriptions.md).
+// Vendors can draft campaigns, but they are dormant until phase 2 wires them
+// into the checkout flow. No Stripe Coupon sync yet.
+
+model Promotion {
+  id              String         @id @default(cuid())
+  vendorId        String
+  vendor          Vendor         @relation(fields: [vendorId], references: [id])
+
+  name            String
+  code            String?        // vendor-defined coupon code, uppercased
+  kind            PromotionKind
+  // For PERCENTAGE this is 0..100. For FIXED_AMOUNT it is an absolute EUR
+  // amount. For FREE_SHIPPING it is ignored (stored as 0).
+  value           Decimal        @db.Decimal(10, 2)
+
+  scope           PromotionScope
+  productId       String?
+  product         Product?       @relation(fields: [productId], references: [id])
+  categoryId      String?
+  category        Category?      @relation(fields: [categoryId], references: [id])
+
+  minSubtotal     Decimal?       @db.Decimal(10, 2)
+  maxRedemptions  Int?
+  perUserLimit    Int?           @default(1)
+  redemptionCount Int            @default(0)
+
+  startsAt        DateTime
+  endsAt          DateTime
+  archivedAt      DateTime?
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([vendorId, code])
+  @@index([vendorId, archivedAt])
+  @@index([vendorId, startsAt, endsAt])
 }
 
 // ─── Logistics ────────────────────────────────────────────────────────────────

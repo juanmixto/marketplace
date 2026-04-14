@@ -16,6 +16,7 @@ export interface LocalizedNavItem {
 export const vendorNavItems: LocalizedNavItem[] = [
   { href: '/vendor/dashboard',     labelKey: 'vendor.nav.dashboard',   available: true },
   { href: '/vendor/productos',     labelKey: 'vendor.nav.products',    available: true },
+  { href: '/vendor/promociones',   labelKey: 'vendor.nav.promotions',  available: true },
   { href: '/vendor/pedidos',       labelKey: 'vendor.nav.orders',      available: true },
   { href: '/vendor/valoraciones',  labelKey: 'vendor.nav.reviews',     available: true },
   { href: '/vendor/liquidaciones', labelKey: 'vendor.nav.settlements', available: true },
