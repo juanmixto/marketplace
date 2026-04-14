@@ -182,6 +182,19 @@ async function getProductBySlugUncached(slug: string) {
       },
       category: { select: { name: true, slug: true } },
       variants: { where: { isActive: true } },
+      // Phase 4b-β: surface the subscription plan so the product detail
+      // page can render a "Subscribe" CTA when the vendor has published
+      // one. `archivedAt` is checked on the client — we still pass the
+      // row through so an archive is visible in previews.
+      subscriptionPlan: {
+        select: {
+          id: true,
+          cadence: true,
+          priceSnapshot: true,
+          archivedAt: true,
+          stripePriceId: true,
+        },
+      },
     },
   })
 

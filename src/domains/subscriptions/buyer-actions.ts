@@ -12,6 +12,10 @@ import {
   computeFirstDeliveryAt,
   isBeforeCutoff,
 } from '@/domains/subscriptions/cadence'
+import {
+  createSubscriptionCheckoutSession,
+  ensureStripeCustomerId,
+} from '@/domains/subscriptions/stripe-subscriptions'
 
 /**
  * Phase 4a of the promotions & subscriptions RFC. Buyer-facing subscription
@@ -106,6 +110,78 @@ export async function subscribeToPlan(input: SubscribeInput) {
 
   safeRevalidatePath('/cuenta/suscripciones')
   return subscription
+}
+
+/**
+ * Phase 4b-β: kicks off a Stripe Checkout Session for a subscription
+ * plan. The local Subscription row is NOT created here — the webhook
+ * handler for `customer.subscription.created` creates it after Stripe
+ * confirms the buyer entered a valid payment method. This avoids
+ * orphan "subscribed but not charged" rows from abandoned checkouts.
+ *
+ * Returns the Checkout Session URL so the client can redirect the
+ * buyer to Stripe's hosted page. Gated by SUBSCRIPTIONS_BUYER_BETA.
+ */
+export async function startSubscriptionCheckout(
+  input: SubscribeInput
+): Promise<{ url: string }> {
+  const { buyerId, session } = await requireBuyer()
+  assertBetaEnabled()
+  const data = subscribeSchema.parse(input)
+
+  const plan = await db.subscriptionPlan.findFirst({
+    where: { id: data.planId, archivedAt: null },
+    include: {
+      product: { select: { id: true, status: true, deletedAt: true } },
+    },
+  })
+  if (!plan) throw new Error('Plan de suscripción no encontrado')
+  if (plan.product.status !== 'ACTIVE' || plan.product.deletedAt !== null) {
+    throw new Error('Este producto ya no está disponible para suscripción')
+  }
+  if (!plan.stripePriceId) {
+    throw new Error(
+      'Este plan todavía no está sincronizado con el proveedor de pagos. Inténtalo de nuevo en unos minutos.'
+    )
+  }
+
+  const address = await db.address.findFirst({
+    where: { id: data.shippingAddressId, userId: buyerId },
+    select: { id: true },
+  })
+  if (!address) throw new Error('Dirección de envío no encontrada')
+
+  // Block re-subscribe when an ACTIVE / PAUSED / PAST_DUE row already
+  // exists. A CANCELED row does NOT block — Stripe will create a new
+  // subscription id and the webhook handler upserts the local row.
+  const existing = await db.subscription.findUnique({
+    where: { buyerId_planId: { buyerId, planId: plan.id } },
+    select: { status: true },
+  })
+  if (existing && existing.status !== 'CANCELED') {
+    throw new Error('Ya estás suscrito a este plan')
+  }
+
+  const customerId = await ensureStripeCustomerId({
+    userId: buyerId,
+    email: session.user.email ?? '',
+    name: session.user.name ?? '',
+  })
+
+  const appUrl = getServerEnv().appUrl
+  const checkout = await createSubscriptionCheckoutSession({
+    customerId,
+    stripePriceId: plan.stripePriceId,
+    successUrl: `${appUrl}/cuenta/suscripciones?checkout=success`,
+    cancelUrl: `${appUrl}/productos?checkout=cancel`,
+    metadata: {
+      marketplacePlanId: plan.id,
+      marketplaceBuyerId: buyerId,
+      marketplaceShippingAddressId: address.id,
+    },
+  })
+
+  return { url: checkout.url }
 }
 
 export async function listMySubscriptions(

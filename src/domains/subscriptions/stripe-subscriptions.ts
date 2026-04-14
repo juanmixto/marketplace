@@ -152,12 +152,164 @@ export function mapStripeSubscriptionStatus(
   }
 }
 
+// ─── Phase 4b-β: Customer + Checkout Session helpers ─────────────────────────
+
+export interface StripeCustomerInput {
+  userId: string
+  email: string
+  name: string
+}
+
+/**
+ * Returns a Stripe Customer id for the given user, creating one on the
+ * fly if the User row does not already have a `stripeCustomerId`. In mock
+ * mode, returns a deterministic `cus_mock_<userId>` without touching the
+ * DB or the network. In stripe mode, the persisted id is indexed so the
+ * second call is a simple column read.
+ */
+export async function ensureStripeCustomerId(
+  input: StripeCustomerInput
+): Promise<string> {
+  // Lazy-load `@/lib/db` so merely importing this file does not trigger
+  // env validation — the pure mapper unit tests import the status mapper
+  // without any environment variables set.
+  const { db } = await import('@/lib/db')
+  const env = getServerEnv()
+
+  if (env.paymentProvider === 'mock') {
+    const mockId = `cus_mock_${input.userId}`
+    // Persist it so the buyer subscriptions rows (and later webhook
+    // lookups) can join against a single id.
+    await db.user.update({
+      where: { id: input.userId },
+      data: { stripeCustomerId: mockId },
+    }).catch(() => {
+      // Ignore races — another concurrent subscribe may have set it.
+    })
+    return mockId
+  }
+
+  const existing = await db.user.findUnique({
+    where: { id: input.userId },
+    select: { stripeCustomerId: true },
+  })
+  if (existing?.stripeCustomerId) return existing.stripeCustomerId
+
+  const Stripe = (await import('stripe')).default
+  const stripe = new Stripe(env.stripeSecretKey!)
+  const customer = await stripe.customers.create({
+    email: input.email,
+    name: input.name,
+    metadata: { marketplaceUserId: input.userId },
+  })
+
+  await db.user.update({
+    where: { id: input.userId },
+    data: { stripeCustomerId: customer.id },
+  })
+  return customer.id
+}
+
+export interface SubscriptionCheckoutInput {
+  customerId: string
+  stripePriceId: string
+  successUrl: string
+  cancelUrl: string
+  metadata: {
+    marketplacePlanId: string
+    marketplaceBuyerId: string
+    marketplaceShippingAddressId: string
+  }
+}
+
+export interface SubscriptionCheckoutSession {
+  id: string
+  url: string
+}
+
+/**
+ * Creates a Stripe Checkout Session in subscription mode for a single
+ * recurring line item. Mock mode returns a synthetic session + a local
+ * URL the client can redirect to for a simulated success — tests read
+ * the metadata back from that URL to assert the flow. Stripe mode
+ * delegates to `stripe.checkout.sessions.create`.
+ */
+export async function createSubscriptionCheckoutSession(
+  input: SubscriptionCheckoutInput
+): Promise<SubscriptionCheckoutSession> {
+  const env = getServerEnv()
+
+  if (env.paymentProvider === 'mock') {
+    const id = `cs_mock_${Date.now()}_${input.metadata.marketplacePlanId}`
+    // Mock checkout success URL — the buyer flow redirects here in dev
+    // mode, and a dedicated mock-confirmation route (phase 4b-β follow-up)
+    // can pick up the metadata. For phase 4b-β the URL is informational.
+    const url = `${input.successUrl}?mock_session=${id}&planId=${input.metadata.marketplacePlanId}`
+    return { id, url }
+  }
+
+  const Stripe = (await import('stripe')).default
+  const stripe = new Stripe(env.stripeSecretKey!)
+  const session = await stripe.checkout.sessions.create({
+    mode: 'subscription',
+    customer: input.customerId,
+    line_items: [{ price: input.stripePriceId, quantity: 1 }],
+    success_url: input.successUrl,
+    cancel_url: input.cancelUrl,
+    subscription_data: {
+      metadata: input.metadata,
+    },
+    metadata: input.metadata,
+  })
+
+  if (!session.url) {
+    throw new Error('Stripe devolvió una sesión de checkout sin URL')
+  }
+  return { id: session.id, url: session.url }
+}
+
+// ─── Webhook event shapes ─────────────────────────────────────────────────────
+
 export interface StripeSubscriptionEventPayload {
   id: string
   status: string
   pause_collection?: unknown
   cancel_at?: number | null
   canceled_at?: number | null
+  customer?: string | null
+  metadata?: Record<string, string> | null
+  items?: { data: Array<{ price: { id: string } }> }
+}
+
+export interface StripeInvoiceEventPayload {
+  id: string
+  subscription: string | null
+  amount_paid: number
+  currency: string
+  lines?: { data: Array<{ price?: { id: string } | null }> }
+}
+
+/**
+ * Parses the `data.object` of a Stripe `invoice.*` event into a narrower
+ * shape so the webhook handler can materialize an Order without trusting
+ * the raw payload.
+ */
+export function parseStripeInvoiceEvent(
+  obj: unknown
+): StripeInvoiceEventPayload | null {
+  if (!obj || typeof obj !== 'object') return null
+  const o = obj as Record<string, unknown>
+  if (typeof o.id !== 'string' || !o.id.startsWith('in_')) return null
+  const subscription =
+    typeof o.subscription === 'string' ? o.subscription : null
+  const amount = typeof o.amount_paid === 'number' ? o.amount_paid : 0
+  const currency = typeof o.currency === 'string' ? o.currency : 'eur'
+  return {
+    id: o.id,
+    subscription,
+    amount_paid: amount,
+    currency,
+  }
 }
 
 /**
@@ -172,11 +324,19 @@ export function parseStripeSubscriptionEvent(
   const o = obj as Record<string, unknown>
   if (typeof o.id !== 'string' || !o.id.startsWith('sub_')) return null
   if (typeof o.status !== 'string') return null
+  const metadata =
+    o.metadata && typeof o.metadata === 'object'
+      ? (o.metadata as Record<string, string>)
+      : null
+  const customer =
+    typeof o.customer === 'string' ? o.customer : null
   return {
     id: o.id,
     status: o.status,
     pause_collection: o.pause_collection,
     cancel_at: typeof o.cancel_at === 'number' ? o.cancel_at : null,
     canceled_at: typeof o.canceled_at === 'number' ? o.canceled_at : null,
+    customer,
+    metadata,
   }
 }
