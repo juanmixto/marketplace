@@ -6,6 +6,7 @@ import {
   advanceByCadence,
   computeCurrentPeriodEnd,
 } from '@/domains/subscriptions/cadence'
+import { sendSubscriptionRenewalChargedEmail } from '@/domains/subscriptions/emails'
 
 /**
  * Phase 4b-β: materializes an Order + OrderLine + VendorFulfillment +
@@ -45,6 +46,7 @@ export async function materializeSubscriptionRenewal(
   const subscription = await db.subscription.findUnique({
     where: { id: input.subscriptionId },
     include: {
+      buyer: { select: { email: true, firstName: true, lastName: true } },
       plan: {
         include: {
           product: true,
@@ -168,8 +170,24 @@ export async function materializeSubscriptionRenewal(
       },
     })
 
-    return created
+    return { id: created.id, nextDeliveryAt }
   })
+
+  // Phase 4b-δ: email the buyer with the renewal confirmation. The
+  // send is best-effort: a flaky Resend must never prevent the webhook
+  // from 200-ing, otherwise Stripe retries and we double-charge. The
+  // dispatcher in emails.ts catches everything.
+  if (subscription.buyer.email) {
+    await sendSubscriptionRenewalChargedEmail({
+      to: subscription.buyer.email,
+      customerName: subscription.buyer.firstName || 'cliente',
+      productName: product.name,
+      vendorName: vendor.displayName,
+      cadence: plan.cadence,
+      amountEur: grandTotal,
+      nextDeliveryAt: order.nextDeliveryAt,
+    })
+  }
 
   return { orderId: order.id, skipped: null }
 }
