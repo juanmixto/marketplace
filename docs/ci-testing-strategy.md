@@ -129,19 +129,15 @@ this at the type level), dark mode (contracts cover it), i18n strings
 
 ## 6. Promoting `e2e-smoke` to required
 
-`e2e-smoke` currently runs with `continue-on-error: true`. Promotion
-criteria:
+**Status: promoted.** `e2e-smoke` is a blocking required check on
+`main` as of 2026-04-15 after 4 consecutive green runs
+(8eb8516, 3a621e1, 98bfdd4, e032fe5) and the full Phase-1 smoke
+suite landing.
 
-1. 3 consecutive green runs on `main` with the full Phase-1 smoke suite.
-2. Zero flakes in the last 10 PR runs (retries allowed once — `retries: 2` is
-   already set in `playwright.config.ts`).
-3. When both conditions are met, remove `continue-on-error: true` from
-   `.github/workflows/ci.yml` and add `e2e-smoke` to the branch
-   protection required checks.
-
-Until then, smoke failures are visible but do not block merges. A flake
-that takes longer than one day to fix must be quarantined via
+If a flake ever takes longer than one day to fix, quarantine it via
 `test.skip` + a linked issue — never `xit`-style commented out.
+Demoting `e2e-smoke` back to `continue-on-error` is the emergency
+lever of last resort and should open a retrospective.
 
 ## 7. Folder conventions
 
