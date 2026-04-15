@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { auth } from '@/lib/auth'
+import { getActionSession } from '@/lib/action-session'
 import { db } from '@/lib/db'
 import { clearOtherDefaults, enforceSingleDefault } from '@/domains/auth/address-defaults'
 
@@ -18,8 +18,8 @@ const addressSchema = z.object({
 
 export async function GET(_req: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const session = await getActionSession()
+    if (!session) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
@@ -53,8 +53,8 @@ export async function GET(_req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const session = await getActionSession()
+    if (!session) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
