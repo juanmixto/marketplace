@@ -1162,6 +1162,9 @@ const es = {
 
   'pwa.install.cta': 'Instalar app',
   'pwa.install.tooltip': 'Accede más rápido desde tu pantalla de inicio',
+  'pwa.ios.hint.title': 'Instala la app en tu iPhone',
+  'pwa.ios.hint.body': 'Pulsa el botón Compartir y elige “Añadir a pantalla de inicio”.',
+  'pwa.ios.hint.dismiss': 'Cerrar aviso',
 } as const satisfies Record<string, string>
 
 export default es
