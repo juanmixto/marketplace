@@ -22,9 +22,11 @@ export default async function ProductNotFound() {
   const ctaCatalog = isEn ? 'Browse the catalog' : 'Ver el catálogo'
   const ctaHome = isEn ? 'Back to home' : 'Volver al inicio'
   const suggestionsTitle = isEn ? 'You might like' : 'Quizá te interesen'
-  const searchHint = isEn
-    ? 'Use the search bar above to find a specific producer, category, or product in seconds.'
-    : 'Usa el buscador superior para encontrar un productor, categoría o producto en segundos.'
+  const searchPlaceholder = isEn
+    ? 'Search for a product, producer, or category…'
+    : 'Busca un producto, productor o categoría…'
+  const searchLabel = isEn ? 'Search the marketplace' : 'Buscar en el mercado'
+  const searchButton = isEn ? 'Search' : 'Buscar'
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
@@ -58,10 +60,28 @@ export default async function ProductNotFound() {
                 {ctaHome}
               </Link>
             </div>
-            <div className="mt-6 flex items-start gap-3 rounded-2xl border border-dashed border-[var(--border-strong)] px-4 py-3">
-              <MagnifyingGlassIcon className="mt-0.5 h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              <p className="text-sm text-[var(--muted)]">{searchHint}</p>
-            </div>
+            <form
+              action="/buscar"
+              role="search"
+              aria-label={searchLabel}
+              className="mt-6 flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-2 shadow-sm focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/30"
+            >
+              <MagnifyingGlassIcon className="ml-2 h-5 w-5 shrink-0 text-[var(--muted)]" aria-hidden="true" />
+              <input
+                type="search"
+                name="q"
+                autoFocus
+                placeholder={searchPlaceholder}
+                aria-label={searchLabel}
+                className="min-w-0 flex-1 bg-transparent py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none"
+              />
+              <button
+                type="submit"
+                className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+              >
+                {searchButton}
+              </button>
+            </form>
           </div>
         </div>
 
