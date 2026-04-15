@@ -38,8 +38,12 @@ test.describe('vendor product CRUD @smoke', () => {
 
     // Backend redirects to the listing on success.
     await expect(page).toHaveURL(/\/vendor\/productos\/?$/, { timeout: 10_000 })
+    // Scope to row-level containers only. `div.group` matches the
+    // Tailwind row wrapper in both list and grid layouts of
+    // VendorProductListClient; plain `div` filter leaks up to ancestor
+    // containers and triggers strict-mode violations later in the test.
     const createdRow = page
-      .locator('li, tr, article, div')
+      .locator('div.group')
       .filter({ hasText: BASE_NAME })
       .first()
     await expect(createdRow).toBeVisible({ timeout: 10_000 })
@@ -59,7 +63,7 @@ test.describe('vendor product CRUD @smoke', () => {
 
     await expect(page).toHaveURL(/\/vendor\/productos\/?$/, { timeout: 10_000 })
     const editedRow = page
-      .locator('li, tr, article, div')
+      .locator('div.group')
       .filter({ hasText: EDITED_NAME })
       .first()
     await expect(editedRow).toBeVisible({ timeout: 10_000 })
