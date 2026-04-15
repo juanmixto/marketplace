@@ -1161,6 +1161,9 @@ const en: Record<TranslationKeys, string> = {
   'adminProducers.actions.suspend': 'Suspend',
   'adminProducers.actions.reactivate': 'Reactivate',
   'adminProducers.actions.error': 'Action failed',
+
+  'pwa.install.cta': 'Install app',
+  'pwa.install.tooltip': 'Launch faster from your home screen',
 }
 
 export default en

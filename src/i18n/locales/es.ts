@@ -1159,6 +1159,9 @@ const es = {
   'adminProducers.actions.suspend': 'Suspender',
   'adminProducers.actions.reactivate': 'Reactivar',
   'adminProducers.actions.error': 'Acción fallida',
+
+  'pwa.install.cta': 'Instalar app',
+  'pwa.install.tooltip': 'Accede más rápido desde tu pantalla de inicio',
 } as const satisfies Record<string, string>
 
 export default es
