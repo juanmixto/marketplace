@@ -2,7 +2,7 @@
 
 import { z } from 'zod'
 import { db } from '@/lib/db'
-import { createAuditLog, getAuditRequestIp } from '@/lib/audit'
+import { getAuditRequestIp, mutateWithAudit } from '@/lib/audit'
 import { requireCatalogAdmin, requireSuperadmin } from '@/lib/auth-guard'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { parseExpirationDateInput } from '@/domains/catalog/availability'
@@ -157,36 +157,40 @@ export async function adminUpdateProduct(productId: string, input: AdminProductI
   if (!product) throw new Error('Producto no encontrado')
 
   const before = productSnapshot(product)
-
-  const updated = await db.product.update({
-    where: { id: productId },
-    data: {
-      name: data.name,
-      description: data.description ?? null,
-      categoryId: data.categoryId && data.categoryId.length > 0 ? data.categoryId : null,
-      basePrice: data.basePrice,
-      compareAtPrice: data.compareAtPrice ?? null,
-      taxRate: data.taxRate,
-      unit: data.unit,
-      stock: data.stock,
-      trackStock: data.trackStock,
-      status: data.status,
-      originRegion: data.originRegion ?? null,
-      rejectionNote: data.rejectionNote ?? null,
-      expiresAt: parseExpirationDateInput(data.expiresAt),
-    },
-  })
-
   const ip = await getAuditRequestIp()
-  await createAuditLog({
-    action: 'PRODUCT_EDITED',
-    entityType: 'Product',
-    entityId: productId,
-    before,
-    after: productSnapshot(updated),
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    ip,
+
+  const updated = await mutateWithAudit(async tx => {
+    const updatedProduct = await tx.product.update({
+      where: { id: productId },
+      data: {
+        name: data.name,
+        description: data.description ?? null,
+        categoryId: data.categoryId && data.categoryId.length > 0 ? data.categoryId : null,
+        basePrice: data.basePrice,
+        compareAtPrice: data.compareAtPrice ?? null,
+        taxRate: data.taxRate,
+        unit: data.unit,
+        stock: data.stock,
+        trackStock: data.trackStock,
+        status: data.status,
+        originRegion: data.originRegion ?? null,
+        rejectionNote: data.rejectionNote ?? null,
+        expiresAt: parseExpirationDateInput(data.expiresAt),
+      },
+    })
+    return {
+      result: updatedProduct,
+      audit: {
+        action: 'PRODUCT_EDITED',
+        entityType: 'Product',
+        entityId: productId,
+        before,
+        after: productSnapshot(updatedProduct),
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        ip,
+      },
+    }
   })
 
   safeRevalidatePath('/admin/productos')
@@ -238,29 +242,33 @@ export async function adminUpdateVendor(vendorId: string, input: AdminVendorInpu
   }
 
   const before = vendorSnapshot(vendor)
-
-  const updated = await db.vendor.update({
-    where: { id: vendorId },
-    data: {
-      displayName: data.displayName,
-      slug: data.slug,
-      description: data.description ?? null,
-      location: data.location ?? null,
-      status: data.status,
-      commissionRate: data.commissionRate,
-    },
-  })
-
   const ip = await getAuditRequestIp()
-  await createAuditLog({
-    action: 'VENDOR_EDITED',
-    entityType: 'Vendor',
-    entityId: vendorId,
-    before,
-    after: vendorSnapshot(updated),
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    ip,
+
+  const updated = await mutateWithAudit(async tx => {
+    const updatedVendor = await tx.vendor.update({
+      where: { id: vendorId },
+      data: {
+        displayName: data.displayName,
+        slug: data.slug,
+        description: data.description ?? null,
+        location: data.location ?? null,
+        status: data.status,
+        commissionRate: data.commissionRate,
+      },
+    })
+    return {
+      result: updatedVendor,
+      audit: {
+        action: 'VENDOR_EDITED',
+        entityType: 'Vendor',
+        entityId: vendorId,
+        before,
+        after: vendorSnapshot(updatedVendor),
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        ip,
+      },
+    }
   })
 
   safeRevalidatePath('/admin/productores')
@@ -348,35 +356,39 @@ export async function adminUpdatePromotion(promotionId: string, input: AdminProm
   const value = data.kind === 'FREE_SHIPPING' ? 0 : data.value
 
   const before = promotionSnapshot(current)
-
-  const updated = await db.promotion.update({
-    where: { id: promotionId },
-    data: {
-      name: data.name,
-      code,
-      kind: data.kind,
-      value,
-      scope: data.scope,
-      productId: data.scope === 'PRODUCT' ? data.productId ?? null : null,
-      categoryId: data.scope === 'CATEGORY' ? data.categoryId ?? null : null,
-      minSubtotal: data.minSubtotal ?? null,
-      maxRedemptions: data.maxRedemptions ?? null,
-      perUserLimit: data.perUserLimit ?? 1,
-      startsAt: new Date(data.startsAt),
-      endsAt: new Date(data.endsAt),
-    },
-  })
-
   const ip = await getAuditRequestIp()
-  await createAuditLog({
-    action: 'PROMOTION_EDITED',
-    entityType: 'Promotion',
-    entityId: promotionId,
-    before,
-    after: promotionSnapshot(updated),
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    ip,
+
+  await mutateWithAudit(async tx => {
+    const updated = await tx.promotion.update({
+      where: { id: promotionId },
+      data: {
+        name: data.name,
+        code,
+        kind: data.kind,
+        value,
+        scope: data.scope,
+        productId: data.scope === 'PRODUCT' ? data.productId ?? null : null,
+        categoryId: data.scope === 'CATEGORY' ? data.categoryId ?? null : null,
+        minSubtotal: data.minSubtotal ?? null,
+        maxRedemptions: data.maxRedemptions ?? null,
+        perUserLimit: data.perUserLimit ?? 1,
+        startsAt: new Date(data.startsAt),
+        endsAt: new Date(data.endsAt),
+      },
+    })
+    return {
+      result: updated,
+      audit: {
+        action: 'PROMOTION_EDITED',
+        entityType: 'Promotion',
+        entityId: promotionId,
+        before,
+        after: promotionSnapshot(updated),
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        ip,
+      },
+    }
   })
 
   safeRevalidatePath('/admin/promociones')
@@ -414,28 +426,32 @@ export async function adminUpdateSubscriptionPlan(planId: string, input: AdminSu
   if (!plan) throw new Error('Plan no encontrado')
 
   const before = planSnapshot(plan)
-
-  const updated = await db.subscriptionPlan.update({
-    where: { id: planId },
-    data: {
-      cadence: data.cadence,
-      priceSnapshot: data.priceSnapshot,
-      taxRateSnapshot: data.taxRateSnapshot,
-      cutoffDayOfWeek: data.cutoffDayOfWeek,
-      archivedAt: data.archived ? (plan.archivedAt ?? new Date()) : null,
-    },
-  })
-
   const ip = await getAuditRequestIp()
-  await createAuditLog({
-    action: 'SUBSCRIPTION_PLAN_EDITED',
-    entityType: 'SubscriptionPlan',
-    entityId: planId,
-    before,
-    after: planSnapshot(updated),
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    ip,
+
+  await mutateWithAudit(async tx => {
+    const updated = await tx.subscriptionPlan.update({
+      where: { id: planId },
+      data: {
+        cadence: data.cadence,
+        priceSnapshot: data.priceSnapshot,
+        taxRateSnapshot: data.taxRateSnapshot,
+        cutoffDayOfWeek: data.cutoffDayOfWeek,
+        archivedAt: data.archived ? (plan.archivedAt ?? new Date()) : null,
+      },
+    })
+    return {
+      result: updated,
+      audit: {
+        action: 'SUBSCRIPTION_PLAN_EDITED',
+        entityType: 'SubscriptionPlan',
+        entityId: planId,
+        before,
+        after: planSnapshot(updated),
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        ip,
+      },
+    }
   })
 
   safeRevalidatePath('/admin/suscripciones')

@@ -63,14 +63,16 @@ test('extractAuditIp handles x-forwarded-for with single IP', () => {
   assert.equal(ip, '10.0.0.5')
 })
 
-test('createAuditLog swallows persistence failures so admin actions keep running', async () => {
+test('createAuditLog propagates persistence failures so callers roll back', async () => {
+  // Contract flipped in #381: the helper used to swallow errors via
+  // try/catch + console.error, which silently left a mutation
+  // committed without a forensic trail. It now re-throws, so the
+  // enclosing db.$transaction aborts the mutation and the operator
+  // sees a loud failure instead of a missing audit row.
   let calls = 0
-  const originalConsoleError = console.error
-  console.error = () => undefined
-
-  try {
-    await assert.doesNotReject(async () => {
-      await createAuditLog(
+  await assert.rejects(
+    () =>
+      createAuditLog(
         {
           action: 'VENDOR_APPROVED',
           entityType: 'Vendor',
@@ -88,12 +90,10 @@ test('createAuditLog swallows persistence failures so admin actions keep running
               throw new Error('db offline')
             },
           },
-        }
-      )
-    })
-  } finally {
-    console.error = originalConsoleError
-  }
+        },
+      ),
+    /db offline/,
+  )
 
   assert.equal(calls, 1)
 })
