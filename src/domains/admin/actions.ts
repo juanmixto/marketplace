@@ -4,7 +4,7 @@ import { UserRole } from '@/generated/prisma/enums'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 import { setMarketplaceConfig } from '@/lib/config'
-import { createAuditLog, getAuditRequestIp, type AuditValue } from '@/lib/audit'
+import { createAuditLog, getAuditRequestIp, mutateWithAudit, type AuditValue } from '@/lib/audit'
 import { requireAdmin } from '@/lib/auth-guard'
 import { hasRole, isAdmin } from '@/lib/roles'
 import { getActionSession } from '@/lib/action-session'
@@ -93,21 +93,26 @@ export async function approveVendor(vendorId: string) {
   }
 
   const before = getVendorAuditSnapshot(vendor)
-  const updatedVendor = await db.vendor.update({
-    where: { id: vendorId },
-    data: { status: 'ACTIVE' },
-  })
   const ip = await getAuditRequestIp()
 
-  await createAuditLog({
-    action: 'VENDOR_APPROVED',
-    entityType: 'Vendor',
-    entityId: vendorId,
-    before,
-    after: getVendorAuditSnapshot(updatedVendor),
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    ip,
+  await mutateWithAudit(async tx => {
+    const updatedVendor = await tx.vendor.update({
+      where: { id: vendorId },
+      data: { status: 'ACTIVE' },
+    })
+    return {
+      result: updatedVendor,
+      audit: {
+        action: 'VENDOR_APPROVED',
+        entityType: 'Vendor',
+        entityId: vendorId,
+        before,
+        after: getVendorAuditSnapshot(updatedVendor),
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        ip,
+      },
+    }
   })
 
   safeRevalidatePath('/admin/productores')
@@ -123,22 +128,26 @@ export async function rejectVendor(vendorId: string) {
   const vendor = await db.vendor.findUnique({ where: { id: vendorId } })
   if (!vendor) throw new Error('Productor no encontrado')
   const before = getVendorAuditSnapshot(vendor)
-
-  const updatedVendor = await db.vendor.update({
-    where: { id: vendorId },
-    data: { status: 'REJECTED' },
-  })
   const ip = await getAuditRequestIp()
 
-  await createAuditLog({
-    action: 'VENDOR_REJECTED',
-    entityType: 'Vendor',
-    entityId: vendorId,
-    before,
-    after: getVendorAuditSnapshot(updatedVendor),
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    ip,
+  await mutateWithAudit(async tx => {
+    const updatedVendor = await tx.vendor.update({
+      where: { id: vendorId },
+      data: { status: 'REJECTED' },
+    })
+    return {
+      result: updatedVendor,
+      audit: {
+        action: 'VENDOR_REJECTED',
+        entityType: 'Vendor',
+        entityId: vendorId,
+        before,
+        after: getVendorAuditSnapshot(updatedVendor),
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        ip,
+      },
+    }
   })
 
   safeRevalidatePath('/admin/productores')
@@ -154,22 +163,26 @@ export async function suspendVendor(vendorId: string) {
   const vendor = await db.vendor.findUnique({ where: { id: vendorId } })
   if (!vendor) throw new Error('Productor no encontrado')
   const before = getVendorAuditSnapshot(vendor)
-
-  const updatedVendor = await db.vendor.update({
-    where: { id: vendorId },
-    data: { status: 'SUSPENDED_TEMP' },
-  })
   const ip = await getAuditRequestIp()
 
-  await createAuditLog({
-    action: 'VENDOR_SUSPENDED',
-    entityType: 'Vendor',
-    entityId: vendorId,
-    before,
-    after: getVendorAuditSnapshot(updatedVendor),
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    ip,
+  await mutateWithAudit(async tx => {
+    const updatedVendor = await tx.vendor.update({
+      where: { id: vendorId },
+      data: { status: 'SUSPENDED_TEMP' },
+    })
+    return {
+      result: updatedVendor,
+      audit: {
+        action: 'VENDOR_SUSPENDED',
+        entityType: 'Vendor',
+        entityId: vendorId,
+        before,
+        after: getVendorAuditSnapshot(updatedVendor),
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        ip,
+      },
+    }
   })
 
   safeRevalidatePath('/admin/productores')
