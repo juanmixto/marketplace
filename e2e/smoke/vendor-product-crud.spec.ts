@@ -45,11 +45,11 @@ test.describe('vendor product CRUD @smoke', () => {
     await expect(createdRow).toBeVisible({ timeout: 10_000 })
 
     // --- EDIT ---
-    // Open the action menu on the created row and click "Editar" to
-    // navigate to the edit page. The edit URL includes the product id,
-    // which we don't know from the DOM — the UI is our navigation.
-    await createdRow.getByRole('button').last().click()
-    await page.getByRole('link', { name: /^editar$/i }).first().click()
+    // Each row renders a direct `<a aria-label="Editar">` anchor next to
+    // the ellipsis trigger; no need to open the action menu for editing.
+    // The edit URL includes the product id, which we don't know from the
+    // DOM — the UI link is our navigation.
+    await createdRow.getByRole('link', { name: /editar/i }).first().click()
     await expect(page).toHaveURL(/\/vendor\/productos\/[^/]+$/, { timeout: 10_000 })
 
     const nameInput = page.locator('input[name="name"]')
@@ -66,10 +66,11 @@ test.describe('vendor product CRUD @smoke', () => {
     await expect(page.getByText(BASE_NAME)).toHaveCount(0)
 
     // --- DELETE ---
-    // Scope the action menu lookup to the edited row so we never click the
-    // wrong product's ellipsis button when multiple drafts exist.
-    await editedRow.getByRole('button').last().click()
-    // Menu item "Eliminar" is a plain button in the dropdown.
+    // Deletion lives only inside the row's ellipsis action menu. Open
+    // the menu via its aria-label (added in src/components/vendor/
+    // ProductActions.tsx for both a11y and test targeting).
+    await editedRow.getByRole('button', { name: /acciones del producto/i }).click()
+    // The "Eliminar" entry inside the opened dropdown.
     await page.getByRole('button', { name: /^eliminar$/i }).first().click()
     // Confirmation modal: click the danger "Eliminar" button inside it.
     const modal = page.getByRole('dialog')
