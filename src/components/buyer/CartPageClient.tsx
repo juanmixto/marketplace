@@ -107,6 +107,19 @@ export function CartPageClient({ shippingSettings }: Props) {
     }
   }, [stockSignature, items])
 
+  // NOTE: every hook call has to happen before the empty-cart early
+  // return below — otherwise toggling between 0 and 1 items changes the
+  // hook count between renders and React bails out with "Rendered more
+  // hooks than during the previous render", taking the whole page down
+  // with a 500. Keep new hooks above this line.
+  const lineDiscountMap = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const entry of promoPreview?.lineDiscounts ?? []) {
+      map[itemKey(entry.productId, entry.variantId ?? undefined)] = entry.discount
+    }
+    return map
+  }, [promoPreview])
+
   if (items.length === 0) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-24">
@@ -123,13 +136,6 @@ export function CartPageClient({ shippingSettings }: Props) {
   }
 
   const sub = subtotal()
-  const lineDiscountMap = useMemo(() => {
-    const map: Record<string, number> = {}
-    for (const entry of promoPreview?.lineDiscounts ?? []) {
-      map[itemKey(entry.productId, entry.variantId ?? undefined)] = entry.discount
-    }
-    return map
-  }, [promoPreview])
   const subtotalDiscount = promoPreview?.subtotalDiscount ?? 0
   const discountedSub = Math.max(0, sub - subtotalDiscount)
   const shipping = calculateShippingCost(discountedSub, shippingSettings)
