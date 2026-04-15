@@ -50,6 +50,9 @@ export function ProductActions({ product }: Props) {
       <div className="relative shrink-0">
         <button
           onClick={() => setMenuOpen(v => !v)}
+          aria-label={t('vendor.productActions.menuLabel')}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
           className="rounded-lg p-2 text-[var(--muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
         >
           <EllipsisVerticalIcon className="h-5 w-5" />

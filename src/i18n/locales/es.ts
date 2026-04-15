@@ -635,6 +635,7 @@ const es = {
   'vendor.shippingAddress.errorPostalCodeProvinceGeneric': 'El código postal no coincide con la provincia',
 
   // Vendor – product actions menu
+  'vendor.productActions.menuLabel': 'Acciones del producto',
   'vendor.productActions.edit': 'Editar',
   'vendor.productActions.sendReview': 'Enviar a revisión',
   'vendor.productActions.sending': 'Enviando…',

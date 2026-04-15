@@ -637,6 +637,7 @@ const en: Record<TranslationKeys, string> = {
   'vendor.shippingAddress.errorPostalCodeProvinceGeneric': 'Postal code does not match the province',
 
   // Vendor – product actions menu
+  'vendor.productActions.menuLabel': 'Product actions',
   'vendor.productActions.edit': 'Edit',
   'vendor.productActions.sendReview': 'Submit for review',
   'vendor.productActions.sending': 'Submitting…',
