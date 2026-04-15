@@ -58,7 +58,7 @@ export function ProductCard({ product, locale = 'es' }: ProductCardProps) {
   return (
     <article
       className={[
-        'group flex h-full flex-col rounded-2xl',
+        'group flex h-full min-w-0 flex-col rounded-2xl',
         'border border-[var(--border)] bg-[var(--surface)]',
         'shadow-sm hover:border-[var(--border-strong)] hover:shadow-md hover:-translate-y-1',
         'transition-all duration-200',
@@ -139,15 +139,15 @@ export function ProductCard({ product, locale = 'es' }: ProductCardProps) {
           </div>
 
           {product.vendor && (
-            <div className="mt-1.5 flex items-center gap-1 text-xs text-[var(--muted)]">
+            <div className="mt-1.5 flex min-w-0 items-center gap-1 text-xs text-[var(--muted)]">
               {product.originRegion && (
                 <>
                   <MapPinIcon className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{product.originRegion}</span>
-                  <span className="text-[var(--muted-light)]">·</span>
+                  <span className="min-w-0 truncate">{product.originRegion}</span>
+                  <span className="shrink-0 text-[var(--muted-light)]">·</span>
                 </>
               )}
-              <span className="truncate">{product.vendor.displayName}</span>
+              <span className="min-w-0 truncate">{product.vendor.displayName}</span>
             </div>
           )}
 
