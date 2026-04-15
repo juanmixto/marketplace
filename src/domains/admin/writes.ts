@@ -52,6 +52,7 @@ function vendorSnapshot(v: {
   slug: string
   description: string | null
   location: string | null
+  category: string | null
   commissionRate: { toString(): string } | number
 }) {
   return {
@@ -61,6 +62,7 @@ function vendorSnapshot(v: {
     slug: v.slug,
     description: v.description,
     location: v.location,
+    category: v.category,
     commissionRate: Number(v.commissionRate),
   }
 }
@@ -211,11 +213,23 @@ const VENDOR_STATUSES = [
   'REJECTED',
 ] as const
 
+const VENDOR_CATEGORIES = [
+  'BAKERY',
+  'CHEESE',
+  'WINERY',
+  'ORCHARD',
+  'OLIVE_OIL',
+  'FARM',
+  'DRYLAND',
+  'LOCAL_PRODUCER',
+] as const
+
 const adminVendorSchema = z.object({
   displayName: z.string().trim().min(2).max(100),
   slug: z.string().trim().min(2).max(100).regex(/^[a-z0-9-]+$/, 'slug inválido'),
   description: z.string().trim().max(2000).optional().nullable(),
   location: z.string().trim().max(100).optional().nullable(),
+  category: z.enum(VENDOR_CATEGORIES).optional().nullable(),
   status: z.enum(VENDOR_STATUSES),
   commissionRate: z.coerce.number().min(0).max(1),
 })
@@ -252,6 +266,7 @@ export async function adminUpdateVendor(vendorId: string, input: AdminVendorInpu
         slug: data.slug,
         description: data.description ?? null,
         location: data.location ?? null,
+        category: data.category ?? null,
         status: data.status,
         commissionRate: data.commissionRate,
       },
