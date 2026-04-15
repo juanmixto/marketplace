@@ -455,7 +455,7 @@ function QuickSubmitButton({ productId }: { productId: string }) {
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="relative flex flex-col items-end">
       <button
         type="button"
         onClick={handleClick}
@@ -466,7 +466,14 @@ function QuickSubmitButton({ productId }: { productId: string }) {
         <PaperAirplaneIcon className="h-3.5 w-3.5" />
         {loading ? t('vendor.productActions.sending') : t('vendor.productActions.sendReview')}
       </button>
-      {error && <p className="text-[11px] text-red-600 dark:text-red-400">{error}</p>}
+      {error && (
+        <p
+          role="alert"
+          className="absolute right-0 top-full z-20 mt-1 max-w-[16rem] rounded-md border border-red-200 bg-white px-2 py-1 text-[11px] leading-snug text-red-700 shadow-md dark:border-red-900/60 dark:bg-gray-900 dark:text-red-300"
+        >
+          {error}
+        </p>
+      )}
     </div>
   )
 }

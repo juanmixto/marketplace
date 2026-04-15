@@ -223,6 +223,8 @@ export function ReviewSection({
                 value={body}
                 onChange={e => setBody(e.target.value)}
                 maxLength={1000}
+                spellCheck
+                autoCapitalize="sentences"
                 disabled={isPending}
                 placeholder={t('reviews.commentPlaceholderShort')}
                 className="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200 disabled:bg-gray-100 dark:border-[var(--border)] dark:bg-[var(--surface)] dark:text-[var(--foreground)] dark:placeholder-[var(--muted-light)] dark:focus:ring-emerald-900/60 dark:disabled:bg-[var(--surface-raised)]"

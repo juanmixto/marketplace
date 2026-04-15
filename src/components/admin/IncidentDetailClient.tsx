@@ -151,6 +151,8 @@ export function IncidentDetailClient({ incidentId, status, messages: initial }: 
           <textarea
             {...msgForm.register('body')}
             rows={3}
+            spellCheck
+            autoCapitalize="sentences"
             placeholder="Escribe tu respuesta o nota interna…"
             className={inputCls}
           />
@@ -196,6 +198,8 @@ export function IncidentDetailClient({ incidentId, status, messages: initial }: 
                 <textarea
                   {...resForm.register('internalNote')}
                   rows={3}
+                  spellCheck
+                  autoCapitalize="sentences"
                   placeholder="Detalles adicionales para el equipo…"
                   className={inputCls}
                 />

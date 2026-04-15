@@ -154,6 +154,8 @@ export function VendorProfileForm({ vendor }: Props) {
           <textarea
             id="description"
             rows={4}
+            spellCheck
+            autoCapitalize="sentences"
             className="w-full min-h-[8rem] resize-y rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm leading-relaxed text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 sm:min-h-[12rem] dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
             placeholder={t('vendor.profileForm.descriptionPlaceholder')}
             {...register('description')}

@@ -28,7 +28,8 @@ test.describe('vendor product CRUD @smoke', () => {
     // other page chrome.
     await page.locator('input[name="name"]').fill(BASE_NAME)
     await page.locator('input[name="basePrice"]').fill('5.5')
-    await page.locator('input[name="unit"]').fill('kg')
+    // `unit` is now a <select> with canonical PRODUCT_UNITS options.
+    await page.locator('select[name="unit"]').selectOption('kg')
     await page.locator('input[name="stock"]').fill('10')
 
     // Save as draft — this path works regardless of Stripe onboarding.

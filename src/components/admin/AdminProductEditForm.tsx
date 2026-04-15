@@ -75,7 +75,7 @@ export function AdminProductEditForm({ product, categories }: Props) {
       </Field>
 
       <Field label="Descripción">
-        <textarea name="description" defaultValue={product.description ?? ''} rows={4} maxLength={2000} className={inputCls} />
+        <textarea name="description" defaultValue={product.description ?? ''} rows={4} maxLength={2000} spellCheck autoCapitalize="sentences" className={inputCls} />
       </Field>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -135,7 +135,7 @@ export function AdminProductEditForm({ product, categories }: Props) {
       </div>
 
       <Field label="Nota de rechazo (sólo si aplica)">
-        <textarea name="rejectionNote" defaultValue={product.rejectionNote ?? ''} rows={2} maxLength={500} className={inputCls} />
+        <textarea name="rejectionNote" defaultValue={product.rejectionNote ?? ''} rows={2} maxLength={500} spellCheck autoCapitalize="sentences" className={inputCls} />
       </Field>
 
       {error && (
