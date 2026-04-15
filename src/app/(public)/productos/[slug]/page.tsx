@@ -275,6 +275,16 @@ export default async function ProductDetailPage({ params }: Props) {
             </Link>
           </div>
 
+          {product.originRegion &&
+            product.vendor.location &&
+            product.originRegion !== product.vendor.location && (
+              <p className="mt-1 text-xs text-[var(--muted-light)]">
+                {locale === 'en'
+                  ? `Grown in ${product.originRegion} · Producer based in ${product.vendor.location}`
+                  : `Cultivado en ${product.originRegion} · Productor en ${product.vendor.location}`}
+              </p>
+            )}
+
           <div className="mt-3">
             <AutoTranslatedBadge translation={localizedProduct.translation} variant="full" />
           </div>
