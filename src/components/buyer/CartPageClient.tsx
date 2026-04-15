@@ -13,6 +13,7 @@ import {
   getCartStockAvailability,
   type CartStockResultItem,
 } from '@/domains/catalog/cart-stock-actions'
+import { previewPromotionsForCart, type PromotionPreviewResult } from '@/domains/promotions/checkout'
 
 interface Props {
   shippingSettings: Pick<PublicMarketplaceSettings, 'FREE_SHIPPING_THRESHOLD' | 'FLAT_SHIPPING_COST'>
@@ -73,6 +74,39 @@ export function CartPageClient({ shippingSettings }: Props) {
   )
   const hasBlockingIssues = issuesCount > 0
 
+  // Promotion preview: mirror the checkout page so buyers see automatic
+  // discounts reflected in the summary before they click "Ir al checkout".
+  // No code input here — that stays on the checkout page — so we only
+  // surface the auto-applied ones. Re-runs whenever the cart lines change.
+  const [promoPreview, setPromoPreview] = useState<PromotionPreviewResult | null>(null)
+  useEffect(() => {
+    if (items.length === 0) {
+      setPromoPreview(null)
+      return
+    }
+    let cancelled = false
+    previewPromotionsForCart({
+      items: items.map(i => ({
+        productId: i.productId,
+        variantId: i.variantId,
+        quantity: i.quantity,
+      })),
+      code: null,
+      shippingCost: 0,
+    })
+      .then(result => {
+        if (cancelled) return
+        setPromoPreview(result)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setPromoPreview(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [stockSignature, items])
+
   if (items.length === 0) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-24">
@@ -89,8 +123,12 @@ export function CartPageClient({ shippingSettings }: Props) {
   }
 
   const sub = subtotal()
-  const shipping = calculateShippingCost(sub, shippingSettings)
-  const total = sub + shipping
+  const subtotalDiscount = promoPreview?.subtotalDiscount ?? 0
+  const discountedSub = Math.max(0, sub - subtotalDiscount)
+  const shipping = calculateShippingCost(discountedSub, shippingSettings)
+  const shippingDiscount = promoPreview?.shippingDiscount ?? 0
+  const effectiveShipping = Math.max(0, shipping - shippingDiscount)
+  const total = discountedSub + effectiveShipping
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 pb-28 sm:px-6 lg:px-8 lg:pb-10">
@@ -263,11 +301,27 @@ export function CartPageClient({ shippingSettings }: Props) {
                 <span>{t('cart.subtotal')}</span>
                 <span>{formatPrice(sub)}</span>
               </div>
+              {subtotalDiscount > 0 && (
+                <div className="flex justify-between text-emerald-700 dark:text-emerald-400">
+                  <span className="flex min-w-0 flex-col">
+                    <span className="font-medium">{t('cart.discount')}</span>
+                    {promoPreview && promoPreview.appliedByVendor.length > 0 && (
+                      <span className="truncate text-[11px] font-normal text-emerald-700/80 dark:text-emerald-400/80">
+                        {promoPreview.appliedByVendor
+                          .filter(p => p.discountAmount > 0)
+                          .map(p => p.name || t('cart.discountApplied'))
+                          .join(' · ')}
+                      </span>
+                    )}
+                  </span>
+                  <span className="shrink-0 font-semibold">−{formatPrice(subtotalDiscount)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-[var(--foreground-soft)]">
                 <span>{t('cart.shipping')}</span>
-                <span>{shipping === 0 ? <span className="text-emerald-600 dark:text-emerald-400">{t('cart.shippingFree')}</span> : formatPrice(shipping)}</span>
+                <span>{effectiveShipping === 0 ? <span className="text-emerald-600 dark:text-emerald-400">{t('cart.shippingFree')}</span> : formatPrice(effectiveShipping)}</span>
               </div>
-              {shipping > 0 && (
+              {effectiveShipping > 0 && (
                 <p className="text-xs text-[var(--muted-light)]">
                   {t('cart.shippingFrom')} {formatPrice(shippingSettings.FREE_SHIPPING_THRESHOLD)}
                 </p>
