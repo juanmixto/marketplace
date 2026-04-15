@@ -8,13 +8,16 @@ import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useT } from '@/i18n'
 import { useSidebar } from '@/components/layout/SidebarProvider'
+import { PortalSwitcher } from '@/components/layout/PortalSwitcher'
+import type { AvailablePortal } from '@/lib/portals'
 
 interface Props {
   user: { name?: string | null; email?: string | null }
   vendor?: { displayName: string; status: string; slug: string } | null
+  portals?: AvailablePortal[]
 }
 
-export function VendorHeader({ user, vendor }: Props) {
+export function VendorHeader({ user, vendor, portals = [] }: Props) {
   const [open, setOpen] = useState(false)
   const t = useT()
   const { openMobile } = useSidebar()
@@ -50,6 +53,7 @@ export function VendorHeader({ user, vendor }: Props) {
       </div>
 
       <div className="flex items-center gap-1">
+        <PortalSwitcher portals={portals} current="vendor" />
         <ThemeToggle />
 
         <div className="relative">

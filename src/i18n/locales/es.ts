@@ -365,6 +365,23 @@ const es = {
   'vendor.header.goToStore': 'Ir a la tienda',
   'vendor.header.signOut': 'Cerrar sesión',
 
+  // Portal switcher (shared header control)
+  'portalSwitcher.label': 'Cambiar de panel',
+  'portalSwitcher.current': 'Panel actual',
+  'portalSwitcher.buyer.title': 'Tienda',
+  'portalSwitcher.buyer.desc': 'Comprar como cliente',
+  'portalSwitcher.vendor.title': 'Panel productor',
+  'portalSwitcher.vendor.desc': 'Gestiona tu tienda',
+  'portalSwitcher.admin.title': 'Panel admin',
+  'portalSwitcher.admin.desc': 'Administración del marketplace',
+
+  // Impersonation banner (admin-support viewing a vendor panel)
+  'impersonation.banner.prefix': 'Viendo como',
+  'impersonation.banner.admin': 'administrador',
+  'impersonation.banner.expiresIn': 'expira en',
+  'impersonation.banner.readOnly': 'solo lectura',
+  'impersonation.banner.end': 'Terminar sesión',
+
   // Vendor – nav labels
   'vendor.nav.dashboard': 'Inicio',
   'vendor.nav.products': 'Mi catálogo',

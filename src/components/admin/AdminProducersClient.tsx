@@ -499,7 +499,13 @@ function ProducerRow({
       </td>
       <td className="px-4 py-3 text-xs text-[var(--muted)]">{fmtDate(p.createdAt, locale)}</td>
       <td className="px-4 py-3">
-        <div className="flex justify-end">
+        <div className="flex items-center justify-end gap-3">
+          <Link
+            href={`/admin/productores/${p.id}/edit`}
+            className="text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+          >
+            Editar
+          </Link>
           <VendorModerationActions vendorId={p.id} status={p.status} />
         </div>
       </td>
