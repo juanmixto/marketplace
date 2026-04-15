@@ -25,7 +25,7 @@ export function AdminHeader({ user, portals = [] }: Props) {
         <button
           type="button"
           onClick={openMobile}
-          className="md:hidden rounded-lg p-1.5 text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
+          className="md:hidden inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2.5 text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
           aria-label="Abrir menú"
           title="Abrir menú"
         >

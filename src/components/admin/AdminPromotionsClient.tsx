@@ -66,7 +66,7 @@ export function AdminPromotionsClient({ data }: Props) {
             {t('adminPromotions.empty')}
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overscroll-x-contain touch-pan-x">
             <table className="min-w-full text-sm">
               <thead className="bg-[var(--surface-raised)] text-xs uppercase tracking-wider text-[var(--muted)]">
                 <tr>

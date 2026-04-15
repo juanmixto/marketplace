@@ -91,7 +91,7 @@ export function AdminSidebar() {
           <button
             type="button"
             onClick={closeMobile}
-            className="md:hidden rounded-lg p-1.5 text-[var(--muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
+            className="md:hidden inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2.5 text-[var(--muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
             aria-label="Cerrar menú"
             title="Cerrar menú"
           >

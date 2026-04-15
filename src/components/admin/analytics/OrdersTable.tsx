@@ -120,7 +120,7 @@ export function OrdersTable({ rows }: Props) {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overscroll-x-contain touch-pan-x">
         <table className="w-full text-left text-sm">
           <thead className="text-xs uppercase tracking-wide text-[var(--muted-light)]">
             <tr className="border-b border-[var(--border)]">

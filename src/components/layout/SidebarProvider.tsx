@@ -34,6 +34,16 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     setMobileOpen(false)
   }, [pathname])
 
+  useEffect(() => {
+    if (!mobileOpen) return
+    const { body } = document
+    const previousOverflow = body.style.overflow
+    body.style.overflow = 'hidden'
+    return () => {
+      body.style.overflow = previousOverflow
+    }
+  }, [mobileOpen])
+
   const toggleCollapsed = useCallback(() => {
     setCollapsed(prev => {
       const next = !prev

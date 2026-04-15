@@ -49,13 +49,14 @@ export default function RegisterPage() {
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <Input name="firstName" label="Nombre" placeholder="María" required />
-          <Input name="lastName" label="Apellidos" placeholder="García" required />
+          <Input name="firstName" autoComplete="given-name" label="Nombre" placeholder="María" required />
+          <Input name="lastName" autoComplete="family-name" label="Apellidos" placeholder="García" required />
         </div>
-        <Input name="email" type="email" label="Email" placeholder="tu@email.com" required />
+        <Input name="email" type="email" autoComplete="email" label="Email" placeholder="tu@email.com" required />
         <Input
           name="password"
           type="password"
+          autoComplete="new-password"
           label="Contraseña"
           placeholder="Mínimo 8 caracteres"
           minLength={8}

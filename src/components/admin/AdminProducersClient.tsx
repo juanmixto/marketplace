@@ -317,7 +317,7 @@ export function AdminProducersClient({ data }: Props) {
 
       {/* Table */}
       <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overscroll-x-contain touch-pan-x">
           <table className="w-full min-w-[1100px] text-sm">
             <thead className="bg-[var(--background)] text-left text-xs font-medium uppercase tracking-wide text-[var(--muted-light)]">
               <tr>
