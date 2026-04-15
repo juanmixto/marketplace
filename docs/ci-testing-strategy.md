@@ -96,7 +96,7 @@ slip through.
 | `verify` / `build` / `integration` at job level | ✅ Parallel. Already. |
 | Typecheck (`app` + `test`) + unit tests inside `verify` | ✅ Parallel via bash `&`/`wait`. Fine for this size; do not over-engineer. |
 | Node test runner internal concurrency | ✅ `--test-concurrency=8`. Raising higher is wasted — these tests are fast. |
-| `test/integration/*` (DB-backed) | ❌ **Serial.** `--test-concurrency=1`. All 22 share one Postgres instance and would race each other. Parallelising requires one DB per worker (template + `CREATE DATABASE` or schema-per-worker), which is ~1 day of work for the 22 tests we have. Revisit when this layer exceeds 40 tests or takes >8 min. |
+| `test/integration/*` (DB-backed) | ✅ **Sharded across 2 GitHub Actions matrix runners**, each with its own postgres service, each running a disjoint round-robin slice of the sorted file list. Within a shard, tests still run with `--test-concurrency=1` because they share that shard's single DB. See `scripts/run-integration-tests.mjs` (`TEST_SHARD_INDEX` / `TEST_SHARD_TOTAL`). Local dev is unchanged: without those env vars the runner executes every file in a single process. Introduced in #380. |
 | Playwright | ✅ `fullyParallel: true`, `workers: 2` in CI. Same constraint as integration — shared seeded DB. Going above 2 needs data isolation. |
 | Playwright sharding across runners | ❌ Not worth it until we exceed ~30 specs. |
 
