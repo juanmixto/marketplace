@@ -19,6 +19,7 @@ import type { UserRole } from '@/generated/prisma/enums'
 import { SignOutButton } from '@/components/auth/SignOutButton'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { LanguageToggle } from '@/components/LanguageToggle'
+import InstallButton from '@/components/pwa/InstallButton'
 import { useLocale, useT } from '@/i18n'
 import { useSession } from 'next-auth/react'
 
@@ -114,6 +115,12 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
   const portalHref = getPrimaryPortalHref(currentUser?.role)
   const portalLabel = getPortalLabel(currentUser?.role, locale)
   const isBuyerPortal = portalHref === '/cuenta'
+  // Hide the install CTA in work surfaces (admin, vendor, checkout) so we
+  // never interrupt a buy flow or an operator's task with an install prompt.
+  const canShowInstallCta =
+    !pathname.startsWith('/admin') &&
+    !pathname.startsWith('/vendor') &&
+    !pathname.startsWith('/checkout')
   const cartAriaLabel = cartHasItems
     ? `${t('cart')}, ${cartCountLabel}`
     : t('cart')
@@ -205,6 +212,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
 
           {/* Right actions */}
           <div className="ml-auto flex items-center gap-1">
+            {canShowInstallCta && <InstallButton />}
             <LanguageToggle />
             <ThemeToggle />
 
