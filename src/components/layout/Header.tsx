@@ -137,7 +137,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
           </Link>
 
           {/* Categories dropdown */}
-          <div className="relative hidden md:block">
+          <div className="relative hidden lg:block">
             <button
               onClick={() => setCatOpen(v => !v)}
               aria-expanded={catOpen}
@@ -170,7 +170,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
 
           <Link
             href="/productores"
-            className="hidden rounded-lg px-2 py-1 text-sm font-medium text-[var(--foreground-soft)] transition-colors hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] md:block"
+            className="hidden rounded-lg px-2 py-1 text-sm font-medium text-[var(--foreground-soft)] transition-colors hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] lg:block"
           >
             {t('producers')}
           </Link>
@@ -178,14 +178,14 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
           {userContextReady && !currentUser && (
             <Link
               href="/login?callbackUrl=%2Fvendor%2Fdashboard"
-              className="hidden rounded-lg px-2 py-1 text-sm font-medium text-[var(--foreground-soft)] transition-colors hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] lg:block"
+              className="hidden rounded-lg px-2 py-1 text-sm font-medium text-[var(--foreground-soft)] transition-colors hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] xl:block"
             >
               {t('producerPortal')}
             </Link>
           )}
 
           {/* Search */}
-          <form action="/buscar" className="hidden flex-1 md:block">
+          <form action="/buscar" className="hidden flex-1 lg:block">
             <div className="relative">
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
               <input
@@ -212,18 +212,18 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
               // Neutral placeholder while we wait for client-side session
               // resolution; matches the width of the auth buttons to prevent
               // layout shift after hydration.
-              <div className="hidden h-9 w-44 md:block" aria-hidden />
+              <div className="hidden h-9 w-44 lg:block" aria-hidden />
             ) : currentUser ? (
               <>
                 {!isBuyerPortal && (
                   <Link
                     href={portalHref}
-                    className="hidden rounded-lg px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] md:block"
+                    className="hidden rounded-lg px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] lg:block"
                   >
                     {portalLabel}
                   </Link>
                 )}
-                <div className="relative hidden md:block">
+                <div className="relative hidden lg:block">
                   <button
                     onClick={() => setAccountOpen(v => !v)}
                     aria-expanded={accountOpen}
@@ -272,7 +272,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                 <Link
                   href="/login"
                   className={cn(
-                    'hidden rounded-xl px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] md:block',
+                    'hidden rounded-xl px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] lg:block',
                     pathname === '/login' && 'bg-[var(--surface-raised)]'
                   )}
                 >
@@ -280,7 +280,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                 </Link>
                 <Link
                   href="/register"
-                  className="hidden rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] md:block"
+                  className="hidden rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] lg:block"
                 >
                   {t('register')}
                 </Link>
@@ -314,7 +314,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
               onClick={() => setMobileOpen(v => !v)}
               aria-expanded={mobileOpen}
               aria-label={mobileOpen ? t('close_menu') : t('open_menu')}
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl p-2.5 text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] md:hidden"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl p-2.5 text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] lg:hidden"
             >
               {mobileOpen ? <XMarkIcon className="h-5 w-5" /> : <Bars3Icon className="h-5 w-5" />}
             </button>
@@ -325,7 +325,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
             scroll-up or near the top of the page. */}
         <div
           className={cn(
-            'grid overflow-hidden transition-[grid-template-rows,opacity,padding] duration-200 ease-out md:hidden',
+            'grid overflow-hidden transition-[grid-template-rows,opacity,padding] duration-200 ease-out lg:hidden',
             hideMobileSearch
               ? 'grid-rows-[0fr] pb-0 opacity-0'
               : 'grid-rows-[1fr] pb-3 opacity-100'
@@ -350,7 +350,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
 
       {/* Mobile drawer */}
       {mobileOpen && (
-        <div className="border-t border-[var(--border)] bg-[var(--surface)] shadow-2xl md:hidden">
+        <div className="border-t border-[var(--border)] bg-[var(--surface)] shadow-2xl lg:hidden">
           <div className="space-y-1 p-4">
             {/* Categories */}
             <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">{t('categories')}</p>
