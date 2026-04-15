@@ -38,6 +38,7 @@ export default async function AdminVendorEditPage({ params }: Props) {
             slug: vendor.slug,
             description: vendor.description,
             location: vendor.location,
+            category: vendor.category,
             status: vendor.status,
             commissionRate: Number(vendor.commissionRate),
           }}

@@ -425,10 +425,25 @@ export async function getMyFulfillments(filter?: 'active' | 'urgent' | 'shipped'
 
 // ─── Perfil vendor ────────────────────────────────────────────────────────────
 
+const VENDOR_CATEGORY_VALUES = [
+  'BAKERY',
+  'CHEESE',
+  'WINERY',
+  'ORCHARD',
+  'OLIVE_OIL',
+  'FARM',
+  'DRYLAND',
+  'LOCAL_PRODUCER',
+] as const
+
 const profileSchema = z.object({
   displayName: z.string().min(3).max(80),
   description: z.string().max(2000).optional(),
   location: z.string().max(100).optional(),
+  category: z
+    .union([z.enum(VENDOR_CATEGORY_VALUES), z.literal(''), z.null()])
+    .optional()
+    .transform(v => (v == null || v === '' ? null : v)),
   logo: z
     .union([z.string(), z.literal('')])
     .optional()
@@ -449,7 +464,7 @@ const profileSchema = z.object({
   bankAccountName: z.string().max(100).optional(),
 })
 
-export async function updateVendorProfile(input: z.infer<typeof profileSchema>) {
+export async function updateVendorProfile(input: z.input<typeof profileSchema>) {
   const { vendor } = await requireVendor()
   const data = profileSchema.parse(input)
 

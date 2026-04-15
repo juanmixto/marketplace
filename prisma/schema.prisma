@@ -28,6 +28,22 @@ enum VendorStatus {
   SUSPENDED_PERM
 }
 
+// Public-facing producer type shown as a badge on vendor cards and the
+// vendor detail page. Closed enum: adding a value requires a migration,
+// which keeps labels consistent across the marketplace. When null, we
+// fall back to a regex heuristic over displayName + description (see
+// src/domains/vendors/visuals.ts).
+enum VendorCategory {
+  BAKERY
+  CHEESE
+  WINERY
+  ORCHARD
+  OLIVE_OIL
+  FARM
+  DRYLAND
+  LOCAL_PRODUCER
+}
+
 enum ProductStatus {
   DRAFT
   PENDING_REVIEW
@@ -243,6 +259,7 @@ model Vendor {
   logo            String?
   coverImage      String?
   location        String?
+  category        VendorCategory?
   status          VendorStatus @default(APPLYING)
   commissionRate  Decimal      @default(0.12) @db.Decimal(5, 4)
   avgRating       Decimal?     @db.Decimal(3, 2)

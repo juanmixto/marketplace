@@ -42,6 +42,7 @@ const vendorBlueprints = [
     },
     vendor: {
       slug: 'finca-garcia',
+      category: 'ORCHARD' as const,
       displayName: 'Finca García',
       description: 'Somos Carlos y Pilar, tercera generación en la Sierra de Gredos. Cultivamos hortalizas y huevos camperos en 12 hectáreas de tierra heredada, siguiendo las prácticas que nos enseñó el abuelo Tomás: rotación de cultivos, compost propio y cero químicos desde 1987.\n\nNuestra finca funciona con temporada corta y recogida diaria. No almacenamos: lo que se recolecta por la mañana sale hacia tu casa esa misma tarde. Trabajamos con variedades locales —tomates de Barco, pimientos de asar, judiones del valle— porque creemos que el sabor no se negocia.\n\nDurante los meses de invierno hacemos conservas, mermeladas y encurtidos con el excedente de temporada, siempre en lotes pequeños y con recetas de casa. Si tienes alguna duda sobre nuestros productos o quieres saber qué hay disponible esta semana, escríbenos sin compromiso.',
       location: 'Ávila, Castilla y León',
@@ -257,6 +258,7 @@ const vendorBlueprints = [
     },
     vendor: {
       slug: 'huerta-la-solana',
+      category: 'ORCHARD' as const,
       displayName: 'Huerta La Solana',
       description: 'Nos dedicamos al cítrico y la fruta de hueso desde hace más de cuarenta años. Lo que empezó como un pequeño huerto familiar entre naranjos se ha convertido en una finca de 8 hectáreas donde cultivamos naranjas, mandarinas, fresas y fruta de temporada.\n\nCada pieza se recolecta bajo pedido: no usamos cámaras frigoríficas ni tratamientos de postcosecha. Del árbol a tu mesa en 24-48 horas. También producimos miel cruda de azahar, porque nuestras colmenas conviven con los naranjos y el resultado merece la pena.\n\nEstamos en plena huerta valenciana, a pocos kilómetros de la Albufera. Si pasas por la zona, avísanos y te enseñamos la finca encantados.',
       location: 'Valencia, Comunidad Valenciana',
@@ -344,6 +346,7 @@ const vendorBlueprints = [
     },
     vendor: {
       slug: 'queseria-monteazul',
+      category: 'CHEESE' as const,
       displayName: 'Quesería Monteazul',
       description: 'En Monteazul hacemos queso como se hacía antes: con leche cruda del día, cuajo natural y el tiempo que cada pieza necesita. Nuestro rebaño de 120 cabras pasta libre en los Picos de Europa, y la diferencia se nota en la leche.\n\nTenemos tres líneas de producto: queso fresco (de 3 a 7 días), semicurado (45 días en cava de piedra) y curado (mínimo 90 días, con corteza natural lavada). También elaboramos yogur de oveja con fermentos propios y mantequilla batida a diario.\n\nMateo, el maestro quesero, lleva 22 años perfeccionando las recetas. Cada lote es pequeño —entre 40 y 60 piezas— y cada uno tiene su propio carácter. No hay dos quesos iguales, y eso es exactamente lo que buscamos.',
       location: 'Cangas de Onís, Asturias',
@@ -432,6 +435,7 @@ const vendorBlueprints = [
     },
     vendor: {
       slug: 'bodega-ribera-viva',
+      category: 'WINERY' as const,
       displayName: 'Bodega Ribera Viva',
       description: 'Somos una bodega familiar en la Ribera del Duero con 6 hectáreas de viñedo propio y una producción que rara vez supera las 15.000 botellas al año. Nos gusta decir que hacemos vinos honestos: sin adornos, sin trucos, con la expresión pura de la uva y el terreno.\n\nNuestras cepas de tempranillo tienen entre 25 y 40 años, y las trabajamos en ecológico desde 2018. Ana se encarga de la viña y la cosecha, y Pablo del trabajo en bodega. Criamos en barrica cuando la uva lo pide, pero nunca como obligación.\n\nAdemás del vino, elaboramos aceite de oliva virgen extra con aceitunas de la finca y conservas artesanas con producto de nuestra huerta. Todo bajo el mismo principio: buen producto, sin intermediarios, directo a tu mesa.',
       location: 'Valladolid, Castilla y León',
@@ -517,6 +521,7 @@ const vendorBlueprints = [
     },
     vendor: {
       slug: 'obrador-santa-ines',
+      category: 'BAKERY' as const,
       displayName: 'Obrador Santa Inés',
       description: 'Nuestro obrador nació en 2019 con una idea simple: recuperar el pan de verdad. Usamos harinas ecológicas molidas a piedra, masas madre que alimentamos a diario y fermentaciones de entre 24 y 48 horas. No tenemos prisa, y se nota en cada bocado.\n\nElena aprendió el oficio en panaderías de Francia y Alemania antes de abrir Santa Inés en el casco antiguo de Pamplona. Hoy somos un equipo de cuatro personas que hornea cada mañana a las cinco. Pan de pueblo, hogazas integrales, chapatas, croissants de mantequilla y bollería de temporada.\n\nTambién hacemos galletas, bizcochos y repostería seca que aguanta bien el envío. Todo sale del mismo obrador, con los mismos ingredientes y el mismo cuidado. Si quieres probar nuestro pan, te recomendamos hacer el pedido antes de las 11:00 para que salga en el horneado del día siguiente.',
       location: 'Pamplona, Navarra',
@@ -626,6 +631,7 @@ const adminSideVendorBlueprints = [
     },
     vendor: {
       slug: 'almazara-nueva-era',
+      category: 'OLIVE_OIL' as const,
       displayName: 'Almazara Nueva Era',
       description: 'Solicitud pendiente de revisión documental y validación del registro sanitario.',
       location: 'Jaén, Andalucía',
@@ -645,6 +651,7 @@ const adminSideVendorBlueprints = [
     },
     vendor: {
       slug: 'granja-los-almendros',
+      category: 'FARM' as const,
       displayName: 'Granja Los Almendros',
       description: 'Alta iniciada, a la espera de completar documentación bancaria y fiscal.',
       location: 'Segovia, Castilla y León',
@@ -664,6 +671,7 @@ const adminSideVendorBlueprints = [
     },
     vendor: {
       slug: 'secano-del-sur',
+      category: 'DRYLAND' as const,
       displayName: 'Secano del Sur',
       description: 'Cuenta suspendida temporalmente por incidencias reiteradas en preparación de pedidos.',
       location: 'Almería, Andalucía',

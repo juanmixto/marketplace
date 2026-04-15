@@ -18,6 +18,19 @@ import type { Vendor } from '@/generated/prisma/client'
 import { useT } from '@/i18n'
 import { useMemo } from 'react'
 
+const VENDOR_CATEGORY_OPTIONS = [
+  { value: 'BAKERY', labelKey: 'vendorVisual.bakery' },
+  { value: 'CHEESE', labelKey: 'vendorVisual.cheese' },
+  { value: 'WINERY', labelKey: 'vendorVisual.winery' },
+  { value: 'ORCHARD', labelKey: 'vendorVisual.orchard' },
+  { value: 'OLIVE_OIL', labelKey: 'vendorVisual.oliveOil' },
+  { value: 'FARM', labelKey: 'vendorVisual.farm' },
+  { value: 'DRYLAND', labelKey: 'vendorVisual.dryland' },
+  { value: 'LOCAL_PRODUCER', labelKey: 'vendorVisual.localProducer' },
+] as const
+
+type VendorCategoryOption = (typeof VENDOR_CATEGORY_OPTIONS)[number]['value']
+
 function buildProfileSchema(t: ReturnType<typeof useT>) {
   const imageFieldSchema = z
     .union([z.string(), z.literal(''), z.undefined()])
@@ -30,6 +43,13 @@ function buildProfileSchema(t: ReturnType<typeof useT>) {
     displayName: z.string().min(3, t('vendor.profileForm.nameMin')).max(80),
     description: z.string().max(2000).optional(),
     location: z.string().max(100).optional(),
+    category: z
+      .union([
+        z.enum(VENDOR_CATEGORY_OPTIONS.map(c => c.value) as [VendorCategoryOption, ...VendorCategoryOption[]]),
+        z.literal(''),
+        z.undefined(),
+      ])
+      .optional(),
     logo: imageFieldSchema,
     coverImage: imageFieldSchema,
     orderCutoffTime: z
@@ -74,6 +94,7 @@ export function VendorProfileForm({ vendor }: Props) {
       displayName: vendor.displayName,
       description: vendor.description ?? '',
       location: vendor.location ?? '',
+      category: (vendor.category ?? '') as VendorCategoryOption | '',
       logo: vendor.logo ?? '',
       coverImage: vendor.coverImage ?? '',
       orderCutoffTime: vendor.orderCutoffTime ?? '',
@@ -169,6 +190,25 @@ export function VendorProfileForm({ vendor }: Props) {
           error={errors.location?.message}
           {...register('location')}
         />
+
+        <div className="space-y-1.5">
+          <label htmlFor="vendor-category" className="block text-sm font-medium text-[var(--foreground)]">
+            {t('vendor.profileForm.categoryLabel')}
+          </label>
+          <select
+            id="vendor-category"
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
+            {...register('category')}
+          >
+            <option value="">{t('vendor.profileForm.categoryAuto')}</option>
+            {VENDOR_CATEGORY_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>
+                {t(opt.labelKey)}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-[var(--muted)]">{t('vendor.profileForm.categoryHint')}</p>
+        </div>
 
         <Controller
           control={control}
