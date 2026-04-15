@@ -66,7 +66,7 @@ export function AdminVendorEditForm({ vendor }: { vendor: InitialVendor }) {
       </div>
 
       <Field label="Descripción">
-        <textarea name="description" defaultValue={vendor.description ?? ''} rows={4} maxLength={2000} className={inputCls} />
+        <textarea name="description" defaultValue={vendor.description ?? ''} rows={4} maxLength={2000} spellCheck autoCapitalize="sentences" className={inputCls} />
       </Field>
 
       <div className="grid gap-4 md:grid-cols-3">

@@ -201,6 +201,8 @@ function ReviewCard({
             value={draft}
             onChange={e => setDraft(e.target.value)}
             rows={3}
+            spellCheck
+            autoCapitalize="sentences"
             maxLength={1000}
             disabled={pending}
             placeholder={t('vendor.reviewsManager.placeholder')}

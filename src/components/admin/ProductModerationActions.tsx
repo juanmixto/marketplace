@@ -74,6 +74,8 @@ export function ProductModerationActions({ productId, productName, status }: Pro
             <textarea
               id="reason"
               rows={3}
+              spellCheck
+              autoCapitalize="sentences"
               value={reason}
               onChange={e => setReason(e.target.value)}
               className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:focus:border-red-300 dark:focus:ring-red-400/25"

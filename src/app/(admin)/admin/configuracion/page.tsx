@@ -86,6 +86,8 @@ export default async function AdminMarketplaceConfigPage() {
           <textarea
             name="HERO_BANNER_TEXT"
             rows={3}
+            spellCheck
+            autoCapitalize="sentences"
             maxLength={160}
             defaultValue={config.HERO_BANNER_TEXT}
             placeholder="Ejemplo: Envio gratis este fin de semana en pedidos superiores a 25 EUR."

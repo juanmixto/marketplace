@@ -92,6 +92,8 @@ export function OpenIncidentForm({ orderId }: Props) {
         <textarea
           id="incident-description"
           rows={4}
+          spellCheck
+          autoCapitalize="sentences"
           value={description}
           onChange={event => setDescription(event.target.value)}
           placeholder={t('incident.descriptionPlaceholder')}
