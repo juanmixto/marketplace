@@ -905,6 +905,15 @@ model Subscription {
   // Reserved for phase 4b.
   stripeSubscriptionId  String?            @unique
 
+  // Watermark for Stripe webhook ordering. Each accepted
+  // customer.subscription.* / invoice.* event sets this to its
+  // top-level event.created timestamp; subsequent events with an
+  // older `created` are dropped as out-of-order to prevent state
+  // regressions (e.g. a stale `updated(ACTIVE)` overwriting a
+  // newer `deleted(CANCELED)`). Stripe does not guarantee delivery
+  // order, so we cannot trust the arrival sequence.
+  lastStripeEventAt     DateTime?
+
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
   canceledAt            DateTime?
