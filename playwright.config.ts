@@ -10,15 +10,25 @@ import { defineConfig, devices } from '@playwright/test'
  * Required env:
  *   DATABASE_URL_TEST  Postgres URL for an isolated DB seeded by `npm run db:seed`.
  *
- * The dev server is started by Playwright via `webServer`, talking to the
- * test DB. Tests assume the seed data is present (admin@marketplace.com,
- * productor@test.com, cliente@test.com — see prisma/seed.ts).
+ * webServer mode (which Next.js command to run under Playwright):
+ *   - Local default:           `next dev`  (fast reload, forgiving)
+ *   - CI / any prod verification: `next start` — the real production
+ *     server after a completed `next build`. Triggered by setting
+ *     `PLAYWRIGHT_USE_PROD=1`. Catches prod-only bugs (minification,
+ *     revalidatePath timing, React.cache semantics) that dev mode
+ *     silently masks. See #379 and docs/ci-testing-strategy.md §2.
+ *
+ * The dev/start server is started by Playwright via `webServer`, talking
+ * to the test DB. Tests assume the seed data is present
+ * (admin@marketplace.com, productor@test.com, cliente@test.com —
+ * see prisma/seed.ts).
  *
  * Parallelism: fullyParallel is enabled so specs across files can run
  * concurrently, but workers are capped at 2 in CI because all tests share
- * one seeded Postgres instance. Per-worker data isolation is a Phase-2
- * concern (see docs/ci-testing-strategy.md).
+ * one seeded Postgres instance. Per-worker data isolation is tracked in
+ * #380.
  */
+const useProdServer = process.env.PLAYWRIGHT_USE_PROD === '1'
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -48,13 +58,18 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: 'npm run dev',
+        // Prod mode (`next start`) requires a prior `next build`. The CI
+        // job arranges that by depending on the `build` job and
+        // downloading its `.next` artifact before Playwright runs.
+        command: useProdServer ? 'npm run start' : 'npm run dev',
         url: 'http://localhost:3000',
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
         env: {
           DATABASE_URL: process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL ?? '',
-          NODE_ENV: 'test',
+          // `next start` refuses to run with NODE_ENV=test. Dev mode is
+          // forgiving. Use production for the prod path, test for dev.
+          NODE_ENV: useProdServer ? 'production' : 'test',
           PAYMENT_PROVIDER: 'mock',
         },
       },

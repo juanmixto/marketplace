@@ -21,9 +21,14 @@ env:
 
 jobs:
   full-e2e:
-    name: Full E2E suite
+    name: Full E2E suite (prod server)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Runs the complete Playwright suite against `next start` (production
+    # mode, PLAYWRIGHT_USE_PROD=1). Prod-mode coverage used to live in
+    # ci.yml but the `next start` boot path took ~11 min on GitHub-hosted
+    # runners, unacceptable for PR CI. Nightly absorbs that cost once
+    # per day. See #379 and docs/ci-testing-strategy.md §2.
 
     services:
       postgres:
@@ -43,11 +48,18 @@ jobs:
     env:
       DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
       DATABASE_URL_TEST: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
+      PLAYWRIGHT_USE_PROD: "1"
 
     steps:
       - uses: actions/checkout@v5
 
       - uses: ./.github/actions/setup-deps
+
+      - name: Apply migrations to test DB
+        run: npx prisma migrate deploy
+
+      - name: Build (for next start)
+        run: npm run build
 
       - name: Cache Playwright browsers
         id: pw-cache
@@ -63,9 +75,6 @@ jobs:
       - name: Install Playwright system deps
         if: steps.pw-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
-
-      - name: Apply migrations
-        run: npx prisma migrate deploy
 
       - name: Create .env for seed script
         run: |

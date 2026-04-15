@@ -121,7 +121,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1]
+        shard: [0, 1, 2]
 
     services:
       postgres:
@@ -142,7 +142,7 @@ jobs:
       DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
       DATABASE_URL_TEST: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
       TEST_SHARD_INDEX: ${{ matrix.shard }}
-      TEST_SHARD_TOTAL: "2"
+      TEST_SHARD_TOTAL: "3"
 
     steps:
       - uses: actions/checkout@v5
@@ -162,7 +162,7 @@ jobs:
       - name: Seed database
         run: npm run db:seed
 
-      - name: Integration tests (shard ${{ matrix.shard }} of 2)
+      - name: Integration tests (shard ${{ matrix.shard }} of 3)
         run: npm run test:integration
         timeout-minutes: 10
 
@@ -181,10 +181,13 @@ jobs:
     name: E2E Smoke
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Runs in parallel with verify/build/integration. Uses `next dev` via
-    # Playwright's webServer — no dependency on the build job.
-    # Promoted to a blocking required check after 4 consecutive green
-    # runs on main (see docs/ci-testing-strategy.md §6).
+    # Runs in parallel with verify/build/integration against `next dev`.
+    # Prod-mode coverage (`next start` + DYNAMIC_SERVER_USAGE etc.) runs
+    # in nightly.yml — a run with PLAYWRIGHT_USE_PROD=1 took ~11 min on
+    # GitHub-hosted runners, which makes it unacceptable for every PR.
+    # The playwright.config.ts env switch (#383) stays wired up so
+    # local developers and nightly can still opt into the prod server.
+    # Blocking required check — see docs/ci-testing-strategy.md §6.
 
     services:
       postgres:
