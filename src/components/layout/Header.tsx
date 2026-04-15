@@ -205,7 +205,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
 
           {/* Right actions */}
           <div className="ml-auto flex items-center gap-1">
-            <LanguageToggle className="hidden sm:flex" />
+            <LanguageToggle />
             <ThemeToggle />
 
             {!userContextReady ? (
@@ -410,20 +410,20 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
               </div>
             )}
 
-            {/* Footer settings row: language + producer portal link */}
-            <div className="mx-0 my-2 border-t border-[var(--border)] sm:hidden" />
-            <div className="flex items-center justify-between gap-3 px-1 pt-1 sm:hidden">
-              <LanguageToggle />
-              {userContextReady && !currentUser && (
-                <Link
-                  href="/login?callbackUrl=%2Fvendor%2Fdashboard"
-                  onClick={() => setMobileOpen(false)}
-                  className="text-xs font-medium text-[var(--muted)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 rounded"
-                >
-                  {t('producerPortal')}
-                </Link>
-              )}
-            </div>
+            {userContextReady && !currentUser && (
+              <>
+                <div className="mx-0 my-2 border-t border-[var(--border)] sm:hidden" />
+                <div className="flex items-center justify-end px-1 pt-1 sm:hidden">
+                  <Link
+                    href="/login?callbackUrl=%2Fvendor%2Fdashboard"
+                    onClick={() => setMobileOpen(false)}
+                    className="text-xs font-medium text-[var(--muted)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 rounded"
+                  >
+                    {t('producerPortal')}
+                  </Link>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
