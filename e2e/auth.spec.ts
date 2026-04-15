@@ -4,10 +4,13 @@ import { TEST_USERS, loginAs } from './helpers/auth'
 test.describe('auth @smoke', () => {
   test('customer can log in with seeded credentials', async ({ page }) => {
     await loginAs(page, TEST_USERS.customer)
-    // After a successful customer login, the navbar exposes the "Mi cuenta"
-    // link. Asserting on that beats asserting on a specific destination URL,
-    // which is allowed to change.
-    await expect(page.getByRole('link', { name: /mi cuenta|cuenta/i })).toBeVisible()
+    // Assert authentication behaviorally: a logged-in customer can reach
+    // /cuenta without being redirected back to /login. Probing the navbar
+    // is brittle because the account entry is a dropdown trigger button
+    // whose text is the user's first name when it exists — not a stable
+    // selector.
+    await page.goto('/cuenta')
+    await expect(page).toHaveURL(/\/cuenta(?:\/|$|\?)/, { timeout: 10_000 })
   })
 
   test('login with wrong credentials surfaces an error', async ({ page }) => {
