@@ -12,6 +12,7 @@
     "test:db:parallel": "node --env-file-if-exists=.env --env-file-if-exists=.env.test ./scripts/run-node-tests.mjs --db --parallel",
     "test:integration": "node --env-file-if-exists=.env --env-file-if-exists=.env.test ./scripts/run-integration-tests.mjs",
     "test:e2e": "playwright test",
+    "test:e2e:smoke": "playwright test --grep @smoke",
     "test:coverage": "c8 node ./scripts/run-node-tests.mjs --parallel",
     "typecheck": "tsc --noEmit",
     "typecheck:app": "tsc -p tsconfig.app.json --noEmit",

@@ -1,10 +1,11 @@
 import { defineConfig, devices } from '@playwright/test'
 
 /**
- * Playwright config for marketplace E2E tests (#41).
+ * Playwright config for marketplace E2E tests.
  *
  * Run with:
- *   npm run test:e2e
+ *   npm run test:e2e         — full suite (all specs)
+ *   npm run test:e2e:smoke   — smoke only (specs tagged @smoke)
  *
  * Required env:
  *   DATABASE_URL_TEST  Postgres URL for an isolated DB seeded by `npm run db:seed`.
@@ -12,14 +13,21 @@ import { defineConfig, devices } from '@playwright/test'
  * The dev server is started by Playwright via `webServer`, talking to the
  * test DB. Tests assume the seed data is present (admin@marketplace.com,
  * productor@test.com, cliente@test.com — see prisma/seed.ts).
+ *
+ * Parallelism: fullyParallel is enabled so specs across files can run
+ * concurrently, but workers are capped at 2 in CI because all tests share
+ * one seeded Postgres instance. Per-worker data isolation is a Phase-2
+ * concern (see docs/ci-testing-strategy.md).
  */
 export default defineConfig({
   testDir: './e2e',
-  fullyParallel: false,
+  fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
-  workers: 1,
-  reporter: process.env.CI ? [['github'], ['list']] : 'list',
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 2 : undefined,
+  reporter: process.env.CI
+    ? [['github'], ['list'], ['html', { open: 'never' }]]
+    : 'list',
   timeout: 30_000,
   expect: { timeout: 5_000 },
 
