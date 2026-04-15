@@ -9,11 +9,13 @@ import {
 } from '@heroicons/react/24/outline'
 import { Badge } from '@/components/ui/badge'
 import { ProductImageGallery } from '@/components/catalog/ProductImageGallery'
+import { ProductPromotions } from '@/components/catalog/ProductPromotions'
 import { formatPrice } from '@/lib/utils'
-import { getServerT } from '@/i18n/server'
+import { getServerLocale, getServerT } from '@/i18n/server'
 import type { BadgeVariant } from '@/domains/catalog/types'
 import type { TranslationKeys } from '@/i18n/locales'
 import type { getMyProduct, getMyVendorProfile } from '@/domains/vendors/actions'
+import type { PublicPromotion } from '@/domains/promotions/public'
 
 type ProductWithRelations = NonNullable<Awaited<ReturnType<typeof getMyProduct>>>
 type VendorProfile = Awaited<ReturnType<typeof getMyVendorProfile>>
@@ -21,6 +23,7 @@ type VendorProfile = Awaited<ReturnType<typeof getMyVendorProfile>>
 interface Props {
   product: ProductWithRelations
   vendor: VendorProfile
+  activePromotions?: PublicPromotion[]
 }
 
 const STATUS_UI: Record<
@@ -34,12 +37,49 @@ const STATUS_UI: Record<
   SUSPENDED:      { labelKey: 'vendor.productsList.statusSuspended',     variant: 'default', toneKey: 'vendor.preview.toneSuspended' },
 }
 
-export async function VendorProductPreview({ product, vendor }: Props) {
+export async function VendorProductPreview({ product, vendor, activePromotions = [] }: Props) {
   const t = await getServerT()
+  const locale = await getServerLocale()
   const statusEntry = STATUS_UI[product.status] ?? STATUS_UI.DRAFT
-  const hasDiscount =
-    product.compareAtPrice !== null &&
-    Number(product.compareAtPrice) > Number(product.basePrice)
+  const basePrice = Number(product.basePrice)
+  const compareAtPrice = product.compareAtPrice !== null ? Number(product.compareAtPrice) : null
+  const hasCompareAt = compareAtPrice !== null && compareAtPrice > basePrice
+
+  // Mirror the customer-facing detail page: an "auto-applied" promo is
+  // one a buyer gets without typing a code or hitting a min subtotal,
+  // so the price the buyer sees on the product page is already
+  // discounted. We surface that same effective price here so the vendor
+  // preview matches what real shoppers will see.
+  const autoAppliedPromotion =
+    activePromotions.find(
+      promo =>
+        !promo.code &&
+        (!promo.minSubtotal || promo.minSubtotal <= 0) &&
+        (promo.scope === 'PRODUCT' || promo.scope === 'CATEGORY') &&
+        (promo.kind === 'PERCENTAGE' || promo.kind === 'FIXED_AMOUNT'),
+    ) ?? null
+  const informationalPromotions = activePromotions.filter(
+    promo => promo.id !== autoAppliedPromotion?.id,
+  )
+
+  const autoDiscountAmount = autoAppliedPromotion
+    ? autoAppliedPromotion.kind === 'PERCENTAGE'
+      ? Math.min(basePrice, (basePrice * autoAppliedPromotion.value) / 100)
+      : Math.min(basePrice, autoAppliedPromotion.value)
+    : 0
+  const finalPrice = Math.max(0, basePrice - autoDiscountAmount)
+  const hasAutoDiscount = autoDiscountAmount > 0
+  const savingsPct = hasAutoDiscount ? Math.round((autoDiscountAmount / basePrice) * 100) : 0
+  const autoDiscountValidUntil = autoAppliedPromotion
+    ? new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'es-ES', { dateStyle: 'medium' }).format(
+        new Date(autoAppliedPromotion.endsAt),
+      )
+    : null
+  const autoDiscountLabel = hasAutoDiscount
+    ? locale === 'en'
+      ? `Auto-applied promo · −${savingsPct}% until ${autoDiscountValidUntil}`
+      : `Promo aplicada automáticamente · −${savingsPct}% hasta ${autoDiscountValidUntil}`
+    : null
 
   return (
     <div className="space-y-5 max-w-5xl">
@@ -130,15 +170,25 @@ export async function VendorProductPreview({ product, vendor }: Props) {
             <div className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-5">
               <div className="flex items-baseline gap-3">
                 <span className="text-3xl font-bold text-[var(--foreground)]">
-                  {formatPrice(Number(product.basePrice))}
+                  {formatPrice(finalPrice)}
                 </span>
-                {hasDiscount && (
+                {hasAutoDiscount && (
                   <span className="text-base text-[var(--muted)] line-through">
-                    {formatPrice(Number(product.compareAtPrice))}
+                    {formatPrice(basePrice)}
+                  </span>
+                )}
+                {!hasAutoDiscount && hasCompareAt && (
+                  <span className="text-base text-[var(--muted)] line-through">
+                    {formatPrice(compareAtPrice)}
                   </span>
                 )}
                 <span className="text-sm text-[var(--muted)]">/ {product.unit}</span>
               </div>
+              {hasAutoDiscount && (
+                <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">
+                  {autoDiscountLabel}
+                </p>
+              )}
               {product.trackStock && (
                 <p className="mt-2 text-sm text-[var(--muted)]">
                   {product.stock > 0
@@ -163,6 +213,8 @@ export async function VendorProductPreview({ product, vendor }: Props) {
                 </p>
               </div>
             </div>
+
+            <ProductPromotions promotions={informationalPromotions} locale={locale} />
 
             {/* Vendor card */}
             <div className="mt-6 flex items-start gap-4 rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-4">
