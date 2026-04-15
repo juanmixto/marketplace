@@ -684,6 +684,7 @@ const es = {
   'vendor.orders.statusShipped': 'Enviado',
   'vendor.orders.statusDelivered': 'Entregado',
   'vendor.orders.statusCancelled': 'Cancelado',
+  'vendor.orders.statusIncident': 'Incidencia',
 
   // Vendor – fulfillment actions
   'vendor.fulfillment.confirm': 'Confirmar pedido',
@@ -705,6 +706,8 @@ const es = {
   'vendor.fulfillment.viewTracking': 'Ver seguimiento',
   'vendor.fulfillment.retryLabel': 'Reintentar etiqueta',
   'vendor.fulfillment.markIncident': 'Marcar incidencia',
+  'vendor.fulfillment.resolveIncident': 'Resolver incidencia',
+  'vendor.fulfillment.hintIncident': 'El pedido está en incidencia. Resuélvela cuando el problema esté solucionado para volver a su estado anterior.',
   'vendor.fulfillment.labelFailed': 'No se pudo generar la etiqueta',
   'vendor.fulfillment.addressMissing': 'Configura tu dirección de origen antes de preparar pedidos',
 

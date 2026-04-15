@@ -21,7 +21,7 @@ const STATUS_CONFIG: Record<string, { labelKey: TranslationKeys; variant: BadgeV
   READY:           { labelKey: 'vendor.orders.statusReady',     variant: 'green' },
   SHIPPED:         { labelKey: 'vendor.orders.statusShipped',   variant: 'green' },
   DELIVERED:       { labelKey: 'vendor.orders.statusDelivered', variant: 'green' },
-  INCIDENT:        { labelKey: 'vendor.orders.statusPending',   variant: 'red' },
+  INCIDENT:        { labelKey: 'vendor.orders.statusIncident',  variant: 'red' },
   CANCELLED:       { labelKey: 'vendor.orders.statusCancelled', variant: 'red' },
 }
 

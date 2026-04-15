@@ -685,6 +685,7 @@ const en: Record<TranslationKeys, string> = {
   'vendor.orders.statusShipped': 'Shipped',
   'vendor.orders.statusDelivered': 'Delivered',
   'vendor.orders.statusCancelled': 'Cancelled',
+  'vendor.orders.statusIncident': 'Incident',
 
   // Vendor – fulfillment actions
   'vendor.fulfillment.confirm': 'Confirm order',
@@ -706,6 +707,8 @@ const en: Record<TranslationKeys, string> = {
   'vendor.fulfillment.viewTracking': 'View tracking',
   'vendor.fulfillment.retryLabel': 'Retry label',
   'vendor.fulfillment.markIncident': 'Report incident',
+  'vendor.fulfillment.resolveIncident': 'Resolve incident',
+  'vendor.fulfillment.hintIncident': 'This order is flagged as an incident. Resolve it once the issue is fixed to move it back to its previous state.',
   'vendor.fulfillment.labelFailed': 'Could not generate the label',
   'vendor.fulfillment.addressMissing': 'Set up your origin address before preparing orders',
 

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import {
   prepareFulfillment,
   markFulfillmentIncident,
+  resolveFulfillmentIncident,
 } from '@/domains/shipping/actions'
 import { useT } from '@/i18n'
 
@@ -44,6 +45,21 @@ export function FulfillmentActions({ fulfillmentId, status, labelUrl, trackingUr
     setError(null)
     try {
       await markFulfillmentIncident(fulfillmentId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('vendor.fulfillment.updateError'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleResolveIncident() {
+    setLoading(true)
+    setError(null)
+    try {
+      const result = await resolveFulfillmentIncident(fulfillmentId)
+      if (!result.ok) {
+        setError(result.message || t('vendor.fulfillment.updateError'))
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('vendor.fulfillment.updateError'))
     } finally {
@@ -129,6 +145,42 @@ export function FulfillmentActions({ fulfillmentId, status, labelUrl, trackingUr
             {t('vendor.fulfillment.hintReady')}
           </p>
         )}
+      </div>
+    )
+  }
+
+  if (status === 'INCIDENT') {
+    return (
+      <div className="flex flex-col items-end gap-1">
+        {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
+        <div className="flex flex-wrap justify-end gap-2">
+          {labelUrl && (
+            <a
+              href={labelUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-11 items-center rounded-md border border-emerald-300 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+            >
+              {t('vendor.fulfillment.printLabel')}
+            </a>
+          )}
+          {trackingUrl && (
+            <a
+              href={trackingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-11 items-center rounded-md border border-emerald-300 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+            >
+              {t('vendor.fulfillment.viewTracking')}
+            </a>
+          )}
+          <Button size="sm" isLoading={loading} onClick={handleResolveIncident}>
+            {t('vendor.fulfillment.resolveIncident')}
+          </Button>
+        </div>
+        <p className="max-w-[260px] text-right text-xs text-[var(--muted)]">
+          {t('vendor.fulfillment.hintIncident')}
+        </p>
       </div>
     )
   }
