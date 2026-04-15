@@ -65,6 +65,30 @@ export function normalizeAuthHostEnv(env: NodeJS.ProcessEnv) {
   return nextEnv
 }
 
+/**
+ * Rebuild a NextRequest so its URL reflects the actual `Host` header instead
+ * of whichever hostname `next dev` decided to bake into `req.url`. In dev,
+ * Next.js constructs `req.url` from its bind hostname (e.g. `localhost`),
+ * so a request reaching the server via `192.168.1.76:3000` still appears as
+ * `http://localhost:3000/...` to route handlers. Auth.js then derives its
+ * callback URL from `req.url` and redirects users to a host that doesn't
+ * carry their session cookie. This helper re-anchors the URL on the real
+ * host so cross-origin LAN access (mobile/tablet testing) works.
+ */
+export function reqWithHostHeader<T extends Request>(req: T): T {
+  const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host')
+  if (!host) return req
+  const proto = req.headers.get('x-forwarded-proto') ?? new URL(req.url).protocol.replace(/:$/, '')
+  const url = new URL(req.url)
+  if (url.host === host && url.protocol === `${proto}:`) return req
+  url.host = host
+  url.protocol = `${proto}:`
+  // `Request` (and `NextRequest`) accept another Request as the init argument
+  // and inherit its method/body/headers — so this reuses the original body.
+  const Ctor = req.constructor as new (input: string, init: T) => T
+  return new Ctor(url.toString(), req)
+}
+
 export function applyNormalizedAuthHostEnv(env: NodeJS.ProcessEnv) {
   const normalizedEnv = normalizeAuthHostEnv(env)
 
