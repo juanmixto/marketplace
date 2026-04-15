@@ -4,7 +4,19 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.vscode/**'
+      - 'LICENSE'
+      - '.gitignore'
   pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.vscode/**'
+      - 'LICENSE'
+      - '.gitignore'
   workflow_dispatch:
 
 permissions:
@@ -22,7 +34,7 @@ env:
 
 jobs:
   verify:
-    name: Verify
+    name: Verify (typecheck + unit)
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -130,7 +142,7 @@ jobs:
 
       - uses: ./.github/actions/setup-deps
 
-      - name: Run DB-backed tests
+      - name: Apply migrations to test DB
         run: npm run test:db:parallel
 
       - name: Create .env for seed script
@@ -146,3 +158,79 @@ jobs:
       - name: Integration tests
         run: npm run test:integration
         timeout-minutes: 10
+
+  e2e-smoke:
+    name: E2E Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Runs in parallel with verify/build/integration. Uses `next dev` via
+    # Playwright's webServer — no dependency on the build job.
+    # Not yet required-to-merge. Promote to required once 3 consecutive runs
+    # are green on main. See docs/ci-testing-strategy.md.
+    continue-on-error: true
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: marketplace_test
+          POSTGRES_USER: mp_user
+          POSTGRES_PASSWORD: mp_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mp_user -d marketplace_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 15
+
+    env:
+      DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
+      DATABASE_URL_TEST: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-deps
+
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers (chromium only)
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright system deps
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Apply migrations to test DB
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL_TEST }}
+
+      - name: Create .env for seed script
+        run: |
+          echo "DATABASE_URL=$DATABASE_URL_TEST" > .env
+          echo "AUTH_SECRET=$AUTH_SECRET" >> .env
+          echo "NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL" >> .env
+          echo "PAYMENT_PROVIDER=$PAYMENT_PROVIDER" >> .env
+
+      - name: Seed database
+        run: npm run db:seed
+
+      - name: Run E2E smoke suite
+        run: npm run test:e2e:smoke
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: playwright-report
+          retention-days: 7
+          if-no-files-found: ignore

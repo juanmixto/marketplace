@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { TEST_USERS, loginAs } from './helpers/auth'
 
-test.describe('auth', () => {
+test.describe('auth @smoke', () => {
   test('customer can log in with seeded credentials', async ({ page }) => {
     await loginAs(page, TEST_USERS.customer)
     // After a successful customer login, the navbar exposes the "Mi cuenta"
