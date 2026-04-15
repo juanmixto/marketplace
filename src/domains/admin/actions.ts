@@ -2,7 +2,6 @@
 
 import { UserRole } from '@/generated/prisma/enums'
 import { db } from '@/lib/db'
-import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { setMarketplaceConfig } from '@/lib/config'
 import { createAuditLog, getAuditRequestIp, type AuditValue } from '@/lib/audit'
@@ -111,8 +110,8 @@ export async function approveVendor(vendorId: string) {
     ip,
   })
 
-  revalidatePath('/admin/productores')
-  revalidatePath('/admin/auditoria')
+  safeRevalidatePath('/admin/productores')
+  safeRevalidatePath('/admin/auditoria')
 }
 
 /**
@@ -142,8 +141,8 @@ export async function rejectVendor(vendorId: string) {
     ip,
   })
 
-  revalidatePath('/admin/productores')
-  revalidatePath('/admin/auditoria')
+  safeRevalidatePath('/admin/productores')
+  safeRevalidatePath('/admin/auditoria')
 }
 
 /**
@@ -173,8 +172,8 @@ export async function suspendVendor(vendorId: string) {
     ip,
   })
 
-  revalidatePath('/admin/productores')
-  revalidatePath('/admin/auditoria')
+  safeRevalidatePath('/admin/productores')
+  safeRevalidatePath('/admin/auditoria')
 }
 
 // ─── Product moderation ───────────────────────────────────────────────────────
@@ -266,12 +265,12 @@ export async function updateMarketplaceConfigAction(formData: FormData) {
     ip,
   })
 
-  revalidatePath('/admin/configuracion')
-  revalidatePath('/admin/dashboard')
-  revalidatePath('/admin/auditoria')
-  revalidatePath('/')
-  revalidatePath('/carrito')
-  revalidatePath('/checkout')
+  safeRevalidatePath('/admin/configuracion')
+  safeRevalidatePath('/admin/dashboard')
+  safeRevalidatePath('/admin/auditoria')
+  safeRevalidatePath('/')
+  safeRevalidatePath('/carrito')
+  safeRevalidatePath('/checkout')
 }
 
 export async function createCommissionRule(formData: FormData) {
@@ -319,8 +318,8 @@ export async function createCommissionRule(formData: FormData) {
     ip,
   })
 
-  revalidatePath('/admin/comisiones')
-  revalidatePath('/admin/auditoria')
+  safeRevalidatePath('/admin/comisiones')
+  safeRevalidatePath('/admin/auditoria')
 }
 
 export async function toggleCommissionRule(ruleId: string) {
@@ -359,8 +358,8 @@ export async function toggleCommissionRule(ruleId: string) {
     ip,
   })
 
-  revalidatePath('/admin/comisiones')
-  revalidatePath('/admin/auditoria')
+  safeRevalidatePath('/admin/comisiones')
+  safeRevalidatePath('/admin/auditoria')
 }
 
 export async function deleteCommissionRule(ruleId: string) {
@@ -392,8 +391,8 @@ export async function deleteCommissionRule(ruleId: string) {
     ip,
   })
 
-  revalidatePath('/admin/comisiones')
-  revalidatePath('/admin/auditoria')
+  safeRevalidatePath('/admin/comisiones')
+  safeRevalidatePath('/admin/auditoria')
 }
 
 export async function createShippingZone(formData: FormData) {
@@ -431,8 +430,8 @@ export async function createShippingZone(formData: FormData) {
     ip,
   })
 
-  revalidatePath('/admin/envios')
-  revalidatePath('/admin/auditoria')
+  safeRevalidatePath('/admin/envios')
+  safeRevalidatePath('/admin/auditoria')
 }
 
 export async function addShippingRate(formData: FormData) {
@@ -478,8 +477,8 @@ export async function addShippingRate(formData: FormData) {
     ip,
   })
 
-  revalidatePath('/admin/envios')
-  revalidatePath('/admin/auditoria')
+  safeRevalidatePath('/admin/envios')
+  safeRevalidatePath('/admin/auditoria')
 }
 
 export async function deleteShippingRate(rateId: string) {
@@ -511,8 +510,8 @@ export async function deleteShippingRate(rateId: string) {
     ip,
   })
 
-  revalidatePath('/admin/envios')
-  revalidatePath('/admin/auditoria')
+  safeRevalidatePath('/admin/envios')
+  safeRevalidatePath('/admin/auditoria')
 }
 
 /**
@@ -556,9 +555,9 @@ export async function reviewProduct(
     ip,
   })
 
-  revalidatePath('/admin/productos')
-  revalidatePath('/admin/auditoria')
-  revalidatePath('/vendor/productos')
+  safeRevalidatePath('/admin/productos')
+  safeRevalidatePath('/admin/auditoria')
+  safeRevalidatePath('/vendor/productos')
   revalidateCatalogExperience({ productSlug: updatedProduct.slug })
 }
 
@@ -589,9 +588,9 @@ export async function suspendProduct(productId: string, reason: string) {
     ip,
   })
 
-  revalidatePath('/admin/productos')
-  revalidatePath('/admin/auditoria')
-  revalidatePath('/vendor/productos')
+  safeRevalidatePath('/admin/productos')
+  safeRevalidatePath('/admin/auditoria')
+  safeRevalidatePath('/vendor/productos')
   revalidateCatalogExperience({ productSlug: updatedProduct.slug })
 }
 
@@ -622,8 +621,8 @@ export async function approveSettlement(settlementId: string) {
     ip,
   })
 
-  revalidatePath('/admin/liquidaciones')
-  revalidatePath('/admin/auditoria')
+  safeRevalidatePath('/admin/liquidaciones')
+  safeRevalidatePath('/admin/auditoria')
 }
 
 export async function markSettlementPaid(settlementId: string) {
@@ -653,8 +652,8 @@ export async function markSettlementPaid(settlementId: string) {
     ip,
   })
 
-  revalidatePath('/admin/liquidaciones')
-  revalidatePath('/admin/auditoria')
+  safeRevalidatePath('/admin/liquidaciones')
+  safeRevalidatePath('/admin/auditoria')
 }
 
 // ─── Order management ─────────────────────────────────────────────────────────

@@ -48,10 +48,14 @@ export function extractAuditIp(headerStore: Pick<Headers, 'get'>) {
  * forensic investigation, so when in doubt we record `null`.
  */
 export async function getAuditRequestIp() {
-  const headerStore = await headers()
+  // Short-circuit before touching next/headers: the proxy-trust gate is the
+  // real decision here, and calling `headers()` outside a request scope (in
+  // integration tests, cron jobs, scripts) throws. Checking trust first
+  // keeps the production path identical and unlocks test callers.
   if (!isProxyTrustedFromEnv()) {
     return null
   }
+  const headerStore = await headers()
   return extractAuditIp(headerStore)
 }
 
