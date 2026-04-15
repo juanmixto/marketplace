@@ -188,6 +188,88 @@ export async function startSubscriptionCheckout(
 }
 
 /**
+ * Phase 4b-β (mock-mode only): finalizes a subscription checkout when the
+ * buyer is redirected back to `/cuenta/suscripciones` after the synthetic
+ * mock checkout. Real Stripe mode never takes this path — the webhook
+ * handler (`customer.subscription.created`) is authoritative there, and
+ * this action refuses to run when `PAYMENT_PROVIDER !== 'mock'` so we
+ * cannot accidentally create a subscription row that Stripe does not
+ * know about in production.
+ *
+ * Idempotent: repeated calls for the same (buyer, plan) with the same
+ * synthetic `sessionId` return the existing row instead of creating a
+ * duplicate, so a page refresh is safe.
+ */
+const confirmMockCheckoutSchema = z.object({
+  sessionId: z.string().min(1),
+  planId: z.string().min(1),
+  addressId: z.string().min(1),
+})
+
+export type ConfirmMockCheckoutInput = z.infer<typeof confirmMockCheckoutSchema>
+
+export async function confirmMockSubscriptionCheckout(
+  input: ConfirmMockCheckoutInput
+): Promise<{ ok: boolean; subscriptionId?: string; reason?: string }> {
+  const env = getServerEnv()
+  if (env.paymentProvider !== 'mock') {
+    // In real Stripe mode the webhook creates the row. Refusing here
+    // prevents any client-side trickery with crafted query params from
+    // injecting a subscription without a real charge.
+    return { ok: false, reason: 'not-mock-mode' }
+  }
+
+  const { buyerId } = await requireBuyer()
+  assertBetaEnabled()
+  const data = confirmMockCheckoutSchema.parse(input)
+
+  const plan = await db.subscriptionPlan.findFirst({
+    where: { id: data.planId, archivedAt: null },
+    select: { id: true, cadence: true },
+  })
+  if (!plan) return { ok: false, reason: 'plan-missing' }
+
+  const address = await db.address.findFirst({
+    where: { id: data.addressId, userId: buyerId },
+    select: { id: true },
+  })
+  if (!address) return { ok: false, reason: 'address-missing' }
+
+  const now = new Date()
+  const nextDeliveryAt = computeFirstDeliveryAt(now, plan.cadence)
+  const currentPeriodEnd = computeCurrentPeriodEnd(nextDeliveryAt, plan.cadence)
+
+  const row = await db.subscription.upsert({
+    where: { buyerId_planId: { buyerId, planId: plan.id } },
+    create: {
+      buyerId,
+      planId: plan.id,
+      shippingAddressId: address.id,
+      status: 'ACTIVE',
+      nextDeliveryAt,
+      currentPeriodEnd,
+      stripeSubscriptionId: data.sessionId,
+    },
+    update: {
+      // If a previous CANCELED row exists we overwrite it in place; if the
+      // user refreshes the success page we no-op in effect (same fields).
+      status: 'ACTIVE',
+      shippingAddressId: address.id,
+      stripeSubscriptionId: data.sessionId,
+      canceledAt: null,
+    },
+    select: { id: true },
+  })
+
+  // Intentionally NOT calling `safeRevalidatePath` here. This action is
+  // invoked from the `/cuenta/suscripciones` page render itself (mock-
+  // mode return flow), and Next 16 forbids `revalidatePath` during a
+  // render pass. The caller re-queries `listMySubscriptions` immediately
+  // after so the fresh row is already visible in the same response.
+  return { ok: true, subscriptionId: row.id }
+}
+
+/**
  * Plain-JS shape returned to server components. Decimal fields on the
  * joined plan are converted to numbers so the row crosses the RSC
  * boundary cleanly. The tests call Number() on these values already,

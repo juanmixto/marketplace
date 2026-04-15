@@ -6,6 +6,8 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArrowPathIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
   ForwardIcon,
   PauseIcon,
   PlayIcon,
@@ -30,9 +32,14 @@ type Subscription = Awaited<ReturnType<typeof listMySubscriptions>>[number]
 interface Props {
   subscriptions: Subscription[]
   betaEnabled: boolean
+  welcomeState?: 'success' | 'error' | null
 }
 
-export function BuyerSubscriptionsListClient({ subscriptions, betaEnabled }: Props) {
+export function BuyerSubscriptionsListClient({
+  subscriptions,
+  betaEnabled,
+  welcomeState = null,
+}: Props) {
   const t = useT()
 
   const active = subscriptions.filter(s => s.status !== 'CANCELED')
@@ -48,6 +55,37 @@ export function BuyerSubscriptionsListClient({ subscriptions, betaEnabled }: Pro
           {t('account.subscriptions.subtitle')}
         </p>
       </div>
+
+      {welcomeState === 'success' && (
+        <div
+          role="status"
+          data-testid="subscription-welcome-banner"
+          className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/30"
+        >
+          <CheckCircleIcon className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" />
+          <div className="text-sm text-emerald-900 dark:text-emerald-200">
+            <p className="font-semibold">{t('account.subscriptions.welcomeSuccessTitle')}</p>
+            <p className="mt-0.5 text-emerald-800 dark:text-emerald-300">
+              {t('account.subscriptions.welcomeSuccessBody')}
+            </p>
+          </div>
+        </div>
+      )}
+      {welcomeState === 'error' && (
+        <div
+          role="alert"
+          data-testid="subscription-welcome-error"
+          className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/30"
+        >
+          <ExclamationTriangleIcon className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+          <div className="text-sm text-amber-900 dark:text-amber-200">
+            <p className="font-semibold">{t('account.subscriptions.welcomeErrorTitle')}</p>
+            <p className="mt-0.5 text-amber-800 dark:text-amber-300">
+              {t('account.subscriptions.welcomeErrorBody')}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Beta notice — explicit about what buyers can and cannot do today */}
       <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 shadow-sm dark:border-blue-900/50 dark:bg-blue-950/30">

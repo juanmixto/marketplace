@@ -336,6 +336,11 @@ export async function createSubscriptionCheckoutSession(
     const url = new URL(input.successUrl)
     url.searchParams.set('mock_session', id)
     url.searchParams.set('planId', input.metadata.marketplacePlanId)
+    // Carry the shipping address id so the confirmation handler on the
+    // return page can upsert the local Subscription row without firing a
+    // real Stripe webhook. In real mode this information lives in the
+    // Checkout Session metadata and arrives via customer.subscription.created.
+    url.searchParams.set('addressId', input.metadata.marketplaceShippingAddressId)
     return { id, url: `${url.pathname}${url.search}` }
   }
 

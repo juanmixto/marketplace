@@ -859,7 +859,7 @@ const en: Record<TranslationKeys, string> = {
   'account.subscriptions.title': 'My subscriptions',
   'account.subscriptions.subtitle': 'Manage your recurring boxes. You can skip a delivery, pause or cancel any time.',
   'account.subscriptions.betaNoticeTitle': 'Subscriptions are in beta',
-  'account.subscriptions.betaNoticeBodyEnabled': 'You can manage existing subscriptions, but signing up from the product page is not enabled yet. It will ship in the next phase together with recurring billing.',
+  'account.subscriptions.betaNoticeBodyEnabled': 'You can now subscribe to any box with an active plan. Recurring billing is in beta — flag anything that looks off.',
   'account.subscriptions.betaNoticeBodyDisabled': 'You cannot subscribe to a box yet. We are wiring recurring billing and will let you know when it is ready.',
   'account.subscriptions.sectionActive': 'Active',
   'account.subscriptions.sectionCanceled': 'Canceled',
@@ -879,6 +879,10 @@ const en: Record<TranslationKeys, string> = {
   'account.subscriptions.resume': 'Resume',
   'account.subscriptions.cancel': 'Cancel',
   'account.subscriptions.errorGeneric': 'The operation could not be completed',
+  'account.subscriptions.welcomeSuccessTitle': 'Subscription activated!',
+  'account.subscriptions.welcomeSuccessBody': 'Your payment is confirmed. Find the details below — you can skip deliveries, pause or cancel any time.',
+  'account.subscriptions.welcomeErrorTitle': 'We could not activate the subscription',
+  'account.subscriptions.welcomeErrorBody': 'The payment was processed but something failed while saving the subscription. Please contact support — we will sort it out.',
 
   // Catalog – subscribe CTA (phase 4b-β)
   'catalog.subscribe.title': 'Receive it on a recurring basis',

@@ -857,7 +857,7 @@ const es = {
   'account.subscriptions.title': 'Mis suscripciones',
   'account.subscriptions.subtitle': 'Gestiona tus cajas recurrentes. Puedes saltarte una entrega, pausar o cancelar en cualquier momento.',
   'account.subscriptions.betaNoticeTitle': 'Suscripciones en fase beta',
-  'account.subscriptions.betaNoticeBodyEnabled': 'Puedes gestionar suscripciones existentes, pero la contratación aún no está disponible desde la ficha de producto. Se activará en la siguiente fase junto con el cobro recurrente.',
+  'account.subscriptions.betaNoticeBodyEnabled': 'Ya puedes suscribirte a las cajas que tengan plan activo. El cobro recurrente está en fase beta — si detectas algo raro, escríbenos.',
   'account.subscriptions.betaNoticeBodyDisabled': 'Todavía no puedes suscribirte a ninguna caja. Estamos terminando de activar el cobro recurrente y te avisaremos cuando esté listo.',
   'account.subscriptions.sectionActive': 'Activas',
   'account.subscriptions.sectionCanceled': 'Canceladas',
@@ -877,6 +877,10 @@ const es = {
   'account.subscriptions.resume': 'Reanudar',
   'account.subscriptions.cancel': 'Cancelar',
   'account.subscriptions.errorGeneric': 'No se ha podido completar la operación',
+  'account.subscriptions.welcomeSuccessTitle': '¡Suscripción activada!',
+  'account.subscriptions.welcomeSuccessBody': 'Hemos confirmado tu pago. Aquí abajo tienes los detalles — puedes saltar entregas, pausar o cancelar cuando quieras.',
+  'account.subscriptions.welcomeErrorTitle': 'No hemos podido activar la suscripción',
+  'account.subscriptions.welcomeErrorBody': 'El pago se procesó pero algo falló al guardar la suscripción. Ponte en contacto con soporte y te ayudamos enseguida.',
 
   // Catalog – subscribe CTA (phase 4b-β)
   'catalog.subscribe.title': 'Recíbelo de forma recurrente',

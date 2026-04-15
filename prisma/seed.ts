@@ -847,6 +847,36 @@ async function main() {
   }
   console.log(`  ✓ ${adminSideVendorBlueprints.length} productores extra para moderación`)
 
+  // Seeded subscription plan for the "Cesta mixta de huerta" so e2e and
+  // local dev have a buyable recurring box without running through the
+  // vendor UI. Mock mode never validates `stripePriceId` against the
+  // real Stripe API, so a synthetic id is safe.
+  const fincaGarcia = vendorsBySlug.get('finca-garcia')
+  if (fincaGarcia) {
+    await db.subscriptionPlan.upsert({
+      where: { productId: 'prod-cesta-huerta' },
+      update: {
+        cadence: 'WEEKLY',
+        priceSnapshot: 14.5,
+        taxRateSnapshot: 0.04,
+        cutoffDayOfWeek: 5,
+        stripePriceId: 'price_mock_cesta_huerta',
+        archivedAt: null,
+      },
+      create: {
+        id: 'plan-cesta-huerta',
+        vendorId: fincaGarcia.id,
+        productId: 'prod-cesta-huerta',
+        cadence: 'WEEKLY',
+        priceSnapshot: 14.5,
+        taxRateSnapshot: 0.04,
+        cutoffDayOfWeek: 5,
+        stripePriceId: 'price_mock_cesta_huerta',
+      },
+    })
+    console.log(`  ✓ Plan de suscripción: cesta-mixta-huerta (semanal)`)
+  }
+
   const customersByEmail = new Map<string, { id: string; firstName: string; lastName: string }>()
   for (const customer of customerBlueprints) {
     const user = await upsertUser({
