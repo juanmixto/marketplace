@@ -2,7 +2,12 @@
 
 import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
-import { SunIcon, MoonIcon, ComputerDesktopIcon } from '@heroicons/react/24/outline'
+import {
+  SunIcon,
+  MoonIcon,
+  ComputerDesktopIcon,
+  DevicePhoneMobileIcon,
+} from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import {
   getNextThemePreference,
@@ -34,7 +39,18 @@ export function ThemeToggle({ className }: { className?: string }) {
   const nextTheme = getNextThemePreference(theme)
   const label = getThemeToggleLabel(theme, resolvedTheme)
 
-  const Icon = currentTheme === 'system' ? ComputerDesktopIcon : isDark ? MoonIcon : SunIcon
+  const renderIcon = () => {
+    if (currentTheme === 'system') {
+      return (
+        <>
+          <DevicePhoneMobileIcon className="h-5 w-5 sm:hidden" />
+          <ComputerDesktopIcon className="hidden h-5 w-5 sm:block" />
+        </>
+      )
+    }
+    const Icon = isDark ? MoonIcon : SunIcon
+    return <Icon className="h-5 w-5" />
+  }
 
   return (
     <button
@@ -50,7 +66,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         className
       )}
     >
-      <Icon className="h-5 w-5" />
+      {renderIcon()}
       <span className="sr-only">Cambiar tema ({label})</span>
     </button>
   )
