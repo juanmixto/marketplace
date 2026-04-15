@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { TagIcon } from '@heroicons/react/24/outline'
 import { Badge } from '@/components/ui/badge'
 import { formatPrice } from '@/lib/utils'
@@ -75,6 +76,7 @@ export function AdminPromotionsClient({ data }: Props) {
                   <th className="px-4 py-2 text-left">{t('adminPromotions.col.window')}</th>
                   <th className="px-4 py-2 text-left">{t('adminPromotions.col.state')}</th>
                   <th className="px-4 py-2 text-right">{t('adminPromotions.col.redemptions')}</th>
+                  <th className="px-4 py-2 text-right">&nbsp;</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
@@ -164,6 +166,14 @@ function PromoRow({ row, now }: { row: PromotionRow; now: Date }) {
         {row.maxRedemptions !== null && (
           <span className="text-xs text-[var(--muted)]"> / {row.maxRedemptions}</span>
         )}
+      </td>
+      <td className="px-4 py-3 text-right">
+        <Link
+          href={`/admin/promociones/${row.id}/edit`}
+          className="text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+        >
+          Editar
+        </Link>
       </td>
     </tr>
   )
