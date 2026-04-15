@@ -871,6 +871,7 @@ const es = {
   'account.subscriptions.cadenceBiweekly': 'Quincenal',
   'account.subscriptions.cadenceMonthly': 'Mensual',
   'account.subscriptions.nextDeliveryLabel': 'Próxima entrega: {date}',
+  'account.subscriptions.daysUntilLabel': 'en {days} días',
   'account.subscriptions.canceledOnLabel': 'Cancelada el {date}',
   'account.subscriptions.skipNext': 'Saltar la próxima',
   'account.subscriptions.pause': 'Pausar',

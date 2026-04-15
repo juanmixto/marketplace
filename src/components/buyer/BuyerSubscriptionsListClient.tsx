@@ -9,10 +9,10 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   ForwardIcon,
+  MapPinIcon,
   PauseIcon,
   PlayIcon,
   XCircleIcon,
-  InformationCircleIcon,
 } from '@heroicons/react/24/outline'
 import { Badge } from '@/components/ui/badge'
 import { formatPrice } from '@/lib/utils'
@@ -31,13 +31,11 @@ type Subscription = Awaited<ReturnType<typeof listMySubscriptions>>[number]
 
 interface Props {
   subscriptions: Subscription[]
-  betaEnabled: boolean
   welcomeState?: 'success' | 'error' | null
 }
 
 export function BuyerSubscriptionsListClient({
   subscriptions,
-  betaEnabled,
   welcomeState = null,
 }: Props) {
   const t = useT()
@@ -86,19 +84,6 @@ export function BuyerSubscriptionsListClient({
           </div>
         </div>
       )}
-
-      {/* Beta notice — explicit about what buyers can and cannot do today */}
-      <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 shadow-sm dark:border-blue-900/50 dark:bg-blue-950/30">
-        <InformationCircleIcon className="h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400 mt-0.5" />
-        <div className="text-sm text-blue-900 dark:text-blue-200">
-          <p className="font-semibold">{t('account.subscriptions.betaNoticeTitle')}</p>
-          <p className="mt-0.5 text-blue-800 dark:text-blue-300">
-            {betaEnabled
-              ? t('account.subscriptions.betaNoticeBodyEnabled')
-              : t('account.subscriptions.betaNoticeBodyDisabled')}
-          </p>
-        </div>
-      </div>
 
       {subscriptions.length === 0 ? (
         <EmptyState />
@@ -225,6 +210,26 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
                 '{date}',
                 formatDate(subscription.nextDeliveryAt)
               )}
+              {isActive && (() => {
+                const days = daysUntil(subscription.nextDeliveryAt)
+                if (days <= 0) return null
+                return (
+                  <span className="ml-1 text-[var(--muted)]">
+                    · {t('account.subscriptions.daysUntilLabel').replace('{days}', String(days))}
+                  </span>
+                )
+              })()}
+            </p>
+          )}
+          {!isCanceled && (
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-[var(--muted)]">
+              <MapPinIcon className="h-3 w-3 shrink-0" />
+              <span className="truncate">
+                {subscription.shippingAddress.line1}
+                {subscription.shippingAddress.line2 ? `, ${subscription.shippingAddress.line2}` : ''}
+                {' · '}
+                {subscription.shippingAddress.postalCode} {subscription.shippingAddress.city}
+              </span>
             </p>
           )}
           {isCanceled && subscription.canceledAt && (
@@ -295,4 +300,10 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
 
 function formatDate(value: Date | string): string {
   return new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium' }).format(new Date(value))
+}
+
+function daysUntil(value: Date | string): number {
+  const target = new Date(value).getTime()
+  const now = Date.now()
+  return Math.max(0, Math.ceil((target - now) / (1000 * 60 * 60 * 24)))
 }

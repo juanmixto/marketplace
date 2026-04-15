@@ -873,6 +873,7 @@ const en: Record<TranslationKeys, string> = {
   'account.subscriptions.cadenceBiweekly': 'Biweekly',
   'account.subscriptions.cadenceMonthly': 'Monthly',
   'account.subscriptions.nextDeliveryLabel': 'Next delivery: {date}',
+  'account.subscriptions.daysUntilLabel': 'in {days} days',
   'account.subscriptions.canceledOnLabel': 'Canceled on {date}',
   'account.subscriptions.skipNext': 'Skip next',
   'account.subscriptions.pause': 'Pause',

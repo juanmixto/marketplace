@@ -6,7 +6,6 @@ import {
   listMySubscriptions,
 } from '@/domains/subscriptions/buyer-actions'
 import { BuyerSubscriptionsListClient } from '@/components/buyer/BuyerSubscriptionsListClient'
-import { getServerEnv } from '@/lib/env'
 
 export const metadata: Metadata = { title: 'Mis suscripciones' }
 
@@ -29,6 +28,7 @@ export default async function BuyerSubscriptionsPage({
   const mockSession = firstValue(params.mock_session)
   const planId = firstValue(params.planId)
   const addressId = firstValue(params.addressId)
+  const firstDelivery = firstValue(params.firstDelivery)
 
   // Mock-mode checkout return flow: finalize the subscription, then
   // redirect to a clean URL so refresh is idempotent and the success
@@ -38,6 +38,7 @@ export default async function BuyerSubscriptionsPage({
       sessionId: mockSession,
       planId,
       addressId,
+      firstDeliveryAt: firstDelivery,
     })
     if (result.ok) {
       redirect('/cuenta/suscripciones?welcome=1')
@@ -46,7 +47,6 @@ export default async function BuyerSubscriptionsPage({
   }
 
   const subscriptions = await listMySubscriptions('all')
-  const betaEnabled = getServerEnv().subscriptionsBuyerBeta
 
   const welcome = firstValue(params.welcome)
   const welcomeState =
@@ -58,7 +58,6 @@ export default async function BuyerSubscriptionsPage({
   return (
     <BuyerSubscriptionsListClient
       subscriptions={subscriptions}
-      betaEnabled={betaEnabled}
       welcomeState={welcomeState}
     />
   )

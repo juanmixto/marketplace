@@ -49,9 +49,47 @@ function assertBetaEnabled() {
 const subscribeSchema = z.object({
   planId: z.string().min(1, 'Selecciona un plan'),
   shippingAddressId: z.string().min(1, 'Selecciona una dirección'),
+  // Optional: buyer-chosen first delivery date (ISO yyyy-mm-dd). When
+  // absent we default to one cadence away. When present we validate
+  // that it is at least 2 days out and at most 60 days out.
+  firstDeliveryAt: z.string().optional(),
 })
 
 export type SubscribeInput = z.infer<typeof subscribeSchema>
+
+const MIN_LEAD_DAYS = 2
+const MAX_LEAD_DAYS = 60
+
+/**
+ * Parses a buyer-chosen first-delivery date and validates it lies in a
+ * reasonable window: at least 2 days out (preparation buffer) and at
+ * most 60 days out (no scheduling decades in advance). Returns the
+ * parsed Date or throws a user-facing error.
+ */
+function parseFirstDeliveryAt(raw: string | undefined): Date | null {
+  if (!raw) return null
+  // Accept both yyyy-mm-dd and ISO 8601. Normalize to 12:00 local so
+  // timezone shifts don't bump the date across a day boundary.
+  const ymd = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+  const parsed = ymd ? new Date(`${raw}T12:00:00`) : new Date(raw)
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error('Fecha de primera entrega no válida')
+  }
+  const now = new Date()
+  const min = new Date(now)
+  min.setDate(min.getDate() + MIN_LEAD_DAYS)
+  min.setHours(0, 0, 0, 0)
+  const max = new Date(now)
+  max.setDate(max.getDate() + MAX_LEAD_DAYS)
+  max.setHours(23, 59, 59, 999)
+  if (parsed < min) {
+    throw new Error(`La primera entrega debe ser al menos ${MIN_LEAD_DAYS} días después de hoy`)
+  }
+  if (parsed > max) {
+    throw new Error(`La primera entrega no puede ser más de ${MAX_LEAD_DAYS} días en el futuro`)
+  }
+  return parsed
+}
 
 export async function subscribeToPlan(input: SubscribeInput) {
   const { buyerId } = await requireBuyer()
@@ -165,6 +203,10 @@ export async function startSubscriptionCheckout(
     throw new Error('Ya estás suscrito a este plan')
   }
 
+  // Validate (and normalize) the buyer-chosen first delivery date up
+  // front so we surface the error before creating a Stripe Customer.
+  const firstDeliveryAt = parseFirstDeliveryAt(data.firstDeliveryAt)
+
   const customerId = await ensureStripeCustomerId({
     userId: buyerId,
     email: session.user.email ?? '',
@@ -181,6 +223,9 @@ export async function startSubscriptionCheckout(
       marketplacePlanId: plan.id,
       marketplaceBuyerId: buyerId,
       marketplaceShippingAddressId: address.id,
+      ...(firstDeliveryAt && {
+        marketplaceFirstDeliveryAt: firstDeliveryAt.toISOString(),
+      }),
     },
   })
 
@@ -204,6 +249,9 @@ const confirmMockCheckoutSchema = z.object({
   sessionId: z.string().min(1),
   planId: z.string().min(1),
   addressId: z.string().min(1),
+  // Optional ISO date carried through the mock URL. When absent we
+  // default to one cadence away (legacy behavior).
+  firstDeliveryAt: z.string().optional(),
 })
 
 export type ConfirmMockCheckoutInput = z.infer<typeof confirmMockCheckoutSchema>
@@ -236,7 +284,18 @@ export async function confirmMockSubscriptionCheckout(
   if (!address) return { ok: false, reason: 'address-missing' }
 
   const now = new Date()
-  const nextDeliveryAt = computeFirstDeliveryAt(now, plan.cadence)
+  // Honor the buyer-chosen date when provided. The confirm path runs on
+  // page render so we guard against invalid dates by falling back to
+  // the cadence default — this path has already been validated by
+  // startSubscriptionCheckout, a second throw here would 500 the page.
+  let nextDeliveryAt: Date
+  try {
+    nextDeliveryAt =
+      parseFirstDeliveryAt(data.firstDeliveryAt) ??
+      computeFirstDeliveryAt(now, plan.cadence)
+  } catch {
+    nextDeliveryAt = computeFirstDeliveryAt(now, plan.cadence)
+  }
   const currentPeriodEnd = computeCurrentPeriodEnd(nextDeliveryAt, plan.cadence)
 
   const row = await db.subscription.upsert({
@@ -255,6 +314,8 @@ export async function confirmMockSubscriptionCheckout(
       // user refreshes the success page we no-op in effect (same fields).
       status: 'ACTIVE',
       shippingAddressId: address.id,
+      nextDeliveryAt,
+      currentPeriodEnd,
       stripeSubscriptionId: data.sessionId,
       canceledAt: null,
     },
