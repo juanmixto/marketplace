@@ -345,7 +345,7 @@ export function ProductForm({ categories, initialData, vendorLocation }: Product
             <option value="">{t('vendor.noCategory')}</option>
             {categories.map(category => (
               <option key={category.id} value={category.id}>
-                {category.name}
+                {category.icon ? `${category.icon} ${category.name}` : category.name}
               </option>
             ))}
           </select>
