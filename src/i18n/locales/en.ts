@@ -89,6 +89,13 @@ const en: Record<TranslationKeys, string> = {
   'hero.quickAccess': 'Quick access',
   'hero.loginCta': 'View demo credentials →',
 
+  // Home hero stats
+  'home.stats.activeVendors': 'Active producers',
+  'home.stats.activeProducts': 'Published products',
+  'home.stats.averageRating': 'Average rating',
+  'home.stats.marketplaceGrowing': 'Marketplace growing',
+  'home.stats.newBadge': 'New',
+
   // Trust bar
   'trust.shipping': 'Shipping across the peninsula',
   'trust.payment': 'Secure payment guaranteed',
