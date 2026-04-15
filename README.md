@@ -1,6 +1,6 @@
 # 🌾 Marketplace Agroalimentario
 
-Plataforma de compra directa al productor. Compradores pueden explorar catálogo, añadir productos al carrito y pagar. Productores gestionan su catálogo y reciben pedidos. Administradores supervisan la plataforma.
+Plataforma de compra directa al productor. Los compradores exploran el catálogo, aplican cupones y promociones, pagan (one-shot o por suscripción recurrente tipo "caja semanal") y siguen sus pedidos. Los productores gestionan catálogo, promociones, planes de suscripción, pedidos y liquidaciones. Los administradores supervisan la plataforma con panel de analítica, moderación y escritura sobre productos/productores/promociones/planes.
 
 ## 🚀 Lanzar la aplicación
 
@@ -55,10 +55,14 @@ docker compose down
 
 ## 🎯 Áreas principales
 
-- **Pública**: home, catálogo, detalle de productos, perfil de productor
-- **Comprador**: carrito, checkout, pagos, historial de pedidos
-- **Productor**: dashboard, gestión de catálogo, alta/edición de productos
-- **Admin**: dashboard de administración
+- **Pública**: home, catálogo, detalle de productos, perfil de productor, búsqueda y filtros.
+- **Comprador**: carrito, checkout (con promociones y descuentos aplicados), pagos, historial de pedidos, **suscripciones** con skip / pausa / cancelación, favoritos, direcciones, incidencias.
+- **Productor**: dashboard, catálogo con búsqueda/filtros/stepper de stock y subida multi-imagen, **promociones** (CRUD), **planes de suscripción** (CRUD), pedidos con FSM manual (CONFIRMED→PREPARING→READY→SHIPPED), liquidaciones, valoraciones, perfil comercial.
+- **Admin**: dashboard, analítica (PR #321), pedidos, productos, productores con KPIs, promociones, suscripciones, envíos, liquidaciones, comisiones, incidencias, auditoría y configuración. Superadmin puede editar productos, productores, promociones y planes de suscripción (PR #355). Panel opcional servido en host aislado (`ADMIN_HOST`, ver [`docs/admin-host.md`](./docs/admin-host.md)).
+
+### Envíos
+
+`SHIPPING_PROVIDER="SENDCLOUD"` integra generación de etiquetas y seguimiento vía [Sendcloud](https://www.sendcloud.com/) (PR #331). Webhook en `/api/webhooks/sendcloud`. Para desarrollo sin credenciales, usa `SHIPPING_PROVIDER="MOCK"` y la página local de avance manual en `/dev/mock-shipment/[ref]`.
 
 ## 🌐 Idiomas y auto-traducción de productos
 
@@ -181,10 +185,28 @@ stripe listen --forward-to localhost:3000/api/webhooks/stripe
 
 ## Estado actual
 
-El proyecto está operativo para desarrollo local y ya tiene:
+El proyecto está operativo para desarrollo local y cubre hoy:
 
-- Build pasando
-- Tests básicos de checkout, pagos, envs y utilidades de catálogo
-- Soporte de pago mock y flujo base con Stripe
+- Storefront público con i18n ES/EN y auto-traducción heurística del catálogo.
+- Checkout con Stripe (mock en dev, live con Connect destination charges) y evaluación de promociones/cupones.
+- **Suscripciones** (RFC 0001): plan CRUD en vendor, ciclo de compra con Stripe Subscriptions + Stripe Prices, materialización de pedidos en `invoice.paid`, skip/pause/cancel propagados a Stripe, emails transaccionales de renovación y fallo de pago.
+- **Promociones**: CRUD en vendor, evaluación en checkout, vista read-only en admin.
+- **Sendcloud** para etiquetas y tracking (webhook + panel de envíos en admin).
+- **Panel admin** con analítica, grids con filtros operativos, escritura superadmin sobre productos/productores/promociones/planes, y aislamiento opcional por host.
+- **Auth hardening**: validación de callbacks, portal switcher, aislamiento por host, scaffold de impersonation (PR #356).
+- **Mobile UX** con scroll lock, safe-area insets, CTAs fijas y tap targets ≥44px.
 
-Áreas en evolución: panel admin completo, incidencias, liquidaciones, emails transaccionales y Stripe Connect para vendedores.
+Áreas todavía en evolución: robustez SEO técnico, instrumentación analítica end-to-end más allá del dashboard actual, y cobertura legal/consent.
+
+## 📚 Documentación
+
+- [`AGENTS.md`](./AGENTS.md) — convenciones para trabajar en el repo (agentes y humanos).
+- [`docs/conventions.md`](./docs/conventions.md) — stack, imports, patrón de Server Actions, campos Prisma, layout, env vars.
+- [`docs/git-workflow.md`](./docs/git-workflow.md) — flujo trunk-based y reglas de higiene.
+- [`docs/admin-host.md`](./docs/admin-host.md) — aislamiento del panel admin en host propio.
+- [`docs/rfcs/0001-promotions-and-subscriptions.md`](./docs/rfcs/0001-promotions-and-subscriptions.md) — RFC de Promotions & Subscriptions (Activo, fases 1–5 entregadas).
+- [`docs/issues-backlog.md`](./docs/issues-backlog.md) — backlog de hardening pendiente.
+- [`docs/wiki/`](./docs/wiki/) — wiki operativa (Home, Architecture, Storefront and Routes, Product Overview, Operations Runbook, Developer Onboarding, Analytics and KPIs, SEO, i18n).
+- [`src/i18n/README.md`](./src/i18n/README.md) — convenciones i18n (flat keys vs `*-copy.ts` vs `labelKey`).
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md) — flujo de validación local antes de abrir PR.
+- [`SECURITY.md`](./SECURITY.md) — política de reporte de vulnerabilidades.

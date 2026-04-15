@@ -2,7 +2,7 @@
 
 > Canonical reference. Linked from `AGENTS.md` / `CLAUDE.md`. If anything here drifts from the code, fix the code OR fix this document — never let them disagree silently.
 
-Last verified against `main`: 2026-04-13.
+Last verified against `main`: 2026-04-15.
 
 ---
 
@@ -195,15 +195,38 @@ export const config = {
 ## Environment variables
 
 ```env
-DATABASE_URL           # PostgreSQL connection string
-NEXTAUTH_SECRET        # NextAuth secret
-NEXTAUTH_URL           # base URL (e.g. http://localhost:3000)
-NEXT_PUBLIC_URL        # same as NEXTAUTH_URL but exposed to the client
-STRIPE_SECRET_KEY      # sk_test_... or sk_live_...
-STRIPE_WEBHOOK_SECRET  # whsec_...
+# Core
+DATABASE_URL                 # PostgreSQL connection string
+AUTH_SECRET                  # NextAuth v5 secret (openssl rand -base64 32)
+AUTH_URL                     # base URL, e.g. http://localhost:3000
+NEXT_PUBLIC_APP_URL          # same base URL, exposed to the client
+
+# Payments (Stripe live mode + Stripe Subscriptions)
+PAYMENT_PROVIDER             # "mock" | "stripe"
+STRIPE_SECRET_KEY            # sk_test_... or sk_live_...
+STRIPE_PUBLISHABLE_KEY       # pk_test_... or pk_live_...
+STRIPE_WEBHOOK_SECRET        # whsec_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+
+# Shipping (Sendcloud, PR #331)
+SHIPPING_PROVIDER            # "SENDCLOUD" (default) | "MOCK"
+SENDCLOUD_PUBLIC_KEY
+SENDCLOUD_SECRET_KEY
+SENDCLOUD_WEBHOOK_SECRET
+SENDCLOUD_SENDER_ID          # numeric sender address id
+SENDCLOUD_BASE_URL           # optional override
+
+# Emails (optional)
+RESEND_API_KEY
+EMAIL_FROM
+CONTACT_EMAIL
+
+# Admin host isolation (optional — see docs/admin-host.md)
+ADMIN_HOST                   # e.g. admin.your-domain.com
 ```
 
-See `.env.example` for the up-to-date list.
+See `.env.example` for the canonical list and `docs/admin-host.md` for the
+ADMIN_HOST setup checklist.
 
 ---
 
@@ -223,11 +246,23 @@ src/
 │       ├── Header.tsx
 │       └── Footer.tsx
 ├── domains/              # Server Actions per business domain
-│   ├── vendors/actions.ts
-│   ├── orders/actions.ts
-│   ├── reviews/actions.ts  # ⚠️ ALREADY EXISTS — do not recreate
-│   ├── payments/
-│   └── settlements/
+│   ├── admin/               # backoffice (superadmin writes, moderation)
+│   ├── analytics/           # KPIs for admin reports dashboard
+│   ├── auth/                # register, password reset, email verification
+│   ├── catalog/             # products, categories, availability, stock
+│   ├── finance/             # commission rules
+│   ├── impersonation/       # superadmin → user impersonation (scaffold, PR #356)
+│   ├── incidents/           # order incidents + admin triage
+│   ├── orders/              # createOrder / confirmOrder / fulfillment FSM
+│   ├── payments/            # Stripe mock + live providers, webhook handlers
+│   ├── portals/             # auth callback validation + portal switcher (PR #356)
+│   ├── promotions/          # vendor promo CRUD + checkout evaluation (RFC 0001)
+│   ├── reviews/             # ⚠️ ALREADY EXISTS — do not recreate
+│   ├── settlements/         # vendor payout periods
+│   ├── shipping/            # Sendcloud provider + mock + label/tracking
+│   │   └── providers/       #   registry.ts selects by SHIPPING_PROVIDER env
+│   ├── subscriptions/       # plan CRUD + buyer lifecycle + Stripe Subscriptions (RFC 0001)
+│   └── vendors/             # vendor profile, Stripe Connect onboarding
 ├── i18n/                 # See src/i18n/README.md for i18n conventions
 ├── lib/
 │   ├── db.ts              # Prisma client → exports { db }
