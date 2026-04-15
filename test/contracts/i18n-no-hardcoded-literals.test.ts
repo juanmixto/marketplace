@@ -68,7 +68,6 @@ const ALLOWLIST_FILES: ReadonlySet<string> = new Set([
   // Auth flows — pending dedicated i18n PR.
   'src/app/(auth)/forgot-password/page.tsx',
   'src/app/(auth)/recuperar-contrasena/nueva/ResetForm.tsx',
-  'src/app/(auth)/register/page.tsx',
   'src/app/(auth)/reset-password/[token]/page.tsx',
   // Checkout payment page (Stripe wrapper) — pending.
   'src/app/(buyer)/checkout/pago/page.tsx',
