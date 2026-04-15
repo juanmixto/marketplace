@@ -396,14 +396,16 @@ export async function createOrder(
     }
   }
 
-  // Create payment intent (mock or Stripe)
-  const payment = await createPaymentIntent(
-    Math.round(grandTotal * 100), // cents
-    { userId: sessionUserId },
-    connectDestination ? { connect: connectDestination } : undefined
-  )
-
-  // Create order in transaction
+  // Persist-first (#404): we used to call createPaymentIntent() here,
+  // BEFORE the transaction. If anything inside the transaction failed
+  // (stock conflict, deadlock, promotion budget drained, schema drift,
+  // etc.), the external Stripe PaymentIntent was orphaned with no
+  // matching local Payment row. Now we open the transaction first and
+  // create the Payment row with providerRef = null. createPaymentIntent
+  // runs AFTER commit and the Payment row is then updated with the
+  // real providerRef. If the post-commit provider call fails, we mark
+  // the Payment as FAILED and re-throw so the buyer gets a friendly
+  // "try again" message.
   const env = getServerEnv()
 
   async function createOrderRecord(includeShippingAddressSnapshot: boolean) {
@@ -573,7 +575,10 @@ export async function createOrder(
           payments: {
             create: {
               provider: env.paymentProvider === 'mock' ? 'mock' : 'stripe',
-              providerRef: payment.id,
+              // providerRef is filled in AFTER the transaction commits
+              // by createPaymentIntent, then linked back to this row
+              // via payment.update below.
+              providerRef: null,
               amount: grandTotal,
               currency: 'EUR',
               status: 'PENDING',
@@ -610,6 +615,67 @@ export async function createOrder(
     })
 
     order = await createOrderRecord(false)
+  }
+
+  // Post-commit: the order + a placeholder Payment row exist. Now we
+  // talk to the payment provider. If it throws we mark the Payment row
+  // as FAILED, emit an OrderEvent for ops visibility, and re-throw so
+  // createCheckoutOrder maps it to a friendly "try again" message.
+  let payment
+  try {
+    payment = await createPaymentIntent(
+      Math.round(grandTotal * 100), // cents
+      { userId: sessionUserId },
+      connectDestination ? { connect: connectDestination } : undefined
+    )
+  } catch (paymentError) {
+    try {
+      await db.payment.updateMany({
+        where: { orderId: order.id, providerRef: null, status: 'PENDING' },
+        data: { status: 'FAILED' },
+      })
+      await db.order.updateMany({
+        where: { id: order.id, paymentStatus: 'PENDING' },
+        data: { paymentStatus: 'FAILED' },
+      })
+      await db.orderEvent.create({
+        data: {
+          orderId: order.id,
+          type: 'PAYMENT_INTENT_CREATION_FAILED',
+          payload: {
+            recordedAt: new Date().toISOString(),
+            error:
+              paymentError instanceof Error
+                ? paymentError.message
+                : String(paymentError),
+          },
+        },
+      })
+    } catch (cleanupError) {
+      console.error('[checkout] failed to mark payment as FAILED after provider error', {
+        orderId: order.id,
+        cleanupError,
+      })
+    }
+    throw paymentError
+  }
+
+  // Link the placeholder Payment row to the real provider id. updateMany
+  // with the (orderId, providerRef=null) predicate so a retry that
+  // somehow ran twice cannot overwrite an already-linked row.
+  const linked = await db.payment.updateMany({
+    where: { orderId: order.id, providerRef: null, status: 'PENDING' },
+    data: { providerRef: payment.id },
+  })
+  if (linked.count !== 1) {
+    // Defensive: if we somehow committed an order without exactly one
+    // unlinked PENDING payment row, surface it loudly so it is caught
+    // in dev / CI rather than going to production undetected.
+    console.error('[checkout] expected exactly one unlinked Payment row to update, found', {
+      orderId: order.id,
+      count: linked.count,
+      providerRef: payment.id,
+    })
   }
 
   const affectedProductSlugs = [...new Set(products.map(product => product.slug))]
