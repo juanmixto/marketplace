@@ -183,11 +183,16 @@ async function getProductBySlugUncached(slug: string) {
       categoryId: true,
       category: { select: { id: true, name: true, slug: true } },
       variants: { where: { isActive: true } },
-      // Phase 4b-β: surface the subscription plan so the product detail
-      // page can render a "Subscribe" CTA when the vendor has published
-      // one. `archivedAt` is checked on the client — we still pass the
-      // row through so an archive is visible in previews.
-      subscriptionPlan: {
+      // Phase 4b-β: surface all active subscription plans for this
+      // product (multi-cadence — one per WEEKLY/BIWEEKLY/MONTHLY). The
+      // product detail page shows a single CTA that navigates to the
+      // confirmation page, where the buyer picks the cadence from
+      // whatever the vendor has published. Only non-archived plans are
+      // returned; the confirmation page then filters out any without
+      // a provisioned stripePriceId.
+      subscriptionPlans: {
+        where: { archivedAt: null },
+        orderBy: { cadence: 'asc' },
         select: {
           id: true,
           cadence: true,

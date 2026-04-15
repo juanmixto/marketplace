@@ -6,6 +6,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArrowPathIcon,
+  CalendarDaysIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
   ForwardIcon,
@@ -21,6 +22,7 @@ import {
   cancelSubscription,
   listMySubscriptions,
   pauseSubscription,
+  rescheduleNextDelivery,
   resumeSubscription,
   skipNextDelivery,
 } from '@/domains/subscriptions/buyer-actions'
@@ -145,6 +147,10 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [rescheduleOpen, setRescheduleOpen] = useState(false)
+  const [rescheduleValue, setRescheduleValue] = useState<string>(() =>
+    toYmd(new Date(subscription.nextDeliveryAt)),
+  )
 
   const product = subscription.plan.product
   const vendor = subscription.plan.vendor
@@ -183,6 +189,19 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
   const isActive = subscription.status === 'ACTIVE'
   const isPaused = subscription.status === 'PAUSED'
   const isCanceled = subscription.status === 'CANCELED'
+
+  const rescheduleMin = toYmd(offsetDays(new Date(), 2))
+  const rescheduleMax = toYmd(offsetDays(new Date(), 60))
+
+  function submitReschedule() {
+    setRescheduleOpen(false)
+    runAction(() =>
+      rescheduleNextDelivery({
+        subscriptionId: subscription.id,
+        nextDeliveryAt: rescheduleValue,
+      }),
+    )
+  }
 
   return (
     <div className="p-4">
@@ -252,6 +271,19 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
             <>
               <button
                 type="button"
+                onClick={() => {
+                  setRescheduleValue(toYmd(new Date(subscription.nextDeliveryAt)))
+                  setRescheduleOpen(true)
+                }}
+                disabled={pending}
+                data-testid="reschedule-subscription-cta"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] min-h-11 px-3 py-2 text-xs font-semibold text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] disabled:opacity-60"
+              >
+                <CalendarDaysIcon className="h-4 w-4" />
+                {t('account.subscriptions.rescheduleNext')}
+              </button>
+              <button
+                type="button"
                 onClick={() => runAction(() => skipNextDelivery(subscription.id))}
                 disabled={pending}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] min-h-11 px-3 py-2 text-xs font-semibold text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] disabled:opacity-60"
@@ -294,12 +326,76 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
           )}
         </div>
       </div>
+
+      {rescheduleOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={`reschedule-${subscription.id}-title`}
+          data-testid="reschedule-subscription-dialog"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={e => {
+            if (e.target === e.currentTarget) setRescheduleOpen(false)
+          }}
+        >
+          <div className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xl">
+            <h3
+              id={`reschedule-${subscription.id}-title`}
+              className="text-base font-semibold text-[var(--foreground)]"
+            >
+              {t('account.subscriptions.rescheduleDialogTitle')}
+            </h3>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              {t('account.subscriptions.rescheduleDialogHelp')}
+            </p>
+            <input
+              type="date"
+              value={rescheduleValue}
+              min={rescheduleMin}
+              max={rescheduleMax}
+              onChange={e => setRescheduleValue(e.target.value)}
+              data-testid="reschedule-subscription-date"
+              className="mt-3 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setRescheduleOpen(false)}
+                className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-semibold text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]"
+              >
+                {t('account.subscriptions.rescheduleCancel')}
+              </button>
+              <button
+                type="button"
+                onClick={submitReschedule}
+                data-testid="reschedule-subscription-save"
+                className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400"
+              >
+                {t('account.subscriptions.rescheduleSave')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 function formatDate(value: Date | string): string {
   return new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium' }).format(new Date(value))
+}
+
+function offsetDays(d: Date, days: number): Date {
+  const copy = new Date(d)
+  copy.setDate(copy.getDate() + days)
+  return copy
+}
+
+function toYmd(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 function daysUntil(value: Date | string): number {

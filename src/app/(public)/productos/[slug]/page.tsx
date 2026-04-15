@@ -124,17 +124,15 @@ export default async function ProductDetailPage({ params }: Props) {
   )
 
   // Phase 4b-β: show the "Subscribe" CTA when the vendor has published
-  // an active plan AND it has been successfully provisioned in Stripe.
-  // The CTA links to a dedicated confirmation page where the buyer
-  // picks the address and first delivery date — we don't start the
-  // checkout inline, so no session lookup is needed here.
+  // at least one active, Stripe-provisioned plan for this product. The
+  // CTA links to a dedicated confirmation page that lists every
+  // available cadence — so here we only need to know whether AT LEAST
+  // one plan exists.
   const subscribeFlagOn = getServerEnv().subscriptionsBuyerBeta
-  const showSubscribeCta = Boolean(
-    subscribeFlagOn &&
-    product.subscriptionPlan &&
-    !product.subscriptionPlan.archivedAt &&
-    product.subscriptionPlan.stripePriceId
+  const subscribablePlans = product.subscriptionPlans.filter(
+    plan => !plan.archivedAt && plan.stripePriceId,
   )
+  const showSubscribeCta = Boolean(subscribeFlagOn && subscribablePlans.length > 0)
   const breadcrumbData = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -318,13 +316,8 @@ export default async function ProductDetailPage({ params }: Props) {
 
           <ProductPromotions promotions={informationalPromotions} locale={locale} />
 
-          {showSubscribeCta && product.subscriptionPlan && (
-            <SubscribeToBoxButton
-              planId={product.subscriptionPlan.id}
-              cadence={product.subscriptionPlan.cadence}
-              priceEur={Number(product.subscriptionPlan.priceSnapshot)}
-              unit={localizedProduct.unit}
-            />
+          {showSubscribeCta && (
+            <SubscribeToBoxButton productId={product.id} />
           )}
 
           {/* Trust strip */}

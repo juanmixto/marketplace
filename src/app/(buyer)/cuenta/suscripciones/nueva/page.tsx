@@ -21,11 +21,33 @@ export default async function NewSubscriptionPage({
 }) {
   const session = await requireAuth()
   const params = (await searchParams) ?? {}
-  const planId = firstValue(params.planId)
-  if (!planId) notFound()
+  const productIdParam = firstValue(params.productId)
+  const planIdParam = firstValue(params.planId)
 
-  const plan = await db.subscriptionPlan.findFirst({
-    where: { id: planId, archivedAt: null },
+  // Resolve which product to show. We accept either ?productId (preferred
+  // entry point from the product page CTA) or ?planId (legacy — the
+  // first iteration of the subscribe flow linked directly to a plan).
+  // From either, we load ALL active plans for that product so the form
+  // can render a cadence selector.
+  let productId: string | null = null
+  if (productIdParam) {
+    productId = productIdParam
+  } else if (planIdParam) {
+    const seed = await db.subscriptionPlan.findUnique({
+      where: { id: planIdParam },
+      select: { productId: true },
+    })
+    productId = seed?.productId ?? null
+  }
+  if (!productId) notFound()
+
+  const plans = await db.subscriptionPlan.findMany({
+    where: {
+      productId,
+      archivedAt: null,
+      stripePriceId: { not: null },
+    },
+    orderBy: { cadence: 'asc' },
     include: {
       product: {
         select: {
@@ -41,7 +63,9 @@ export default async function NewSubscriptionPage({
       vendor: { select: { id: true, slug: true, displayName: true } },
     },
   })
-  if (!plan || plan.product.status !== 'ACTIVE' || plan.product.deletedAt) {
+  if (plans.length === 0) notFound()
+  const sample = plans[0]
+  if (sample.product.status !== 'ACTIVE' || sample.product.deletedAt) {
     notFound()
   }
 
@@ -62,6 +86,8 @@ export default async function NewSubscriptionPage({
     },
   })
 
+  const returnTo = `/cuenta/suscripciones/nueva?productId=${productId}`
+
   if (addresses.length === 0) {
     return (
       <div className="mx-auto max-w-2xl space-y-4 px-4 py-10 sm:px-6">
@@ -74,15 +100,13 @@ export default async function NewSubscriptionPage({
         </p>
         <div className="flex gap-3">
           <Link
-            href={`/cuenta/direcciones?returnTo=${encodeURIComponent(
-              `/cuenta/suscripciones/nueva?planId=${plan.id}`,
-            )}`}
+            href={`/cuenta/direcciones?returnTo=${encodeURIComponent(returnTo)}`}
             className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400"
           >
             Añadir dirección
           </Link>
           <Link
-            href={`/productos/${plan.product.slug}`}
+            href={`/productos/${sample.product.slug}`}
             className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]"
           >
             Volver al producto
@@ -94,24 +118,26 @@ export default async function NewSubscriptionPage({
 
   return (
     <NewSubscriptionForm
-      plan={{
-        id: plan.id,
-        cadence: plan.cadence,
-        priceSnapshot: Number(plan.priceSnapshot),
-        taxRateSnapshot: Number(plan.taxRateSnapshot),
-        cutoffDayOfWeek: plan.cutoffDayOfWeek,
-        product: {
-          name: plan.product.name,
-          slug: plan.product.slug,
-          unit: plan.product.unit,
-          image: plan.product.images?.[0] ?? null,
-        },
-        vendor: {
-          displayName: plan.vendor.displayName,
-          slug: plan.vendor.slug,
-        },
+      product={{
+        id: sample.product.id,
+        name: sample.product.name,
+        slug: sample.product.slug,
+        unit: sample.product.unit,
+        image: sample.product.images?.[0] ?? null,
       }}
+      vendor={{
+        displayName: sample.vendor.displayName,
+        slug: sample.vendor.slug,
+      }}
+      plans={plans.map(p => ({
+        id: p.id,
+        cadence: p.cadence,
+        priceSnapshot: Number(p.priceSnapshot),
+        taxRateSnapshot: Number(p.taxRateSnapshot),
+        cutoffDayOfWeek: p.cutoffDayOfWeek,
+      }))}
       addresses={addresses}
+      initialPlanId={planIdParam ?? null}
     />
   )
 }

@@ -1,8 +1,10 @@
 // Buyer subscription checkout smoke. Walks a logged-in customer from
-// the product page of a box that has a seeded subscription plan, through
-// the confirmation form (address + first-delivery date picker), through
-// the mock Stripe checkout redirect, to the /cuenta/suscripciones page
-// where the new row must show up with a welcome banner.
+// the product page of a box that has TWO seeded subscription plans
+// (weekly + biweekly), through the confirmation form (cadence selector
+// + address + first-delivery date picker), through the mock Stripe
+// checkout redirect, to the /cuenta/suscripciones page where the new
+// row must show up with a welcome banner. Then exercises the
+// "Cambiar fecha" (reschedule) flow.
 //
 // Cleanup policy: same as cart-checkout.spec.ts — the test does NOT
 // delete the Subscription row it creates. CI reseeds the database on
@@ -16,7 +18,7 @@ import { TEST_USERS, loginAs } from '../helpers/auth'
 const SEEDED_SUBSCRIPTION_PRODUCT_SLUG = 'cesta-mixta-huerta'
 
 test.describe('buyer subscription checkout @smoke', () => {
-  test('buyer reviews, picks address + date, confirms, lands on /cuenta/suscripciones with welcome banner', async ({ page }) => {
+  test('buyer picks cadence + date, confirms, lands on list, reschedules next delivery', async ({ page }) => {
     await loginAs(page, TEST_USERS.customer)
 
     // --- PRODUCT DETAIL → navigate to confirmation page ---
@@ -28,51 +30,62 @@ test.describe('buyer subscription checkout @smoke', () => {
     await subscribeCta.click()
 
     // --- CONFIRMATION PAGE ---
-    await expect(page).toHaveURL(/\/cuenta\/suscripciones\/nueva\?planId=/, { timeout: 10_000 })
+    // The new flow navigates with ?productId=… (not ?planId=…) so the
+    // page can show a cadence selector.
+    await expect(page).toHaveURL(/\/cuenta\/suscripciones\/nueva\?productId=/, { timeout: 10_000 })
     await expect(page.getByRole('heading', { name: /confirmar suscripción/i })).toBeVisible()
 
-    // The plan summary must be visible and explicitly show the
-    // recurring cadence — this is the whole point of the confirmation
-    // step that the previous flow was missing.
-    await expect(page.getByText(/cada semana/i).first()).toBeVisible()
+    // --- CADENCE SELECTOR ---
+    // Seed publishes BOTH weekly and biweekly for the cesta. Picking
+    // biweekly verifies that the buyer actually controls the frequency.
+    await expect(page.getByTestId('cadence-option-WEEKLY')).toBeVisible()
+    await expect(page.getByTestId('cadence-option-BIWEEKLY')).toBeVisible()
+    await page.getByTestId('cadence-option-BIWEEKLY').click()
 
-    // At least one shipping address radio is rendered (seeded customer
-    // already has a default address in /cuenta/direcciones).
-    const addressRadios = page.getByRole('radio')
+    // Address radio from the seed customer.
+    const addressRadios = page.getByRole('radio', { name: /calle mayor/i })
     await expect(addressRadios.first()).toBeVisible()
 
-    // Change the first delivery date to 10 days from now — within the
-    // allowed [MIN_LEAD_DAYS=2, MAX_LEAD_DAYS=60] window.
-    const target = new Date()
-    target.setDate(target.getDate() + 10)
-    const ymd = target.toISOString().slice(0, 10)
-    await page.locator('input[type="date"]').fill(ymd)
+    // First delivery date → 10 days from now (inside [+2d, +60d]).
+    const target10 = new Date()
+    target10.setDate(target10.getDate() + 10)
+    const ymd10 = target10.toISOString().slice(0, 10)
+    await page.locator('input[type="date"]').fill(ymd10)
 
     // --- CONFIRM ---
     await page.getByTestId('confirm-subscription-submit').click()
 
-    // --- MOCK CHECKOUT REDIRECT → SUBSCRIPTIONS PAGE ---
-    // The mock adapter sends a same-origin redirect with
-    // ?checkout=success&mock_session=…&planId=…&addressId=…&firstDelivery=…
-    // which the page upserts + redirects again to ?welcome=1.
+    // --- SUBSCRIPTIONS LIST ---
     await page.waitForURL(/\/cuenta\/suscripciones/, { timeout: 15_000 })
-
-    // --- SUCCESS BANNER ---
     await expect(page.getByTestId('subscription-welcome-banner')).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByText(/suscripción activada/i)).toBeVisible()
-
-    // --- SUBSCRIPTION ROW ---
-    await expect(page.getByText(/cesta mixta de huerta/i).first()).toBeVisible({ timeout: 5_000 })
+    await expect(page.getByText(/cesta mixta de huerta/i).first()).toBeVisible()
     await expect(page.getByText(/^activa$/i).first()).toBeVisible()
-    await expect(page.getByText(/semanal/i).first()).toBeVisible()
-
-    // The list must show the shipping address (line1 from seed).
+    // Must now be Quincenal — we picked biweekly.
+    await expect(page.getByText(/quincenal/i).first()).toBeVisible()
+    // Shipping address from seed (Calle Mayor 18).
     await expect(page.getByText(/calle mayor 18/i).first()).toBeVisible()
-
-    // The empty-state message must NOT be visible anymore.
-    await expect(page.getByText(/aún no tienes suscripciones/i)).not.toBeVisible()
-
     // Beta banner must be gone.
     await expect(page.getByText(/suscripciones en fase beta/i)).not.toBeVisible()
+
+    // --- RESCHEDULE NEXT DELIVERY ---
+    // Open the dialog, pick a new date 20 days out, save. Verify the
+    // list re-renders with the new date.
+    await page.getByTestId('reschedule-subscription-cta').click()
+    await expect(page.getByTestId('reschedule-subscription-dialog')).toBeVisible()
+
+    const target20 = new Date()
+    target20.setDate(target20.getDate() + 20)
+    const ymd20 = target20.toISOString().slice(0, 10)
+    await page.getByTestId('reschedule-subscription-date').fill(ymd20)
+    await page.getByTestId('reschedule-subscription-save').click()
+
+    // Dialog closes (no more dialog on screen).
+    await expect(page.getByTestId('reschedule-subscription-dialog')).toHaveCount(0, { timeout: 10_000 })
+
+    // And the list row shows the new date. Format comes from
+    // Intl.DateTimeFormat('es-ES', { dateStyle: 'medium' }) —
+    // e.g. "4 may 2026". We assert on the day number which is stable.
+    const day = target20.getDate()
+    await expect(page.getByText(new RegExp(`${day} `))).toBeVisible({ timeout: 10_000 })
   })
 })

@@ -592,3 +592,67 @@ export async function skipNextDelivery(id: string) {
   safeRevalidatePath('/cuenta/suscripciones')
   return updated
 }
+
+/**
+ * Phase 4b-β follow-up: let the buyer reschedule the next delivery to a
+ * specific date (not just skip to the cadence-default). Useful when the
+ * buyer is travelling, wants to retry after a missed delivery, or just
+ * prefers a different day. Bounded by the same [+2d, +60d] window the
+ * confirmation form uses so a buyer cannot stack months of deliveries.
+ *
+ * In real Stripe mode this action does NOT touch Stripe: the billing
+ * cycle anchor stays where Stripe set it at creation, so the NEXT
+ * invoice arrives when it arrives. What this call changes is when the
+ * box physically ships to the buyer. Conceptually: "next charge" and
+ * "next delivery" are independent knobs, and this action only moves
+ * the latter.
+ */
+const rescheduleSchema = z.object({
+  subscriptionId: z.string().min(1),
+  nextDeliveryAt: z.string().min(1, 'Selecciona una fecha'),
+})
+
+export type RescheduleInput = z.infer<typeof rescheduleSchema>
+
+export async function rescheduleNextDelivery(input: RescheduleInput) {
+  const { buyerId } = await requireBuyer()
+  assertBetaEnabled()
+  const data = rescheduleSchema.parse(input)
+
+  const sub = await loadOwnedSubscription(data.subscriptionId, buyerId)
+  if (sub.status !== 'ACTIVE') {
+    throw new Error('Solo puedes reprogramar entregas en una suscripción activa')
+  }
+
+  // Reuse the same validation used at subscription creation so a buyer
+  // cannot reschedule into yesterday or two years from now. `parseFirstDeliveryAt`
+  // returns null for missing input and throws for out-of-range — but
+  // here the date is required (schema), so null would be a bug.
+  const newDeliveryAt = parseFirstDeliveryAt(data.nextDeliveryAt)
+  if (!newDeliveryAt) {
+    throw new Error('Fecha de entrega no válida')
+  }
+
+  // Also respect the plan-level cutoff day. isBeforeCutoff checks that
+  // `now` is still before the vendor's weekly deadline for the upcoming
+  // delivery — same check skipNextDelivery uses. If we are past the
+  // cutoff the buyer has to wait until the next cycle.
+  const now = new Date()
+  if (!isBeforeCutoff(now, sub.nextDeliveryAt, sub.plan.cutoffDayOfWeek)) {
+    throw new Error(
+      'Ya ha pasado el día de cierre para cambiar esta entrega. Podrás cambiar la siguiente.'
+    )
+  }
+
+  const newPeriodEnd = computeCurrentPeriodEnd(newDeliveryAt, sub.plan.cadence)
+
+  const updated = await db.subscription.update({
+    where: { id: sub.id },
+    data: {
+      nextDeliveryAt: newDeliveryAt,
+      currentPeriodEnd: newPeriodEnd,
+    },
+  })
+  safeRevalidatePath('/cuenta/suscripciones')
+  return updated
+}

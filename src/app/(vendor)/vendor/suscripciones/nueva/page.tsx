@@ -13,12 +13,17 @@ export default async function NewSubscriptionPlanPage() {
   // a non-archived subscription plan. The @@unique on productId means that
   // attaching a plan to a product that already has one would fail anyway
   // — listing only eligible products makes the UX friendlier.
+  // Multi-cadence (phase 4b-β follow-up): a product can have up to one
+  // plan per cadence. We no longer filter out products that "already
+  // have a plan" — the vendor may want to publish a biweekly plan
+  // alongside an existing weekly one. If they pick a product that
+  // already exhausts all cadences, `createSubscriptionPlan` surfaces a
+  // friendly error.
   const products = await db.product.findMany({
     where: {
       vendorId: vendor.id,
       deletedAt: null,
       status: 'ACTIVE',
-      subscriptionPlan: { is: null },
     },
     select: { id: true, name: true, basePrice: true, unit: true, status: true },
     orderBy: { name: 'asc' },

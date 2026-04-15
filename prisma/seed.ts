@@ -855,34 +855,57 @@ async function main() {
   }
   console.log(`  ✓ ${adminSideVendorBlueprints.length} productores extra para moderación`)
 
-  // Seeded subscription plan for the "Cesta mixta de huerta" so e2e and
+  // Seeded subscription plans for the "Cesta mixta de huerta" so e2e and
   // local dev have a buyable recurring box without running through the
-  // vendor UI. Mock mode never validates `stripePriceId` against the
-  // real Stripe API, so a synthetic id is safe.
+  // vendor UI. We seed BOTH weekly and biweekly so the confirmation-page
+  // cadence selector has something to pick between — verifying the
+  // multi-cadence feature end-to-end. Mock mode never validates
+  // `stripePriceId` against the real Stripe API, so synthetic ids are safe.
   const fincaGarcia = vendorsBySlug.get('finca-garcia')
   if (fincaGarcia) {
     await db.subscriptionPlan.upsert({
-      where: { productId: 'prod-cesta-huerta' },
+      where: { productId_cadence: { productId: 'prod-cesta-huerta', cadence: 'WEEKLY' } },
       update: {
-        cadence: 'WEEKLY',
         priceSnapshot: 14.5,
         taxRateSnapshot: 0.04,
         cutoffDayOfWeek: 5,
-        stripePriceId: 'price_mock_cesta_huerta',
+        stripePriceId: 'price_mock_cesta_huerta_weekly',
         archivedAt: null,
       },
       create: {
-        id: 'plan-cesta-huerta',
+        id: 'plan-cesta-huerta-weekly',
         vendorId: fincaGarcia.id,
         productId: 'prod-cesta-huerta',
         cadence: 'WEEKLY',
         priceSnapshot: 14.5,
         taxRateSnapshot: 0.04,
         cutoffDayOfWeek: 5,
-        stripePriceId: 'price_mock_cesta_huerta',
+        stripePriceId: 'price_mock_cesta_huerta_weekly',
       },
     })
-    console.log(`  ✓ Plan de suscripción: cesta-mixta-huerta (semanal)`)
+    await db.subscriptionPlan.upsert({
+      where: { productId_cadence: { productId: 'prod-cesta-huerta', cadence: 'BIWEEKLY' } },
+      update: {
+        priceSnapshot: 27,
+        taxRateSnapshot: 0.04,
+        cutoffDayOfWeek: 5,
+        stripePriceId: 'price_mock_cesta_huerta_biweekly',
+        archivedAt: null,
+      },
+      create: {
+        id: 'plan-cesta-huerta-biweekly',
+        vendorId: fincaGarcia.id,
+        productId: 'prod-cesta-huerta',
+        cadence: 'BIWEEKLY',
+        // Slightly higher per-delivery price when you only get one every
+        // 14 days — typical pack-and-ship fixed cost amortization.
+        priceSnapshot: 27,
+        taxRateSnapshot: 0.04,
+        cutoffDayOfWeek: 5,
+        stripePriceId: 'price_mock_cesta_huerta_biweekly',
+      },
+    })
+    console.log(`  ✓ Plan de suscripción: cesta-mixta-huerta (semanal + quincenal)`)
   }
 
   const customersByEmail = new Map<string, { id: string; firstName: string; lastName: string }>()

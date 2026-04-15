@@ -26,6 +26,12 @@ async function requireVendor() {
 
 const SUBSCRIPTION_CADENCES = ['WEEKLY', 'BIWEEKLY', 'MONTHLY'] as const
 
+function cadenceLabel(cadence: (typeof SUBSCRIPTION_CADENCES)[number]): string {
+  if (cadence === 'WEEKLY') return 'semanal'
+  if (cadence === 'BIWEEKLY') return 'quincenal'
+  return 'mensual'
+}
+
 const subscriptionPlanSchema = z.object({
   productId: z.string().min(1, 'Selecciona un producto'),
   cadence: z.enum(SUBSCRIPTION_CADENCES),
@@ -61,19 +67,26 @@ export async function createSubscriptionPlan(input: SubscriptionPlanInput) {
     )
   }
 
-  // Unique-by-product: a product already wired to a plan blocks a second
-  // plan. The @@unique on productId would raise a P2002 error anyway, but
-  // the explicit check yields a friendlier message.
+  // Unique-by-(product, cadence): a product can now have one plan per
+  // cadence (phase 4b-β — multi-cadence). We refuse a second plan with
+  // the SAME cadence for the same product, but we allow e.g. (cesta,
+  // WEEKLY) to coexist with (cesta, BIWEEKLY). The @@unique at the DB
+  // level would raise P2002 anyway — the explicit check yields a
+  // friendlier, cadence-aware message.
   const existing = await db.subscriptionPlan.findUnique({
-    where: { productId: data.productId },
+    where: {
+      productId_cadence: { productId: data.productId, cadence: data.cadence },
+    },
     select: { id: true, archivedAt: true },
   })
   if (existing && !existing.archivedAt) {
-    throw new Error('Este producto ya tiene un plan de suscripción activo')
+    throw new Error(
+      `Este producto ya tiene un plan ${cadenceLabel(data.cadence)} activo`,
+    )
   }
   if (existing && existing.archivedAt) {
     throw new Error(
-      'Este producto tiene un plan archivado. Reactívalo desde la lista en lugar de crear uno nuevo.'
+      `Este producto tiene un plan ${cadenceLabel(data.cadence)} archivado. Reactívalo desde la lista en lugar de crear uno nuevo.`,
     )
   }
 
@@ -94,8 +107,8 @@ export async function createSubscriptionPlan(input: SubscriptionPlanInput) {
   // plan so phase 4b-β can create Subscriptions that reference it. The
   // provisioning runs AFTER the row is committed — if Stripe rejects the
   // request (invalid key, outage, bad data) we clean up the orphan row
-  // so the vendor can retry without hitting the @@unique([productId])
-  // constraint.
+  // so the vendor can retry without hitting the
+  // @@unique([productId, cadence]) constraint.
   try {
     const provisioning = await provisionPlanPrice({
       planId: plan.id,
