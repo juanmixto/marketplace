@@ -122,6 +122,9 @@ jobs:
             !.next/cache
           retention-days: 1
           if-no-files-found: error
+          # .next is a hidden directory (leading dot); upload-artifact
+          # skips hidden files by default. This flag is mandatory.
+          include-hidden-files: true
 
   integration-shard:
     name: Integration shard ${{ matrix.shard }}
