@@ -34,7 +34,7 @@ env:
 
 jobs:
   verify:
-    name: Verify (typecheck + unit)
+    name: Verify
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
