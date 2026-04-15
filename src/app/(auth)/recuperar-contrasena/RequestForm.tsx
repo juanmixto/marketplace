@@ -79,8 +79,10 @@ export function RequestForm() {
           {...register('email')}
           type="email"
           id="email"
+          inputMode="email"
+          autoComplete="email"
           placeholder={t('auth.recoveryEmailPlaceholder')}
-          className="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 placeholder-gray-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-[var(--border)] dark:bg-[var(--surface-raised)] dark:text-[var(--foreground)] dark:placeholder-[var(--muted-light)] dark:focus:ring-emerald-900/60"
+          className="mt-2 block min-h-11 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 placeholder-gray-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-[var(--border)] dark:bg-[var(--surface-raised)] dark:text-[var(--foreground)] dark:placeholder-[var(--muted-light)] dark:focus:ring-emerald-900/60"
         />
         {errors.email && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.email.message}</p>}
       </div>

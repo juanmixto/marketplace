@@ -221,6 +221,58 @@ test('open-incident form select clears 44px and textarea adapts to mobile', () =
   assert.match(source, /min-h-32[^"]*sm:min-h-40/, 'incident description textarea must scale on sm+')
 })
 
+test('buyer subscription action buttons clear the 44px floor', () => {
+  const source = read('src/components/buyer/BuyerSubscriptionsListClient.tsx')
+  // skip / pause / resume / cancel — at least three of them rendered
+  // at any time, all must be tappable.
+  const matches = source.match(/min-h-11 px-3 py-2 text-xs font-semibold/g) ?? []
+  assert.ok(
+    matches.length >= 4,
+    `subscription action buttons must use min-h-11 px-3 py-2 (found ${matches.length})`,
+  )
+})
+
+test('favoritos remove button is a 44px tap target', () => {
+  const source = read('src/app/(buyer)/cuenta/favoritos/FavoritosClient.tsx')
+  assert.match(
+    source,
+    /min-h-11 min-w-11/,
+    'favorites heart toggle must use min-h-11 min-w-11 so users can tap it on mobile',
+  )
+})
+
+test('vendor liquidaciones table contains horizontal scroll on mobile', () => {
+  const source = read('src/app/(vendor)/vendor/liquidaciones/page.tsx')
+  assert.match(
+    source,
+    /overflow-x-auto overscroll-x-contain touch-pan-x/,
+    'liquidaciones table must wrap with overscroll-x-contain + touch-pan-x',
+  )
+})
+
+test('forgot-password and reset-password forms expose autoComplete', () => {
+  const request = read('src/app/(auth)/recuperar-contrasena/RequestForm.tsx')
+  assert.match(request, /autoComplete="email"/, 'RequestForm must declare autoComplete="email"')
+  assert.match(request, /inputMode="email"/, 'RequestForm must declare inputMode="email"')
+  assert.match(request, /min-h-11/, 'RequestForm email input must clear 44px')
+
+  const reset = read('src/app/(auth)/recuperar-contrasena/nueva/ResetForm.tsx')
+  const newPassword = reset.match(/autoComplete="new-password"/g) ?? []
+  assert.ok(
+    newPassword.length >= 2,
+    `ResetForm must declare autoComplete="new-password" on both password fields (found ${newPassword.length})`,
+  )
+})
+
+test('LoginForm forgot-password link is a 44px tap target', () => {
+  const source = read('src/components/auth/LoginForm.tsx')
+  assert.match(
+    source,
+    /href="\/forgot-password"[\s\S]*?min-h-11/,
+    'forgot-password link must include min-h-11 so it clears the touch target floor',
+  )
+})
+
 test('vendor review response actions meet 44px tap-target minimum', () => {
   const source = read('src/components/vendor/VendorReviewsManager.tsx')
   const matches = source.match(/min-h-11 min-w-11/g) ?? []

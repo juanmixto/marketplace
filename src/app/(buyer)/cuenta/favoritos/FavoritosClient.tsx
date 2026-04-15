@@ -130,8 +130,9 @@ export function FavoritosClient({ initialFavorites }: { initialFavorites: Favori
                 <button
                   onClick={() => handleRemove(fav.product.id)}
                   disabled={removing === fav.product.id}
-                  className="absolute right-2 top-2 rounded-full bg-[var(--surface)] dark:bg-[var(--surface-raised)] p-2 shadow-md hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-50 transition"
+                  className="absolute right-2 top-2 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full bg-[var(--surface)] p-2.5 shadow-md transition hover:bg-red-50 disabled:opacity-50 dark:bg-[var(--surface-raised)] dark:hover:bg-red-950/30"
                   title={t('favorites.removeTitle')}
+                  aria-label={t('favorites.removeTitle')}
                 >
                   <HeartIcon className="h-5 w-5 text-red-600 dark:text-red-400" />
                 </button>

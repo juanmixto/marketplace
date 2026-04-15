@@ -401,7 +401,7 @@ export default async function Liquidaciones({ searchParams }: PageProps) {
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow dark:border-[var(--border)] dark:bg-[var(--surface)]">
+        <div className="overflow-x-auto overscroll-x-contain touch-pan-x rounded-lg border border-gray-200 bg-white shadow dark:border-[var(--border)] dark:bg-[var(--surface)]">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-[var(--border)]">
             <thead className="bg-gray-50 dark:bg-[var(--surface-raised)]">
               <tr>
