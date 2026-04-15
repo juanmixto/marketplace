@@ -165,9 +165,8 @@ jobs:
     timeout-minutes: 15
     # Runs in parallel with verify/build/integration. Uses `next dev` via
     # Playwright's webServer — no dependency on the build job.
-    # Not yet required-to-merge. Promote to required once 3 consecutive runs
-    # are green on main. See docs/ci-testing-strategy.md.
-    continue-on-error: true
+    # Promoted to a blocking required check after 4 consecutive green
+    # runs on main (see docs/ci-testing-strategy.md §6).
 
     services:
       postgres:
