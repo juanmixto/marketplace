@@ -46,15 +46,27 @@ would add ~15 min to wall-clock for no benefit. `e2e-smoke` uses
 Playwright's `webServer` to boot `next dev` against the test DB — it
 does not need the production `.next` build from the `build` job.
 
-### Why `next dev` and not `next start` for E2E?
+### `next dev` in CI, `next start` in nightly
 
-`next dev` is what the current `playwright.config.ts` already uses and
-what the existing `auth.spec.ts` is battle-tested against. Moving to
-`next start` would catch a few extra prod-mode bugs (minification,
-caching, SSR edge cases) but requires starting the server manually in
-CI and waiting for readiness — more moving parts, more flake surface.
-Keep dev mode for Phase 1, revisit in Phase 2 if real prod-only bugs
-slip through.
+`ci.yml e2e-smoke` runs against `next dev` so it can share a runner
+with `verify`/`build`/`integration` without serializing on the build
+step. The trade-off: dev mode silently masks some prod-only bugs.
+
+`nightly.yml full-e2e` runs with `PLAYWRIGHT_USE_PROD=1`, boots
+`npm run build && next start`, and exercises the full E2E suite in
+production mode. This path catches `DYNAMIC_SERVER_USAGE` bailouts,
+minification edge cases, `revalidatePath` timing issues, and
+static/dynamic route inference mismatches that dev mode hides.
+
+Why not run prod mode on every PR? On GitHub-hosted runners a
+production `next start` boot + full smoke suite measured ~11 min
+(#383), which blew past the 3 min wall-clock budget. Running it
+nightly absorbs the cost and still catches prod-only bugs within a
+day of merge.
+
+`playwright.config.ts` reads `PLAYWRIGHT_USE_PROD` at runtime so a
+local developer can reproduce a prod-mode issue with
+`PLAYWRIGHT_USE_PROD=1 npm run build && npm run test:e2e:smoke`.
 
 ## 3. Test pyramid — current state and target
 
@@ -96,7 +108,7 @@ slip through.
 | `verify` / `build` / `integration` at job level | ✅ Parallel. Already. |
 | Typecheck (`app` + `test`) + unit tests inside `verify` | ✅ Parallel via bash `&`/`wait`. Fine for this size; do not over-engineer. |
 | Node test runner internal concurrency | ✅ `--test-concurrency=8`. Raising higher is wasted — these tests are fast. |
-| `test/integration/*` (DB-backed) | ✅ **Sharded across 2 GitHub Actions matrix runners**, each with its own postgres service, each running a disjoint round-robin slice of the sorted file list. Within a shard, tests still run with `--test-concurrency=1` because they share that shard's single DB. See `scripts/run-integration-tests.mjs` (`TEST_SHARD_INDEX` / `TEST_SHARD_TOTAL`). Local dev is unchanged: without those env vars the runner executes every file in a single process. Introduced in #380. |
+| `test/integration/*` (DB-backed) | ✅ **Sharded across 3 GitHub Actions matrix runners**, each with its own postgres service, each running a disjoint round-robin slice of the sorted file list. Within a shard, tests still run with `--test-concurrency=1` because they share that shard's single DB. See `scripts/run-integration-tests.mjs` (`TEST_SHARD_INDEX` / `TEST_SHARD_TOTAL`). Local dev is unchanged: without those env vars the runner executes every file in a single process. Introduced in #380, bumped from 2 → 3 shards to push `Integration` out of the wall-clock critical. |
 | Playwright | ✅ `fullyParallel: true`, `workers: 2` in CI. Same constraint as integration — shared seeded DB. Going above 2 needs data isolation. |
 | Playwright sharding across runners | ❌ Not worth it until we exceed ~30 specs. |
 

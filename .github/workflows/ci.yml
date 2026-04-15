@@ -113,19 +113,6 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Upload .next build artifact (for e2e-smoke prod server)
-        uses: actions/upload-artifact@v6
-        with:
-          name: next-build-${{ github.sha }}
-          path: |
-            .next
-            !.next/cache
-          retention-days: 1
-          if-no-files-found: error
-          # .next is a hidden directory (leading dot); upload-artifact
-          # skips hidden files by default. This flag is mandatory.
-          include-hidden-files: true
-
   integration-shard:
     name: Integration shard ${{ matrix.shard }}
     runs-on: ubuntu-latest
@@ -134,7 +121,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1]
+        shard: [0, 1, 2]
 
     services:
       postgres:
@@ -155,7 +142,7 @@ jobs:
       DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
       DATABASE_URL_TEST: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
       TEST_SHARD_INDEX: ${{ matrix.shard }}
-      TEST_SHARD_TOTAL: "2"
+      TEST_SHARD_TOTAL: "3"
 
     steps:
       - uses: actions/checkout@v5
@@ -175,7 +162,7 @@ jobs:
       - name: Seed database
         run: npm run db:seed
 
-      - name: Integration tests (shard ${{ matrix.shard }} of 2)
+      - name: Integration tests (shard ${{ matrix.shard }} of 3)
         run: npm run test:integration
         timeout-minutes: 10
 
@@ -194,11 +181,13 @@ jobs:
     name: E2E Smoke
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: build
-    # Reuses the .next artifact from the `build` job and runs Playwright
-    # against `next start` (production mode). Dev mode masked several
-    # classes of prod-only bugs (see #379). Blocking required check —
-    # see docs/ci-testing-strategy.md §6.
+    # Runs in parallel with verify/build/integration against `next dev`.
+    # Prod-mode coverage (`next start` + DYNAMIC_SERVER_USAGE etc.) runs
+    # in nightly.yml — a run with PLAYWRIGHT_USE_PROD=1 took ~11 min on
+    # GitHub-hosted runners, which makes it unacceptable for every PR.
+    # The playwright.config.ts env switch (#383) stays wired up so
+    # local developers and nightly can still opt into the prod server.
+    # Blocking required check — see docs/ci-testing-strategy.md §6.
 
     services:
       postgres:
@@ -218,18 +207,11 @@ jobs:
     env:
       DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
       DATABASE_URL_TEST: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
-      PLAYWRIGHT_USE_PROD: "1"
 
     steps:
       - uses: actions/checkout@v5
 
       - uses: ./.github/actions/setup-deps
-
-      - name: Download .next build artifact
-        uses: actions/download-artifact@v6
-        with:
-          name: next-build-${{ github.sha }}
-          path: .next
 
       - name: Cache Playwright browsers
         id: pw-cache
@@ -261,7 +243,7 @@ jobs:
       - name: Seed database
         run: npm run db:seed
 
-      - name: Run E2E smoke suite (next start)
+      - name: Run E2E smoke suite
         run: npm run test:e2e:smoke
 
       - name: Upload Playwright report on failure
