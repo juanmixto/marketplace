@@ -123,6 +123,13 @@ export function CartPageClient({ shippingSettings }: Props) {
   }
 
   const sub = subtotal()
+  const lineDiscountMap = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const entry of promoPreview?.lineDiscounts ?? []) {
+      map[itemKey(entry.productId, entry.variantId ?? undefined)] = entry.discount
+    }
+    return map
+  }, [promoPreview])
   const subtotalDiscount = promoPreview?.subtotalDiscount ?? 0
   const discountedSub = Math.max(0, sub - subtotalDiscount)
   const shipping = calculateShippingCost(discountedSub, shippingSettings)
@@ -277,7 +284,29 @@ export function CartPageClient({ shippingSettings }: Props) {
                   </div>
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="font-bold text-[var(--foreground)]">{formatPrice(item.price * item.quantity)}</p>
+                  {(() => {
+                    const lineDiscount = lineDiscountMap[key] ?? 0
+                    const lineTotal = item.price * item.quantity
+                    const effective = Math.max(0, lineTotal - lineDiscount)
+                    if (lineDiscount > 0) {
+                      return (
+                        <>
+                          <p className="text-xs text-[var(--muted-light)] line-through">
+                            {formatPrice(lineTotal)}
+                          </p>
+                          <p className="font-bold text-emerald-700 dark:text-emerald-400">
+                            {formatPrice(effective)}
+                          </p>
+                          <p className="text-[11px] font-medium text-emerald-700/80 dark:text-emerald-400/80">
+                            −{formatPrice(lineDiscount)}
+                          </p>
+                        </>
+                      )
+                    }
+                    return (
+                      <p className="font-bold text-[var(--foreground)]">{formatPrice(lineTotal)}</p>
+                    )
+                  })()}
                 </div>
               </div>
             )
