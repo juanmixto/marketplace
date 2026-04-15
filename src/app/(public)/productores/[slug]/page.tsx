@@ -30,7 +30,12 @@ import { VendorReviewPromptCta } from './VendorReviewPromptCta'
 
 interface Props { params: Promise<{ slug: string }> }
 
-export const revalidate = 300
+// Force dynamic rendering. This page reads cookies via `getServerLocale`
+// and session via `auth()`, both dynamic APIs. Previous
+// `export const revalidate = 300` silently opted into ISR which
+// Next.js 16 rejects at prod runtime with DYNAMIC_SERVER_USAGE
+// (see #379).
+export const dynamic = 'force-dynamic'
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params

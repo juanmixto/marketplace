@@ -26,7 +26,12 @@ import { SubscribeToBoxButton } from '@/components/catalog/SubscribeToBoxButton'
 import { getActivePromotionsForProduct } from '@/domains/promotions/public'
 import { ProductPromotions } from '@/components/catalog/ProductPromotions'
 
-export const revalidate = 300
+// Force dynamic rendering. This page reads cookies via `getServerLocale`
+// and `getActionSession`, both of which are dynamic APIs. A prior
+// `export const revalidate = 300` silently opted into ISR which
+// Next.js 16 now rejects at prod runtime with DYNAMIC_SERVER_USAGE
+// (see #379). Caching is per-request via Prisma/React.cache instead.
+export const dynamic = 'force-dynamic'
 
 interface Props {
   params: Promise<{ slug: string }>
