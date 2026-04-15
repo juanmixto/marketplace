@@ -3,6 +3,7 @@
 import { cn } from '@/lib/utils'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { useEffect, useId, useRef } from 'react'
+import { useT } from '@/i18n'
 
 interface ModalProps {
   open: boolean
@@ -18,6 +19,7 @@ const SIZES = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-lg' }
 export function Modal({ open, onClose, title, children, size = 'md', className }: ModalProps) {
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
+  const t = useT()
 
   useEffect(() => {
     if (!open) return
@@ -92,7 +94,7 @@ export function Modal({ open, onClose, title, children, size = 'md', className }
       role="dialog"
       aria-modal="true"
       aria-labelledby={title ? titleId : undefined}
-      aria-label={title ? undefined : 'Diálogo'}
+      aria-label={title ? undefined : t('modal.defaultAria')}
       className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/70 backdrop-blur-md p-4 sm:items-center"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
@@ -113,7 +115,7 @@ export function Modal({ open, onClose, title, children, size = 'md', className }
             <button
               type="button"
               onClick={onClose}
-              aria-label="Cerrar modal"
+              aria-label={t('modal.closeLabel')}
               className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2.5 text-[var(--muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
             >
               <XMarkIcon className="h-5 w-5" />

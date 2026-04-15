@@ -13,6 +13,16 @@ export interface LocalizedNavItem {
   available: boolean
 }
 
+// Buyer account entries carry no inline label: the rendering surface
+// (/cuenta/page.tsx) resolves display text via `buyerAccountMeta[href]`
+// (labelKey/descKey) through getServerT(). Keeping this type separate
+// from AppNavItem prevents regressions where someone adds a Spanish
+// `label` here thinking it will render.
+export interface BuyerAccountItem {
+  href: string
+  available: boolean
+}
+
 export const vendorNavItems: LocalizedNavItem[] = [
   { href: '/vendor/dashboard',       labelKey: 'vendor.nav.dashboard',     available: true },
   { href: '/vendor/productos',       labelKey: 'vendor.nav.products',      available: true },
@@ -40,12 +50,12 @@ export const adminNavItems: AppNavItem[] = [
   { href: '/admin/informes', label: 'Informes', available: true },
 ]
 
-export const buyerAccountItems: AppNavItem[] = [
-  { href: '/cuenta/pedidos', label: 'Mis pedidos', available: true },
-  { href: '/cuenta/suscripciones', label: 'Mis suscripciones', available: true },
-  { href: '/cuenta/direcciones', label: 'Mis direcciones', available: true },
-  { href: '/cuenta/favoritos', label: 'Mis favoritos', available: true },
-  { href: '/cuenta/perfil', label: 'Datos personales', available: true },
+export const buyerAccountItems: BuyerAccountItem[] = [
+  { href: '/cuenta/pedidos', available: true },
+  { href: '/cuenta/suscripciones', available: true },
+  { href: '/cuenta/direcciones', available: true },
+  { href: '/cuenta/favoritos', available: true },
+  { href: '/cuenta/perfil', available: true },
 ]
 
 export const buyerAccountMeta = {

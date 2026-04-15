@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowPathIcon, CheckIcon } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
 import { useCartStore } from '@/domains/orders/cart-store'
+import { useT } from '@/i18n'
 
 interface RepeatOrderLine {
   id: string
@@ -41,6 +42,7 @@ function isSnapshotShape(value: unknown): value is SnapshotShape {
 
 export function RepeatOrderButton({ orderNumber, lines }: RepeatOrderButtonProps) {
   const router = useRouter()
+  const t = useT()
   const addItem = useCartStore(state => state.addItem)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isAdded, setIsAdded] = useState(false)
@@ -67,7 +69,7 @@ export function RepeatOrderButton({ orderNumber, lines }: RepeatOrderButtonProps
         price: Number.isFinite(unitPrice) ? unitPrice : 0,
         unit: snapshot?.unit ?? 'unidad',
         vendorId: line.vendorId,
-        vendorName: snapshot?.vendorName ?? 'Mercado Productor',
+        vendorName: snapshot?.vendorName ?? t('cart.defaultVendor'),
         quantity: Math.max(1, line.quantity),
       })
     }
@@ -87,11 +89,15 @@ export function RepeatOrderButton({ orderNumber, lines }: RepeatOrderButtonProps
       size="sm"
       onClick={handleRepeatOrder}
       disabled={validLines.length === 0 || isSubmitting}
-      aria-label={`Repetir compra del pedido ${orderNumber}`}
+      aria-label={`${t('cart.repeat.ariaLabel')} ${orderNumber}`}
       className="whitespace-nowrap"
     >
       {isAdded ? <CheckIcon className="h-4 w-4" /> : <ArrowPathIcon className="h-4 w-4" />}
-      {isAdded ? 'Añadido al carrito' : `Repetir compra${totalUnits > 0 ? ` · ${totalUnits} uds.` : ''}`}
+      {isAdded
+        ? t('cart.repeat.added')
+        : totalUnits > 0
+          ? `${t('cart.repeat.button')} · ${totalUnits} ${t('cart.repeat.unitsShort')}`
+          : t('cart.repeat.button')}
     </Button>
   )
 }

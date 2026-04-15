@@ -155,13 +155,27 @@ const en: Record<TranslationKeys, string> = {
   // Auth – register
   'register.title': 'Create account',
   'register.subtitle': 'Join the local market',
+  'register.tagline': "It's free. No strings attached.",
+  'register.firstName': 'First name',
+  'register.firstNamePlaceholder': 'Maria',
+  'register.lastName': 'Last name',
+  'register.lastNamePlaceholder': 'Garcia',
   'register.name': 'Name',
-  'register.email': 'Email address',
+  'register.email': 'Email',
+  'register.emailPlaceholder': 'you@email.com',
   'register.password': 'Password',
+  'register.passwordPlaceholder': 'At least 8 characters',
   'register.role': 'I want to...',
   'register.buyer': 'Buy products',
   'register.vendor': 'Sell as a producer',
   'register.submit': 'Create account',
+  'register.errorFallback': 'Could not create the account',
+  'register.successMessage': 'Account created. Check your email to verify your account.',
+  'register.goToLogin': 'Go to sign in',
+  'register.termsPrefix': 'By signing up you accept the',
+  'register.termsLink': 'Terms of use',
+  'register.termsAnd': 'and the',
+  'register.privacyLink': 'Privacy policy',
   'register.haveAccount': 'Already have an account?',
   'register.signIn': 'Sign in',
   signOut: 'Sign out',
@@ -173,6 +187,66 @@ const en: Record<TranslationKeys, string> = {
   'auth.recoveryEmailPlaceholder': 'your@email.com',
   'auth.recoverySubmit': 'Send recovery link',
   'auth.recoverySending': 'Sending...',
+
+  // Auth – forgot password
+  'forgotPassword.title': 'Recover password',
+  'forgotPassword.description': "Enter your email and we'll send you a link to reset your password.",
+  'forgotPassword.emailLabel': 'Email',
+  'forgotPassword.emailPlaceholder': 'you@email.com',
+  'forgotPassword.submit': 'Send instructions',
+  'forgotPassword.remembered': 'Remember your password?',
+  'forgotPassword.backToLogin': 'Back to sign in',
+
+  // Auth – reset password (new password flows)
+  'resetPassword.loading': 'Loading...',
+  'resetPassword.title': 'New password',
+  'resetPassword.newPasswordLabel': 'New password',
+  'resetPassword.newPasswordLabelStar': 'New password *',
+  'resetPassword.confirmLabel': 'Confirm password',
+  'resetPassword.confirmLabelStar': 'Confirm password *',
+  'resetPassword.passwordPlaceholder': 'At least 8 characters',
+  'resetPassword.confirmPlaceholder': 'Repeat your password',
+  'resetPassword.confirmPlaceholderAlt': 'Repeat the password',
+  'resetPassword.submit': 'Set new password',
+  'resetPassword.submitAlt': 'Update password',
+  'resetPassword.submitting': 'Updating...',
+  'resetPassword.submitted': '✓ Updated',
+  'resetPassword.successMessage': 'Password updated successfully',
+  'resetPassword.successRedirect': 'Redirecting to sign in...',
+  'resetPassword.successRedirectShort': 'Redirecting to sign in...',
+  'resetPassword.errorFallback': 'Could not reset the password',
+  'resetPassword.errorUpdate': 'Could not update the password',
+  'resetPassword.connectionError': 'Connection error. Try again.',
+  'resetPassword.processingError': 'Could not process the request',
+  'resetPassword.passwordMin8': 'Password must be at least 8 characters long',
+  'resetPassword.passwordsDoNotMatch': 'Passwords do not match',
+
+  // Checkout – Stripe payment redirect wrapper
+  'checkoutPago.metaTitle': 'Order payment',
+  'checkoutPago.quickSummary': 'Quick summary',
+  'checkoutPago.order': 'Order',
+  'checkoutPago.status': 'Status',
+  'checkoutPago.total': 'Total',
+
+  // Shared UI – Modal
+  'modal.defaultAria': 'Dialog',
+  'modal.closeLabel': 'Close dialog',
+
+  // Catalog – SafeImage fallback
+  'safeImage.unavailable': 'Image unavailable',
+  'safeImage.noPhoto': 'No photo',
+
+  // Catalog – Mobile filters button / drawer
+  'mobileFilters.trigger': 'Filters',
+  'mobileFilters.openAria': 'Open filters',
+  'mobileFilters.activeSuffix': 'active',
+
+  // Cart – repeat order button + default vendor fallback
+  'cart.repeat.button': 'Reorder',
+  'cart.repeat.added': 'Added to cart',
+  'cart.repeat.ariaLabel': 'Reorder from order',
+  'cart.repeat.unitsShort': 'units',
+  'cart.defaultVendor': 'Mercado Productor',
 
   // Cart
   'cart.empty': 'Your cart is empty',

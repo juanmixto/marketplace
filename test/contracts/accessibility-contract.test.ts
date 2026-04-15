@@ -34,6 +34,6 @@ test('Filters and modal expose the right interactive semantics', () => {
   assert.match(filters, /aria-pressed=\{!currentCat\}/)
   assert.match(filters, /aria-pressed=\{currentCat === cat\.slug\}/)
   assert.match(modal, /aria-labelledby=\{title \? titleId : undefined\}/)
-  assert.match(modal, /aria-label=\{title \? undefined : 'Diálogo'\}/)
-  assert.match(modal, /aria-label="Cerrar modal"/)
+  assert.match(modal, /aria-label=\{title \? undefined : t\('modal\.defaultAria'\)\}/)
+  assert.match(modal, /aria-label=\{t\('modal\.closeLabel'\)\}/)
 })

@@ -34,6 +34,11 @@ const INTENTIONAL_COPY_KEYS = new Set<string>([
   'lang_es',                      // language name shown in its own language
   'order.subtotal',
   'order.total',
+  'register.email',                // "Email" reads the same in both locales
+  'forgotPassword.emailLabel',     // "Email" reads the same in both locales
+  'checkoutPago.total',            // "Total" reads the same in both locales
+  'cart.defaultVendor',            // "Mercado Productor" is the brand name
+  'auth.recoveryEmailPlaceholder', // email example placeholder shared
   'vendor.stock',                 // "Stock" reads the same in ES and EN
   'vendor.productForm.variantsColStock', // "Stock" reads the same in ES and EN (variant table column)
   'vendor.profileForm.ibanLabel', // "IBAN" is an untranslatable acronym

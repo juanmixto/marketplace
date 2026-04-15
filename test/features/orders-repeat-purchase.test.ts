@@ -11,7 +11,7 @@ test('orders page exposes a repeat purchase CTA and dedicated client action', ()
   const repeatButton = readSource('../../src/components/buyer/RepeatOrderButton.tsx')
 
   assert.match(ordersPage, /RepeatOrderButton/)
-  assert.match(repeatButton, /Repetir compra|Comprar de nuevo/)
+  assert.match(repeatButton, /t\('cart\.repeat\.button'\)/)
   assert.match(repeatButton, /useCartStore/)
   assert.match(repeatButton, /router\.push\('\/carrito'\)/)
 })

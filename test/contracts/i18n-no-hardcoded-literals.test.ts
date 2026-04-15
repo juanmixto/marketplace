@@ -65,13 +65,6 @@ const ALLOWLIST_FILES: ReadonlySet<string> = new Set([
   'src/app/(admin)/admin/productores/[id]/edit/page.tsx', // Admin-only edit surface — not localized yet.
   'src/app/(admin)/admin/promociones/[id]/edit/page.tsx', // Admin-only edit surface — not localized yet.
   'src/app/(admin)/admin/suscripciones/[id]/edit/page.tsx', // Admin-only edit surface — not localized yet.
-  // Auth flows — pending dedicated i18n PR.
-  'src/app/(auth)/forgot-password/page.tsx',
-  'src/app/(auth)/recuperar-contrasena/nueva/ResetForm.tsx',
-  'src/app/(auth)/register/page.tsx',
-  'src/app/(auth)/reset-password/[token]/page.tsx',
-  // Checkout payment page (Stripe wrapper) — pending.
-  'src/app/(buyer)/checkout/pago/page.tsx',
   // Public producer detail — partially localized.
   'src/app/(public)/productores/[slug]/page.tsx',
   // Vendor portal is now fully translated (#303 follow-up). Do not re-add

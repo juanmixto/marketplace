@@ -5,13 +5,17 @@ import { stripeCheckoutParamsSchema, isMockClientSecret } from '@/domains/paymen
 import { StripeCheckoutForm } from '@/components/checkout/StripeCheckoutForm'
 import { formatPrice } from '@/lib/utils'
 import { getServerEnv } from '@/lib/env'
+import { getServerT } from '@/i18n/server'
 import type { Metadata } from 'next'
 
 interface Props {
   searchParams: Promise<{ orderId?: string; secret?: string }>
 }
 
-export const metadata: Metadata = { title: 'Pago del pedido' }
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT()
+  return { title: t('checkoutPago.metaTitle') }
+}
 
 export default async function CheckoutPaymentPage({ searchParams }: Props) {
   const session = await auth()
@@ -43,21 +47,23 @@ export default async function CheckoutPaymentPage({ searchParams }: Props) {
     redirect(`/checkout/confirmacion?orderNumber=${encodeURIComponent(order.orderNumber)}`)
   }
 
+  const t = await getServerT()
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
       <div className="mb-6 rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-5">
-        <p className="text-sm font-medium text-[var(--foreground)]">Resumen rápido</p>
+        <p className="text-sm font-medium text-[var(--foreground)]">{t('checkoutPago.quickSummary')}</p>
         <div className="mt-3 grid gap-3 text-sm text-[var(--foreground-soft)] sm:grid-cols-3">
           <div>
-            <p className="text-[var(--muted)]">Pedido</p>
+            <p className="text-[var(--muted)]">{t('checkoutPago.order')}</p>
             <p className="font-medium text-[var(--foreground)]">{order.orderNumber}</p>
           </div>
           <div>
-            <p className="text-[var(--muted)]">Estado</p>
+            <p className="text-[var(--muted)]">{t('checkoutPago.status')}</p>
             <p className="font-medium text-[var(--foreground)]">{order.paymentStatus}</p>
           </div>
           <div>
-            <p className="text-[var(--muted)]">Total</p>
+            <p className="text-[var(--muted)]">{t('checkoutPago.total')}</p>
             <p className="font-medium text-[var(--foreground)]">{formatPrice(Number(order.grandTotal))}</p>
           </div>
         </div>

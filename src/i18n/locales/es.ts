@@ -153,13 +153,27 @@ const es = {
   // Auth – register
   'register.title': 'Crear cuenta',
   'register.subtitle': 'Únete al mercado local',
+  'register.tagline': 'Es gratis. Sin compromisos.',
+  'register.firstName': 'Nombre',
+  'register.firstNamePlaceholder': 'María',
+  'register.lastName': 'Apellidos',
+  'register.lastNamePlaceholder': 'García',
   'register.name': 'Nombre',
-  'register.email': 'Correo electrónico',
+  'register.email': 'Email',
+  'register.emailPlaceholder': 'tu@email.com',
   'register.password': 'Contraseña',
+  'register.passwordPlaceholder': 'Mínimo 8 caracteres',
   'register.role': 'Quiero...',
   'register.buyer': 'Comprar productos',
   'register.vendor': 'Vender como productor',
   'register.submit': 'Crear cuenta',
+  'register.errorFallback': 'Error al crear la cuenta',
+  'register.successMessage': 'Cuenta creada. Revisa tu email para verificar tu cuenta.',
+  'register.goToLogin': 'Ir a iniciar sesión',
+  'register.termsPrefix': 'Al registrarte aceptas los',
+  'register.termsLink': 'Términos de uso',
+  'register.termsAnd': 'y la',
+  'register.privacyLink': 'Política de privacidad',
   'register.haveAccount': '¿Ya tienes cuenta?',
   'register.signIn': 'Inicia sesión',
   signOut: 'Cerrar sesión',
@@ -171,6 +185,66 @@ const es = {
   'auth.recoveryEmailPlaceholder': 'tu@email.com',
   'auth.recoverySubmit': 'Enviar enlace de recuperación',
   'auth.recoverySending': 'Enviando...',
+
+  // Auth – forgot password
+  'forgotPassword.title': 'Recuperar contraseña',
+  'forgotPassword.description': 'Introduce tu email y te enviaremos un enlace para resetear tu contraseña.',
+  'forgotPassword.emailLabel': 'Email',
+  'forgotPassword.emailPlaceholder': 'tu@email.com',
+  'forgotPassword.submit': 'Enviar instrucciones',
+  'forgotPassword.remembered': '¿Recuerdas tu contraseña?',
+  'forgotPassword.backToLogin': 'Volver a login',
+
+  // Auth – reset password (new password flows: /reset-password/[token] and /recuperar-contrasena/nueva)
+  'resetPassword.loading': 'Cargando...',
+  'resetPassword.title': 'Nueva contraseña',
+  'resetPassword.newPasswordLabel': 'Nueva contraseña',
+  'resetPassword.newPasswordLabelStar': 'Nueva contraseña *',
+  'resetPassword.confirmLabel': 'Confirmar contraseña',
+  'resetPassword.confirmLabelStar': 'Confirmar contraseña *',
+  'resetPassword.passwordPlaceholder': 'Mínimo 8 caracteres',
+  'resetPassword.confirmPlaceholder': 'Repite tu contraseña',
+  'resetPassword.confirmPlaceholderAlt': 'Repite la contraseña',
+  'resetPassword.submit': 'Establecer nueva contraseña',
+  'resetPassword.submitAlt': 'Actualizar contraseña',
+  'resetPassword.submitting': 'Actualizando...',
+  'resetPassword.submitted': '✓ Actualizada',
+  'resetPassword.successMessage': 'Contraseña actualizada correctamente',
+  'resetPassword.successRedirect': 'Redirigiendo al login...',
+  'resetPassword.successRedirectShort': 'Redirigiendo a login...',
+  'resetPassword.errorFallback': 'Error al resetear la contraseña',
+  'resetPassword.errorUpdate': 'Error al actualizar la contraseña',
+  'resetPassword.connectionError': 'Error de conexión. Intenta de nuevo.',
+  'resetPassword.processingError': 'Error al procesar la solicitud',
+  'resetPassword.passwordMin8': 'La contraseña debe tener al menos 8 caracteres',
+  'resetPassword.passwordsDoNotMatch': 'Las contraseñas no coinciden',
+
+  // Checkout – Stripe payment redirect wrapper
+  'checkoutPago.metaTitle': 'Pago del pedido',
+  'checkoutPago.quickSummary': 'Resumen rápido',
+  'checkoutPago.order': 'Pedido',
+  'checkoutPago.status': 'Estado',
+  'checkoutPago.total': 'Total',
+
+  // Shared UI – Modal
+  'modal.defaultAria': 'Diálogo',
+  'modal.closeLabel': 'Cerrar modal',
+
+  // Catalog – SafeImage fallback
+  'safeImage.unavailable': 'Imagen no disponible',
+  'safeImage.noPhoto': 'Sin foto',
+
+  // Catalog – Mobile filters button / drawer
+  'mobileFilters.trigger': 'Filtros',
+  'mobileFilters.openAria': 'Abrir filtros',
+  'mobileFilters.activeSuffix': 'activos',
+
+  // Cart – repeat order button + default vendor fallback
+  'cart.repeat.button': 'Repetir compra',
+  'cart.repeat.added': 'Añadido al carrito',
+  'cart.repeat.ariaLabel': 'Repetir compra del pedido',
+  'cart.repeat.unitsShort': 'uds.',
+  'cart.defaultVendor': 'Mercado Productor',
 
   // Cart
   'cart.empty': 'Tu carrito está vacío',
