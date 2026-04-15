@@ -87,6 +87,13 @@ const es = {
   'hero.quickAccess': 'Accesos rápidos',
   'hero.loginCta': 'Ver credenciales demo →',
 
+  // Home hero stats
+  'home.stats.activeVendors': 'Productores activos',
+  'home.stats.activeProducts': 'Productos publicados',
+  'home.stats.averageRating': 'Valoración media',
+  'home.stats.marketplaceGrowing': 'Marketplace en crecimiento',
+  'home.stats.newBadge': 'Nueva',
+
   // Trust bar
   'trust.shipping': 'Envío a toda la península',
   'trust.payment': 'Pago seguro garantizado',

@@ -96,12 +96,32 @@ export function HomePageClient({ featured, categories, vendors, heroStats, publi
 
               {/* Stats */}
               <div className="mt-10 grid grid-cols-3 gap-6 border-t border-white/10 pt-8">
-                {heroStats.map(s => (
-                  <div key={s.label}>
-                    <p className="text-2xl font-bold text-white">{s.value}</p>
-                    <p className="mt-0.5 text-sm text-emerald-300/80">{s.label}</p>
-                  </div>
-                ))}
+                {heroStats.map(s => {
+                  const intlLocale = locale === 'en' ? 'en-US' : 'es-ES'
+                  let value: string
+                  if (s.kind === 'count') {
+                    if (s.count > 0) {
+                      const formatted = new Intl.NumberFormat(intlLocale, {
+                        notation: 'compact',
+                        compactDisplay: 'short',
+                        maximumFractionDigits: s.count >= 1000 ? 1 : 0,
+                      }).format(s.count)
+                      value = `${formatted}+`
+                    } else {
+                      value = '0'
+                    }
+                  } else if (s.kind === 'rating') {
+                    value = `${s.rating.toFixed(1)}★`
+                  } else {
+                    value = t(s.valueKey)
+                  }
+                  return (
+                    <div key={s.labelKey}>
+                      <p className="text-2xl font-bold text-white">{value}</p>
+                      <p className="mt-0.5 text-sm text-emerald-300/80">{t(s.labelKey)}</p>
+                    </div>
+                  )
+                })}
               </div>
             </div>
 

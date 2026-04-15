@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { buildHomeStats } from '@/domains/catalog/home'
 
-test('buildHomeStats formats active catalog metrics for the hero', () => {
+test('buildHomeStats emits labelKey descriptors for the hero', () => {
   const stats = buildHomeStats({
     activeVendors: 12,
     activeProducts: 148,
@@ -10,19 +10,22 @@ test('buildHomeStats formats active catalog metrics for the hero', () => {
   })
 
   assert.deepEqual(stats, [
-    { value: '12+', label: 'Productores activos' },
-    { value: '148+', label: 'Productos publicados' },
-    { value: '4.7★', label: 'Valoración media' },
+    { kind: 'count', labelKey: 'home.stats.activeVendors', count: 12 },
+    { kind: 'count', labelKey: 'home.stats.activeProducts', count: 148 },
+    { kind: 'rating', labelKey: 'home.stats.averageRating', rating: 4.67 },
   ])
 })
 
-test('buildHomeStats falls back gracefully when rating is not available yet', () => {
+test('buildHomeStats falls back to the newBadge descriptor when rating is not available yet', () => {
   const stats = buildHomeStats({
     activeVendors: 1,
     activeProducts: 3,
     averageRating: null,
   })
 
-  assert.equal(stats[2]?.value, 'Nueva')
-  assert.equal(stats[2]?.label, 'Marketplace en crecimiento')
+  assert.deepEqual(stats[2], {
+    kind: 'newBadge',
+    labelKey: 'home.stats.marketplaceGrowing',
+    valueKey: 'home.stats.newBadge',
+  })
 })
