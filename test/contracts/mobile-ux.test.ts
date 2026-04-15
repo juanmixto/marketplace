@@ -190,6 +190,37 @@ test('PDP image gallery controls meet 44px tap-target minimum on mobile', () => 
   )
 })
 
+test('SortSelect dropdown clears the 44px tap-target floor', () => {
+  const source = read('src/components/catalog/SortSelect.tsx')
+  assert.match(source, /min-h-11/, 'SortSelect must use min-h-11 so the dropdown is tappable on mobile')
+})
+
+test('vendor PromotionForm selects clear 44px on mobile', () => {
+  const source = read('src/components/vendor/PromotionForm.tsx')
+  const matches = source.match(/min-h-11 w-full[^"]*sm:h-10 sm:min-h-0/g) ?? []
+  assert.ok(
+    matches.length >= 2,
+    `PromotionForm selects must use min-h-11 sm:h-10 sm:min-h-0 (found ${matches.length})`,
+  )
+})
+
+test('vendor profile form keeps prep-days inputMode and shrinks textarea on mobile', () => {
+  const source = read('src/components/vendor/VendorProfileForm.tsx')
+  assert.match(source, /inputMode="numeric"/, 'preparation days input must declare inputMode="numeric"')
+  assert.match(source, /type="time"/, 'order cutoff input must use type="time" for the right mobile picker')
+  assert.match(
+    source,
+    /min-h-\[8rem\][^"]*sm:min-h-\[12rem\]/,
+    'description textarea must shrink to 8rem on mobile and grow to 12rem on sm+',
+  )
+})
+
+test('open-incident form select clears 44px and textarea adapts to mobile', () => {
+  const source = read('src/app/(buyer)/cuenta/incidencias/nueva/OpenIncidentForm.tsx')
+  assert.match(source, /min-h-11/, 'incident type select must clear 44px')
+  assert.match(source, /min-h-32[^"]*sm:min-h-40/, 'incident description textarea must scale on sm+')
+})
+
 test('vendor review response actions meet 44px tap-target minimum', () => {
   const source = read('src/components/vendor/VendorReviewsManager.tsx')
   const matches = source.match(/min-h-11 min-w-11/g) ?? []

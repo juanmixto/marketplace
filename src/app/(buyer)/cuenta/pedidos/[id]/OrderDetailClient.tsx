@@ -176,7 +176,7 @@ export function OrderDetailClient({ order, nuevo, reviewEligibility }: Props) {
                           href={f.trackingUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="font-mono underline hover:text-[var(--foreground-soft)]"
+                          className="inline-flex min-h-8 items-center rounded font-mono underline underline-offset-2 hover:text-[var(--foreground-soft)]"
                         >
                           {f.trackingNumber}
                         </a>
