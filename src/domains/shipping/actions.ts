@@ -151,7 +151,7 @@ export async function prepareFulfillment(
     return { ok: false, code: 'NOT_FOUND', message: 'Fulfillment no encontrado', retryable: false }
   }
 
-  if (!['CONFIRMED', 'PREPARING', 'LABEL_FAILED'].includes(fulfillment.status)) {
+  if (!['PENDING', 'CONFIRMED', 'PREPARING', 'LABEL_FAILED'].includes(fulfillment.status)) {
     return {
       ok: false,
       code: 'INVALID_STATE',
