@@ -50,11 +50,14 @@ test.describe('vendor product CRUD @smoke', () => {
     await expect(createdRow).toBeVisible({ timeout: 10_000 })
 
     // --- EDIT ---
-    // Each row renders a direct `<a aria-label="Editar">` anchor next to
-    // the ellipsis trigger; no need to open the action menu for editing.
-    // The edit URL includes the product id, which we don't know from the
-    // DOM — the UI link is our navigation.
-    await createdRow.getByRole('link', { name: /editar/i }).first().click()
+    // The row no longer carries a standalone edit button — it was
+    // removed to declutter the action cluster, and "Editar" now lives
+    // inside the row's ellipsis action menu as the first entry. Open
+    // the menu (same affordance used for delete below) and click the
+    // Editar link. The edit URL includes the product id, which we
+    // don't know from the DOM, so the UI link is our navigation.
+    await createdRow.getByRole('button', { name: /acciones del producto/i }).click()
+    await page.getByRole('link', { name: /^editar$/i }).first().click()
     await expect(page).toHaveURL(/\/vendor\/productos\/[^/]+$/, { timeout: 10_000 })
 
     const nameInput = page.locator('input[name="name"]')

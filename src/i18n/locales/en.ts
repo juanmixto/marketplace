@@ -185,6 +185,8 @@ const en: Record<TranslationKeys, string> = {
   'cart.shipping': 'Shipping',
   'cart.shippingFree': 'Free',
   'cart.shippingFrom': 'Free shipping from',
+  'cart.discount': 'Discount',
+  'cart.discountApplied': 'Offer applied',
   'cart.total': 'Total',
   'cart.toCheckout': 'Go to checkout',
   'cart.continueShopping': 'Continue shopping',

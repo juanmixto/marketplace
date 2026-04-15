@@ -33,7 +33,7 @@ export default async function AdminDashboardPage() {
   const stats = [
     { label: 'Pedidos activos', value: activeOrders, color: 'text-blue-600', href: '/admin/pedidos' },
     { label: 'Productores pendientes', value: pendingVendors, color: pendingVendors > 0 ? 'text-amber-600' : 'text-[var(--foreground)]', href: '/admin/productores' },
-    { label: 'Productos por revisar', value: pendingProducts, color: pendingProducts > 0 ? 'text-amber-600' : 'text-[var(--foreground)]', href: '/admin/productos' },
+    { label: 'Productos por revisar', value: pendingProducts, color: pendingProducts > 0 ? 'text-amber-600' : 'text-[var(--foreground)]', href: '/admin/productos?status=PENDING_REVIEW' },
     { label: 'Incidencias abiertas', value: openIncidents, color: openIncidents > 0 ? 'text-red-600' : 'text-[var(--foreground)]', href: '/admin/incidencias' },
   ]
 
@@ -52,7 +52,7 @@ export default async function AdminDashboardPage() {
               </Link>
             )}
             {pendingProducts > 0 && (
-              <Link href="/admin/productos" className="rounded-lg border border-amber-200 dark:border-amber-800 bg-[var(--surface)] px-3 py-2 text-sm font-medium text-amber-700 dark:text-amber-400 transition hover:bg-amber-50 dark:hover:bg-amber-950/20">
+              <Link href="/admin/productos?status=PENDING_REVIEW" className="rounded-lg border border-amber-200 dark:border-amber-800 bg-[var(--surface)] px-3 py-2 text-sm font-medium text-amber-700 dark:text-amber-400 transition hover:bg-amber-50 dark:hover:bg-amber-950/20">
                 {pendingProducts} producto{pendingProducts > 1 ? 's' : ''} por revisar
               </Link>
             )}

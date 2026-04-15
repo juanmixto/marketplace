@@ -35,12 +35,14 @@ export function AdminProductEditForm({ product, categories }: Props) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [trackStock, setTrackStock] = useState(product.trackStock)
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
     setSuccess(false)
     const fd = new FormData(event.currentTarget)
+    const tracking = fd.get('trackStock') === 'on'
     const input: AdminProductInput = {
       name: String(fd.get('name') ?? ''),
       description: fd.get('description')?.toString() || null,
@@ -49,8 +51,8 @@ export function AdminProductEditForm({ product, categories }: Props) {
       compareAtPrice: fd.get('compareAtPrice') ? Number(fd.get('compareAtPrice')) : null,
       taxRate: Number(fd.get('taxRate')),
       unit: String(fd.get('unit') ?? 'kg'),
-      stock: Number(fd.get('stock')),
-      trackStock: fd.get('trackStock') === 'on',
+      stock: tracking ? Number(fd.get('stock')) : 0,
+      trackStock: tracking,
       status: fd.get('status') as AdminProductInput['status'],
       originRegion: fd.get('originRegion')?.toString() || null,
       rejectionNote: fd.get('rejectionNote')?.toString() || null,
@@ -115,12 +117,26 @@ export function AdminProductEditForm({ product, categories }: Props) {
           <input name="unit" defaultValue={product.unit} required maxLength={20} className={inputCls} />
         </Field>
         <Field label="Stock">
-          <input name="stock" type="number" min="0" defaultValue={product.stock} required className={inputCls} />
+          <input
+            name="stock"
+            type="number"
+            min="0"
+            defaultValue={product.stock}
+            required={trackStock}
+            disabled={!trackStock}
+            placeholder={trackStock ? undefined : 'Sin control de stock'}
+            className={`${inputCls} disabled:cursor-not-allowed disabled:opacity-50`}
+          />
         </Field>
         <Field label="Trackear stock">
           <label className="flex h-10 items-center gap-2 text-sm">
-            <input name="trackStock" type="checkbox" defaultChecked={product.trackStock} />
-            <span>Sí</span>
+            <input
+              name="trackStock"
+              type="checkbox"
+              checked={trackStock}
+              onChange={e => setTrackStock(e.target.checked)}
+            />
+            <span>{trackStock ? 'Sí' : 'No'}</span>
           </label>
         </Field>
       </div>
