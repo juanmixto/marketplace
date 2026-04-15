@@ -18,12 +18,13 @@ import {
 // second row. Guards against silent regressions in src/lib/audit.ts
 // or in any caller that forgets the audit side effect.
 //
-// Known gap NOT covered by this test: `createAuditLog` wraps its
-// db.create in a try/catch that only console.errors on failure, so
-// an audit insert can silently fail while the mutation commits. The
-// audit write also lives outside db.$transaction in admin/actions.ts.
-// Both are pre-existing structural concerns — fixing them changes
-// production behavior and belongs in a separate PR, not in this test.
+// As of #381 the mutation + audit insert run inside a single
+// `db.$transaction` via `mutateWithAudit`, so a failing audit write
+// will roll back the mutation instead of silently leaving a hole in
+// the forensic trail. A dedicated rollback test (inject a failing
+// auditLog.create and assert the vendor row is unchanged) requires
+// mocking support the integration harness does not currently expose;
+// add one when `helpers.ts` grows a `withFailingAuditLog` fixture.
 
 beforeEach(async () => {
   await resetIntegrationDatabase()
