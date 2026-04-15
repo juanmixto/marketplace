@@ -1,9 +1,11 @@
 # RFC 0001 — Promotions & Subscriptions
 
-- **Status:** Draft
+- **Status:** Active — phases 1–5 shipped (2026-04-14/15)
 - **Author:** Vendor portal UX initiative
 - **Created:** 2026-04-14
+- **Last updated:** 2026-04-15
 - **Related:** vendor product preview PR (#332) — initial vendor-portal UX upgrade
+- **Shipped in:** #335 (phase 1 promos CRUD), #336 (phase 2 checkout), #337 (phase 3 plan CRUD), #338 (phase 4a buyer lifecycle), #339–#342 (phase 4b α/β/γ/δ Stripe integration + emails), #343 (phase 5 admin read-only), #344 (Decimal/RSC serialization fix), #355 (superadmin write access)
 
 ## Motivation
 
