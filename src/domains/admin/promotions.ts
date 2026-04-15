@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { requireAdmin } from '@/lib/auth-guard'
 
 /**
  * Phase 5 of the promotions & subscriptions RFC: admin read-only
@@ -39,6 +40,7 @@ export interface PromotionsOverview {
 }
 
 export async function getPromotionsOverview(): Promise<PromotionsOverview> {
+  await requireAdmin()
   const now = new Date()
 
   const [active, archived, redemptionsAgg, vendorsRunning, rows] = await Promise.all([

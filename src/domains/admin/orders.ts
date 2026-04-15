@@ -1,5 +1,6 @@
 import type { Prisma } from '@/generated/prisma/client'
 import type { FulfillmentStatus, IncidentStatus, OrderStatus, PaymentStatus } from '@/generated/prisma/enums'
+import { requireAdmin } from '@/lib/auth-guard'
 
 export interface AdminOrderFilters {
   q?: string
@@ -63,6 +64,10 @@ function buildOrderWhere(filters: AdminOrderFilters): Prisma.OrderWhereInput {
 }
 
 export async function getAdminOrdersPageData(filters: AdminOrderFilters) {
+  // Defense in depth: the /admin/* gate in src/proxy.ts already blocks
+  // non-admins, but this loader is plain code and could be imported from
+  // anywhere. Guard locally so a future caller can never bypass the gate.
+  await requireAdmin()
   const { db } = await import('@/lib/db')
   const where = buildOrderWhere(filters)
   const pageSize = Math.min(Math.max(filters.pageSize ?? 24, 1), 100)
