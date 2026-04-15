@@ -20,6 +20,7 @@
 // is therefore equivalent to asserting the DB row exists.
 
 import { test, expect } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
 import { TEST_USERS, loginAs } from '../helpers/auth'
 
 const SEEDED_PRODUCT_SLUG = 'tomates-cherry-ecologicos'
@@ -74,5 +75,20 @@ test.describe('cart and checkout @smoke', () => {
     // otherwise run via Prisma.
     await expect(page.getByText(orderNumber!)).toBeVisible({ timeout: 5_000 })
     await expect(page.getByRole('heading', { name: /pedido|orden|gracias/i }).first()).toBeVisible()
+
+    // --- A11Y ASSERTION ---
+    // Run axe on the fully hydrated confirmation page — the one users
+    // actually land on after a purchase. WCAG A/AA, but filtered to
+    // `impact=critical` only. The site carries ~300 pre-existing
+    // moderate/serious violations (color-contrast on dark-mode tokens,
+    // landmark issues, heading-order quirks) that are a separate
+    // project to fix. This gate blocks new critical regressions
+    // without holding the PR hostage to the baseline.
+    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
+    const critical = results.violations.filter(v => v.impact === 'critical')
+    expect(
+      critical,
+      `confirmation page has ${critical.length} critical axe violations: ${critical.map(v => v.id).join(', ')}`,
+    ).toEqual([])
   })
 })
