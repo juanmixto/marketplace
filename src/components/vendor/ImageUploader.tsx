@@ -48,8 +48,8 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
 
   const remainingSlots = Math.max(0, MAX_IMAGES - urls.length - uploading.length)
 
-  const uploadFile = useCallback(
-    async (rawFile: File) => {
+  const uploadOne = useCallback(
+    async (rawFile: File): Promise<string | null> => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       setUploading(prev => [...prev, { id, name: rawFile.name }])
       try {
@@ -68,18 +68,19 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
           throw new Error(data.error ?? 'upload-failed')
         }
         const data = (await response.json()) as { url: string }
-        onChange([...urls, data.url])
+        return data.url
       } catch (uploadError) {
         setError(
           uploadError instanceof Error
             ? `${rawFile.name}: ${uploadError.message}`
             : t('vendor.upload.error')
         )
+        return null
       } finally {
         setUploading(prev => prev.filter(item => item.id !== id))
       }
     },
-    [onChange, t, urls]
+    [t]
   )
 
   const acceptFiles = useCallback(
@@ -88,15 +89,22 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
       setError(null)
 
       const files = Array.from(fileList).slice(0, remainingSlots)
+      // Accumulate locally so sequential uploads don't read a stale `urls`
+      // closure — each onChange would otherwise overwrite the previous.
+      let current = urls
       for (const file of files) {
         if (!ACCEPTED_TYPES.has(file.type)) {
           setError(`${file.name}: ${t('vendor.upload.unsupported')}`)
           continue
         }
-        await uploadFile(file)
+        const uploaded = await uploadOne(file)
+        if (uploaded) {
+          current = [...current, uploaded]
+          onChange(current)
+        }
       }
     },
-    [remainingSlots, t, uploadFile]
+    [onChange, remainingSlots, t, uploadOne, urls]
   )
 
   function handleDrop(event: React.DragEvent<HTMLLabelElement>) {
