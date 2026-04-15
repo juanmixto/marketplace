@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowDownTrayIcon } from '@heroicons/react/24/outline'
 import { useT } from '@/i18n'
+import { trackPwaEvent } from '@/lib/pwa/track'
 
 /**
  * Minimum Chromium `beforeinstallprompt` event shape — not exported by
@@ -84,9 +85,13 @@ export default function InstallButton() {
 
   const onClick = async () => {
     try {
+      trackPwaEvent('pwa_install_prompted')
       await prompt.prompt()
       const { outcome } = await prompt.userChoice
-      if (outcome === 'dismissed') {
+      if (outcome === 'accepted') {
+        trackPwaEvent('pwa_install_accepted')
+      } else {
+        trackPwaEvent('pwa_install_dismissed')
         try {
           localStorage.setItem(DISMISS_KEY, String(Date.now()))
         } catch {
