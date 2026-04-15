@@ -9,25 +9,35 @@ export const metadata: Metadata = { title: 'Nuevo plan de suscripción' }
 export default async function NewSubscriptionPlanPage() {
   const [vendor, t] = await Promise.all([getMyVendorProfile(), getServerT()])
 
-  // Eligible products: active, not soft-deleted, and not already linked to
-  // a non-archived subscription plan. The @@unique on productId means that
-  // attaching a plan to a product that already has one would fail anyway
-  // — listing only eligible products makes the UX friendlier.
   // Multi-cadence (phase 4b-β follow-up): a product can have up to one
-  // plan per cadence. We no longer filter out products that "already
-  // have a plan" — the vendor may want to publish a biweekly plan
-  // alongside an existing weekly one. If they pick a product that
-  // already exhausts all cadences, `createSubscriptionPlan` surfaces a
-  // friendly error.
-  const products = await db.product.findMany({
-    where: {
-      vendorId: vendor.id,
-      deletedAt: null,
-      status: 'ACTIVE',
-    },
-    select: { id: true, name: true, basePrice: true, unit: true, status: true },
-    orderBy: { name: 'asc' },
-  })
+  // plan per cadence (WEEKLY / BIWEEKLY / MONTHLY). We list every
+  // ACTIVE product — the vendor may want to publish a biweekly plan
+  // alongside an existing weekly one. For each product we also load
+  // which cadences it ALREADY has so the form can dim rows / disable
+  // buttons instead of letting the vendor hit the generic duplicate
+  // error on submit.
+  const [products, existingPlans] = await Promise.all([
+    db.product.findMany({
+      where: {
+        vendorId: vendor.id,
+        deletedAt: null,
+        status: 'ACTIVE',
+      },
+      select: { id: true, name: true, basePrice: true, unit: true, status: true },
+      orderBy: { name: 'asc' },
+    }),
+    db.subscriptionPlan.findMany({
+      where: { vendorId: vendor.id, archivedAt: null },
+      select: { productId: true, cadence: true },
+    }),
+  ])
+
+  const takenCadencesByProduct: Record<string, ('WEEKLY' | 'BIWEEKLY' | 'MONTHLY')[]> = {}
+  for (const plan of existingPlans) {
+    const list = takenCadencesByProduct[plan.productId] ?? []
+    list.push(plan.cadence)
+    takenCadencesByProduct[plan.productId] = list
+  }
 
   return (
     <div className="max-w-2xl">
@@ -47,6 +57,7 @@ export default async function NewSubscriptionPlanPage() {
           unit: p.unit,
           status: p.status,
         }))}
+        takenCadencesByProduct={takenCadencesByProduct}
       />
     </div>
   )
