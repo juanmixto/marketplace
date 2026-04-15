@@ -638,6 +638,35 @@ model OrderEvent {
   @@index([orderId])
 }
 
+/// First-class delivery bookkeeping for webhook events. Lets the
+/// stripe webhook handler dedupe by `(provider, eventId)` via a real
+/// unique constraint instead of a JSON-path lookup against
+/// `OrderEvent.payload`. Created (insert + unique violation = duplicate)
+/// in the route handler before any business state mutation; updated to
+/// `processed` / `failed` after the handler returns. Replaces the
+/// dedupe responsibility of `OrderEvent` while leaving its
+/// business-event responsibility intact.
+///
+/// `payloadHash` is sha256(raw body), useful for forensic comparisons
+/// without storing the full payload (which can carry PII or card
+/// metadata depending on the provider).
+model WebhookDelivery {
+  id           String    @id @default(cuid())
+  provider     String    @default("stripe")
+  eventId      String
+  eventType    String
+  providerRef  String?
+  status       String    @default("received")
+  errorMessage String?
+  payloadHash  String?
+  receivedAt   DateTime  @default(now())
+  processedAt  DateTime?
+
+  @@unique([provider, eventId])
+  @@index([provider, eventType, receivedAt])
+  @@index([status, receivedAt])
+}
+
 /// Dead-letter queue for webhook events that could not be reconciled to an
 /// existing order/payment (e.g. Stripe sent a payment_intent.succeeded for a
 /// providerRef we have no Payment row for). An operator can query the
