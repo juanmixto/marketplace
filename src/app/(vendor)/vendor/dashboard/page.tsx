@@ -87,7 +87,7 @@ export default async function VendorDashboardPage() {
                 </span>
                 {!step.done && (
                   <Link href={`/vendor/${step.key === 'product' ? 'productos/nuevo' : 'perfil'}`}
-                    className="ml-auto rounded-sm text-xs text-amber-700 hover:underline dark:text-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/30">
+                    className="ml-auto inline-flex min-h-11 items-center rounded-md px-2 py-2 text-xs font-medium text-amber-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/30 dark:text-amber-400">
                     {t('vendor.dashboard.doItNow')}
                   </Link>
                 )}
@@ -115,7 +115,7 @@ export default async function VendorDashboardPage() {
                   </p>
                 </div>
                 <Link href="/vendor/pedidos"
-                  className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
+                  className="inline-flex min-h-11 items-center rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] dark:bg-red-500 dark:hover:bg-red-400">
                   {t('vendor.dashboard.viewOrders')}
                 </Link>
               </div>

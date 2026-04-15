@@ -273,6 +273,36 @@ test('LoginForm forgot-password link is a 44px tap target', () => {
   )
 })
 
+test('Footer link rows clear 44px tap target on mobile', () => {
+  const source = read('src/components/layout/Footer.tsx')
+  // Two patterns: the column links and the legal row links. Both must
+  // bake in min-h-11 so the bottom of the page is actually navigable.
+  const matches = source.match(/min-h-11/g) ?? []
+  assert.ok(
+    matches.length >= 2,
+    `Footer must keep min-h-11 on column + legal links (found ${matches.length})`,
+  )
+})
+
+test('vendor dashboard urgent + setup CTAs clear 44px', () => {
+  const source = read('src/app/(vendor)/vendor/dashboard/page.tsx')
+  // "Hacer ahora" and "Ver pedidos" both used to be py-1.5 — pin them.
+  const matches = source.match(/min-h-11/g) ?? []
+  assert.ok(
+    matches.length >= 2,
+    `dashboard CTAs must keep min-h-11 on doItNow + viewOrders (found ${matches.length})`,
+  )
+})
+
+test('search pagination links clear 44px', () => {
+  const source = read('src/app/(public)/buscar/page.tsx')
+  const matches = source.match(/min-h-11 items-center rounded-lg/g) ?? []
+  assert.ok(
+    matches.length >= 2,
+    `search prev/next pagination links must use min-h-11 (found ${matches.length})`,
+  )
+})
+
 test('vendor review response actions meet 44px tap-target minimum', () => {
   const source = read('src/components/vendor/VendorReviewsManager.tsx')
   const matches = source.match(/min-h-11 min-w-11/g) ?? []

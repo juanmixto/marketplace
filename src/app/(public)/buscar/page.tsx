@@ -145,7 +145,7 @@ export default async function BuscarPage({ searchParams }: Props) {
                   {hasPrev && (
                     <a
                       href={`?q=${encodeURIComponent(params.q || '')}${params.categoria ? `&categoria=${params.categoria}` : ''}${params.orden ? `&orden=${params.orden}` : ''}`}
-                      className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-raised"
+                      className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-raised"
                     >
                       ← {copy.page.previous}
                     </a>
@@ -153,7 +153,7 @@ export default async function BuscarPage({ searchParams }: Props) {
                   {hasNext && (
                     <a
                       href={`?q=${encodeURIComponent(params.q || '')}&cursor=${nextCursor}${params.categoria ? `&categoria=${params.categoria}` : ''}${params.orden ? `&orden=${params.orden}` : ''}`}
-                      className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
+                      className="inline-flex min-h-11 items-center rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
                     >
                       {copy.page.next} →
                     </a>
