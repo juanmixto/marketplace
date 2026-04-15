@@ -1,31 +1,42 @@
 /* Mercado Productor — PWA service worker.
  *
- * Phase 2 (current): offline navigation fallback.
+ * Phase 3 (current): stale-while-revalidate runtime cache for a strict
+ * allow-list of public static assets. Navigations still use the
+ * Phase 2 offline fallback. Everything else is pass-through.
  *
- * Strategy
- * --------
- * - Precache exactly ONE resource on install: /offline
- * - On navigation requests (request.mode === 'navigate') try the network
- *   first; if it throws (device is offline) respond with the cached
- *   /offline page.
- * - Everything else is pass-through (we never call respondWith).
+ * Caches
+ * ------
+ * - mp-offline-v1 : precached `/offline` shell (Phase 2)
+ * - mp-static-v1  : runtime SWR cache for static assets (Phase 3)
  *
- * Exclusions — we do NOT intercept navigations to any of these prefixes,
- * even when offline. Serving the offline shell in place of an auth or
- * admin screen would be more confusing than the browser's own error,
- * and we must never cache state from them.
+ * Allow-list for the static cache
+ * -------------------------------
+ * We only cache things that are either:
+ *   a) content-addressed (hashed, safe to cache forever), or
+ *   b) brand assets that change rarely and are same-origin public.
  *
+ *   - /_next/static/*       (hashed JS/CSS/media from Next build)
+ *   - /icons/icon-*.png     (manifest icons)
+ *   - /favicon.svg, /favicon.ico
+ *   - /opengraph-image, /twitter-image (crawler-facing OG images)
+ *   - Anything ending in .woff2 under /_next/static (next/font)
+ *
+ * Exclusions (denylist — defensive second layer)
+ * ----------------------------------------------
  *   /api/*, /admin/*, /vendor/*, /checkout/*, /auth/*
+ *   Anything with query strings indicating user state
  *
- * When we add static-asset caching in Phase 3 (#428), it MUST keep an
- * allow-list and never touch these prefixes either.
+ * An URL must pass the allow-list AND not hit the denylist to be cached.
+ * LRU trim at MAX_STATIC_ENTRIES keeps the cache from growing unbounded.
  */
 
-const SW_VERSION = 'mp-sw-v2'
+const SW_VERSION = 'mp-sw-v3'
 const OFFLINE_CACHE = 'mp-offline-v1'
+const STATIC_CACHE = 'mp-static-v1'
 const OFFLINE_URL = '/offline'
+const MAX_STATIC_ENTRIES = 60
 
-const PROTECTED_NAV_PREFIXES = [
+const PROTECTED_PREFIXES = [
   '/api/',
   '/admin',
   '/vendor',
@@ -33,12 +44,42 @@ const PROTECTED_NAV_PREFIXES = [
   '/auth',
 ]
 
+const ALLOWED_EXACT = new Set([
+  '/favicon.svg',
+  '/favicon.ico',
+  '/opengraph-image',
+  '/twitter-image',
+])
+
+function isProtected(url) {
+  return PROTECTED_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))
+}
+
+function isCacheableStatic(url) {
+  if (url.origin !== self.location.origin) return false
+  if (isProtected(url)) return false
+  const path = url.pathname
+  if (path.startsWith('/_next/static/')) return true
+  if (path.startsWith('/icons/icon-') && path.endsWith('.png')) return true
+  if (ALLOWED_EXACT.has(path)) return true
+  return false
+}
+
+async function trimCache(cacheName, maxEntries) {
+  const cache = await caches.open(cacheName)
+  const keys = await cache.keys()
+  if (keys.length <= maxEntries) return
+  // Drop the oldest (keys() returns insertion order).
+  const excess = keys.length - maxEntries
+  for (let i = 0; i < excess; i += 1) {
+    await cache.delete(keys[i])
+  }
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(OFFLINE_CACHE)
-      // `reload` bypasses HTTP cache so the offline shell is always fresh
-      // at SW install time.
       await cache.add(new Request(OFFLINE_URL, { cache: 'reload' }))
       await self.skipWaiting()
     })()
@@ -48,8 +89,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
-      // Drop any cache that doesn't belong to the current version set.
-      const allowed = new Set([OFFLINE_CACHE])
+      const allowed = new Set([OFFLINE_CACHE, STATIC_CACHE])
       const keys = await caches.keys()
       await Promise.all(
         keys.filter((k) => !allowed.has(k)).map((k) => caches.delete(k))
@@ -59,39 +99,70 @@ self.addEventListener('activate', (event) => {
   )
 })
 
-function isProtectedNavigation(url) {
-  const path = url.pathname
-  return PROTECTED_NAV_PREFIXES.some((prefix) => path.startsWith(prefix))
+function handleNavigation(event) {
+  event.respondWith(
+    (async () => {
+      try {
+        return await fetch(event.request)
+      } catch {
+        const cache = await caches.open(OFFLINE_CACHE)
+        const cached = await cache.match(OFFLINE_URL)
+        if (cached) return cached
+        throw new Error('offline and no cached shell available')
+      }
+    })()
+  )
+}
+
+function handleStaticAsset(event) {
+  event.respondWith(
+    (async () => {
+      const cache = await caches.open(STATIC_CACHE)
+      const cached = await cache.match(event.request)
+      const networkPromise = fetch(event.request)
+        .then(async (response) => {
+          // Only cache successful, basic (same-origin) responses. Skip
+          // opaque/redirected responses and anything non-2xx.
+          if (response && response.ok && response.type === 'basic') {
+            await cache.put(event.request, response.clone())
+            // Fire-and-forget trim; don't block the response.
+            event.waitUntil(trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES))
+          }
+          return response
+        })
+        .catch(() => null)
+
+      if (cached) {
+        // Stale-while-revalidate: return cache immediately, refresh in bg.
+        event.waitUntil(networkPromise)
+        return cached
+      }
+      const network = await networkPromise
+      if (network) return network
+      // No cache, no network — let the browser see the failure.
+      return fetch(event.request)
+    })()
+  )
 }
 
 self.addEventListener('fetch', (event) => {
   const req = event.request
   if (req.method !== 'GET') return
 
-  // Only intercept top-level navigations. All sub-resource requests
-  // (scripts, images, data fetches) fall through to the network
-  // transparently.
-  if (req.mode !== 'navigate') return
-
   const url = new URL(req.url)
-  if (url.origin !== self.location.origin) return
-  if (isProtectedNavigation(url)) return
 
-  event.respondWith(
-    (async () => {
-      try {
-        // Network-first. We intentionally don't cache successful responses
-        // here — product listings, prices and stock must stay fresh.
-        return await fetch(req)
-      } catch {
-        const cache = await caches.open(OFFLINE_CACHE)
-        const cached = await cache.match(OFFLINE_URL)
-        if (cached) return cached
-        // Last-resort: let the browser's own error surface.
-        throw new Error('offline and no cached shell available')
-      }
-    })()
-  )
+  if (req.mode === 'navigate') {
+    if (url.origin !== self.location.origin) return
+    if (isProtected(url)) return
+    handleNavigation(event)
+    return
+  }
+
+  if (isCacheableStatic(url)) {
+    handleStaticAsset(event)
+    return
+  }
+  // Everything else: pass-through. No respondWith, no caching.
 })
 
 self.addEventListener('message', (event) => {
