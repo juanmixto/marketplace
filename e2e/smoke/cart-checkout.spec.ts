@@ -20,6 +20,7 @@
 // is therefore equivalent to asserting the DB row exists.
 
 import { test, expect } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
 import { TEST_USERS, loginAs } from '../helpers/auth'
 
 const SEEDED_PRODUCT_SLUG = 'tomates-cherry-ecologicos'
@@ -74,5 +75,15 @@ test.describe('cart and checkout @smoke', () => {
     // otherwise run via Prisma.
     await expect(page.getByText(orderNumber!)).toBeVisible({ timeout: 5_000 })
     await expect(page.getByRole('heading', { name: /pedido|orden|gracias/i }).first()).toBeVisible()
+
+    // --- A11Y ASSERTION ---
+    // Run axe on the fully hydrated confirmation page — the one users
+    // actually land on after a purchase. WCAG A/AA only; best-practice
+    // tags generate subjective violations that swamp the signal.
+    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
+    expect(
+      results.violations,
+      'axe wcag2a/wcag2aa violations on /checkout/confirmacion',
+    ).toEqual([])
   })
 })

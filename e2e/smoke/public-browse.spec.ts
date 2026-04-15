@@ -1,6 +1,21 @@
 import { test, expect } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
 
 test.describe('public browse @smoke', () => {
+  test('home page is accessible (axe wcag2a + wcag2aa)', async ({ page }) => {
+    await page.goto('/')
+    // Wait for the hero to be rendered so axe runs against the hydrated
+    // DOM, not the initial loading shell.
+    await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible({
+      timeout: 5_000,
+    })
+    // Limit to WCAG A/AA. `best-practice` tags produce subjective
+    // violations (landmark uniqueness, etc.) that drown the signal.
+    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
+    expect(results.violations, 'axe wcag2a/wcag2aa violations on /').toEqual([])
+  })
+
+
   test('home page renders with hero and featured content', async ({ page }) => {
     await page.goto('/')
     // The home page should expose a primary heading. We don't pin the exact
