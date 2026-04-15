@@ -113,6 +113,16 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Upload .next build artifact (for e2e-smoke prod server)
+        uses: actions/upload-artifact@v6
+        with:
+          name: next-build-${{ github.sha }}
+          path: |
+            .next
+            !.next/cache
+          retention-days: 1
+          if-no-files-found: error
+
   integration:
     name: Integration
     runs-on: ubuntu-latest
@@ -163,10 +173,11 @@ jobs:
     name: E2E Smoke
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Runs in parallel with verify/build/integration. Uses `next dev` via
-    # Playwright's webServer — no dependency on the build job.
-    # Promoted to a blocking required check after 4 consecutive green
-    # runs on main (see docs/ci-testing-strategy.md §6).
+    needs: build
+    # Reuses the .next artifact from the `build` job and runs Playwright
+    # against `next start` (production mode). Dev mode masked several
+    # classes of prod-only bugs (see #379). Blocking required check —
+    # see docs/ci-testing-strategy.md §6.
 
     services:
       postgres:
@@ -186,11 +197,18 @@ jobs:
     env:
       DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
       DATABASE_URL_TEST: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
+      PLAYWRIGHT_USE_PROD: "1"
 
     steps:
       - uses: actions/checkout@v5
 
       - uses: ./.github/actions/setup-deps
+
+      - name: Download .next build artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: next-build-${{ github.sha }}
+          path: .next
 
       - name: Cache Playwright browsers
         id: pw-cache
@@ -222,7 +240,7 @@ jobs:
       - name: Seed database
         run: npm run db:seed
 
-      - name: Run E2E smoke suite
+      - name: Run E2E smoke suite (next start)
         run: npm run test:e2e:smoke
 
       - name: Upload Playwright report on failure
