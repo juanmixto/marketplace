@@ -5,7 +5,11 @@ import { type UserRole } from '@/generated/prisma/enums'
 import { getPrimaryPortalHref, sanitizeCallbackUrl } from '@/lib/portals'
 import { isRequestOnAdminHost, hostMatchesAdmin, ADMIN_HOST_ENV_VAR } from '@/lib/admin-host'
 
-const PROTECTED_PREFIXES = ['/admin', '/vendor', '/carrito', '/checkout', '/cuenta'] as const
+// Exported so test/integration/proxy-protected-prefixes.test.ts can
+// reflect the live list back against the actual src/app route tree
+// and fail CI if a new authenticated route group is added without
+// being added here.
+export const PROTECTED_PREFIXES = ['/admin', '/vendor', '/carrito', '/checkout', '/cuenta'] as const
 
 function isProtectedPath(pathname: string) {
   return PROTECTED_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`))
