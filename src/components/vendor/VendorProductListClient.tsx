@@ -427,7 +427,6 @@ function QuickStockInput({
           />
         )}
       </label>
-      <span className="text-[11px] text-[var(--muted)]">{product.unit}</span>
       {error && (
         <p className="text-[11px] text-red-600 dark:text-red-400" role="alert">
           {error}
@@ -552,14 +551,6 @@ function ProductListRow({ product, now }: { product: ProductWithCategory; now: D
           <QuickSubmitButton productId={product.id} />
         </div>
       )}
-
-      <Link
-        href={`/vendor/productos/${product.id}`}
-        aria-label={t('vendor.productActions.edit')}
-        className="relative z-[2] shrink-0 rounded-lg p-2 text-[var(--muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
-      >
-        <PencilSquareIcon className="h-5 w-5" />
-      </Link>
 
       <div className="relative z-[2]">
         <ProductActions product={product} />

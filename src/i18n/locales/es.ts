@@ -190,6 +190,8 @@ const es = {
   'cart.shipping': 'Envío',
   'cart.shippingFree': 'Gratis',
   'cart.shippingFrom': 'Envío gratis a partir de',
+  'cart.discount': 'Descuento',
+  'cart.discountApplied': 'Oferta aplicada',
   'cart.total': 'Total',
   'cart.toCheckout': 'Ir al checkout',
   'cart.continueShopping': 'Seguir comprando',
