@@ -141,6 +141,177 @@ test('checkout address form exposes autoComplete tokens for mobile prefill', () 
   }
 })
 
+test('buyer profile form exposes autoComplete tokens', () => {
+  const source = read('src/components/buyer/BuyerProfileForm.tsx')
+  const required = [
+    'autoComplete="given-name"',
+    'autoComplete="family-name"',
+    'autoComplete="email"',
+    'autoComplete="current-password"',
+    'autoComplete="new-password"',
+  ]
+  for (const token of required) {
+    assert.ok(source.includes(token), `BuyerProfileForm must declare ${token}`)
+  }
+})
+
+test('buyer addresses form exposes autoComplete tokens and numeric postal code', () => {
+  const source = read('src/app/(buyer)/cuenta/direcciones/DireccionesClient.tsx')
+  const required = [
+    'autoComplete="given-name"',
+    'autoComplete="family-name"',
+    'autoComplete="address-line1"',
+    'autoComplete="address-line2"',
+    'autoComplete="address-level1"',
+    'autoComplete="address-level2"',
+    'autoComplete="postal-code"',
+  ]
+  for (const token of required) {
+    assert.ok(source.includes(token), `DireccionesClient must declare ${token}`)
+  }
+  assert.match(source, /inputMode="numeric"/, 'postal-code input must use inputMode="numeric"')
+})
+
+test('buyer address card actions meet 44px tap-target minimum', () => {
+  const source = read('src/app/(buyer)/cuenta/direcciones/DireccionesClient.tsx')
+  // The three action buttons (edit / set default / delete) now share min-h-11 —
+  // contract keeps that from regressing back to bare text-links.
+  const matches = source.match(/min-h-11/g) ?? []
+  assert.ok(matches.length >= 3, `address actions must keep min-h-11 on edit/default/delete (found ${matches.length})`)
+})
+
+test('PDP image gallery controls meet 44px tap-target minimum on mobile', () => {
+  const source = read('src/components/catalog/ProductImageGallery.tsx')
+  // Chevron buttons must be at least 44px on mobile (sm: resets to compact).
+  assert.match(
+    source,
+    /min-h-11 min-w-11[^"]*sm:min-h-0/,
+    'gallery prev/next must use min-h-11 min-w-11 on mobile, reset on sm+',
+  )
+})
+
+test('SortSelect dropdown clears the 44px tap-target floor', () => {
+  const source = read('src/components/catalog/SortSelect.tsx')
+  assert.match(source, /min-h-11/, 'SortSelect must use min-h-11 so the dropdown is tappable on mobile')
+})
+
+test('vendor PromotionForm selects clear 44px on mobile', () => {
+  const source = read('src/components/vendor/PromotionForm.tsx')
+  const matches = source.match(/min-h-11 w-full[^"]*sm:h-10 sm:min-h-0/g) ?? []
+  assert.ok(
+    matches.length >= 2,
+    `PromotionForm selects must use min-h-11 sm:h-10 sm:min-h-0 (found ${matches.length})`,
+  )
+})
+
+test('vendor profile form keeps prep-days inputMode and shrinks textarea on mobile', () => {
+  const source = read('src/components/vendor/VendorProfileForm.tsx')
+  assert.match(source, /inputMode="numeric"/, 'preparation days input must declare inputMode="numeric"')
+  assert.match(source, /type="time"/, 'order cutoff input must use type="time" for the right mobile picker')
+  assert.match(
+    source,
+    /min-h-\[8rem\][^"]*sm:min-h-\[12rem\]/,
+    'description textarea must shrink to 8rem on mobile and grow to 12rem on sm+',
+  )
+})
+
+test('open-incident form select clears 44px and textarea adapts to mobile', () => {
+  const source = read('src/app/(buyer)/cuenta/incidencias/nueva/OpenIncidentForm.tsx')
+  assert.match(source, /min-h-11/, 'incident type select must clear 44px')
+  assert.match(source, /min-h-32[^"]*sm:min-h-40/, 'incident description textarea must scale on sm+')
+})
+
+test('buyer subscription action buttons clear the 44px floor', () => {
+  const source = read('src/components/buyer/BuyerSubscriptionsListClient.tsx')
+  // skip / pause / resume / cancel — at least three of them rendered
+  // at any time, all must be tappable.
+  const matches = source.match(/min-h-11 px-3 py-2 text-xs font-semibold/g) ?? []
+  assert.ok(
+    matches.length >= 4,
+    `subscription action buttons must use min-h-11 px-3 py-2 (found ${matches.length})`,
+  )
+})
+
+test('favoritos remove button is a 44px tap target', () => {
+  const source = read('src/app/(buyer)/cuenta/favoritos/FavoritosClient.tsx')
+  assert.match(
+    source,
+    /min-h-11 min-w-11/,
+    'favorites heart toggle must use min-h-11 min-w-11 so users can tap it on mobile',
+  )
+})
+
+test('vendor liquidaciones table contains horizontal scroll on mobile', () => {
+  const source = read('src/app/(vendor)/vendor/liquidaciones/page.tsx')
+  assert.match(
+    source,
+    /overflow-x-auto overscroll-x-contain touch-pan-x/,
+    'liquidaciones table must wrap with overscroll-x-contain + touch-pan-x',
+  )
+})
+
+test('forgot-password and reset-password forms expose autoComplete', () => {
+  const request = read('src/app/(auth)/recuperar-contrasena/RequestForm.tsx')
+  assert.match(request, /autoComplete="email"/, 'RequestForm must declare autoComplete="email"')
+  assert.match(request, /inputMode="email"/, 'RequestForm must declare inputMode="email"')
+  assert.match(request, /min-h-11/, 'RequestForm email input must clear 44px')
+
+  const reset = read('src/app/(auth)/recuperar-contrasena/nueva/ResetForm.tsx')
+  const newPassword = reset.match(/autoComplete="new-password"/g) ?? []
+  assert.ok(
+    newPassword.length >= 2,
+    `ResetForm must declare autoComplete="new-password" on both password fields (found ${newPassword.length})`,
+  )
+})
+
+test('LoginForm forgot-password link is a 44px tap target', () => {
+  const source = read('src/components/auth/LoginForm.tsx')
+  assert.match(
+    source,
+    /href="\/forgot-password"[\s\S]*?min-h-11/,
+    'forgot-password link must include min-h-11 so it clears the touch target floor',
+  )
+})
+
+test('Footer link rows clear 44px tap target on mobile', () => {
+  const source = read('src/components/layout/Footer.tsx')
+  // Two patterns: the column links and the legal row links. Both must
+  // bake in min-h-11 so the bottom of the page is actually navigable.
+  const matches = source.match(/min-h-11/g) ?? []
+  assert.ok(
+    matches.length >= 2,
+    `Footer must keep min-h-11 on column + legal links (found ${matches.length})`,
+  )
+})
+
+test('vendor dashboard urgent + setup CTAs clear 44px', () => {
+  const source = read('src/app/(vendor)/vendor/dashboard/page.tsx')
+  // "Hacer ahora" and "Ver pedidos" both used to be py-1.5 — pin them.
+  const matches = source.match(/min-h-11/g) ?? []
+  assert.ok(
+    matches.length >= 2,
+    `dashboard CTAs must keep min-h-11 on doItNow + viewOrders (found ${matches.length})`,
+  )
+})
+
+test('search pagination links clear 44px', () => {
+  const source = read('src/app/(public)/buscar/page.tsx')
+  const matches = source.match(/min-h-11 items-center rounded-lg/g) ?? []
+  assert.ok(
+    matches.length >= 2,
+    `search prev/next pagination links must use min-h-11 (found ${matches.length})`,
+  )
+})
+
+test('vendor review response actions meet 44px tap-target minimum', () => {
+  const source = read('src/components/vendor/VendorReviewsManager.tsx')
+  const matches = source.match(/min-h-11 min-w-11/g) ?? []
+  assert.ok(
+    matches.length >= 2,
+    `edit + delete vendor-response buttons must use min-h-11 min-w-11 (found ${matches.length})`,
+  )
+})
+
 test('PDP purchase panel renders a mobile-only sticky add-to-cart bar', () => {
   const source = read('src/components/catalog/ProductPurchasePanel.tsx')
   assert.match(source, /function MobileStickyCta/, 'ProductPurchasePanel must declare a MobileStickyCta helper')

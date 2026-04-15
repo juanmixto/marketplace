@@ -92,8 +92,9 @@ export function ResetForm({ token }: ResetFormProps) {
           {...register('password')}
           type="password"
           id="password"
+          autoComplete="new-password"
           placeholder="Mínimo 8 caracteres"
-          className="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 placeholder-gray-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-[var(--border)] dark:bg-[var(--surface-raised)] dark:text-[var(--foreground)] dark:placeholder-[var(--muted-light)] dark:focus:ring-emerald-900/60"
+          className="mt-2 block min-h-11 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 placeholder-gray-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-[var(--border)] dark:bg-[var(--surface-raised)] dark:text-[var(--foreground)] dark:placeholder-[var(--muted-light)] dark:focus:ring-emerald-900/60"
         />
         {errors.password && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.password.message}</p>}
       </div>
@@ -107,8 +108,9 @@ export function ResetForm({ token }: ResetFormProps) {
           {...register('confirmPassword')}
           type="password"
           id="confirmPassword"
+          autoComplete="new-password"
           placeholder="Repite la contraseña"
-          className="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 placeholder-gray-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-[var(--border)] dark:bg-[var(--surface-raised)] dark:text-[var(--foreground)] dark:placeholder-[var(--muted-light)] dark:focus:ring-emerald-900/60"
+          className="mt-2 block min-h-11 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 placeholder-gray-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-[var(--border)] dark:bg-[var(--surface-raised)] dark:text-[var(--foreground)] dark:placeholder-[var(--muted-light)] dark:focus:ring-emerald-900/60"
         />
         {errors.confirmPassword && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.confirmPassword.message}</p>}
       </div>

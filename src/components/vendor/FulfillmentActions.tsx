@@ -124,7 +124,7 @@ export function FulfillmentActions({ fulfillmentId, status, labelUrl, trackingUr
               href={labelUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+              className="inline-flex min-h-11 items-center rounded-md bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700"
             >
               {t('vendor.fulfillment.printLabel')}
             </a>
@@ -134,7 +134,7 @@ export function FulfillmentActions({ fulfillmentId, status, labelUrl, trackingUr
               href={trackingUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center rounded-md border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50"
+              className="inline-flex min-h-11 items-center rounded-md border border-emerald-300 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
             >
               {t('vendor.fulfillment.viewTracking')}
             </a>

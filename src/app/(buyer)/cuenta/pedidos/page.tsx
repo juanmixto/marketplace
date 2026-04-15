@@ -142,7 +142,7 @@ export default async function MisPedidosPage() {
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-3">
                 <Link
                   href={`/cuenta/pedidos/${order.id}`}
-                  className="text-sm font-medium text-emerald-700 underline-offset-4 hover:underline dark:text-emerald-400"
+                  className="inline-flex min-h-11 items-center rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800/70 dark:bg-emerald-950/30 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
                 >
                   {t('account.ordersViewDetail')}
                 </Link>

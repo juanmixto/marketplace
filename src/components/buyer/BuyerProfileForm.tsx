@@ -183,6 +183,7 @@ export function BuyerProfileForm({ user }: Props) {
               <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.profileNameLabel')}</label>
               <input
                 {...profileForm.register('firstName')}
+                autoComplete="given-name"
                 className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               />
               {profileForm.formState.errors.firstName && (
@@ -194,6 +195,7 @@ export function BuyerProfileForm({ user }: Props) {
               <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.profileLastNameLabel')}</label>
               <input
                 {...profileForm.register('lastName')}
+                autoComplete="family-name"
                 className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               />
               {profileForm.formState.errors.lastName && (
@@ -206,6 +208,7 @@ export function BuyerProfileForm({ user }: Props) {
             <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.profileEmailLabel')}</label>
             <input
               type="email"
+              autoComplete="email"
               {...profileForm.register('email')}
               className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
             />
@@ -236,6 +239,7 @@ export function BuyerProfileForm({ user }: Props) {
             <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.profileCurrentPassword')}</label>
             <input
               type="password"
+              autoComplete="current-password"
               {...passwordForm.register('currentPassword')}
               className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
             />
@@ -248,6 +252,7 @@ export function BuyerProfileForm({ user }: Props) {
             <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.profileNewPassword')}</label>
             <input
               type="password"
+              autoComplete="new-password"
               {...passwordForm.register('newPassword')}
               className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
             />
@@ -260,6 +265,7 @@ export function BuyerProfileForm({ user }: Props) {
             <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.profileConfirmPassword')}</label>
             <input
               type="password"
+              autoComplete="new-password"
               {...passwordForm.register('confirmPassword')}
               className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
             />

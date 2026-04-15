@@ -37,7 +37,7 @@ export function SortSelect({ current }: Props) {
         defaultValue={current ?? 'newest'}
         onChange={e => updateSort(e.target.value)}
         className={[
-          'cursor-pointer appearance-none rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 pr-10 text-sm text-[var(--foreground)] shadow-sm',
+          'min-h-11 cursor-pointer appearance-none rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 pr-10 text-sm text-[var(--foreground)] shadow-sm',
           'transition-colors hover:bg-[var(--surface-raised)]',
           'focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20',
           'dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20',

@@ -243,6 +243,7 @@ export function DireccionesClient({
                 <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.firstName')}</label>
                 <input
                   {...register('firstName')}
+                  autoComplete="given-name"
                   placeholder={t('account.firstNamePlaceholder')}
                   className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
@@ -254,6 +255,7 @@ export function DireccionesClient({
                 <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.lastName')}</label>
                 <input
                   {...register('lastName')}
+                  autoComplete="family-name"
                   placeholder={t('account.lastNamePlaceholder')}
                   className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
@@ -265,6 +267,7 @@ export function DireccionesClient({
                 <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.line1')}</label>
                 <input
                   {...register('line1')}
+                  autoComplete="address-line1"
                   placeholder={t('account.line1Placeholder')}
                   className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
@@ -276,6 +279,7 @@ export function DireccionesClient({
                 <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.line2Field')}</label>
                 <input
                   {...register('line2')}
+                  autoComplete="address-line2"
                   placeholder={t('account.line2Placeholder')}
                   className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
@@ -287,6 +291,7 @@ export function DireccionesClient({
                 <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.city')}</label>
                 <input
                   {...register('city')}
+                  autoComplete="address-level2"
                   placeholder={t('account.cityPlaceholder')}
                   className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
@@ -298,6 +303,7 @@ export function DireccionesClient({
                 <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.province')}</label>
                 <select
                   {...register('province')}
+                  autoComplete="address-level1"
                   className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 >
                   <option value="">{t('account.selectProvince')}</option>
@@ -313,6 +319,9 @@ export function DireccionesClient({
                 <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.postalCode')}</label>
                 <input
                   {...register('postalCode')}
+                  inputMode="numeric"
+                  autoComplete="postal-code"
+                  maxLength={5}
                   placeholder="28001"
                   className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
@@ -386,10 +395,10 @@ export function DireccionesClient({
                 <p>{address.city}, {address.province} {address.postalCode}</p>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => handleEdit(address)}
-                  className="inline-flex items-center gap-1 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800/70 dark:bg-emerald-950/30 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
                 >
                   <PencilIcon className="h-4 w-4" />
                   {t('account.edit')}
@@ -397,7 +406,7 @@ export function DireccionesClient({
                 {!address.isDefault && (
                   <button
                     onClick={() => handleSetDefault(address.id)}
-                    className="inline-flex items-center gap-1 text-sm font-medium text-[var(--muted)] hover:text-[var(--foreground)]"
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
                   >
                     {t('account.setAsDefault')}
                   </button>
@@ -405,7 +414,7 @@ export function DireccionesClient({
                 <button
                   onClick={() => handleDelete(address.id)}
                   disabled={deleting === address.id}
-                  className="ml-auto inline-flex items-center gap-1 text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 disabled:opacity-50"
+                  className="ml-auto inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50/60 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-50 dark:border-red-800/70 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-900/40"
                 >
                   <TrashIcon className="h-4 w-4" />
                   {t('account.delete')}

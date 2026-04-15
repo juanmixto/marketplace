@@ -153,8 +153,8 @@ export function VendorProfileForm({ vendor }: Props) {
           </label>
           <textarea
             id="description"
-            rows={8}
-            className="w-full min-h-[12rem] resize-y rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm leading-relaxed text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
+            rows={4}
+            className="w-full min-h-[8rem] resize-y rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm leading-relaxed text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 sm:min-h-[12rem] dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
             placeholder={t('vendor.profileForm.descriptionPlaceholder')}
             {...register('description')}
           />
@@ -202,6 +202,7 @@ export function VendorProfileForm({ vendor }: Props) {
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
             label={t('vendor.profileForm.cutoffLabel')}
+            type="time"
             placeholder="18:00"
             hint={t('vendor.profileForm.cutoffHint')}
             error={errors.orderCutoffTime?.message}
@@ -210,6 +211,7 @@ export function VendorProfileForm({ vendor }: Props) {
           <Input
             label={t('vendor.profileForm.prepDaysLabel')}
             type="number"
+            inputMode="numeric"
             min="0"
             max="30"
             hint={t('vendor.profileForm.prepDaysHint')}

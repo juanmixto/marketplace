@@ -71,7 +71,7 @@ export function OpenIncidentForm({ orderId }: Props) {
           id="incident-type"
           value={type}
           onChange={event => setType(event.target.value as IncidentType)}
-          className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+          className="mt-1 block min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
           disabled={submitting}
         >
           {INCIDENT_TYPES.map(option => (
@@ -91,11 +91,11 @@ export function OpenIncidentForm({ orderId }: Props) {
         </label>
         <textarea
           id="incident-description"
-          rows={6}
+          rows={4}
           value={description}
           onChange={event => setDescription(event.target.value)}
           placeholder={t('incident.descriptionPlaceholder')}
-          className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+          className="mt-1 block max-h-[60vh] min-h-32 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:min-h-40"
           minLength={10}
           maxLength={5000}
           required

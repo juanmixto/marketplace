@@ -244,7 +244,7 @@ export function PromotionForm({ products, categories, initial }: Props) {
         <Field label={t('vendor.promotions.formKind')} error={errors.kind?.message}>
           <select
             {...register('kind')}
-            className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+            className="min-h-11 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 sm:h-10 sm:min-h-0"
           >
             <option value="PERCENTAGE">{t('vendor.promotions.kindPercentage')}</option>
             <option value="FIXED_AMOUNT">{t('vendor.promotions.kindFixed')}</option>
@@ -308,7 +308,7 @@ export function PromotionForm({ products, categories, initial }: Props) {
         <Field label={t('vendor.promotions.formCategory')} error={errors.categoryId?.message}>
           <select
             {...register('categoryId')}
-            className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+            className="min-h-11 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 sm:h-10 sm:min-h-0"
           >
             <option value="">{t('vendor.promotions.formCategoryPlaceholder')}</option>
             {categories.map(c => (

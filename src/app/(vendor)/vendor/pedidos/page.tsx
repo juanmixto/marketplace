@@ -85,20 +85,20 @@ function FulfillmentList({ fulfillments, t }: { fulfillments: FulfillmentWithDet
         const customer = f.order.customer
         const shippingAddress = parseOrderAddressSnapshot(f.order.shippingAddressSnapshot) ?? f.order.address
         return (
-          <div key={f.id} className="space-y-3 p-4 transition-colors hover:bg-[var(--surface-raised)]/70">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2">
+          <div key={f.id} className="space-y-3 p-4 transition-colors hover:bg-[var(--surface-raised)]/70 sm:p-5">
+            <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:gap-4">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
                   <p className="font-medium text-[var(--foreground)]">
                     {t('vendor.orders.orderNumber').replace('{id}', f.orderId.slice(-6).toUpperCase())}
                   </p>
                   <Badge variant={statusVariant}>{statusLabel}</Badge>
                 </div>
-                <p className="text-sm text-[var(--muted)] mt-0.5">
+                <p className="mt-0.5 text-sm text-[var(--muted)]">
                   {customer.firstName} {customer.lastName} · {formatDate(f.createdAt)}
                 </p>
                 {shippingAddress && (
-                  <p className="text-xs text-[var(--muted-light)] mt-0.5">
+                  <p className="mt-0.5 text-xs leading-relaxed text-[var(--muted-light)]">
                     {shippingAddress.line1}, {shippingAddress.city} {shippingAddress.postalCode}
                   </p>
                 )}
@@ -114,9 +114,9 @@ function FulfillmentList({ fulfillments, t }: { fulfillments: FulfillmentWithDet
             <div className="space-y-2">
               {f.order.lines.map(line => (
                 <div key={line.id} className="flex items-center gap-3">
-                  <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-[var(--surface-raised)]">
+                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[var(--surface-raised)] sm:h-10 sm:w-10">
                     {line.product.images?.[0]
-                      ? <Image src={line.product.images[0]} alt={line.product.name} fill className="object-cover" sizes="40px" />
+                      ? <Image src={line.product.images[0]} alt={line.product.name} fill className="object-cover" sizes="(max-width: 640px) 48px, 40px" />
                       : <div className="flex h-full items-center justify-center text-lg">🌿</div>}
                   </div>
                   <div className="flex-1 min-w-0">

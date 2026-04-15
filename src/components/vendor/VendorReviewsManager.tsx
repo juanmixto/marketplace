@@ -163,7 +163,7 @@ function ReviewCard({
                 type="button"
                 onClick={() => setEditing(true)}
                 disabled={pending}
-                className="rounded-md p-1.5 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md p-2.5 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
                 aria-label={t('vendor.reviewsManager.editResponse')}
               >
                 <PencilSquareIcon className="h-4 w-4" />
@@ -172,7 +172,7 @@ function ReviewCard({
                 type="button"
                 onClick={remove}
                 disabled={pending}
-                className="rounded-md p-1.5 text-red-600 hover:bg-red-100 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/40"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md p-2.5 text-red-600 hover:bg-red-100 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/40"
                 aria-label={t('vendor.reviewsManager.deleteResponse')}
               >
                 <TrashIcon className="h-4 w-4" />

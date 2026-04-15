@@ -211,7 +211,7 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
                 type="button"
                 onClick={() => runAction(() => skipNextDelivery(subscription.id))}
                 disabled={pending}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-semibold text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] min-h-11 px-3 py-2 text-xs font-semibold text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] disabled:opacity-60"
               >
                 <ForwardIcon className="h-4 w-4" />
                 {t('account.subscriptions.skipNext')}
@@ -220,7 +220,7 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
                 type="button"
                 onClick={() => runAction(() => pauseSubscription(subscription.id))}
                 disabled={pending}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 disabled:opacity-60 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/40"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 min-h-11 px-3 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 disabled:opacity-60 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/40"
               >
                 <PauseIcon className="h-4 w-4" />
                 {t('account.subscriptions.pause')}
@@ -232,7 +232,7 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
               type="button"
               onClick={() => runAction(() => resumeSubscription(subscription.id))}
               disabled={pending}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-60 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 min-h-11 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-60 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
             >
               <PlayIcon className="h-4 w-4" />
               {t('account.subscriptions.resume')}
@@ -243,7 +243,7 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
               type="button"
               onClick={() => runAction(() => cancelSubscription(subscription.id))}
               disabled={pending}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-60 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-900/40"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 bg-red-50 min-h-11 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-60 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-900/40"
             >
               <XCircleIcon className="h-4 w-4" />
               {t('account.subscriptions.cancel')}
