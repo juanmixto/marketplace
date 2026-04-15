@@ -9,16 +9,15 @@ import { parseExpirationDateInput } from '@/domains/catalog/availability'
 import { getActionSession } from '@/lib/action-session'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { isVendor } from '@/lib/roles'
-import { assertVendorOnboarded } from '@/domains/vendors/onboarding'
 import { isAllowedImageUrl } from '@/lib/image-validation'
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 
 /**
  * Loads the vendor associated with the current session. Redirects to /login
- * if the user is not authenticated or not a vendor. Used by actions that do
- * NOT require Stripe onboarding (e.g. reading dashboards, editing the
- * vendor profile before completing onboarding).
+ * if the user is not authenticated or not a vendor. Stripe onboarding is
+ * required only for going live (admin approval); vendors can author drafts
+ * and submit for review before completing it.
  */
 async function requireVendor() {
   const session = await getActionSession()
@@ -26,17 +25,6 @@ async function requireVendor() {
   const vendor = await db.vendor.findUnique({ where: { userId: session.user.id } })
   if (!vendor) redirect('/login')
   return { session, vendor }
-}
-
-/**
- * Like requireVendor() but also enforces that the vendor has completed
- * Stripe Connect onboarding. Use for any action that creates products,
- * moves money, or otherwise requires a payout destination.
- */
-async function requireOnboardedVendor() {
-  const result = await requireVendor()
-  assertVendorOnboarded(result.vendor)
-  return result
 }
 
 // ─── Product schemas ──────────────────────────────────────────────────────────
@@ -73,12 +61,6 @@ export async function createProduct(input: ProductInput) {
   const { vendor } = await requireVendor()
 
   const data = productSchema.parse(input)
-
-  // Drafts can be saved without Stripe onboarding; only submitting for review
-  // (or any non-draft status) requires a payout destination.
-  if (data.status !== 'DRAFT') {
-    assertVendorOnboarded(vendor)
-  }
 
   // Generate unique slug
   let slug = slugify(data.name)
@@ -117,10 +99,6 @@ export async function updateProduct(productId: string, input: Partial<ProductInp
   if (!product) throw new Error('Producto no encontrado')
 
   const data = productSchema.partial().parse(input)
-
-  if (data.status && data.status !== 'DRAFT') {
-    assertVendorOnboarded(vendor)
-  }
 
   const updated = await db.product.update({
     where: { id: productId },
@@ -267,7 +245,7 @@ export async function setProductStock(input: z.infer<typeof stockSetSchema>) {
  * Submits a draft product for admin review.
  */
 export async function submitForReview(productId: string) {
-  const { vendor } = await requireOnboardedVendor()
+  const { vendor } = await requireVendor()
 
   const product = await db.product.findFirst({
     where: { id: productId, vendorId: vendor.id, status: { in: ['DRAFT', 'REJECTED'] } },

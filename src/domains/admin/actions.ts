@@ -9,6 +9,7 @@ import { requireAdmin } from '@/lib/auth-guard'
 import { hasRole, isAdmin } from '@/lib/roles'
 import { getActionSession } from '@/lib/action-session'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
+import { assertVendorOnboarded } from '@/domains/vendors/onboarding'
 
 function getVendorAuditSnapshot(vendor: {
   id: string
@@ -532,6 +533,18 @@ export async function reviewProduct(
   if (!product) throw new Error('Producto no encontrado')
   if (product.status !== 'PENDING_REVIEW') {
     throw new Error('El producto no está en revisión')
+  }
+
+  // Stripe onboarding is only required to actually go live, so vendors can
+  // submit drafts to review before finishing it. Block approval (not rejection)
+  // until the payout destination is set up.
+  if (validAction === 'approve') {
+    const vendor = await db.vendor.findUnique({
+      where: { id: product.vendorId },
+      select: { stripeOnboarded: true },
+    })
+    if (!vendor) throw new Error('Productor no encontrado')
+    assertVendorOnboarded(vendor)
   }
 
   const before = getProductAuditSnapshot(product)

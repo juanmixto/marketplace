@@ -20,7 +20,7 @@ export default async function NuevoProductoPage() {
           {t('vendor.newProduct.subtitle')}
         </p>
       </div>
-      <ProductForm categories={categories} stripeOnboarded={vendor.stripeOnboarded} />
+      <ProductForm categories={categories} vendorLocation={vendor.location} />
     </div>
   )
 }
