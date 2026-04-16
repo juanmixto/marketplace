@@ -13,7 +13,7 @@ import {
   getAdminOrdersPageData,
 } from '@/domains/admin/orders'
 import { getOrderStatusTone } from '@/domains/admin/overview'
-import { parseOrderLineSnapshot } from '@/domains/orders/order-line-snapshot'
+import { parseOrderLineSnapshot } from '@/lib/order-line-snapshot'
 import { parseOrderAddressSnapshot } from '@/types/order'
 import { ORDER_STATUS_LABELS } from '@/lib/constants'
 import { cn, formatDate, formatPrice, truncate } from '@/lib/utils'
