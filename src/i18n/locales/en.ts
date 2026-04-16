@@ -1224,6 +1224,7 @@ const en: Record<TranslationKeys, string> = {
   'pwa.update.dismiss': 'Close',
   'pwa.push.enable': 'Enable notifications',
   'pwa.push.disable': 'Disable notifications',
+  'pwa.offline.banner': 'You are offline — changes will be saved when you reconnect',
 }
 
 export default en
