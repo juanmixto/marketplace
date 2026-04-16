@@ -1237,6 +1237,8 @@ const es = {
   'pwa.update.title': 'Nueva versión disponible',
   'pwa.update.cta': 'Actualizar ahora',
   'pwa.update.dismiss': 'Cerrar',
+  'pwa.push.enable': 'Activar notificaciones',
+  'pwa.push.disable': 'Desactivar notificaciones',
 } as const satisfies Record<string, string>
 
 export default es

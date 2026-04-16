@@ -30,9 +30,10 @@
  * LRU trim at MAX_STATIC_ENTRIES keeps the cache from growing unbounded.
  */
 
-const SW_VERSION = 'mp-sw-v3'
+const SW_VERSION = 'mp-sw-v4'
 const OFFLINE_CACHE = 'mp-offline-v1'
 const STATIC_CACHE = 'mp-static-v1'
+const PREFETCH_CACHE = 'mp-prefetch-v1'
 const OFFLINE_URL = '/offline'
 const MAX_STATIC_ENTRIES = 60
 
@@ -89,7 +90,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
-      const allowed = new Set([OFFLINE_CACHE, STATIC_CACHE])
+      const allowed = new Set([OFFLINE_CACHE, STATIC_CACHE, PREFETCH_CACHE])
       const keys = await caches.keys()
       await Promise.all(
         keys.filter((k) => !allowed.has(k)).map((k) => caches.delete(k))
@@ -167,6 +168,82 @@ self.addEventListener('fetch', (event) => {
 
 self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') self.skipWaiting()
+})
+
+// ── Push Notifications ───────────────────────────────────────────────────
+
+self.addEventListener('push', (event) => {
+  if (!event.data) return
+
+  let payload
+  try {
+    payload = event.data.json()
+  } catch {
+    return
+  }
+
+  const title = payload.title || 'Mercado Productor'
+  const options = {
+    body: payload.body || '',
+    icon: payload.icon || '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: payload.tag || 'mp-default',
+    data: { url: payload.url || '/' },
+    vibrate: [100, 50, 100],
+  }
+
+  event.waitUntil(self.registration.showNotification(title, options))
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+
+  const targetUrl = event.notification.data?.url || '/'
+  const fullUrl = new URL(targetUrl, self.location.origin).href
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((windowClients) => {
+        for (const client of windowClients) {
+          if (client.url === fullUrl && 'focus' in client) {
+            return client.focus()
+          }
+        }
+        return self.clients.openWindow(fullUrl)
+      })
+  )
+})
+
+// ── Periodic Background Sync ─────────────────────────────────────────────
+
+const PERIODIC_SYNC_TAG = 'mp-catalog-prefetch'
+
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag !== PERIODIC_SYNC_TAG) return
+
+  event.waitUntil(
+    (async () => {
+      const conn = navigator.connection
+      if (conn && conn.saveData) return
+      if (conn && (conn.effectiveType === 'slow-2g' || conn.effectiveType === '2g')) return
+
+      try {
+        const response = await fetch('/api/catalog/featured?limit=12')
+        if (!response.ok) return
+
+        const cache = await caches.open(PREFETCH_CACHE)
+        await cache.put('/api/catalog/featured?limit=12', response)
+
+        const clients = await self.clients.matchAll({ type: 'window' })
+        for (const client of clients) {
+          client.postMessage({ type: 'catalog-prefetched' })
+        }
+      } catch {
+        // Network failure during background sync — silently skip.
+      }
+    })()
+  )
 })
 
 self.__SW_VERSION = SW_VERSION
