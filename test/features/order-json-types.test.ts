@@ -20,6 +20,9 @@ test('parseOrderLineSnapshot returns typed snapshot for valid payloads', () => {
   })
 
   assert.deepEqual(snapshot, {
+    // Phase 5: snapshots carry a version discriminant; the schema's
+    // .default(1) backfills it for legacy rows missing the field.
+    version: 1,
     id: 'prod_123',
     name: 'Tomate rosa',
     slug: 'tomate-rosa',
@@ -125,6 +128,9 @@ test('parseOrderAddressSnapshot returns typed address for valid payloads', () =>
   })
 
   assert.deepEqual(snapshot, {
+    // Phase 5: snapshots carry a version discriminant; .default(1)
+    // backfills it on legacy rows.
+    version: 1,
     firstName: 'Ada',
     lastName: 'Lovelace',
     line1: 'Calle Mayor 1',

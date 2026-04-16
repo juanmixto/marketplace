@@ -91,6 +91,7 @@ test('createOrder stores a shipping address snapshot even when the address is no
 
   assert.equal(order?.addressId, null)
   assert.deepEqual(order?.shippingAddressSnapshot, {
+    version: 1,
     firstName: 'Ada',
     lastName: 'Lovelace',
     line1: 'Calle Mayor 1',
@@ -235,6 +236,7 @@ test('createOrder falls back to the submitted address when a saved address goes 
 
   assert.equal(order?.addressId, null)
   assert.deepEqual(order?.shippingAddressSnapshot, {
+    version: 1,
     firstName: 'Ada',
     lastName: 'Lovelace',
     line1: 'Calle Mayor 1',
@@ -300,6 +302,7 @@ test('createOrder ignores a stale submitted address when selectedAddressId resol
   assert.equal(order?.addressId, savedAddress.id)
   // The snapshot is built from the saved DB row, not the garbage payload.
   assert.deepEqual(order?.shippingAddressSnapshot, {
+    version: 1,
     firstName: 'Ada',
     lastName: 'Lovelace',
     line1: 'Calle Mayor 1',
