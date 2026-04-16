@@ -169,4 +169,52 @@ self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') self.skipWaiting()
 })
 
+// ── Push Notifications ───────────────────────────────────────────────────
+
+self.addEventListener('push', (event) => {
+  if (!event.data) return
+
+  let payload
+  try {
+    payload = event.data.json()
+  } catch {
+    return
+  }
+
+  const title = payload.title || 'Mercado Productor'
+  const options = {
+    body: payload.body || '',
+    icon: payload.icon || '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: payload.tag || 'mp-default',
+    data: { url: payload.url || '/' },
+    // Vibrate on Android: short-long-short pattern for notifications.
+    vibrate: [100, 50, 100],
+  }
+
+  event.waitUntil(self.registration.showNotification(title, options))
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+
+  const targetUrl = event.notification.data?.url || '/'
+  const fullUrl = new URL(targetUrl, self.location.origin).href
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((windowClients) => {
+        // If a tab with the target URL is already open, focus it.
+        for (const client of windowClients) {
+          if (client.url === fullUrl && 'focus' in client) {
+            return client.focus()
+          }
+        }
+        // Otherwise, open a new tab/window.
+        return self.clients.openWindow(fullUrl)
+      })
+  )
+})
+
 self.__SW_VERSION = SW_VERSION
