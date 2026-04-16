@@ -60,6 +60,15 @@ export default function manifest(): MetadataRoute.Manifest {
         icons: [{ src: '/icons/shortcut-orders.png', sizes: '96x96', type: 'image/png' }],
       },
     ],
+    share_target: {
+      action: '/share-target',
+      method: 'GET',
+      params: {
+        title: 'title',
+        text: 'text',
+        url: 'url',
+      },
+    },
     screenshots: [
       {
         src: '/screenshots/home-narrow.png',
