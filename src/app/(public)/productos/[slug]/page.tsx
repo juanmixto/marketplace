@@ -21,16 +21,15 @@ import { getCatalogCopy, getLocalizedCertificationCopy, getLocalizedProductCopy 
 import { getServerLocale } from '@/i18n/server'
 import { translateCategoryLabel } from '@/lib/portals'
 import { getServerEnv } from '@/lib/env'
-import { getActionSession } from '@/lib/action-session'
 import { SubscribeToBoxButton } from '@/components/catalog/SubscribeToBoxButton'
 import { getActivePromotionsForProduct } from '@/domains/promotions/public'
 import { ProductPromotions } from '@/components/catalog/ProductPromotions'
 
-// Force dynamic rendering. This page reads cookies via `getServerLocale`
-// and `getActionSession`, both of which are dynamic APIs. A prior
-// `export const revalidate = 300` silently opted into ISR which
-// Next.js 16 now rejects at prod runtime with DYNAMIC_SERVER_USAGE
-// (see #379). Caching is per-request via Prisma/React.cache instead.
+// Force dynamic rendering. This page reads cookies via `getServerLocale`,
+// a dynamic API. A prior `export const revalidate = 300` silently opted
+// into ISR which Next.js 16 now rejects at prod runtime with
+// DYNAMIC_SERVER_USAGE (see #379). Caching is per-request via
+// Prisma/React.cache instead.
 export const dynamic = 'force-dynamic'
 
 interface Props {
@@ -124,26 +123,16 @@ export default async function ProductDetailPage({ params }: Props) {
     promo => promo.id !== autoAppliedPromotion?.id,
   )
 
-  // Phase 4b-β: compute whether to show the "Subscribe" CTA. Hidden
-  // unless the buyer beta flag is on, the vendor has published an
-  // active plan AND it has been successfully provisioned in Stripe.
+  // Phase 4b-β: show the "Subscribe" CTA when the vendor has published
+  // at least one active, Stripe-provisioned plan for this product. The
+  // CTA links to a dedicated confirmation page that lists every
+  // available cadence — so here we only need to know whether AT LEAST
+  // one plan exists.
   const subscribeFlagOn = getServerEnv().subscriptionsBuyerBeta
-  const sessionForSubscribe = subscribeFlagOn ? await getActionSession() : null
-  const showSubscribeCta = Boolean(
-    subscribeFlagOn &&
-    product.subscriptionPlan &&
-    !product.subscriptionPlan.archivedAt &&
-    product.subscriptionPlan.stripePriceId
+  const subscribablePlans = product.subscriptionPlans.filter(
+    plan => !plan.archivedAt && plan.stripePriceId,
   )
-  let defaultAddressIdForSubscribe: string | null = null
-  if (showSubscribeCta && sessionForSubscribe) {
-    const defaultAddress = await db.address.findFirst({
-      where: { userId: sessionForSubscribe.user.id },
-      orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }],
-      select: { id: true },
-    })
-    defaultAddressIdForSubscribe = defaultAddress?.id ?? null
-  }
+  const showSubscribeCta = Boolean(subscribeFlagOn && subscribablePlans.length > 0)
   const breadcrumbData = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -327,14 +316,8 @@ export default async function ProductDetailPage({ params }: Props) {
 
           <ProductPromotions promotions={informationalPromotions} locale={locale} />
 
-          {showSubscribeCta && product.subscriptionPlan && (
-            <SubscribeToBoxButton
-              planId={product.subscriptionPlan.id}
-              cadence={product.subscriptionPlan.cadence}
-              priceEur={Number(product.subscriptionPlan.priceSnapshot)}
-              unit={localizedProduct.unit}
-              defaultAddressId={defaultAddressIdForSubscribe}
-            />
+          {showSubscribeCta && (
+            <SubscribeToBoxButton productId={product.id} />
           )}
 
           {/* Trust strip */}

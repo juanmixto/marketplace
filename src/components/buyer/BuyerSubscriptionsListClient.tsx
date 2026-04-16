@@ -6,11 +6,14 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArrowPathIcon,
+  CalendarDaysIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
   ForwardIcon,
+  MapPinIcon,
   PauseIcon,
   PlayIcon,
   XCircleIcon,
-  InformationCircleIcon,
 } from '@heroicons/react/24/outline'
 import { Badge } from '@/components/ui/badge'
 import { formatPrice } from '@/lib/utils'
@@ -19,6 +22,7 @@ import {
   cancelSubscription,
   listMySubscriptions,
   pauseSubscription,
+  rescheduleNextDelivery,
   resumeSubscription,
   skipNextDelivery,
 } from '@/domains/subscriptions/buyer-actions'
@@ -29,10 +33,13 @@ type Subscription = Awaited<ReturnType<typeof listMySubscriptions>>[number]
 
 interface Props {
   subscriptions: Subscription[]
-  betaEnabled: boolean
+  welcomeState?: 'success' | 'error' | null
 }
 
-export function BuyerSubscriptionsListClient({ subscriptions, betaEnabled }: Props) {
+export function BuyerSubscriptionsListClient({
+  subscriptions,
+  welcomeState = null,
+}: Props) {
   const t = useT()
 
   const active = subscriptions.filter(s => s.status !== 'CANCELED')
@@ -49,18 +56,36 @@ export function BuyerSubscriptionsListClient({ subscriptions, betaEnabled }: Pro
         </p>
       </div>
 
-      {/* Beta notice — explicit about what buyers can and cannot do today */}
-      <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 shadow-sm dark:border-blue-900/50 dark:bg-blue-950/30">
-        <InformationCircleIcon className="h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400 mt-0.5" />
-        <div className="text-sm text-blue-900 dark:text-blue-200">
-          <p className="font-semibold">{t('account.subscriptions.betaNoticeTitle')}</p>
-          <p className="mt-0.5 text-blue-800 dark:text-blue-300">
-            {betaEnabled
-              ? t('account.subscriptions.betaNoticeBodyEnabled')
-              : t('account.subscriptions.betaNoticeBodyDisabled')}
-          </p>
+      {welcomeState === 'success' && (
+        <div
+          role="status"
+          data-testid="subscription-welcome-banner"
+          className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/30"
+        >
+          <CheckCircleIcon className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" />
+          <div className="text-sm text-emerald-900 dark:text-emerald-200">
+            <p className="font-semibold">{t('account.subscriptions.welcomeSuccessTitle')}</p>
+            <p className="mt-0.5 text-emerald-800 dark:text-emerald-300">
+              {t('account.subscriptions.welcomeSuccessBody')}
+            </p>
+          </div>
         </div>
-      </div>
+      )}
+      {welcomeState === 'error' && (
+        <div
+          role="alert"
+          data-testid="subscription-welcome-error"
+          className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/30"
+        >
+          <ExclamationTriangleIcon className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+          <div className="text-sm text-amber-900 dark:text-amber-200">
+            <p className="font-semibold">{t('account.subscriptions.welcomeErrorTitle')}</p>
+            <p className="mt-0.5 text-amber-800 dark:text-amber-300">
+              {t('account.subscriptions.welcomeErrorBody')}
+            </p>
+          </div>
+        </div>
+      )}
 
       {subscriptions.length === 0 ? (
         <EmptyState />
@@ -122,6 +147,10 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [rescheduleOpen, setRescheduleOpen] = useState(false)
+  const [rescheduleValue, setRescheduleValue] = useState<string>(() =>
+    toYmd(new Date(subscription.nextDeliveryAt)),
+  )
 
   const product = subscription.plan.product
   const vendor = subscription.plan.vendor
@@ -161,6 +190,19 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
   const isPaused = subscription.status === 'PAUSED'
   const isCanceled = subscription.status === 'CANCELED'
 
+  const rescheduleMin = toYmd(offsetDays(new Date(), 2))
+  const rescheduleMax = toYmd(offsetDays(new Date(), 60))
+
+  function submitReschedule() {
+    setRescheduleOpen(false)
+    runAction(() =>
+      rescheduleNextDelivery({
+        subscriptionId: subscription.id,
+        nextDeliveryAt: rescheduleValue,
+      }),
+    )
+  }
+
   return (
     <div className="p-4">
       <div className="flex items-start gap-4 flex-wrap">
@@ -182,11 +224,34 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
             {vendor.displayName} · {formatPrice(Number(subscription.plan.priceSnapshot))} / {product.unit}
           </p>
           {!isCanceled && (
-            <p className="mt-0.5 text-xs text-[var(--muted)]">
+            <p
+              className="mt-0.5 text-xs text-[var(--muted)]"
+              data-testid="subscription-next-delivery"
+            >
               {t('account.subscriptions.nextDeliveryLabel').replace(
                 '{date}',
                 formatDate(subscription.nextDeliveryAt)
               )}
+              {isActive && (() => {
+                const days = daysUntil(subscription.nextDeliveryAt)
+                if (days <= 0) return null
+                return (
+                  <span className="ml-1 text-[var(--muted)]">
+                    · {t('account.subscriptions.daysUntilLabel').replace('{days}', String(days))}
+                  </span>
+                )
+              })()}
+            </p>
+          )}
+          {!isCanceled && (
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-[var(--muted)]">
+              <MapPinIcon className="h-3 w-3 shrink-0" />
+              <span className="truncate">
+                {subscription.shippingAddress.line1}
+                {subscription.shippingAddress.line2 ? `, ${subscription.shippingAddress.line2}` : ''}
+                {' · '}
+                {subscription.shippingAddress.postalCode} {subscription.shippingAddress.city}
+              </span>
             </p>
           )}
           {isCanceled && subscription.canceledAt && (
@@ -207,6 +272,19 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           {isActive && (
             <>
+              <button
+                type="button"
+                onClick={() => {
+                  setRescheduleValue(toYmd(new Date(subscription.nextDeliveryAt)))
+                  setRescheduleOpen(true)
+                }}
+                disabled={pending}
+                data-testid="reschedule-subscription-cta"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] min-h-11 px-3 py-2 text-xs font-semibold text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] disabled:opacity-60"
+              >
+                <CalendarDaysIcon className="h-4 w-4" />
+                {t('account.subscriptions.rescheduleNext')}
+              </button>
               <button
                 type="button"
                 onClick={() => runAction(() => skipNextDelivery(subscription.id))}
@@ -251,10 +329,80 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
           )}
         </div>
       </div>
+
+      {rescheduleOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={`reschedule-${subscription.id}-title`}
+          data-testid="reschedule-subscription-dialog"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={e => {
+            if (e.target === e.currentTarget) setRescheduleOpen(false)
+          }}
+        >
+          <div className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xl">
+            <h3
+              id={`reschedule-${subscription.id}-title`}
+              className="text-base font-semibold text-[var(--foreground)]"
+            >
+              {t('account.subscriptions.rescheduleDialogTitle')}
+            </h3>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              {t('account.subscriptions.rescheduleDialogHelp')}
+            </p>
+            <input
+              type="date"
+              value={rescheduleValue}
+              min={rescheduleMin}
+              max={rescheduleMax}
+              onChange={e => setRescheduleValue(e.target.value)}
+              data-testid="reschedule-subscription-date"
+              className="mt-3 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setRescheduleOpen(false)}
+                className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-semibold text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]"
+              >
+                {t('account.subscriptions.rescheduleCancel')}
+              </button>
+              <button
+                type="button"
+                onClick={submitReschedule}
+                data-testid="reschedule-subscription-save"
+                className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400"
+              >
+                {t('account.subscriptions.rescheduleSave')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 function formatDate(value: Date | string): string {
   return new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium' }).format(new Date(value))
+}
+
+function offsetDays(d: Date, days: number): Date {
+  const copy = new Date(d)
+  copy.setDate(copy.getDate() + days)
+  return copy
+}
+
+function toYmd(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function daysUntil(value: Date | string): number {
+  const target = new Date(value).getTime()
+  const now = Date.now()
+  return Math.max(0, Math.ceil((target - now) / (1000 * 60 * 60 * 24)))
 }

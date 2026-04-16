@@ -619,6 +619,16 @@ const customerBlueprints = [
     lastName: 'Romero',
     password: 'cliente1234',
   },
+  {
+    // Extra demo customer reserved for dummy subscription instances on the
+    // vendor dashboard — keeping primaryCustomer (cliente@test.com) free of
+    // seeded subscriptions so the e2e smoke test can create its own without
+    // hitting the (buyerId, planId) unique.
+    email: 'laura@demo.com',
+    firstName: 'Laura',
+    lastName: 'Méndez',
+    password: 'cliente1234',
+  },
 ]
 
 const adminSideVendorBlueprints = [
@@ -855,6 +865,104 @@ async function main() {
   }
   console.log(`  ✓ ${adminSideVendorBlueprints.length} productores extra para moderación`)
 
+  // Seeded subscription plans for the "Cesta mixta de huerta" so e2e and
+  // local dev have a buyable recurring box without running through the
+  // vendor UI. We seed BOTH weekly and biweekly so the confirmation-page
+  // cadence selector has something to pick between — verifying the
+  // multi-cadence feature end-to-end. Mock mode never validates
+  // `stripePriceId` against the real Stripe API, so synthetic ids are safe.
+  const fincaGarcia = vendorsBySlug.get('finca-garcia')
+  if (fincaGarcia) {
+    await db.subscriptionPlan.upsert({
+      where: { productId_cadence: { productId: 'prod-cesta-huerta', cadence: 'WEEKLY' } },
+      update: {
+        priceSnapshot: 14.5,
+        taxRateSnapshot: 0.04,
+        cutoffDayOfWeek: 5,
+        stripePriceId: 'price_mock_cesta_huerta_weekly',
+        archivedAt: null,
+      },
+      create: {
+        id: 'plan-cesta-huerta-weekly',
+        vendorId: fincaGarcia.id,
+        productId: 'prod-cesta-huerta',
+        cadence: 'WEEKLY',
+        priceSnapshot: 14.5,
+        taxRateSnapshot: 0.04,
+        cutoffDayOfWeek: 5,
+        stripePriceId: 'price_mock_cesta_huerta_weekly',
+      },
+    })
+    await db.subscriptionPlan.upsert({
+      where: { productId_cadence: { productId: 'prod-cesta-huerta', cadence: 'BIWEEKLY' } },
+      update: {
+        priceSnapshot: 27,
+        taxRateSnapshot: 0.04,
+        cutoffDayOfWeek: 5,
+        stripePriceId: 'price_mock_cesta_huerta_biweekly',
+        archivedAt: null,
+      },
+      create: {
+        id: 'plan-cesta-huerta-biweekly',
+        vendorId: fincaGarcia.id,
+        productId: 'prod-cesta-huerta',
+        cadence: 'BIWEEKLY',
+        // Slightly higher per-delivery price when you only get one every
+        // 14 days — typical pack-and-ship fixed cost amortization.
+        priceSnapshot: 27,
+        taxRateSnapshot: 0.04,
+        cutoffDayOfWeek: 5,
+        stripePriceId: 'price_mock_cesta_huerta_biweekly',
+      },
+    })
+    console.log(`  ✓ Plan de suscripción: cesta-mixta-huerta (semanal + quincenal)`)
+
+    // Additional dummy plans so the vendor dashboard has a realistic mix of
+    // cadences and products — a one-product marketplace looks empty and
+    // hides bugs like "what if a plan has no image / different unit".
+    await db.subscriptionPlan.upsert({
+      where: { productId_cadence: { productId: 'prod-huevos', cadence: 'WEEKLY' } },
+      update: {
+        priceSnapshot: 4.8,
+        taxRateSnapshot: 0.04,
+        cutoffDayOfWeek: 5,
+        stripePriceId: 'price_mock_huevos_weekly',
+        archivedAt: null,
+      },
+      create: {
+        id: 'plan-huevos-weekly',
+        vendorId: fincaGarcia.id,
+        productId: 'prod-huevos',
+        cadence: 'WEEKLY',
+        priceSnapshot: 4.8,
+        taxRateSnapshot: 0.04,
+        cutoffDayOfWeek: 5,
+        stripePriceId: 'price_mock_huevos_weekly',
+      },
+    })
+    await db.subscriptionPlan.upsert({
+      where: { productId_cadence: { productId: 'prod-calabacin', cadence: 'WEEKLY' } },
+      update: {
+        priceSnapshot: 2.9,
+        taxRateSnapshot: 0.04,
+        cutoffDayOfWeek: 5,
+        stripePriceId: 'price_mock_calabacin_weekly',
+        archivedAt: null,
+      },
+      create: {
+        id: 'plan-calabacin-weekly',
+        vendorId: fincaGarcia.id,
+        productId: 'prod-calabacin',
+        cadence: 'WEEKLY',
+        priceSnapshot: 2.9,
+        taxRateSnapshot: 0.04,
+        cutoffDayOfWeek: 5,
+        stripePriceId: 'price_mock_calabacin_weekly',
+      },
+    })
+    console.log(`  ✓ Planes extra: huevos (semanal), calabacín (semanal)`)
+  }
+
   const customersByEmail = new Map<string, { id: string; firstName: string; lastName: string }>()
   for (const customer of customerBlueprints) {
     const user = await upsertUser({
@@ -875,8 +983,9 @@ async function main() {
   const primaryCustomer = customersByEmail.get('cliente@test.com')
   const secondaryCustomer = customersByEmail.get('marta@demo.com')
   const thirdCustomer = customersByEmail.get('javier@demo.com')
+  const lauraCustomer = customersByEmail.get('laura@demo.com')
 
-  if (!primaryCustomer || !secondaryCustomer || !thirdCustomer) {
+  if (!primaryCustomer || !secondaryCustomer || !thirdCustomer || !lauraCustomer) {
     throw new Error('No se pudieron crear los clientes demo')
   }
 
@@ -910,6 +1019,249 @@ async function main() {
       isDefault: true,
     },
   })
+
+  // Secondary / tertiary customer shipping addresses. Needed so the dummy
+  // Subscription rows below can reference a real `shippingAddressId` for
+  // each buyer — the schema makes that FK required.
+  const secondaryAddress = await db.address.upsert({
+    where: { id: 'addr-marta-main' },
+    update: {
+      userId: secondaryCustomer.id,
+      label: 'Casa',
+      firstName: secondaryCustomer.firstName,
+      lastName: secondaryCustomer.lastName,
+      line1: 'Carrer de Balmes 124',
+      city: 'Barcelona',
+      province: '08',
+      postalCode: '08008',
+      country: 'ES',
+      phone: '600456456',
+      isDefault: true,
+    },
+    create: {
+      id: 'addr-marta-main',
+      userId: secondaryCustomer.id,
+      label: 'Casa',
+      firstName: secondaryCustomer.firstName,
+      lastName: secondaryCustomer.lastName,
+      line1: 'Carrer de Balmes 124',
+      city: 'Barcelona',
+      province: '08',
+      postalCode: '08008',
+      country: 'ES',
+      phone: '600456456',
+      isDefault: true,
+    },
+  })
+
+  const thirdAddress = await db.address.upsert({
+    where: { id: 'addr-javier-main' },
+    update: {
+      userId: thirdCustomer.id,
+      label: 'Casa',
+      firstName: thirdCustomer.firstName,
+      lastName: thirdCustomer.lastName,
+      line1: 'Avenida de la Constitución 42',
+      city: 'Sevilla',
+      province: '41',
+      postalCode: '41001',
+      country: 'ES',
+      phone: '600789789',
+      isDefault: true,
+    },
+    create: {
+      id: 'addr-javier-main',
+      userId: thirdCustomer.id,
+      label: 'Casa',
+      firstName: thirdCustomer.firstName,
+      lastName: thirdCustomer.lastName,
+      line1: 'Avenida de la Constitución 42',
+      city: 'Sevilla',
+      province: '41',
+      postalCode: '41001',
+      country: 'ES',
+      phone: '600789789',
+      isDefault: true,
+    },
+  })
+
+  const lauraAddress = await db.address.upsert({
+    where: { id: 'addr-laura-main' },
+    update: {
+      userId: lauraCustomer.id,
+      label: 'Casa',
+      firstName: lauraCustomer.firstName,
+      lastName: lauraCustomer.lastName,
+      line1: 'Calle del Pintor Sorolla 7',
+      city: 'Valencia',
+      province: '46',
+      postalCode: '46002',
+      country: 'ES',
+      phone: '600321321',
+      isDefault: true,
+    },
+    create: {
+      id: 'addr-laura-main',
+      userId: lauraCustomer.id,
+      label: 'Casa',
+      firstName: lauraCustomer.firstName,
+      lastName: lauraCustomer.lastName,
+      line1: 'Calle del Pintor Sorolla 7',
+      city: 'Valencia',
+      province: '46',
+      postalCode: '46002',
+      country: 'ES',
+      phone: '600321321',
+      isDefault: true,
+    },
+  })
+
+  // Dummy subscription instances so the vendor dashboard shows real
+  // KPIs (suscriptores, MRR, próxima entrega) instead of all-zeros.
+  // We stagger nextDeliveryAt across the next two weeks so the "próxima
+  // entrega" column varies plan to plan. Plan IDs are looked up by
+  // (productId, cadence) because the upsert above may hit a pre-existing
+  // row with a different id (e.g. one the vendor created via the UI).
+  if (fincaGarcia) {
+    const planLookup = await db.subscriptionPlan.findMany({
+      where: { vendorId: fincaGarcia.id },
+      select: { id: true, productId: true, cadence: true },
+    })
+    const planIdFor = (productId: string, cadence: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY') =>
+      planLookup.find(p => p.productId === productId && p.cadence === cadence)?.id ?? null
+    const cestaWeeklyId = planIdFor('prod-cesta-huerta', 'WEEKLY')
+    const cestaBiweeklyId = planIdFor('prod-cesta-huerta', 'BIWEEKLY')
+    const huevosWeeklyId = planIdFor('prod-huevos', 'WEEKLY')
+    const calabacinWeeklyId = planIdFor('prod-calabacin', 'WEEKLY')
+    const now = new Date()
+    const daysFromNow = (n: number) => {
+      const d = new Date(now)
+      d.setUTCDate(d.getUTCDate() + n)
+      d.setUTCHours(9, 0, 0, 0)
+      return d
+    }
+
+    const dummySubscriptions: Array<{
+      id: string
+      buyerId: string
+      planId: string
+      shippingAddressId: string
+      nextDeliveryInDays: number
+      periodEndInDays: number
+      cadenceDays: number
+      status?: 'ACTIVE' | 'PAUSED'
+    }> = [
+      // Cesta mixta semanal — two subscribers, two different drop days.
+      // We use lauraCustomer (not primaryCustomer) because the e2e smoke
+      // test subscribes cliente@test.com to this exact plan and the
+      // (buyerId, planId) unique would reject it if we seeded a row first.
+      {
+        id: 'sub-cesta-weekly-laura',
+        buyerId: lauraCustomer.id,
+        planId: cestaWeeklyId!,
+        shippingAddressId: lauraAddress.id,
+        nextDeliveryInDays: 2,
+        periodEndInDays: 7,
+        cadenceDays: 7,
+      },
+      {
+        id: 'sub-cesta-weekly-marta',
+        buyerId: secondaryCustomer.id,
+        planId: cestaWeeklyId!,
+        shippingAddressId: secondaryAddress.id,
+        nextDeliveryInDays: 5,
+        periodEndInDays: 10,
+        cadenceDays: 7,
+      },
+      // Cesta mixta quincenal — one active + one paused, to exercise both
+      // status branches (the KPI count must ignore paused subs).
+      {
+        id: 'sub-cesta-biweekly-javier',
+        buyerId: thirdCustomer.id,
+        planId: cestaBiweeklyId!,
+        shippingAddressId: thirdAddress.id,
+        nextDeliveryInDays: 9,
+        periodEndInDays: 16,
+        cadenceDays: 14,
+      },
+      {
+        id: 'sub-cesta-biweekly-marta-paused',
+        buyerId: secondaryCustomer.id,
+        planId: cestaBiweeklyId!,
+        shippingAddressId: secondaryAddress.id,
+        nextDeliveryInDays: 12,
+        periodEndInDays: 20,
+        cadenceDays: 14,
+        status: 'PAUSED',
+      },
+      // Huevos semanal — three loyal customers, a popular recurring box.
+      // Same reason as cesta weekly: keep primaryCustomer free for e2e.
+      {
+        id: 'sub-huevos-weekly-laura',
+        buyerId: lauraCustomer.id,
+        planId: huevosWeeklyId!,
+        shippingAddressId: lauraAddress.id,
+        nextDeliveryInDays: 3,
+        periodEndInDays: 8,
+        cadenceDays: 7,
+      },
+      {
+        id: 'sub-huevos-weekly-marta',
+        buyerId: secondaryCustomer.id,
+        planId: huevosWeeklyId!,
+        shippingAddressId: secondaryAddress.id,
+        nextDeliveryInDays: 6,
+        periodEndInDays: 11,
+        cadenceDays: 7,
+      },
+      {
+        id: 'sub-huevos-weekly-javier',
+        buyerId: thirdCustomer.id,
+        planId: huevosWeeklyId!,
+        shippingAddressId: thirdAddress.id,
+        nextDeliveryInDays: 4,
+        periodEndInDays: 9,
+        cadenceDays: 7,
+      },
+      // Calabacín — a single enthusiast, shows the "1 suscriptor" copy branch
+      {
+        id: 'sub-calabacin-weekly-javier',
+        buyerId: thirdCustomer.id,
+        planId: calabacinWeeklyId!,
+        shippingAddressId: thirdAddress.id,
+        nextDeliveryInDays: 7,
+        periodEndInDays: 14,
+        cadenceDays: 7,
+      },
+    ]
+
+    for (const s of dummySubscriptions) {
+      if (!s.planId) continue
+      // Match on the (buyerId, planId) unique so we're idempotent even if
+      // a previous partial run created the row with a different cuid.
+      await db.subscription.upsert({
+        where: { buyerId_planId: { buyerId: s.buyerId, planId: s.planId } },
+        update: {
+          status: s.status ?? 'ACTIVE',
+          shippingAddressId: s.shippingAddressId,
+          currentPeriodEnd: daysFromNow(s.periodEndInDays),
+          nextDeliveryAt: daysFromNow(s.nextDeliveryInDays),
+          canceledAt: null,
+        },
+        create: {
+          id: s.id,
+          buyerId: s.buyerId,
+          planId: s.planId,
+          shippingAddressId: s.shippingAddressId,
+          status: s.status ?? 'ACTIVE',
+          currentPeriodEnd: daysFromNow(s.periodEndInDays),
+          nextDeliveryAt: daysFromNow(s.nextDeliveryInDays),
+          skippedDeliveries: [],
+        },
+      })
+    }
+    console.log(`  ✓ ${dummySubscriptions.length} suscripciones demo (activas + paused)`)
+  }
 
   await db.shippingZone.upsert({
     where: { id: 'zone-peninsula' },

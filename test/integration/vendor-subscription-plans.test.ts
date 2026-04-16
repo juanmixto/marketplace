@@ -86,7 +86,10 @@ test('createSubscriptionPlan rejects a DRAFT product', async () => {
   )
 })
 
-test('createSubscriptionPlan refuses a second active plan for the same product', async () => {
+test('createSubscriptionPlan refuses a second active plan with the same cadence for the same product', async () => {
+  // Phase 4b-β follow-up: the unique constraint moved from productId
+  // alone to (productId, cadence). A duplicate cadence for the same
+  // product is still refused — that's the case covered here.
   const { user, vendor } = await createVendorUser()
   const product = await createActiveProduct(vendor.id)
   useTestSession(buildSession(user.id, 'VENDOR'))
@@ -101,14 +104,40 @@ test('createSubscriptionPlan refuses a second active plan for the same product',
     () =>
       createSubscriptionPlan({
         productId: product.id,
-        cadence: 'MONTHLY',
-        cutoffDayOfWeek: 0,
+        cadence: 'WEEKLY',
+        cutoffDayOfWeek: 5,
       }),
-    /plan de suscripción activo/i
+    /plan semanal activo/i
   )
 })
 
-test('createSubscriptionPlan refuses a new plan for a product with an ARCHIVED plan — unarchive instead', async () => {
+test('createSubscriptionPlan ALLOWS a second plan for the same product on a different cadence', async () => {
+  // This is the whole point of multi-cadence: weekly + biweekly + monthly
+  // can coexist for the same product so the buyer picks on the
+  // confirmation page.
+  const { user, vendor } = await createVendorUser()
+  const product = await createActiveProduct(vendor.id)
+  useTestSession(buildSession(user.id, 'VENDOR'))
+
+  const weekly = await createSubscriptionPlan({
+    productId: product.id,
+    cadence: 'WEEKLY',
+    cutoffDayOfWeek: 5,
+  })
+  const biweekly = await createSubscriptionPlan({
+    productId: product.id,
+    cadence: 'BIWEEKLY',
+    cutoffDayOfWeek: 5,
+  })
+
+  assert.equal(weekly.productId, product.id)
+  assert.equal(biweekly.productId, product.id)
+  assert.notEqual(weekly.id, biweekly.id)
+  assert.equal(weekly.cadence, 'WEEKLY')
+  assert.equal(biweekly.cadence, 'BIWEEKLY')
+})
+
+test('createSubscriptionPlan refuses a new plan when the SAME cadence was previously archived — unarchive instead', async () => {
   const { user, vendor } = await createVendorUser()
   const product = await createActiveProduct(vendor.id)
   useTestSession(buildSession(user.id, 'VENDOR'))
@@ -124,7 +153,7 @@ test('createSubscriptionPlan refuses a new plan for a product with an ARCHIVED p
     () =>
       createSubscriptionPlan({
         productId: product.id,
-        cadence: 'MONTHLY',
+        cadence: 'WEEKLY',
         cutoffDayOfWeek: 0,
       }),
     /archivado/i

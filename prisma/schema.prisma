@@ -367,7 +367,10 @@ model Product {
   reviews           Review[]
   favorites         Favorite[]
   promotions        Promotion[]
-  subscriptionPlan  SubscriptionPlan?
+  // Multi-cadence (phase 4b-β follow-up): a product can now have more
+  // than one active SubscriptionPlan, one per cadence. The unique
+  // constraint is on (productId, cadence) — see model SubscriptionPlan.
+  subscriptionPlans SubscriptionPlan[]
 
   @@index([status, categoryId])
   @@index([vendorId, status])
@@ -853,7 +856,12 @@ model SubscriptionPlan {
   id               String              @id @default(cuid())
   vendorId         String
   vendor           Vendor              @relation(fields: [vendorId], references: [id])
-  productId        String              @unique
+  // Multi-cadence: a single product can have up to one plan per cadence
+  // (e.g. weekly + biweekly + monthly). The unique constraint used to
+  // be on productId alone, which forced a single subscription offer
+  // per product. Phase 4b-β lifts that so buyers can pick the frequency
+  // they want on the confirmation page — see @@unique at the bottom.
+  productId        String
   product          Product             @relation(fields: [productId], references: [id])
 
   cadence          SubscriptionCadence
@@ -874,6 +882,13 @@ model SubscriptionPlan {
 
   subscriptions    Subscription[]
 
+  // Vendor can publish at most one ACTIVE plan per (product, cadence).
+  // A second plan with the same cadence on the same product would mean
+  // two concurrent recurring offers that only differ by id — banned at
+  // the DB level rather than trusting the app-layer check in
+  // createSubscriptionPlan. Different cadences coexist fine:
+  // (prod-cesta, WEEKLY) + (prod-cesta, BIWEEKLY) is valid.
+  @@unique([productId, cadence])
   @@index([vendorId, archivedAt])
 }
 

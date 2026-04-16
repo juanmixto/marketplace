@@ -26,6 +26,12 @@ async function requireVendor() {
 
 const SUBSCRIPTION_CADENCES = ['WEEKLY', 'BIWEEKLY', 'MONTHLY'] as const
 
+function cadenceLabel(cadence: (typeof SUBSCRIPTION_CADENCES)[number]): string {
+  if (cadence === 'WEEKLY') return 'semanal'
+  if (cadence === 'BIWEEKLY') return 'quincenal'
+  return 'mensual'
+}
+
 const subscriptionPlanSchema = z.object({
   productId: z.string().min(1, 'Selecciona un producto'),
   cadence: z.enum(SUBSCRIPTION_CADENCES),
@@ -61,19 +67,26 @@ export async function createSubscriptionPlan(input: SubscriptionPlanInput) {
     )
   }
 
-  // Unique-by-product: a product already wired to a plan blocks a second
-  // plan. The @@unique on productId would raise a P2002 error anyway, but
-  // the explicit check yields a friendlier message.
+  // Unique-by-(product, cadence): a product can now have one plan per
+  // cadence (phase 4b-β — multi-cadence). We refuse a second plan with
+  // the SAME cadence for the same product, but we allow e.g. (cesta,
+  // WEEKLY) to coexist with (cesta, BIWEEKLY). The @@unique at the DB
+  // level would raise P2002 anyway — the explicit check yields a
+  // friendlier, cadence-aware message.
   const existing = await db.subscriptionPlan.findUnique({
-    where: { productId: data.productId },
+    where: {
+      productId_cadence: { productId: data.productId, cadence: data.cadence },
+    },
     select: { id: true, archivedAt: true },
   })
   if (existing && !existing.archivedAt) {
-    throw new Error('Este producto ya tiene un plan de suscripción activo')
+    throw new Error(
+      `Este producto ya tiene un plan ${cadenceLabel(data.cadence)} activo`,
+    )
   }
   if (existing && existing.archivedAt) {
     throw new Error(
-      'Este producto tiene un plan archivado. Reactívalo desde la lista en lugar de crear uno nuevo.'
+      `Este producto tiene un plan ${cadenceLabel(data.cadence)} archivado. Reactívalo desde la lista en lugar de crear uno nuevo.`,
     )
   }
 
@@ -94,8 +107,8 @@ export async function createSubscriptionPlan(input: SubscriptionPlanInput) {
   // plan so phase 4b-β can create Subscriptions that reference it. The
   // provisioning runs AFTER the row is committed — if Stripe rejects the
   // request (invalid key, outage, bad data) we clean up the orphan row
-  // so the vendor can retry without hitting the @@unique([productId])
-  // constraint.
+  // so the vendor can retry without hitting the
+  // @@unique([productId, cadence]) constraint.
   try {
     const provisioning = await provisionPlanPrice({
       planId: plan.id,
@@ -155,6 +168,11 @@ export interface SerializedSubscriptionPlanListRow {
     images: string[]
     unit: string
   }
+  // Aggregates surfaced on the vendor list for the "profesionalizado" header
+  // & per-row stats. Phase 3 is vendor-only so these will be 0 until phase 4
+  // flips the buyer-side beta flag, but the UI is ready for real data.
+  activeSubscribersCount: number
+  nextDeliveryAt: Date | null
 }
 
 type SubscriptionPlanListRowFromDb = Awaited<
@@ -174,7 +192,11 @@ type SubscriptionPlanListRowFromDb = Awaited<
 >
 
 function serializePlanListRow(
-  row: NonNullable<SubscriptionPlanListRowFromDb>
+  row: NonNullable<SubscriptionPlanListRowFromDb>,
+  aggregates: { activeSubscribersCount: number; nextDeliveryAt: Date | null } = {
+    activeSubscribersCount: 0,
+    nextDeliveryAt: null,
+  },
 ): SerializedSubscriptionPlanListRow {
   return {
     id: row.id,
@@ -189,6 +211,8 @@ function serializePlanListRow(
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     product: row.product,
+    activeSubscribersCount: aggregates.activeSubscribersCount,
+    nextDeliveryAt: aggregates.nextDeliveryAt,
   }
 }
 
@@ -210,7 +234,126 @@ export async function listMySubscriptionPlans(
       },
     },
   })
-  return rows.map(serializePlanListRow)
+
+  const planIds = rows.map(r => r.id)
+  // Two small aggregates per plan: ACTIVE subscriber count (for the KPI
+  // header and per-row stat) and the earliest nextDeliveryAt across active
+  // subscriptions (for the "próxima entrega" hint). groupBy keeps this to
+  // two queries instead of N.
+  const [countsByPlan, earliestByPlan] = planIds.length
+    ? await Promise.all([
+        db.subscription.groupBy({
+          by: ['planId'],
+          where: { planId: { in: planIds }, status: 'ACTIVE' },
+          _count: { _all: true },
+        }),
+        db.subscription.groupBy({
+          by: ['planId'],
+          where: { planId: { in: planIds }, status: 'ACTIVE' },
+          _min: { nextDeliveryAt: true },
+        }),
+      ])
+    : [[], []]
+
+  const countMap = new Map(countsByPlan.map(c => [c.planId, c._count._all]))
+  const nextMap = new Map(earliestByPlan.map(e => [e.planId, e._min.nextDeliveryAt ?? null]))
+
+  return rows.map(row =>
+    serializePlanListRow(row, {
+      activeSubscribersCount: countMap.get(row.id) ?? 0,
+      nextDeliveryAt: nextMap.get(row.id) ?? null,
+    }),
+  )
+}
+
+export interface SerializedVendorSubscriber {
+  id: string
+  status: 'ACTIVE' | 'PAUSED' | 'CANCELED' | 'PAST_DUE'
+  nextDeliveryAt: Date
+  currentPeriodEnd: Date
+  createdAt: Date
+  buyer: {
+    id: string
+    firstName: string
+    lastName: string
+    email: string
+  }
+  shippingAddress: {
+    id: string
+    line1: string
+    line2: string | null
+    city: string
+    province: string
+    postalCode: string
+    country: string
+    phone: string | null
+  }
+  plan: {
+    id: string
+    cadence: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY'
+    priceSnapshot: number
+    product: { id: string; name: string; slug: string; unit: string }
+  }
+}
+
+/**
+ * Returns every subscription attached to one of the current vendor's plans
+ * so they can see *who* to ship to, not just aggregate counts. Used by the
+ * "Suscriptores" drill-down page linked from the vendor subscriptions
+ * dashboard. Pass `planId` to scope to a single plan.
+ */
+export async function listMySubscribers(
+  planId?: string,
+): Promise<SerializedVendorSubscriber[]> {
+  const { vendor } = await requireVendor()
+
+  const rows = await db.subscription.findMany({
+    where: {
+      plan: { vendorId: vendor.id },
+      ...(planId ? { planId } : {}),
+      status: { in: ['ACTIVE', 'PAUSED', 'PAST_DUE'] },
+    },
+    orderBy: [{ status: 'asc' }, { nextDeliveryAt: 'asc' }],
+    include: {
+      buyer: { select: { id: true, firstName: true, lastName: true, email: true } },
+      shippingAddress: {
+        select: {
+          id: true,
+          line1: true,
+          line2: true,
+          city: true,
+          province: true,
+          postalCode: true,
+          country: true,
+          phone: true,
+        },
+      },
+      plan: {
+        select: {
+          id: true,
+          cadence: true,
+          priceSnapshot: true,
+          product: { select: { id: true, name: true, slug: true, unit: true } },
+        },
+      },
+    },
+  })
+
+  return rows.map(row => ({
+    id: row.id,
+    status: row.status,
+    nextDeliveryAt: row.nextDeliveryAt,
+    currentPeriodEnd: row.currentPeriodEnd,
+    createdAt: row.createdAt,
+    buyer: row.buyer,
+    shippingAddress: row.shippingAddress,
+    plan: {
+      id: row.plan.id,
+      cadence: row.plan.cadence,
+      priceSnapshot: Number(row.plan.priceSnapshot),
+      product: row.plan.product,
+    },
+  }))
 }
 
 export async function getMySubscriptionPlan(planId: string) {
