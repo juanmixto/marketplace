@@ -1,0 +1,35 @@
+{
+  "ci": {
+    "collect": {
+      "url": [
+        "http://localhost:3000/",
+        "http://localhost:3000/offline"
+      ],
+      "numberOfRuns": 1,
+      "settings": {
+        "preset": "desktop",
+        "onlyCategories": ["pwa", "performance", "best-practices", "accessibility"],
+        "skipAudits": ["uses-http2", "canonical"],
+        "chromeFlags": "--no-sandbox --headless=new"
+      }
+    },
+    "assert": {
+      "assertions": {
+        "installable-manifest": "error",
+        "service-worker": "error",
+        "viewport": "error",
+        "content-width": "error",
+        "themed-omnibox": "error",
+        "maskable-icon": "warn",
+        "apple-touch-icon": "warn",
+        "categories:performance": ["warn", { "minScore": 0.75 }],
+        "categories:best-practices": ["warn", { "minScore": 0.9 }],
+        "categories:accessibility": ["warn", { "minScore": 0.9 }]
+      }
+    },
+    "upload": {
+      "target": "filesystem",
+      "outputDir": ".lighthouseci"
+    }
+  }
+}

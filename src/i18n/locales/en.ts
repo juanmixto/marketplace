@@ -1219,6 +1219,9 @@ const en: Record<TranslationKeys, string> = {
   'pwa.ios.hint.title': 'Install the app on your iPhone',
   'pwa.ios.hint.body': 'Tap the Share button and choose “Add to Home Screen”.',
   'pwa.ios.hint.dismiss': 'Dismiss',
+  'pwa.update.title': 'New version available',
+  'pwa.update.cta': 'Update now',
+  'pwa.update.dismiss': 'Close',
 }
 
 export default en

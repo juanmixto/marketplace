@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import type { VendorStatus } from '@/generated/prisma/enums'
+import { requireAdmin } from '@/lib/auth-guard'
 
 // Order statuses that count as "billed revenue" for a producer.
 // REFUNDED/CANCELLED are intentionally excluded.
@@ -85,6 +86,7 @@ function toNumber(value: string | number | bigint | null | undefined): number {
 }
 
 export async function getProducersOverview(): Promise<ProducersOverview> {
+  await requireAdmin()
   const [vendors, statusGroups, revenueRows, topProductRows, lastSeenRows, sparkRows] = await Promise.all([
     db.vendor.findMany({
       orderBy: { createdAt: 'desc' },

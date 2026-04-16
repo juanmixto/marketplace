@@ -1,0 +1,123 @@
+name: Lighthouse PWA
+
+on:
+  pull_request:
+    paths:
+      - 'src/app/manifest.ts'
+      - 'public/sw.js'
+      - 'src/components/pwa/**'
+      - 'src/app/icons/**'
+      - 'src/app/screenshots/**'
+      - 'src/app/offline/**'
+      - 'src/app/layout.tsx'
+      - 'src/lib/pwa/**'
+      - '.lighthouserc.json'
+      - '.github/workflows/lighthouse.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lighthouse-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
+  DATABASE_URL_TEST: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
+  AUTH_SECRET: ci-secret-please-change
+  NEXT_PUBLIC_APP_URL: http://localhost:3000
+  PAYMENT_PROVIDER: mock
+  # Make sure PwaRegister actually registers the SW. Our client gates on
+  # NODE_ENV === 'production' to avoid fighting HMR in `next dev`.
+  NODE_ENV: production
+
+jobs:
+  lighthouse:
+    name: Lighthouse PWA audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: marketplace_test
+          POSTGRES_USER: mp_user
+          POSTGRES_PASSWORD: mp_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mp_user -d marketplace_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 15
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-deps
+
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL_TEST }}
+
+      - name: Create .env for seed script
+        run: |
+          echo "DATABASE_URL=$DATABASE_URL_TEST" > .env
+          echo "AUTH_SECRET=$AUTH_SECRET" >> .env
+          echo "NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL" >> .env
+          echo "PAYMENT_PROVIDER=$PAYMENT_PROVIDER" >> .env
+
+      - name: Seed database
+        run: npm run db:seed
+
+      - name: Build (production)
+        run: npm run build
+
+      - name: Start next (background)
+        run: |
+          nohup npx next start -p 3000 > .lighthouse-server.log 2>&1 &
+          echo $! > .lighthouse-server.pid
+
+      - name: Wait for server ready
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:3000/ -o /dev/null; then
+              echo "Server ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server did not become ready in 60s"
+          tail -n 100 .lighthouse-server.log || true
+          exit 1
+
+      - name: Run Lighthouse CI
+        run: npx --yes @lhci/cli@0.14.x autorun --config=./.lighthouserc.json
+
+      - name: Stop next
+        if: always()
+        run: |
+          if [ -f .lighthouse-server.pid ]; then
+            kill "$(cat .lighthouse-server.pid)" || true
+          fi
+
+      - name: Upload Lighthouse report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: lighthouse-report-${{ github.sha }}
+          path: .lighthouseci
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload server log on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: lighthouse-server-log-${{ github.sha }}
+          path: .lighthouse-server.log
+          retention-days: 7
+          if-no-files-found: ignore
