@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { trackAnalyticsEvent } from '@/lib/analytics'
 
 export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null)
@@ -38,6 +39,10 @@ export default function RegisterPage() {
     }
 
     const result = await res.json()
+    trackAnalyticsEvent('sign_up', {
+      method: 'credentials',
+      user_role: 'CUSTOMER',
+    })
     setSuccessMessage(result.message || 'Cuenta creada. Revisa tu email para verificar tu cuenta.')
     setLoading(false)
   }

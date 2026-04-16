@@ -1,7 +1,10 @@
+import { capturePostHog } from '@/lib/posthog'
+
 export type AnalyticsEventName =
   | 'page_view'
   | 'view_item'
   | 'search'
+  | 'filter_used'
   | 'add_to_cart'
   | 'begin_checkout'
   | 'purchase'
@@ -17,6 +20,11 @@ export type AnalyticsEventName =
   | 'pwa_ios_hint_shown'
   | 'pwa_ios_hint_dismissed'
   | 'pwa_share_target_received'
+  | 'seller_signup_completed'
+  | 'seller_profile_completed'
+  | 'seller_product_created'
+  | 'seller_product_published'
+  | 'seller_order_received'
 
 export interface AnalyticsItemInput {
   id: string
@@ -76,7 +84,20 @@ export function trackAnalyticsEvent(event: AnalyticsEventName | string, payload:
   if (typeof window.gtag === 'function') {
     window.gtag('event', event, sanitizedPayload)
   }
+
+  // PostHog fan-out. PostHog manages its own pageview capture via
+  // capture_pageview: true, so we skip forwarding page_view here to avoid
+  // duplicates.
+  if (event !== 'page_view') {
+    capturePostHog(event, sanitizedPayload)
+  }
 }
+
+/**
+ * Thin alias that matches the PostHog integration spec. Prefer this name in
+ * new call sites; both resolve to the same dual-sink pipeline.
+ */
+export const trackEvent = trackAnalyticsEvent
 
 export function trackPageView(path: string, title?: string) {
   trackAnalyticsEvent('page_view', {

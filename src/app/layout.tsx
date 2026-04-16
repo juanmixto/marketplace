@@ -7,6 +7,7 @@ import { siteAppearance } from '@/lib/brand'
 import { Suspense } from 'react'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { AnalyticsProvider } from '@/components/analytics/AnalyticsProvider'
+import { PostHogProvider } from '@/components/analytics/PostHogProvider'
 import { THEME_COLORS } from '@/lib/theme'
 import { SITE_METADATA_BASE } from '@/lib/seo'
 import { SessionProvider } from '@/components/SessionProvider'
@@ -87,6 +88,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <Suspense fallback={null}>
                 <AnalyticsProvider />
               </Suspense>
+              <PostHogProvider />
               <PwaRegister />
               <UpdateToast />
               {children}
