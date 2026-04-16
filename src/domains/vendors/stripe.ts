@@ -4,7 +4,15 @@ import { requireVendor } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
 import Stripe from 'stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+// Lazy-initialize so module load (e.g. via the @/domains/vendors barrel
+// in tests) does not require STRIPE_SECRET_KEY to be set.
+let stripeInstance: Stripe | null = null
+function getStripe() {
+  if (!stripeInstance) {
+    stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY!)
+  }
+  return stripeInstance
+}
 
 export async function createStripeConnectLink(): Promise<string> {
   const session = await requireVendor()
@@ -16,7 +24,7 @@ export async function createStripeConnectLink(): Promise<string> {
   // Crear cuenta Express si no existe
   let accountId = vendor.stripeAccountId
   if (!accountId) {
-    const account = await stripe.accounts.create({
+    const account = await getStripe().accounts.create({
       type: 'express',
       country: 'ES',
       email: session.user.email,
@@ -39,7 +47,7 @@ export async function createStripeConnectLink(): Promise<string> {
     process.env.NEXTAUTH_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
     'http://localhost:3000'
-  const accountLink = await stripe.accountLinks.create({
+  const accountLink = await getStripe().accountLinks.create({
     account: accountId,
     refresh_url: `${baseUrl}/vendor/perfil?stripe=refresh`,
     return_url: `${baseUrl}/vendor/perfil?stripe=success`,
@@ -58,7 +66,7 @@ export async function verifyStripeOnboarding(): Promise<boolean> {
 
   if (!vendor.stripeAccountId) return false
 
-  const account = await stripe.accounts.retrieve(vendor.stripeAccountId)
+  const account = await getStripe().accounts.retrieve(vendor.stripeAccountId)
   const isComplete =
     account.details_submitted && !account.requirements?.currently_due?.length
 
@@ -83,7 +91,7 @@ export async function getStripeAccountStatus() {
     return { status: 'not_started', onboarded: false }
   }
 
-  const account = await stripe.accounts.retrieve(vendor.stripeAccountId)
+  const account = await getStripe().accounts.retrieve(vendor.stripeAccountId)
   const isComplete =
     account.details_submitted && !account.requirements?.currently_due?.length
 
