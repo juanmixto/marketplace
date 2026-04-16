@@ -30,9 +30,10 @@
  * LRU trim at MAX_STATIC_ENTRIES keeps the cache from growing unbounded.
  */
 
-const SW_VERSION = 'mp-sw-v3'
+const SW_VERSION = 'mp-sw-v4'
 const OFFLINE_CACHE = 'mp-offline-v1'
 const STATIC_CACHE = 'mp-static-v1'
+const PREFETCH_CACHE = 'mp-prefetch-v1'
 const OFFLINE_URL = '/offline'
 const MAX_STATIC_ENTRIES = 60
 
@@ -89,7 +90,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
-      const allowed = new Set([OFFLINE_CACHE, STATIC_CACHE])
+      const allowed = new Set([OFFLINE_CACHE, STATIC_CACHE, PREFETCH_CACHE])
       const keys = await caches.keys()
       await Promise.all(
         keys.filter((k) => !allowed.has(k)).map((k) => caches.delete(k))
@@ -188,7 +189,6 @@ self.addEventListener('push', (event) => {
     badge: '/icons/icon-192.png',
     tag: payload.tag || 'mp-default',
     data: { url: payload.url || '/' },
-    // Vibrate on Android: short-long-short pattern for notifications.
     vibrate: [100, 50, 100],
   }
 
@@ -205,15 +205,44 @@ self.addEventListener('notificationclick', (event) => {
     self.clients
       .matchAll({ type: 'window', includeUncontrolled: true })
       .then((windowClients) => {
-        // If a tab with the target URL is already open, focus it.
         for (const client of windowClients) {
           if (client.url === fullUrl && 'focus' in client) {
             return client.focus()
           }
         }
-        // Otherwise, open a new tab/window.
         return self.clients.openWindow(fullUrl)
       })
+  )
+})
+
+// ── Periodic Background Sync ─────────────────────────────────────────────
+
+const PERIODIC_SYNC_TAG = 'mp-catalog-prefetch'
+
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag !== PERIODIC_SYNC_TAG) return
+
+  event.waitUntil(
+    (async () => {
+      const conn = navigator.connection
+      if (conn && conn.saveData) return
+      if (conn && (conn.effectiveType === 'slow-2g' || conn.effectiveType === '2g')) return
+
+      try {
+        const response = await fetch('/api/catalog/featured?limit=12')
+        if (!response.ok) return
+
+        const cache = await caches.open(PREFETCH_CACHE)
+        await cache.put('/api/catalog/featured?limit=12', response)
+
+        const clients = await self.clients.matchAll({ type: 'window' })
+        for (const client of clients) {
+          client.postMessage({ type: 'catalog-prefetched' })
+        }
+      } catch {
+        // Network failure during background sync — silently skip.
+      }
+    })()
   )
 })
 
