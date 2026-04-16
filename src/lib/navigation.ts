@@ -38,6 +38,7 @@ export const adminNavItems: AppNavItem[] = [
   { href: '/admin/liquidaciones', label: 'Liquidaciones', available: true },
   { href: '/admin/incidencias', label: 'Incidencias', available: true },
   { href: '/admin/informes', label: 'Informes', available: true },
+  { href: '/admin/analytics', label: 'Analytics', available: true },
 ]
 
 export const buyerAccountItems: AppNavItem[] = [

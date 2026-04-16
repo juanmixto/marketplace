@@ -301,6 +301,10 @@ export interface SubscriptionCheckoutInput {
     marketplacePlanId: string
     marketplaceBuyerId: string
     marketplaceShippingAddressId: string
+    // Optional ISO timestamp. When present, the webhook/confirm flow
+    // uses this as the first delivery date instead of the cadence
+    // default. Propagated through both the mock URL and Stripe metadata.
+    marketplaceFirstDeliveryAt?: string
   }
 }
 
@@ -336,6 +340,14 @@ export async function createSubscriptionCheckoutSession(
     const url = new URL(input.successUrl)
     url.searchParams.set('mock_session', id)
     url.searchParams.set('planId', input.metadata.marketplacePlanId)
+    // Carry the shipping address id so the confirmation handler on the
+    // return page can upsert the local Subscription row without firing a
+    // real Stripe webhook. In real mode this information lives in the
+    // Checkout Session metadata and arrives via customer.subscription.created.
+    url.searchParams.set('addressId', input.metadata.marketplaceShippingAddressId)
+    if (input.metadata.marketplaceFirstDeliveryAt) {
+      url.searchParams.set('firstDelivery', input.metadata.marketplaceFirstDeliveryAt)
+    }
     return { id, url: `${url.pathname}${url.search}` }
   }
 

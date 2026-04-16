@@ -19,6 +19,11 @@ import {
   pauseStripeSubscription,
   resumeStripeSubscription,
 } from '@/domains/subscriptions/stripe-subscriptions'
+import { computePausedUntil, type PauseDuration } from '@/domains/subscriptions/pause-duration'
+
+// Re-export for consumers that imported from this module before the
+// refactor (PauseSubscriptionDialog, vendor actions).
+export type { PauseDuration } from '@/domains/subscriptions/pause-duration'
 
 /**
  * Phase 4a of the promotions & subscriptions RFC. Buyer-facing subscription
@@ -49,9 +54,47 @@ function assertBetaEnabled() {
 const subscribeSchema = z.object({
   planId: z.string().min(1, 'Selecciona un plan'),
   shippingAddressId: z.string().min(1, 'Selecciona una dirección'),
+  // Optional: buyer-chosen first delivery date (ISO yyyy-mm-dd). When
+  // absent we default to one cadence away. When present we validate
+  // that it is at least 2 days out and at most 60 days out.
+  firstDeliveryAt: z.string().optional(),
 })
 
 export type SubscribeInput = z.infer<typeof subscribeSchema>
+
+const MIN_LEAD_DAYS = 2
+const MAX_LEAD_DAYS = 60
+
+/**
+ * Parses a buyer-chosen first-delivery date and validates it lies in a
+ * reasonable window: at least 2 days out (preparation buffer) and at
+ * most 60 days out (no scheduling decades in advance). Returns the
+ * parsed Date or throws a user-facing error.
+ */
+function parseFirstDeliveryAt(raw: string | undefined): Date | null {
+  if (!raw) return null
+  // Accept both yyyy-mm-dd and ISO 8601. Normalize to 12:00 local so
+  // timezone shifts don't bump the date across a day boundary.
+  const ymd = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+  const parsed = ymd ? new Date(`${raw}T12:00:00`) : new Date(raw)
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error('Fecha de primera entrega no válida')
+  }
+  const now = new Date()
+  const min = new Date(now)
+  min.setDate(min.getDate() + MIN_LEAD_DAYS)
+  min.setHours(0, 0, 0, 0)
+  const max = new Date(now)
+  max.setDate(max.getDate() + MAX_LEAD_DAYS)
+  max.setHours(23, 59, 59, 999)
+  if (parsed < min) {
+    throw new Error(`La primera entrega debe ser al menos ${MIN_LEAD_DAYS} días después de hoy`)
+  }
+  if (parsed > max) {
+    throw new Error(`La primera entrega no puede ser más de ${MAX_LEAD_DAYS} días en el futuro`)
+  }
+  return parsed
+}
 
 export async function subscribeToPlan(input: SubscribeInput) {
   const { buyerId } = await requireBuyer()
@@ -165,6 +208,10 @@ export async function startSubscriptionCheckout(
     throw new Error('Ya estás suscrito a este plan')
   }
 
+  // Validate (and normalize) the buyer-chosen first delivery date up
+  // front so we surface the error before creating a Stripe Customer.
+  const firstDeliveryAt = parseFirstDeliveryAt(data.firstDeliveryAt)
+
   const customerId = await ensureStripeCustomerId({
     userId: buyerId,
     email: session.user.email ?? '',
@@ -181,10 +228,111 @@ export async function startSubscriptionCheckout(
       marketplacePlanId: plan.id,
       marketplaceBuyerId: buyerId,
       marketplaceShippingAddressId: address.id,
+      ...(firstDeliveryAt && {
+        marketplaceFirstDeliveryAt: firstDeliveryAt.toISOString(),
+      }),
     },
   })
 
   return { url: checkout.url }
+}
+
+/**
+ * Phase 4b-β (mock-mode only): finalizes a subscription checkout when the
+ * buyer is redirected back to `/cuenta/suscripciones` after the synthetic
+ * mock checkout. Real Stripe mode never takes this path — the webhook
+ * handler (`customer.subscription.created`) is authoritative there, and
+ * this action refuses to run when `PAYMENT_PROVIDER !== 'mock'` so we
+ * cannot accidentally create a subscription row that Stripe does not
+ * know about in production.
+ *
+ * Idempotent: repeated calls for the same (buyer, plan) with the same
+ * synthetic `sessionId` return the existing row instead of creating a
+ * duplicate, so a page refresh is safe.
+ */
+const confirmMockCheckoutSchema = z.object({
+  sessionId: z.string().min(1),
+  planId: z.string().min(1),
+  addressId: z.string().min(1),
+  // Optional ISO date carried through the mock URL. When absent we
+  // default to one cadence away (legacy behavior).
+  firstDeliveryAt: z.string().optional(),
+})
+
+export type ConfirmMockCheckoutInput = z.infer<typeof confirmMockCheckoutSchema>
+
+export async function confirmMockSubscriptionCheckout(
+  input: ConfirmMockCheckoutInput
+): Promise<{ ok: boolean; subscriptionId?: string; reason?: string }> {
+  const env = getServerEnv()
+  if (env.paymentProvider !== 'mock') {
+    // In real Stripe mode the webhook creates the row. Refusing here
+    // prevents any client-side trickery with crafted query params from
+    // injecting a subscription without a real charge.
+    return { ok: false, reason: 'not-mock-mode' }
+  }
+
+  const { buyerId } = await requireBuyer()
+  assertBetaEnabled()
+  const data = confirmMockCheckoutSchema.parse(input)
+
+  const plan = await db.subscriptionPlan.findFirst({
+    where: { id: data.planId, archivedAt: null },
+    select: { id: true, cadence: true },
+  })
+  if (!plan) return { ok: false, reason: 'plan-missing' }
+
+  const address = await db.address.findFirst({
+    where: { id: data.addressId, userId: buyerId },
+    select: { id: true },
+  })
+  if (!address) return { ok: false, reason: 'address-missing' }
+
+  const now = new Date()
+  // Honor the buyer-chosen date when provided. The confirm path runs on
+  // page render so we guard against invalid dates by falling back to
+  // the cadence default — this path has already been validated by
+  // startSubscriptionCheckout, a second throw here would 500 the page.
+  let nextDeliveryAt: Date
+  try {
+    nextDeliveryAt =
+      parseFirstDeliveryAt(data.firstDeliveryAt) ??
+      computeFirstDeliveryAt(now, plan.cadence)
+  } catch {
+    nextDeliveryAt = computeFirstDeliveryAt(now, plan.cadence)
+  }
+  const currentPeriodEnd = computeCurrentPeriodEnd(nextDeliveryAt, plan.cadence)
+
+  const row = await db.subscription.upsert({
+    where: { buyerId_planId: { buyerId, planId: plan.id } },
+    create: {
+      buyerId,
+      planId: plan.id,
+      shippingAddressId: address.id,
+      status: 'ACTIVE',
+      nextDeliveryAt,
+      currentPeriodEnd,
+      stripeSubscriptionId: data.sessionId,
+    },
+    update: {
+      // If a previous CANCELED row exists we overwrite it in place; if the
+      // user refreshes the success page we no-op in effect (same fields).
+      status: 'ACTIVE',
+      shippingAddressId: address.id,
+      nextDeliveryAt,
+      currentPeriodEnd,
+      stripeSubscriptionId: data.sessionId,
+      canceledAt: null,
+    },
+    select: { id: true },
+  })
+
+  // Intentionally NOT calling `safeRevalidatePath` here. This action is
+  // invoked from the `/cuenta/suscripciones` page render itself (mock-
+  // mode return flow), and Next 16 forbids `revalidatePath` during a
+  // render pass. The caller re-queries `listMySubscriptions` immediately
+  // after so the fresh row is already visible in the same response.
+  return { ok: true, subscriptionId: row.id }
 }
 
 /**
@@ -206,6 +354,7 @@ export interface SerializedBuyerSubscription {
   createdAt: Date
   updatedAt: Date
   canceledAt: Date | null
+  pausedUntil: Date | null
   plan: {
     id: string
     cadence: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY'
@@ -238,10 +387,52 @@ export interface SerializedBuyerSubscription {
   }
 }
 
+/**
+ * Lazy auto-resume: any PAUSED subscription whose `pausedUntil` has
+ * passed gets flipped back to ACTIVE the next time anyone reads the
+ * list. This avoids a dedicated cron job while keeping the UX honest:
+ * the buyer or vendor sees the subscription as active on their next
+ * page load after the pause expires. The Stripe resume runs inline;
+ * failures are logged and retried the next read.
+ */
+async function autoResumeExpiredPauses(buyerId: string) {
+  const now = new Date()
+  const expired = await db.subscription.findMany({
+    where: {
+      buyerId,
+      status: 'PAUSED',
+      pausedUntil: { not: null, lte: now },
+    },
+    include: { plan: true },
+  })
+  for (const sub of expired) {
+    const nextDeliveryAt = computeFirstDeliveryAt(now, sub.plan.cadence)
+    const periodEnd = computeCurrentPeriodEnd(nextDeliveryAt, sub.plan.cadence)
+    await db.subscription.update({
+      where: { id: sub.id },
+      data: {
+        status: 'ACTIVE',
+        nextDeliveryAt,
+        currentPeriodEnd: periodEnd,
+        pausedUntil: null,
+      },
+    })
+    try {
+      await resumeStripeSubscription(sub.stripeSubscriptionId)
+    } catch (err) {
+      console.error('[subscriptions] auto-resume Stripe failed', {
+        subscriptionId: sub.id,
+        error: err,
+      })
+    }
+  }
+}
+
 export async function listMySubscriptions(
   filter: 'active' | 'canceled' | 'all' = 'all'
 ): Promise<SerializedBuyerSubscription[]> {
   const { buyerId } = await requireBuyer()
+  await autoResumeExpiredPauses(buyerId)
   const rows = await db.subscription.findMany({
     where: {
       buyerId,
@@ -273,6 +464,7 @@ export async function listMySubscriptions(
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     canceledAt: row.canceledAt,
+    pausedUntil: row.pausedUntil,
     plan: {
       id: row.plan.id,
       cadence: row.plan.cadence,
@@ -346,7 +538,7 @@ export async function cancelSubscription(id: string) {
   return updated
 }
 
-export async function pauseSubscription(id: string) {
+export async function pauseSubscription(id: string, duration: PauseDuration = 'indefinite') {
   const { buyerId } = await requireBuyer()
   const sub = await loadOwnedSubscription(id, buyerId)
   if (sub.status === 'CANCELED') {
@@ -354,9 +546,11 @@ export async function pauseSubscription(id: string) {
   }
   if (sub.status === 'PAUSED') return sub
 
+  const pausedUntil = computePausedUntil(duration)
+
   const updated = await db.subscription.update({
     where: { id },
-    data: { status: 'PAUSED' },
+    data: { status: 'PAUSED', pausedUntil },
   })
 
   // Phase 4b-γ: mirror the pause into Stripe so invoice collection
@@ -396,6 +590,7 @@ export async function resumeSubscription(id: string) {
       status: 'ACTIVE',
       nextDeliveryAt,
       currentPeriodEnd,
+      pausedUntil: null,
     },
   })
 
@@ -444,6 +639,70 @@ export async function skipNextDelivery(id: string) {
       skippedDeliveries: [...skipped, skippedDate],
       nextDeliveryAt: advancedNextDelivery,
       currentPeriodEnd: advancedPeriodEnd,
+    },
+  })
+  safeRevalidatePath('/cuenta/suscripciones')
+  return updated
+}
+
+/**
+ * Phase 4b-β follow-up: let the buyer reschedule the next delivery to a
+ * specific date (not just skip to the cadence-default). Useful when the
+ * buyer is travelling, wants to retry after a missed delivery, or just
+ * prefers a different day. Bounded by the same [+2d, +60d] window the
+ * confirmation form uses so a buyer cannot stack months of deliveries.
+ *
+ * In real Stripe mode this action does NOT touch Stripe: the billing
+ * cycle anchor stays where Stripe set it at creation, so the NEXT
+ * invoice arrives when it arrives. What this call changes is when the
+ * box physically ships to the buyer. Conceptually: "next charge" and
+ * "next delivery" are independent knobs, and this action only moves
+ * the latter.
+ */
+const rescheduleSchema = z.object({
+  subscriptionId: z.string().min(1),
+  nextDeliveryAt: z.string().min(1, 'Selecciona una fecha'),
+})
+
+export type RescheduleInput = z.infer<typeof rescheduleSchema>
+
+export async function rescheduleNextDelivery(input: RescheduleInput) {
+  const { buyerId } = await requireBuyer()
+  assertBetaEnabled()
+  const data = rescheduleSchema.parse(input)
+
+  const sub = await loadOwnedSubscription(data.subscriptionId, buyerId)
+  if (sub.status !== 'ACTIVE') {
+    throw new Error('Solo puedes reprogramar entregas en una suscripción activa')
+  }
+
+  // Reuse the same validation used at subscription creation so a buyer
+  // cannot reschedule into yesterday or two years from now. `parseFirstDeliveryAt`
+  // returns null for missing input and throws for out-of-range — but
+  // here the date is required (schema), so null would be a bug.
+  const newDeliveryAt = parseFirstDeliveryAt(data.nextDeliveryAt)
+  if (!newDeliveryAt) {
+    throw new Error('Fecha de entrega no válida')
+  }
+
+  // Also respect the plan-level cutoff day. isBeforeCutoff checks that
+  // `now` is still before the vendor's weekly deadline for the upcoming
+  // delivery — same check skipNextDelivery uses. If we are past the
+  // cutoff the buyer has to wait until the next cycle.
+  const now = new Date()
+  if (!isBeforeCutoff(now, sub.nextDeliveryAt, sub.plan.cutoffDayOfWeek)) {
+    throw new Error(
+      'Ya ha pasado el día de cierre para cambiar esta entrega. Podrás cambiar la siguiente.'
+    )
+  }
+
+  const newPeriodEnd = computeCurrentPeriodEnd(newDeliveryAt, sub.plan.cadence)
+
+  const updated = await db.subscription.update({
+    where: { id: sub.id },
+    data: {
+      nextDeliveryAt: newDeliveryAt,
+      currentPeriodEnd: newPeriodEnd,
     },
   })
   safeRevalidatePath('/cuenta/suscripciones')

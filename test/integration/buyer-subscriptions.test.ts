@@ -5,6 +5,7 @@ import {
   listMySubscriptions,
   cancelSubscription,
   pauseSubscription,
+  rescheduleNextDelivery,
   resumeSubscription,
   skipNextDelivery,
   getMySubscription,
@@ -260,6 +261,125 @@ test('skipNextDelivery refuses once the buyer is past the cutoff day for the nex
   })
 
   await assert.rejects(() => skipNextDelivery(sub.id), /cierre/i)
+})
+
+function ymdInDays(days: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+test('rescheduleNextDelivery sets nextDeliveryAt to the chosen date on an ACTIVE sub', async () => {
+  const { plan } = await createPlan({ cadence: 'WEEKLY' })
+  const { buyer, address } = await createBuyerWithAddress()
+  useTestSession(buildSession(buyer.id, 'CUSTOMER'))
+  const sub = await subscribeToPlan({ planId: plan.id, shippingAddressId: address.id })
+
+  // Pick a date 10 days out — inside the [+2d, +60d] window.
+  const target = ymdInDays(10)
+  const updated = await rescheduleNextDelivery({
+    subscriptionId: sub.id,
+    nextDeliveryAt: target,
+  })
+
+  const updatedYmd = updated.nextDeliveryAt.toISOString().slice(0, 10)
+  assert.equal(updatedYmd, target)
+})
+
+test('rescheduleNextDelivery rejects a PAUSED subscription', async () => {
+  const { plan } = await createPlan()
+  const { buyer, address } = await createBuyerWithAddress()
+  useTestSession(buildSession(buyer.id, 'CUSTOMER'))
+  const sub = await subscribeToPlan({ planId: plan.id, shippingAddressId: address.id })
+  await pauseSubscription(sub.id)
+
+  await assert.rejects(
+    () =>
+      rescheduleNextDelivery({
+        subscriptionId: sub.id,
+        nextDeliveryAt: ymdInDays(10),
+      }),
+    /activa/i,
+  )
+})
+
+test('rescheduleNextDelivery rejects a CANCELED subscription', async () => {
+  const { plan } = await createPlan()
+  const { buyer, address } = await createBuyerWithAddress()
+  useTestSession(buildSession(buyer.id, 'CUSTOMER'))
+  const sub = await subscribeToPlan({ planId: plan.id, shippingAddressId: address.id })
+  await cancelSubscription(sub.id)
+
+  await assert.rejects(
+    () =>
+      rescheduleNextDelivery({
+        subscriptionId: sub.id,
+        nextDeliveryAt: ymdInDays(10),
+      }),
+    /activa/i,
+  )
+})
+
+test('rescheduleNextDelivery rejects a date less than 2 days away', async () => {
+  const { plan } = await createPlan()
+  const { buyer, address } = await createBuyerWithAddress()
+  useTestSession(buildSession(buyer.id, 'CUSTOMER'))
+  const sub = await subscribeToPlan({ planId: plan.id, shippingAddressId: address.id })
+
+  await assert.rejects(
+    () =>
+      rescheduleNextDelivery({
+        subscriptionId: sub.id,
+        // Tomorrow — fails the MIN_LEAD_DAYS guard.
+        nextDeliveryAt: ymdInDays(1),
+      }),
+    /2 días/i,
+  )
+})
+
+test('rescheduleNextDelivery rejects a date more than 60 days away', async () => {
+  const { plan } = await createPlan()
+  const { buyer, address } = await createBuyerWithAddress()
+  useTestSession(buildSession(buyer.id, 'CUSTOMER'))
+  const sub = await subscribeToPlan({ planId: plan.id, shippingAddressId: address.id })
+
+  await assert.rejects(
+    () =>
+      rescheduleNextDelivery({
+        subscriptionId: sub.id,
+        nextDeliveryAt: ymdInDays(90),
+      }),
+    /60 días/i,
+  )
+})
+
+test('rescheduleNextDelivery rejects when past the plan cutoff day for the current week', async () => {
+  // Same cutoff trick skipNextDelivery uses: force the cutoff to a day
+  // that already happened this week.
+  const { plan } = await createPlan()
+  const { buyer, address } = await createBuyerWithAddress()
+  useTestSession(buildSession(buyer.id, 'CUSTOMER'))
+  const sub = await subscribeToPlan({ planId: plan.id, shippingAddressId: address.id })
+
+  const sixHoursAhead = new Date(Date.now() + 6 * 60 * 60 * 1000)
+  await db.subscription.update({
+    where: { id: sub.id },
+    data: { nextDeliveryAt: sixHoursAhead },
+  })
+  const twoDaysAgoDow = (new Date().getUTCDay() + 5) % 7
+  await db.subscriptionPlan.update({
+    where: { id: plan.id },
+    data: { cutoffDayOfWeek: twoDaysAgoDow },
+  })
+
+  await assert.rejects(
+    () =>
+      rescheduleNextDelivery({
+        subscriptionId: sub.id,
+        nextDeliveryAt: ymdInDays(10),
+      }),
+    /cierre/i,
+  )
 })
 
 test('listMySubscriptions scopes by buyer and filter', async () => {

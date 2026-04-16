@@ -6,7 +6,16 @@ import { db } from '@/lib/db'
 import { getActionSession } from '@/lib/action-session'
 import { isVendor } from '@/lib/roles'
 import { safeRevalidatePath } from '@/lib/revalidate'
-import { provisionPlanPrice } from '@/domains/subscriptions/stripe-subscriptions'
+import {
+  advanceByCadence,
+  computeCurrentPeriodEnd,
+  isBeforeCutoff,
+} from '@/domains/subscriptions/cadence'
+import {
+  pauseStripeSubscription,
+  provisionPlanPrice,
+  resumeStripeSubscription,
+} from '@/domains/subscriptions/stripe-subscriptions'
 
 /**
  * Phase 3 of the promotions & subscriptions RFC
@@ -25,6 +34,12 @@ async function requireVendor() {
 }
 
 const SUBSCRIPTION_CADENCES = ['WEEKLY', 'BIWEEKLY', 'MONTHLY'] as const
+
+function cadenceLabel(cadence: (typeof SUBSCRIPTION_CADENCES)[number]): string {
+  if (cadence === 'WEEKLY') return 'semanal'
+  if (cadence === 'BIWEEKLY') return 'quincenal'
+  return 'mensual'
+}
 
 const subscriptionPlanSchema = z.object({
   productId: z.string().min(1, 'Selecciona un producto'),
@@ -61,19 +76,26 @@ export async function createSubscriptionPlan(input: SubscriptionPlanInput) {
     )
   }
 
-  // Unique-by-product: a product already wired to a plan blocks a second
-  // plan. The @@unique on productId would raise a P2002 error anyway, but
-  // the explicit check yields a friendlier message.
+  // Unique-by-(product, cadence): a product can now have one plan per
+  // cadence (phase 4b-β — multi-cadence). We refuse a second plan with
+  // the SAME cadence for the same product, but we allow e.g. (cesta,
+  // WEEKLY) to coexist with (cesta, BIWEEKLY). The @@unique at the DB
+  // level would raise P2002 anyway — the explicit check yields a
+  // friendlier, cadence-aware message.
   const existing = await db.subscriptionPlan.findUnique({
-    where: { productId: data.productId },
+    where: {
+      productId_cadence: { productId: data.productId, cadence: data.cadence },
+    },
     select: { id: true, archivedAt: true },
   })
   if (existing && !existing.archivedAt) {
-    throw new Error('Este producto ya tiene un plan de suscripción activo')
+    throw new Error(
+      `Este producto ya tiene un plan ${cadenceLabel(data.cadence)} activo`,
+    )
   }
   if (existing && existing.archivedAt) {
     throw new Error(
-      'Este producto tiene un plan archivado. Reactívalo desde la lista en lugar de crear uno nuevo.'
+      `Este producto tiene un plan ${cadenceLabel(data.cadence)} archivado. Reactívalo desde la lista en lugar de crear uno nuevo.`,
     )
   }
 
@@ -94,8 +116,8 @@ export async function createSubscriptionPlan(input: SubscriptionPlanInput) {
   // plan so phase 4b-β can create Subscriptions that reference it. The
   // provisioning runs AFTER the row is committed — if Stripe rejects the
   // request (invalid key, outage, bad data) we clean up the orphan row
-  // so the vendor can retry without hitting the @@unique([productId])
-  // constraint.
+  // so the vendor can retry without hitting the
+  // @@unique([productId, cadence]) constraint.
   try {
     const provisioning = await provisionPlanPrice({
       planId: plan.id,
@@ -155,6 +177,11 @@ export interface SerializedSubscriptionPlanListRow {
     images: string[]
     unit: string
   }
+  // Aggregates surfaced on the vendor list for the "profesionalizado" header
+  // & per-row stats. Phase 3 is vendor-only so these will be 0 until phase 4
+  // flips the buyer-side beta flag, but the UI is ready for real data.
+  activeSubscribersCount: number
+  nextDeliveryAt: Date | null
 }
 
 type SubscriptionPlanListRowFromDb = Awaited<
@@ -174,7 +201,11 @@ type SubscriptionPlanListRowFromDb = Awaited<
 >
 
 function serializePlanListRow(
-  row: NonNullable<SubscriptionPlanListRowFromDb>
+  row: NonNullable<SubscriptionPlanListRowFromDb>,
+  aggregates: { activeSubscribersCount: number; nextDeliveryAt: Date | null } = {
+    activeSubscribersCount: 0,
+    nextDeliveryAt: null,
+  },
 ): SerializedSubscriptionPlanListRow {
   return {
     id: row.id,
@@ -189,6 +220,8 @@ function serializePlanListRow(
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     product: row.product,
+    activeSubscribersCount: aggregates.activeSubscribersCount,
+    nextDeliveryAt: aggregates.nextDeliveryAt,
   }
 }
 
@@ -210,7 +243,168 @@ export async function listMySubscriptionPlans(
       },
     },
   })
-  return rows.map(serializePlanListRow)
+
+  const planIds = rows.map(r => r.id)
+  // Two small aggregates per plan: ACTIVE subscriber count (for the KPI
+  // header and per-row stat) and the earliest nextDeliveryAt across active
+  // subscriptions (for the "próxima entrega" hint). groupBy keeps this to
+  // two queries instead of N.
+  const [countsByPlan, earliestByPlan] = planIds.length
+    ? await Promise.all([
+        db.subscription.groupBy({
+          by: ['planId'],
+          where: { planId: { in: planIds }, status: 'ACTIVE' },
+          _count: { _all: true },
+        }),
+        db.subscription.groupBy({
+          by: ['planId'],
+          where: { planId: { in: planIds }, status: 'ACTIVE' },
+          _min: { nextDeliveryAt: true },
+        }),
+      ])
+    : [[], []]
+
+  const countMap = new Map(countsByPlan.map(c => [c.planId, c._count._all]))
+  const nextMap = new Map(earliestByPlan.map(e => [e.planId, e._min.nextDeliveryAt ?? null]))
+
+  return rows.map(row =>
+    serializePlanListRow(row, {
+      activeSubscribersCount: countMap.get(row.id) ?? 0,
+      nextDeliveryAt: nextMap.get(row.id) ?? null,
+    }),
+  )
+}
+
+export interface VendorSubscriptionChurnStats {
+  canceledThisMonth: number
+  // Denominator for the simple rate the KPI card displays: active at the
+  // start of the month + canceled during the month. This matches the
+  // "rolling monthly churn" definition most SaaS dashboards show. Zero
+  // means we don't have enough data yet — the UI renders a dash instead
+  // of a misleading 0%.
+  denominator: number
+}
+
+/**
+ * Aggregates the vendor's monthly churn so the dashboard KPI card can show
+ * "bajas este mes" alongside the active count. Computed in a single pair
+ * of queries rather than looping over plans so it stays cheap as the
+ * vendor scales.
+ */
+export async function getMyMonthlyChurnStats(): Promise<VendorSubscriptionChurnStats> {
+  const { vendor } = await requireVendor()
+  const now = new Date()
+  const firstOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+
+  const [canceledThisMonth, stillActive] = await Promise.all([
+    db.subscription.count({
+      where: {
+        plan: { vendorId: vendor.id },
+        canceledAt: { gte: firstOfMonth },
+      },
+    }),
+    db.subscription.count({
+      where: {
+        plan: { vendorId: vendor.id },
+        status: { in: ['ACTIVE', 'PAUSED', 'PAST_DUE'] },
+      },
+    }),
+  ])
+
+  return {
+    canceledThisMonth,
+    denominator: stillActive + canceledThisMonth,
+  }
+}
+
+export interface SerializedVendorSubscriber {
+  id: string
+  status: 'ACTIVE' | 'PAUSED' | 'CANCELED' | 'PAST_DUE'
+  nextDeliveryAt: Date
+  currentPeriodEnd: Date
+  createdAt: Date
+  buyer: {
+    id: string
+    firstName: string
+    lastName: string
+    email: string
+  }
+  shippingAddress: {
+    id: string
+    line1: string
+    line2: string | null
+    city: string
+    province: string
+    postalCode: string
+    country: string
+    phone: string | null
+  }
+  plan: {
+    id: string
+    cadence: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY'
+    priceSnapshot: number
+    product: { id: string; name: string; slug: string; unit: string }
+  }
+}
+
+/**
+ * Returns every subscription attached to one of the current vendor's plans
+ * so they can see *who* to ship to, not just aggregate counts. Used by the
+ * "Suscriptores" drill-down page linked from the vendor subscriptions
+ * dashboard. Pass `planId` to scope to a single plan.
+ */
+export async function listMySubscribers(
+  planId?: string,
+): Promise<SerializedVendorSubscriber[]> {
+  const { vendor } = await requireVendor()
+
+  const rows = await db.subscription.findMany({
+    where: {
+      plan: { vendorId: vendor.id },
+      ...(planId ? { planId } : {}),
+      status: { in: ['ACTIVE', 'PAUSED', 'PAST_DUE'] },
+    },
+    orderBy: [{ status: 'asc' }, { nextDeliveryAt: 'asc' }],
+    include: {
+      buyer: { select: { id: true, firstName: true, lastName: true, email: true } },
+      shippingAddress: {
+        select: {
+          id: true,
+          line1: true,
+          line2: true,
+          city: true,
+          province: true,
+          postalCode: true,
+          country: true,
+          phone: true,
+        },
+      },
+      plan: {
+        select: {
+          id: true,
+          cadence: true,
+          priceSnapshot: true,
+          product: { select: { id: true, name: true, slug: true, unit: true } },
+        },
+      },
+    },
+  })
+
+  return rows.map(row => ({
+    id: row.id,
+    status: row.status,
+    nextDeliveryAt: row.nextDeliveryAt,
+    currentPeriodEnd: row.currentPeriodEnd,
+    createdAt: row.createdAt,
+    buyer: row.buyer,
+    shippingAddress: row.shippingAddress,
+    plan: {
+      id: row.plan.id,
+      cadence: row.plan.cadence,
+      priceSnapshot: Number(row.plan.priceSnapshot),
+      product: row.plan.product,
+    },
+  }))
 }
 
 export async function getMySubscriptionPlan(planId: string) {
@@ -330,6 +524,165 @@ export async function unarchiveSubscriptionPlan(planId: string) {
     data: { archivedAt: null },
   })
 
+  safeRevalidatePath('/vendor/suscripciones')
+  return updated
+}
+
+/**
+ * Loads a subscription that belongs to a plan owned by the current
+ * vendor. Returns the full row needed by the lifecycle actions below.
+ * Throws a generic 404-ish error if the vendor does not own the plan —
+ * we deliberately do not leak "exists but not yours" vs "does not exist".
+ */
+async function loadVendorOwnedSubscription(subscriptionId: string, vendorId: string) {
+  const sub = await db.subscription.findFirst({
+    where: { id: subscriptionId, plan: { vendorId } },
+    include: {
+      plan: {
+        select: {
+          id: true,
+          cadence: true,
+          cutoffDayOfWeek: true,
+          product: { select: { id: true, name: true } },
+        },
+      },
+    },
+  })
+  if (!sub) throw new Error('Suscripción no encontrada')
+  return sub
+}
+
+/**
+ * Vendor-initiated "skip next delivery". Mirrors the buyer action but
+ * scoped to subscriptions on one of the vendor's own plans. Use case:
+ * the vendor has a supply issue on Friday (a hailstorm, a sick farmer,
+ * a late delivery from their own supplier) and needs to push the drop
+ * by one cadence without asking every buyer to click "skip" themselves.
+ *
+ * Same cutoff rule as the buyer action: we refuse once the cutoff day
+ * for the week has passed, because by then the pack-and-ship cycle is
+ * already in motion and an honest "skip" can't retroactively undo it.
+ */
+export async function skipNextDeliveryAsVendor(subscriptionId: string) {
+  const { vendor } = await requireVendor()
+  const sub = await loadVendorOwnedSubscription(subscriptionId, vendor.id)
+  if (sub.status !== 'ACTIVE') {
+    throw new Error('Solo puedes saltar entregas en una suscripción activa')
+  }
+
+  const now = new Date()
+  if (!isBeforeCutoff(now, sub.nextDeliveryAt, sub.plan.cutoffDayOfWeek)) {
+    throw new Error(
+      'Ya ha pasado el día de cierre para saltar esta entrega. Aplica a la próxima.'
+    )
+  }
+
+  const skipped = Array.isArray(sub.skippedDeliveries)
+    ? (sub.skippedDeliveries as unknown[]).filter((v): v is string => typeof v === 'string')
+    : []
+  const skippedDate = sub.nextDeliveryAt.toISOString().slice(0, 10)
+  if (skipped.includes(skippedDate)) return sub
+
+  const advancedNextDelivery = advanceByCadence(sub.nextDeliveryAt, sub.plan.cadence)
+  const advancedPeriodEnd = computeCurrentPeriodEnd(advancedNextDelivery, sub.plan.cadence)
+
+  const updated = await db.subscription.update({
+    where: { id: subscriptionId },
+    data: {
+      skippedDeliveries: [...skipped, skippedDate],
+      nextDeliveryAt: advancedNextDelivery,
+      currentPeriodEnd: advancedPeriodEnd,
+    },
+  })
+  safeRevalidatePath('/vendor/suscripciones/suscriptores')
+  safeRevalidatePath('/vendor/suscripciones')
+  return updated
+}
+
+/**
+ * Vendor-initiated pause. Stops the delivery cycle until the vendor (or
+ * the buyer) resumes. Intended for: the vendor goes on holiday, has a
+ * broken production line, or otherwise can't fulfil for a while. The
+ * buyer still sees their subscription as paused on their account.
+ *
+ * Mirrors the Stripe pause-collection logic from the buyer action.
+ */
+export async function pauseSubscriptionAsVendor(
+  subscriptionId: string,
+  duration: import('@/domains/subscriptions/pause-duration').PauseDuration = 'indefinite',
+) {
+  const { vendor } = await requireVendor()
+  const sub = await loadVendorOwnedSubscription(subscriptionId, vendor.id)
+  if (sub.status === 'CANCELED') {
+    throw new Error('No se puede pausar una suscripción cancelada')
+  }
+  if (sub.status === 'PAUSED') return sub
+
+  const { computePausedUntil } = await import('@/domains/subscriptions/pause-duration')
+  const pausedUntil = computePausedUntil(duration)
+
+  const updated = await db.subscription.update({
+    where: { id: subscriptionId },
+    data: { status: 'PAUSED', pausedUntil },
+  })
+
+  try {
+    await pauseStripeSubscription(sub.stripeSubscriptionId)
+  } catch (err) {
+    console.error('[subscriptions] Stripe vendor-pause failed — local row is paused, Stripe will need manual reconcile', {
+      subscriptionId,
+      stripeSubscriptionId: sub.stripeSubscriptionId,
+      error: err,
+    })
+  }
+
+  safeRevalidatePath('/vendor/suscripciones/suscriptores')
+  safeRevalidatePath('/vendor/suscripciones')
+  return updated
+}
+
+/**
+ * Vendor-initiated resume. Companion to pauseSubscriptionAsVendor so the
+ * vendor can un-pause without asking the buyer. Resets nextDeliveryAt to
+ * "one cadence from now" so the buyer gets the usual lead time, same
+ * policy as the buyer-side resume.
+ */
+export async function resumeSubscriptionAsVendor(subscriptionId: string) {
+  const { vendor } = await requireVendor()
+  const sub = await loadVendorOwnedSubscription(subscriptionId, vendor.id)
+  if (sub.status !== 'PAUSED') {
+    throw new Error('Solo puedes reanudar una suscripción pausada')
+  }
+
+  // Lazy-load the cadence helper to avoid a circular import through
+  // computeFirstDeliveryAt — actions.ts already imports the other
+  // helpers from the same module so this is safe.
+  const { computeFirstDeliveryAt } = await import('@/domains/subscriptions/cadence')
+  const now = new Date()
+  const nextDeliveryAt = computeFirstDeliveryAt(now, sub.plan.cadence)
+  const currentPeriodEnd = computeCurrentPeriodEnd(nextDeliveryAt, sub.plan.cadence)
+
+  const updated = await db.subscription.update({
+    where: { id: subscriptionId },
+    data: {
+      status: 'ACTIVE',
+      nextDeliveryAt,
+      currentPeriodEnd,
+      pausedUntil: null,
+    },
+  })
+
+  try {
+    await resumeStripeSubscription(sub.stripeSubscriptionId)
+  } catch (err) {
+    console.error('[subscriptions] Stripe vendor-resume failed — local row is active, Stripe will need manual reconcile', {
+      subscriptionId,
+      stripeSubscriptionId: sub.stripeSubscriptionId,
+      error: err,
+    })
+  }
+
+  safeRevalidatePath('/vendor/suscripciones/suscriptores')
   safeRevalidatePath('/vendor/suscripciones')
   return updated
 }

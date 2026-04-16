@@ -30,9 +30,10 @@
  * LRU trim at MAX_STATIC_ENTRIES keeps the cache from growing unbounded.
  */
 
-const SW_VERSION = 'mp-sw-v3'
+const SW_VERSION = 'mp-sw-v4'
 const OFFLINE_CACHE = 'mp-offline-v1'
 const STATIC_CACHE = 'mp-static-v1'
+const PREFETCH_CACHE = 'mp-prefetch-v1'
 const OFFLINE_URL = '/offline'
 const MAX_STATIC_ENTRIES = 60
 
@@ -89,7 +90,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
-      const allowed = new Set([OFFLINE_CACHE, STATIC_CACHE])
+      const allowed = new Set([OFFLINE_CACHE, STATIC_CACHE, PREFETCH_CACHE])
       const keys = await caches.keys()
       await Promise.all(
         keys.filter((k) => !allowed.has(k)).map((k) => caches.delete(k))
@@ -167,6 +168,157 @@ self.addEventListener('fetch', (event) => {
 
 self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') self.skipWaiting()
+})
+
+// ── Push Notifications ───────────────────────────────────────────────────
+
+self.addEventListener('push', (event) => {
+  if (!event.data) return
+
+  let payload
+  try {
+    payload = event.data.json()
+  } catch {
+    return
+  }
+
+  const title = payload.title || 'Mercado Productor'
+  const options = {
+    body: payload.body || '',
+    icon: payload.icon || '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: payload.tag || 'mp-default',
+    data: { url: payload.url || '/' },
+    vibrate: [100, 50, 100],
+  }
+
+  event.waitUntil(self.registration.showNotification(title, options))
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+
+  const targetUrl = event.notification.data?.url || '/'
+  const fullUrl = new URL(targetUrl, self.location.origin).href
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((windowClients) => {
+        for (const client of windowClients) {
+          if (client.url === fullUrl && 'focus' in client) {
+            return client.focus()
+          }
+        }
+        return self.clients.openWindow(fullUrl)
+      })
+  )
+})
+
+// ── Periodic Background Sync ─────────────────────────────────────────────
+
+const PERIODIC_SYNC_TAG = 'mp-catalog-prefetch'
+
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag !== PERIODIC_SYNC_TAG) return
+
+  event.waitUntil(
+    (async () => {
+      const conn = navigator.connection
+      if (conn && conn.saveData) return
+      if (conn && (conn.effectiveType === 'slow-2g' || conn.effectiveType === '2g')) return
+
+      try {
+        const response = await fetch('/api/catalog/featured?limit=12')
+        if (!response.ok) return
+
+        const cache = await caches.open(PREFETCH_CACHE)
+        await cache.put('/api/catalog/featured?limit=12', response)
+
+        const clients = await self.clients.matchAll({ type: 'window' })
+        for (const client of clients) {
+          client.postMessage({ type: 'catalog-prefetched' })
+        }
+      } catch {
+        // Network failure during background sync — silently skip.
+      }
+    })()
+  )
+})
+
+// ── Background Sync for failed mutations ─────────────────────────────────
+
+const SYNC_TAG = 'mp-cart-sync'
+const SYNC_DB_NAME = 'mp-sync-queue'
+const SYNC_STORE_NAME = 'pending'
+const SYNC_PROTECTED = ['/api/checkout', '/api/orders', '/api/stripe']
+
+function openSyncDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(SYNC_DB_NAME, 1)
+    request.onupgradeneeded = () => {
+      const db = request.result
+      if (!db.objectStoreNames.contains(SYNC_STORE_NAME)) {
+        db.createObjectStore(SYNC_STORE_NAME, { keyPath: 'id', autoIncrement: true })
+      }
+    }
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+self.addEventListener('sync', (event) => {
+  if (event.tag !== SYNC_TAG) return
+
+  event.waitUntil(
+    (async () => {
+      const db = await openSyncDB()
+      const tx = db.transaction(SYNC_STORE_NAME, 'readwrite')
+      const store = tx.objectStore(SYNC_STORE_NAME)
+
+      const entries = await new Promise((resolve, reject) => {
+        const req = store.getAll()
+        req.onsuccess = () => resolve(req.result)
+        req.onerror = () => reject(req.error)
+      })
+
+      const now = Date.now()
+
+      for (const entry of entries) {
+        if (now - entry.createdAt > entry.maxAge) {
+          store.delete(entry.id)
+          continue
+        }
+
+        const url = new URL(entry.url, self.location.origin)
+        if (SYNC_PROTECTED.some((p) => url.pathname.startsWith(p))) {
+          store.delete(entry.id)
+          continue
+        }
+
+        try {
+          const response = await fetch(entry.url, {
+            method: entry.method,
+            body: entry.body,
+            headers: entry.headers,
+          })
+
+          if (response.ok || response.status === 409) {
+            store.delete(entry.id)
+          }
+        } catch {
+          // Network still down — leave in queue.
+        }
+      }
+
+      db.close()
+
+      const clients = await self.clients.matchAll({ type: 'window' })
+      for (const client of clients) {
+        client.postMessage({ type: 'sync-completed' })
+      }
+    })()
+  )
 })
 
 self.__SW_VERSION = SW_VERSION

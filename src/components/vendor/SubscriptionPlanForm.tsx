@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -11,6 +11,9 @@ import { useT } from '@/i18n'
 import type { TranslationKeys } from '@/i18n/locales'
 import { formatPrice } from '@/lib/utils'
 import { ProductPicker, type PickerProductStatus } from '@/components/vendor/ProductPicker'
+
+type Cadence = 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY'
+const ALL_CADENCES: Cadence[] = ['WEEKLY', 'BIWEEKLY', 'MONTHLY']
 
 const formSchema = z.object({
   productId: z.string().min(1, 'Selecciona un producto'),
@@ -30,6 +33,14 @@ interface Props {
     status: PickerProductStatus
   }[]
   /**
+   * Multi-cadence UX: for each product id, the list of cadences that
+   * already have an ACTIVE plan. The form uses this to dim taken rows
+   * in the product picker and to disable taken cadence buttons. Omitted
+   * in edit mode — the backend only lets you change `cutoffDayOfWeek`
+   * and the product+cadence are locked by the UI anyway.
+   */
+  takenCadencesByProduct?: Record<string, Cadence[] | undefined>
+  /**
    * Present only in edit mode. Product and cadence are locked (the
    * product is tied to the plan via @@unique, and the cadence is tied
    * to the immutable Stripe Price). Only the cutoff day can change.
@@ -40,19 +51,31 @@ interface Props {
     productName: string
     productUnit: string
     priceSnapshot: number
-    cadence: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY'
+    cadence: Cadence
     cutoffDayOfWeek: number
   }
 }
 
 const CADENCE_OPTIONS: {
-  value: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY'
+  value: Cadence
   labelKey: TranslationKeys
 }[] = [
   { value: 'WEEKLY',   labelKey: 'vendor.subscriptionPlans.cadenceWeekly'   },
   { value: 'BIWEEKLY', labelKey: 'vendor.subscriptionPlans.cadenceBiweekly' },
   { value: 'MONTHLY',  labelKey: 'vendor.subscriptionPlans.cadenceMonthly'  },
 ]
+
+function cadenceShortLabelKey(cadence: Cadence): TranslationKeys {
+  if (cadence === 'WEEKLY') return 'vendor.subscriptionPlans.cadenceWeekly'
+  if (cadence === 'BIWEEKLY') return 'vendor.subscriptionPlans.cadenceBiweekly'
+  return 'vendor.subscriptionPlans.cadenceMonthly'
+}
+
+function cadenceTakenLabelKey(cadence: Cadence): TranslationKeys {
+  if (cadence === 'WEEKLY') return 'vendor.subscriptionPlans.takenWeekly'
+  if (cadence === 'BIWEEKLY') return 'vendor.subscriptionPlans.takenBiweekly'
+  return 'vendor.subscriptionPlans.takenMonthly'
+}
 
 // Monday-first display order. The schema still stores the ISO day-of-week
 // value where Sunday=0 … Saturday=6, so the button value maps back to that.
@@ -66,13 +89,29 @@ const DAYS_MON_FIRST: { value: number; shortKey: TranslationKeys }[] = [
   { value: 0, shortKey: 'vendor.subscriptionPlans.dayShortSun' },
 ]
 
-export function SubscriptionPlanForm({ products, initial }: Props) {
+export function SubscriptionPlanForm({
+  products,
+  takenCadencesByProduct = {},
+  initial,
+}: Props) {
   const t = useT()
   const router = useRouter()
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   const isEdit = Boolean(initial)
+
+  // Helpers — "which cadences does THIS product have?" and the inverse.
+  const takenFor = (pid: string | undefined): Cadence[] =>
+    pid ? takenCadencesByProduct[pid] ?? [] : []
+  const availableFor = (pid: string | undefined): Cadence[] =>
+    ALL_CADENCES.filter(c => !takenFor(pid).includes(c))
+
+  // Pick a sensible initial default product: the first one that still has
+  // at least one free cadence. If none, fall back to the first product
+  // (the vendor will see the dimmed state and submit will also refuse).
+  const firstWithFreeCadence =
+    products.find(p => availableFor(p.id).length > 0)?.id ?? products[0]?.id ?? ''
 
   const {
     handleSubmit,
@@ -88,8 +127,8 @@ export function SubscriptionPlanForm({ products, initial }: Props) {
           cutoffDayOfWeek: initial.cutoffDayOfWeek,
         }
       : {
-          productId: products[0]?.id ?? '',
-          cadence: 'WEEKLY',
+          productId: firstWithFreeCadence,
+          cadence: availableFor(firstWithFreeCadence)[0] ?? 'WEEKLY',
           cutoffDayOfWeek: 5, // Friday — standard for Monday drops
         },
   })
@@ -98,6 +137,42 @@ export function SubscriptionPlanForm({ products, initial }: Props) {
   const cadence = watch('cadence')
   const cutoffDayOfWeek = watch('cutoffDayOfWeek')
   const selected = products.find(p => p.id === productId)
+
+  // When the vendor picks a product whose current cadence is already
+  // taken, auto-switch to the first free cadence so the form stays in
+  // a submittable state by default. Only runs in create mode — edit
+  // mode locks both fields.
+  useEffect(() => {
+    if (isEdit) return
+    if (!productId) return
+    const taken = takenFor(productId)
+    if (taken.includes(cadence)) {
+      const next = availableFor(productId)[0]
+      if (next) {
+        setValue('cadence', next, { shouldDirty: true, shouldValidate: true })
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId])
+
+  // Pre-compute the disabled-reason map for the product picker. Depends
+  // on the currently selected cadence: a product is only "blocked" if
+  // it already has the cadence the vendor is trying to add (or all
+  // three cadences, in which case we show a dedicated message).
+  const disabledReasonById = useMemo<Record<string, string | undefined>>(() => {
+    if (isEdit) return {}
+    const map: Record<string, string | undefined> = {}
+    for (const p of products) {
+      const taken = takenFor(p.id)
+      if (taken.length >= ALL_CADENCES.length) {
+        map[p.id] = t('vendor.subscriptionPlans.allCadencesPublished')
+      } else if (taken.includes(cadence)) {
+        map[p.id] = t(cadenceTakenLabelKey(cadence))
+      }
+    }
+    return map
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products, cadence, isEdit, takenCadencesByProduct, t])
 
   function onSubmit(values: FormValues) {
     setServerError(null)
@@ -161,6 +236,7 @@ export function SubscriptionPlanForm({ products, initial }: Props) {
             onChange={id => setValue('productId', id, { shouldDirty: true, shouldValidate: true })}
             placeholder={t('vendor.subscriptionPlans.formProduct')}
             allowClear={false}
+            disabledReasonById={disabledReasonById}
           />
         )}
         {isEdit && initial ? (
@@ -190,22 +266,30 @@ export function SubscriptionPlanForm({ products, initial }: Props) {
         >
           {CADENCE_OPTIONS.map(opt => {
             const active = cadence === opt.value
+            const takenForSelected = takenFor(productId)
+            const taken = !isEdit && takenForSelected.includes(opt.value)
+            const disabled = isEdit || taken
+            const title = taken
+              ? t('vendor.subscriptionPlans.cadenceAlreadyPublished')
+              : undefined
             return (
               <button
                 key={opt.value}
                 type="button"
                 role="radio"
                 aria-checked={active}
-                disabled={isEdit}
+                aria-disabled={disabled || undefined}
+                disabled={disabled}
+                title={title}
                 onClick={() => {
-                  if (isEdit) return
+                  if (disabled) return
                   setValue('cadence', opt.value, { shouldDirty: true, shouldValidate: true })
                 }}
-                className={`h-10 rounded-lg border px-3 text-sm font-semibold transition ${
+                className={`flex h-10 items-center justify-center gap-1 rounded-lg border px-3 text-sm font-semibold transition ${
                   active
                     ? 'border-emerald-500 bg-emerald-50 text-emerald-800 shadow-sm dark:border-emerald-400 dark:bg-emerald-950/40 dark:text-emerald-200'
                     : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]'
-                } ${isEdit && !active ? 'cursor-not-allowed opacity-50' : ''}`}
+                } ${disabled && !active ? 'cursor-not-allowed opacity-50 line-through' : ''}`}
               >
                 {t(opt.labelKey)}
               </button>
@@ -215,6 +299,16 @@ export function SubscriptionPlanForm({ products, initial }: Props) {
         {isEdit && (
           <p className="mt-1 text-xs text-[var(--muted)]">
             {t('vendor.subscriptionPlans.cadenceLocked')}
+          </p>
+        )}
+        {!isEdit && takenFor(productId).length > 0 && (
+          <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+            {t('vendor.subscriptionPlans.cadenceHintTaken').replace(
+              '{cadences}',
+              takenFor(productId)
+                .map(c => t(cadenceShortLabelKey(c)))
+                .join(', '),
+            )}
           </p>
         )}
       </Field>

@@ -205,6 +205,7 @@ model User {
   reviews                 Review[]
   favorites               Favorite[]
   subscriptions           Subscription[]
+  pushSubscriptions       PushSubscription[]
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
 
@@ -367,7 +368,10 @@ model Product {
   reviews           Review[]
   favorites         Favorite[]
   promotions        Promotion[]
-  subscriptionPlan  SubscriptionPlan?
+  // Multi-cadence (phase 4b-β follow-up): a product can now have more
+  // than one active SubscriptionPlan, one per cadence. The unique
+  // constraint is on (productId, cadence) — see model SubscriptionPlan.
+  subscriptionPlans SubscriptionPlan[]
 
   @@index([status, categoryId])
   @@index([vendorId, status])
@@ -638,6 +642,35 @@ model OrderEvent {
   @@index([orderId])
 }
 
+/// First-class delivery bookkeeping for webhook events. Lets the
+/// stripe webhook handler dedupe by `(provider, eventId)` via a real
+/// unique constraint instead of a JSON-path lookup against
+/// `OrderEvent.payload`. Created (insert + unique violation = duplicate)
+/// in the route handler before any business state mutation; updated to
+/// `processed` / `failed` after the handler returns. Replaces the
+/// dedupe responsibility of `OrderEvent` while leaving its
+/// business-event responsibility intact.
+///
+/// `payloadHash` is sha256(raw body), useful for forensic comparisons
+/// without storing the full payload (which can carry PII or card
+/// metadata depending on the provider).
+model WebhookDelivery {
+  id           String    @id @default(cuid())
+  provider     String    @default("stripe")
+  eventId      String
+  eventType    String
+  providerRef  String?
+  status       String    @default("received")
+  errorMessage String?
+  payloadHash  String?
+  receivedAt   DateTime  @default(now())
+  processedAt  DateTime?
+
+  @@unique([provider, eventId])
+  @@index([provider, eventType, receivedAt])
+  @@index([status, receivedAt])
+}
+
 /// Dead-letter queue for webhook events that could not be reconciled to an
 /// existing order/payment (e.g. Stripe sent a payment_intent.succeeded for a
 /// providerRef we have no Payment row for). An operator can query the
@@ -824,7 +857,12 @@ model SubscriptionPlan {
   id               String              @id @default(cuid())
   vendorId         String
   vendor           Vendor              @relation(fields: [vendorId], references: [id])
-  productId        String              @unique
+  // Multi-cadence: a single product can have up to one plan per cadence
+  // (e.g. weekly + biweekly + monthly). The unique constraint used to
+  // be on productId alone, which forced a single subscription offer
+  // per product. Phase 4b-β lifts that so buyers can pick the frequency
+  // they want on the confirmation page — see @@unique at the bottom.
+  productId        String
   product          Product             @relation(fields: [productId], references: [id])
 
   cadence          SubscriptionCadence
@@ -845,6 +883,13 @@ model SubscriptionPlan {
 
   subscriptions    Subscription[]
 
+  // Vendor can publish at most one ACTIVE plan per (product, cadence).
+  // A second plan with the same cadence on the same product would mean
+  // two concurrent recurring offers that only differ by id — banned at
+  // the DB level rather than trusting the app-layer check in
+  // createSubscriptionPlan. Different cadences coexist fine:
+  // (prod-cesta, WEEKLY) + (prod-cesta, BIWEEKLY) is valid.
+  @@unique([productId, cadence])
   @@index([vendorId, archivedAt])
 }
 
@@ -875,6 +920,21 @@ model Subscription {
 
   // Reserved for phase 4b.
   stripeSubscriptionId  String?            @unique
+
+  // Watermark for Stripe webhook ordering. Each accepted
+  // customer.subscription.* / invoice.* event sets this to its
+  // top-level event.created timestamp; subsequent events with an
+  // older `created` are dropped as out-of-order to prevent state
+  // regressions (e.g. a stale `updated(ACTIVE)` overwriting a
+  // newer `deleted(CANCELED)`). Stripe does not guarantee delivery
+  // order, so we cannot trust the arrival sequence.
+  lastStripeEventAt     DateTime?
+
+  // When set, the subscription auto-resumes on this date. Null means
+  // the pause is indefinite (the old behaviour). Populated by the
+  // "pause with duration" dialog so the vendor doesn't lose recurring
+  // revenue to forgotten pauses.
+  pausedUntil           DateTime?
 
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
@@ -975,6 +1035,23 @@ model PasswordResetToken {
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─── Push Notifications ──────────────────────────────────────────────────────
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String   @db.Text
+  auth      String   @db.Text
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

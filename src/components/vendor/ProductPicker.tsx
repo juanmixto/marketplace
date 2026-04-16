@@ -54,6 +54,14 @@ interface ProductPickerProps<P extends PickerProduct> {
   placeholder: string
   /** Allow clearing the selection via a first "none" row. */
   allowClear?: boolean
+  /**
+   * Optional: for each product id, a short reason (≤ ~40 chars) that
+   * marks the row as unselectable. The row still renders so the vendor
+   * sees *why* they can't pick it, but it's dimmed and click is a
+   * no-op. Used by the subscription plan form to indicate "Ya tiene
+   * plan semanal" or "Todas las cadencias publicadas".
+   */
+  disabledReasonById?: Record<string, string | undefined>
 }
 
 export function ProductPicker<P extends PickerProduct>({
@@ -62,6 +70,7 @@ export function ProductPicker<P extends PickerProduct>({
   onChange,
   placeholder,
   allowClear = true,
+  disabledReasonById,
 }: ProductPickerProps<P>) {
   const t = useT()
   const [open, setOpen] = useState(false)
@@ -84,6 +93,7 @@ export function ProductPicker<P extends PickerProduct>({
   }, [open])
 
   const selected = products.find(p => p.id === value) ?? null
+  const selectedReason = selected ? disabledReasonById?.[selected.id] : undefined
 
   return (
     <div ref={wrapperRef} className="relative">
@@ -95,11 +105,16 @@ export function ProductPicker<P extends PickerProduct>({
         className="flex h-10 w-full items-center justify-between gap-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
       >
         {selected ? (
-          <span className="flex min-w-0 items-center gap-2">
+          <span className="flex min-w-0 flex-1 items-center gap-2">
             <span className="truncate">{selected.name}</span>
             <Badge variant={productStatusBadgeVariant(selected.status)}>
               {t(productStatusLabelKey(selected.status))}
             </Badge>
+            {selectedReason && (
+              <span className="ml-auto truncate text-xs text-amber-700 dark:text-amber-400">
+                {selectedReason}
+              </span>
+            )}
           </span>
         ) : (
           <span className="text-[var(--muted)]">{placeholder}</span>
@@ -130,24 +145,42 @@ export function ProductPicker<P extends PickerProduct>({
           )}
           {products.map(p => {
             const selectedRow = p.id === value
+            const reason = disabledReasonById?.[p.id]
+            const disabled = Boolean(reason)
             return (
               <button
                 key={p.id}
                 type="button"
                 role="option"
                 aria-selected={selectedRow}
+                aria-disabled={disabled || undefined}
+                title={reason}
                 onClick={() => {
+                  if (disabled) return
                   onChange(p.id)
                   setOpen(false)
                 }}
-                className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm transition hover:bg-[var(--surface-raised)] ${
-                  selectedRow ? 'bg-[var(--surface-raised)]' : ''
-                }`}
+                className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition ${
+                  disabled
+                    ? 'cursor-not-allowed opacity-55'
+                    : 'hover:bg-[var(--surface-raised)]'
+                } ${selectedRow && !disabled ? 'bg-[var(--surface-raised)]' : ''}`}
               >
-                <span className="min-w-0 truncate text-[var(--foreground)]">{p.name}</span>
+                <span
+                  className={`min-w-0 truncate ${
+                    disabled ? 'text-[var(--muted)]' : 'text-[var(--foreground)]'
+                  }`}
+                >
+                  {p.name}
+                </span>
                 <Badge variant={productStatusBadgeVariant(p.status)}>
                   {t(productStatusLabelKey(p.status))}
                 </Badge>
+                {reason && (
+                  <span className="ml-auto shrink-0 truncate text-[11px] font-medium text-amber-700 dark:text-amber-400">
+                    {reason}
+                  </span>
+                )}
               </button>
             )
           })}

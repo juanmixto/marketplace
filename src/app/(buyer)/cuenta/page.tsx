@@ -8,6 +8,8 @@ import type { Metadata } from 'next'
 import { buyerAccountItems, buyerAccountMeta } from '@/lib/navigation'
 import { GDPRActions } from './GDPRActions'
 import { PendingReviewsBanner } from './PendingReviewsBanner'
+import PushOptIn from '@/components/pwa/PushOptIn'
+import { isPushEnabled } from '@/lib/pwa/push-config'
 import { getServerT } from '@/i18n/server'
 import type { TranslationKeys } from '@/i18n/locales'
 import { getPendingReviewsCount } from '@/domains/reviews/pending'
@@ -83,6 +85,16 @@ export default async function CuentaPage() {
           )
         })}
       </div>
+
+      {/* PWA — push notifications opt-in. Renders nothing when VAPID
+          is not configured on this instance. */}
+      {isPushEnabled && (
+        <div className="mt-8 space-y-4">
+          <h2 className="text-lg font-semibold text-[var(--foreground)]">{t('account.push.title')}</h2>
+          <p className="text-sm text-[var(--muted)]">{t('account.push.desc')}</p>
+          <PushOptIn />
+        </div>
+      )}
 
       {/* GDPR Privacy Section */}
       <div className="mt-8 space-y-4">

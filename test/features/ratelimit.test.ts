@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { checkRateLimit, getClientIP } from '@/lib/ratelimit'
+import { resetServerEnvCache } from '@/lib/env'
 
 test('checkRateLimit allows requests under limit and tracks remaining', async () => {
   const result1 = await checkRateLimit('rl-test-1', '10.0.0.1', 3, 60)
@@ -150,6 +151,7 @@ test('checkRateLimit uses Upstash when UPSTASH_REDIS_REST_URL is set', async () 
 
   process.env.UPSTASH_REDIS_REST_URL = 'https://upstash.example.com'
   process.env.UPSTASH_REDIS_REST_TOKEN = 'test-token'
+  resetServerEnvCache()
 
   let fetchCallCount = 0
 
@@ -185,6 +187,7 @@ test('checkRateLimit uses Upstash when UPSTASH_REDIS_REST_URL is set', async () 
     } else {
       process.env.UPSTASH_REDIS_REST_TOKEN = originalToken
     }
+    resetServerEnvCache()
   }
 })
 
@@ -195,6 +198,7 @@ test('checkRateLimit Upstash path returns failure when count exceeds limit', asy
 
   process.env.UPSTASH_REDIS_REST_URL = 'https://upstash.example.com'
   process.env.UPSTASH_REDIS_REST_TOKEN = 'test-token'
+  resetServerEnvCache()
 
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     const url = typeof input === 'string' ? input : input.toString()
@@ -223,6 +227,7 @@ test('checkRateLimit Upstash path returns failure when count exceeds limit', asy
     } else {
       process.env.UPSTASH_REDIS_REST_TOKEN = originalToken
     }
+    resetServerEnvCache()
   }
 })
 
@@ -235,6 +240,7 @@ test('checkRateLimit Upstash path degrades to in-memory fallback when Redis retu
 
   process.env.UPSTASH_REDIS_REST_URL = 'https://upstash.example.com'
   process.env.UPSTASH_REDIS_REST_TOKEN = 'test-token'
+  resetServerEnvCache()
   console.error = () => undefined
   console.warn = () => undefined
 
@@ -269,6 +275,7 @@ test('checkRateLimit Upstash path degrades to in-memory fallback when Redis retu
     } else {
       process.env.UPSTASH_REDIS_REST_TOKEN = originalToken
     }
+    resetServerEnvCache()
   }
 })
 
@@ -281,6 +288,7 @@ test('checkRateLimit Upstash path fails CLOSED for auth callers when fetch throw
 
   process.env.UPSTASH_REDIS_REST_URL = 'https://upstash.example.com'
   process.env.UPSTASH_REDIS_REST_TOKEN = 'test-token'
+  resetServerEnvCache()
   console.error = () => undefined
   console.warn = () => undefined
 
@@ -308,6 +316,7 @@ test('checkRateLimit Upstash path fails CLOSED for auth callers when fetch throw
     } else {
       process.env.UPSTASH_REDIS_REST_TOKEN = originalToken
     }
+    resetServerEnvCache()
   }
 })
 
@@ -320,6 +329,7 @@ test('checkRateLimit Upstash path fails CLOSED on malformed response for auth ca
 
   process.env.UPSTASH_REDIS_REST_URL = 'https://upstash.example.com'
   process.env.UPSTASH_REDIS_REST_TOKEN = 'test-token'
+  resetServerEnvCache()
   console.error = () => undefined
   console.warn = () => undefined
 
@@ -345,6 +355,7 @@ test('checkRateLimit Upstash path fails CLOSED on malformed response for auth ca
     } else {
       process.env.UPSTASH_REDIS_REST_TOKEN = originalToken
     }
+    resetServerEnvCache()
   }
 })
 

@@ -71,6 +71,10 @@ export default defineConfig({
           // forgiving. Use production for the prod path, test for dev.
           NODE_ENV: useProdServer ? 'production' : 'test',
           PAYMENT_PROVIDER: 'mock',
+          // Phase 4b-β: enable the buyer-side subscribe CTA + mutations so
+          // the subscriptions smoke can exercise the full mock checkout
+          // flow. No-op if the running server already has it set.
+          SUBSCRIPTIONS_BUYER_BETA: 'true',
         },
       },
 })
