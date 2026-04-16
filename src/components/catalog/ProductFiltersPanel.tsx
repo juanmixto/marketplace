@@ -9,6 +9,7 @@ import { translateCategoryLabel } from '@/lib/portals'
 import { getCatalogCopy, getLocalizedCertificationCopy } from '@/i18n/catalog-copy'
 import { Tooltip } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import { trackAnalyticsEvent } from '@/lib/analytics'
 
 const CERT_COLORS: Record<string, BadgeVariant> = {
   'ECO-ES': 'green',
@@ -45,20 +46,31 @@ export function ProductFiltersPanel({ categories, onClose }: Props) {
     if (value === null) p.delete(key)
     else p.set(key, value)
     p.delete('pagina')
+    trackAnalyticsEvent('filter_used', {
+      filter_type: key,
+      filter_value: value,
+      action: value === null ? 'clear' : 'set',
+    })
     router.push(`${pathname}?${p.toString()}`)
     onClose?.()
   }, [router, pathname, searchParams, onClose])
 
   const toggleCert = (cert: string) => {
     const current = searchParams.getAll('cert')
+    const wasActive = current.includes(cert)
     const p = new URLSearchParams(searchParams.toString())
     p.delete('cert')
-    if (current.includes(cert)) {
+    if (wasActive) {
       current.filter(c => c !== cert).forEach(c => p.append('cert', c))
     } else {
       [...current, cert].forEach(c => p.append('cert', c))
     }
     p.delete('pagina')
+    trackAnalyticsEvent('filter_used', {
+      filter_type: 'cert',
+      filter_value: cert,
+      action: wasActive ? 'remove' : 'add',
+    })
     router.push(`${pathname}?${p.toString()}`)
     onClose?.()
   }
