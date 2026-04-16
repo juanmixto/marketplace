@@ -224,7 +224,10 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
             {vendor.displayName} · {formatPrice(Number(subscription.plan.priceSnapshot))} / {product.unit}
           </p>
           {!isCanceled && (
-            <p className="mt-0.5 text-xs text-[var(--muted)]">
+            <p
+              className="mt-0.5 text-xs text-[var(--muted)]"
+              data-testid="subscription-next-delivery"
+            >
               {t('account.subscriptions.nextDeliveryLabel').replace(
                 '{date}',
                 formatDate(subscription.nextDeliveryAt)

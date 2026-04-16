@@ -93,10 +93,16 @@ test.describe('buyer subscription checkout @smoke', () => {
     // Dialog closes (no more dialog on screen).
     await expect(page.getByTestId('reschedule-subscription-dialog')).toHaveCount(0, { timeout: 10_000 })
 
-    // And the list row shows the new date. Format comes from
-    // Intl.DateTimeFormat('es-ES', { dateStyle: 'medium' }) —
-    // e.g. "4 may 2026". We assert on the day number which is stable.
+    // And the row's next-delivery line shows the new date. Format comes
+    // from Intl.DateTimeFormat('es-ES', { dateStyle: 'medium' }) — e.g.
+    // "6 may 2026". We scope to the subscription-next-delivery testid so
+    // we don't collide with the footer year, and match "<day> <month>"
+    // so the regex remains stable regardless of the current date.
     const day = target20.getDate()
-    await expect(page.getByText(new RegExp(`${day} `))).toBeVisible({ timeout: 10_000 })
+    const monthEs = target20.toLocaleDateString('es-ES', { month: 'short' }).replace('.', '')
+    await expect(page.getByTestId('subscription-next-delivery').first()).toContainText(
+      new RegExp(`${day}\\s+${monthEs}`, 'i'),
+      { timeout: 10_000 },
+    )
   })
 })
