@@ -16,7 +16,8 @@ test('expandSearchQuery normalizes case and whitespace', () => {
 
 test('expandSearchQuery translates a single English term to Spanish', () => {
   const out = expandSearchQuery('honey')
-  assert.deepEqual(out.sort(), ['honey', 'miel'].sort())
+  assert.ok(out.includes('honey'))
+  assert.ok(out.includes('miel'))
 })
 
 test('expandSearchQuery translates multi-word English phrases', () => {
@@ -39,7 +40,23 @@ test('expandSearchQuery handles 3-gram phrases (extra virgin olive oil)', () => 
 
 test('expandSearchQuery leaves Spanish queries untouched (no false expansion)', () => {
   const out = expandSearchQuery('miel')
-  assert.deepEqual(out, ['miel'])
+  // No English→Spanish entry fires, but the original term is always present
+  // and accent variants of it may be added for diacritic-insensitive search.
+  assert.ok(out.includes('miel'))
+  // All variants are accent-variants of "miel" itself, not unrelated entries.
+  assert.ok(out.every(term => term.replace(/[áéíóú]/g, c => 'aeiou'['áéíóú'.indexOf(c)]) === 'miel'))
+})
+
+test('expandSearchQuery is accent-insensitive (unaccented query → accented form)', () => {
+  // The whole point of accent expansion: typing "jamon" must surface rows
+  // whose name contains "jamón", and vice versa.
+  const unaccented = expandSearchQuery('jamon')
+  assert.ok(unaccented.includes('jamon'))
+  assert.ok(unaccented.includes('jamón'))
+
+  const accented = expandSearchQuery('jamón')
+  assert.ok(accented.includes('jamón'))
+  assert.ok(accented.includes('jamon'))
 })
 
 test('expandSearchQuery deduplicates repeated translations', () => {
