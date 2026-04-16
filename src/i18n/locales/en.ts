@@ -961,6 +961,8 @@ const en: Record<TranslationKeys, string> = {
   'account.comingSoon': 'Coming soon',
   'account.gdpr.title': 'Privacy and Data',
   'account.gdpr.desc': 'In accordance with GDPR, you have the right to access, export or delete your personal data.',
+  'account.push.title': 'Notifications',
+  'account.push.desc': 'Receive alerts about your orders and incidents directly on your device.',
 
   // Account – GDPR
   'account.deleteConfirmTitle': 'Confirm account deletion',

@@ -960,6 +960,8 @@ const es = {
   'account.comingSoon': 'Próximamente',
   'account.gdpr.title': 'Privacidad y Datos',
   'account.gdpr.desc': 'De conformidad con el RGPD, tienes derecho a acceder, exportar o eliminar tus datos personales.',
+  'account.push.title': 'Notificaciones',
+  'account.push.desc': 'Recibe avisos sobre el estado de tus pedidos e incidencias directamente en tu dispositivo.',
 
   // Account – GDPR
   'account.deleteConfirmTitle': 'Confirmación de eliminación de cuenta',
