@@ -8,6 +8,14 @@ export type AnalyticsEventName =
   | 'contact_submit'
   | 'sign_up'
   | 'add_to_favorites'
+  | 'pwa_installable'
+  | 'pwa_install_prompted'
+  | 'pwa_install_accepted'
+  | 'pwa_install_dismissed'
+  | 'pwa_installed'
+  | 'pwa_launched_standalone'
+  | 'pwa_ios_hint_shown'
+  | 'pwa_ios_hint_dismissed'
 
 export interface AnalyticsItemInput {
   id: string

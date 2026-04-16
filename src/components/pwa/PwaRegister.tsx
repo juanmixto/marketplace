@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { trackPwaEvent } from '@/lib/pwa/track'
 
 /**
  * Registers the service worker, captures the `beforeinstallprompt` event
@@ -15,6 +16,18 @@ export default function PwaRegister() {
     if (typeof window === 'undefined') return
     if (process.env.NODE_ENV !== 'production') return
     if (!('serviceWorker' in navigator)) return
+
+    // One-shot: if this session launched in standalone display mode, emit a
+    // funnel event so analytics can count installed launches separately
+    // from web sessions. iOS Safari exposes the flag on navigator instead
+    // of matchMedia.
+    const iosNav = navigator as Navigator & { standalone?: boolean }
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      iosNav.standalone === true
+    if (isStandalone) {
+      trackPwaEvent('pwa_launched_standalone')
+    }
 
     // Track whether a controllerchange reload has already fired so we
     // never reload twice in a row from a single SKIP_WAITING round-trip.
@@ -82,11 +95,13 @@ export default function PwaRegister() {
       // non-standard global type into the app.
       ;(window as unknown as { __pwaInstallPrompt?: Event }).__pwaInstallPrompt = e
       window.dispatchEvent(new CustomEvent('pwa:installable'))
+      trackPwaEvent('pwa_installable')
     }
 
     const onAppInstalled = () => {
       ;(window as unknown as { __pwaInstallPrompt?: Event }).__pwaInstallPrompt = undefined
       window.dispatchEvent(new CustomEvent('pwa:installed'))
+      trackPwaEvent('pwa_installed')
     }
 
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt)
