@@ -930,6 +930,12 @@ model Subscription {
   // order, so we cannot trust the arrival sequence.
   lastStripeEventAt     DateTime?
 
+  // When set, the subscription auto-resumes on this date. Null means
+  // the pause is indefinite (the old behaviour). Populated by the
+  // "pause with duration" dialog so the vendor doesn't lose recurring
+  // revenue to forgotten pauses.
+  pausedUntil           DateTime?
+
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
   canceledAt            DateTime?
