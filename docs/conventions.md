@@ -17,6 +17,19 @@ Last verified against `main`: 2026-04-15.
 - **Stripe v22** — Connect Express for vendors.
 - **Zod v4** — schema validation.
 
+### Strictness — current state and roadmap
+
+`tsconfig.json` enables `strict: true` plus `noFallthroughCasesInSwitch`, `noImplicitReturns`, `noUnusedLocals`, `noUnusedParameters`. **`noUncheckedIndexedAccess` is intentionally OFF**.
+
+A dry-run with the flag on (Phase 7 of the contract-hardening plan, captured in `tsconfig.strict.json`) surfaces **45 type errors** concentrated in:
+
+- `src/domains/promotions/checkout.ts` — 10 errors around cart-line iteration that needs guard-or-throw.
+- `src/app/(buyer)/cuenta/suscripciones/nueva/page.tsx` — 10 errors around the optional `sample` variant.
+- `src/components/catalog/ProductImageGallery.tsx` — 6 errors around `images[index]` access.
+- `src/components/{ui/modal,vendor/VendorProductPreview,layout/Footer,…}` — the rest are scattered single-digit hits.
+
+The flag will be enabled in a follow-up PR after these sites are fixed. To re-run the dry-run: `npx tsc -p tsconfig.strict.json --noEmit`.
+
 ---
 
 ## Imports — the ones that bite
