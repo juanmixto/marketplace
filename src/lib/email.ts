@@ -4,11 +4,12 @@
  */
 
 import { Resend } from 'resend'
+import { getServerEnv } from '@/lib/env'
 
 let resend: Resend | null = null
 
 function getResendClient() {
-  const apiKey = process.env.RESEND_API_KEY
+  const apiKey = getServerEnv().resendApiKey
 
   if (!apiKey) {
     return null
@@ -39,7 +40,7 @@ export async function sendEmail({
 
   try {
     const result = await client.emails.send({
-      from: process.env.EMAIL_FROM || 'no-reply@example.com',
+      from: getServerEnv().emailFrom,
       to,
       subject,
       react,
