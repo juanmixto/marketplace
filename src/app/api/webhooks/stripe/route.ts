@@ -1,9 +1,9 @@
+import { createHash } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import {
   assertProviderRefForPaymentStatus,
   doesWebhookPaymentMatchStoredPayment,
-  getWebhookIdempotencyKey,
   isMockWebhookAllowed,
   parseWebhookPaymentIntent,
   retryWebhookOperation,
@@ -95,15 +95,41 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Idempotency: skip events already recorded in OrderEvent by eventId
-  const idempotencyKey = getWebhookIdempotencyKey(event.id)
-  if (idempotencyKey) {
-    const alreadyProcessed = await db.orderEvent.findFirst({
-      where: { payload: { path: ['eventId'], equals: idempotencyKey } },
-      select: { id: true },
-    })
-    if (alreadyProcessed) {
-      return NextResponse.json({ received: true, skipped: 'duplicate' })
+  // Idempotency: try to insert a WebhookDelivery row. If the unique
+  // constraint on (provider, eventId) fires, it's a replay — skip.
+  // This replaces the previous JSON-path lookup against OrderEvent.payload
+  // and covers ALL event types (payment_intent.*, customer.subscription.*,
+  // invoice.*) uniformly. The per-subscription watermark from #417 is
+  // complementary: it catches out-of-order events with _different_ ids.
+  const eventId = event.id ?? null
+  let deliveryId: string | null = null
+  if (eventId) {
+    const payloadHash = createHash('sha256').update(body).digest('hex')
+    try {
+      const delivery = await db.webhookDelivery.create({
+        data: {
+          provider: 'stripe',
+          eventId,
+          eventType: event.type,
+          payloadHash,
+        },
+      })
+      deliveryId = delivery.id
+    } catch (insertError) {
+      const isDuplicate =
+        insertError instanceof Error && /P2002|Unique constraint/i.test(insertError.message)
+      if (isDuplicate) {
+        return NextResponse.json({ received: true, skipped: 'duplicate' })
+      }
+      // Non-duplicate DB error: log but don't block the webhook. Stripe
+      // will retry, and next time the insert might succeed. Failing open
+      // is safer than failing closed (which would make Stripe stop
+      // retrying and silently drop the event).
+      console.error('[stripe-webhook][delivery-insert-failed]', {
+        eventId,
+        eventType: event.type,
+        error: insertError instanceof Error ? insertError.message : String(insertError),
+      })
     }
   }
 
@@ -177,7 +203,27 @@ export async function POST(req: NextRequest) {
     }
   } catch (err) {
     console.error('[stripe-webhook]', err)
+    if (deliveryId) {
+      await db.webhookDelivery.update({
+        where: { id: deliveryId },
+        data: {
+          status: 'failed',
+          errorMessage: err instanceof Error ? err.message : String(err),
+        },
+      }).catch(updateErr => {
+        console.error('[stripe-webhook][delivery-update-failed]', updateErr)
+      })
+    }
     return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 })
+  }
+
+  if (deliveryId) {
+    await db.webhookDelivery.update({
+      where: { id: deliveryId },
+      data: { status: 'processed', processedAt: new Date() },
+    }).catch(updateErr => {
+      console.error('[stripe-webhook][delivery-update-failed]', updateErr)
+    })
   }
 
   return NextResponse.json({ received: true })
