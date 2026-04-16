@@ -5,7 +5,7 @@ import Credentials from 'next-auth/providers/credentials'
 import { db } from '@/lib/db'
 import { authConfig } from './auth-config'
 import { applyNormalizedAuthHostEnv } from './auth-host'
-import { authorizeCredentials } from '@/domains/auth/credentials'
+import { authorizeCredentials } from '@/domains/auth'
 
 applyNormalizedAuthHostEnv(process.env)
 
