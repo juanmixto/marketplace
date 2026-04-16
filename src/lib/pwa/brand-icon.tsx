@@ -4,9 +4,14 @@ type IconVariant = 'any' | 'maskable'
 
 /**
  * Renders the PWA brand mark at a given pixel size. `maskable` variants get a
- * ~18% safe-area padding so the icon survives OS shape masking.
+ * ~18% safe-area padding so the icon survives OS shape masking. `glyph` can
+ * override the default brand emoji for shortcut icons (🔍 / 🛒 / 📦).
  */
-export function renderBrandIcon(size: number, variant: IconVariant = 'any') {
+export function renderBrandIcon(
+  size: number,
+  variant: IconVariant = 'any',
+  glyph = '🌿'
+) {
   const padding = variant === 'maskable' ? size * 0.18 : size * 0.1
   const inner = size - padding * 2
   const radius = variant === 'maskable' ? 0 : size * 0.22
@@ -38,7 +43,7 @@ export function renderBrandIcon(size: number, variant: IconVariant = 'any') {
             lineHeight: 1,
           }}
         >
-          🌿
+          {glyph}
         </div>
       </div>
     ),
