@@ -619,6 +619,16 @@ const customerBlueprints = [
     lastName: 'Romero',
     password: 'cliente1234',
   },
+  {
+    // Extra demo customer reserved for dummy subscription instances on the
+    // vendor dashboard — keeping primaryCustomer (cliente@test.com) free of
+    // seeded subscriptions so the e2e smoke test can create its own without
+    // hitting the (buyerId, planId) unique.
+    email: 'laura@demo.com',
+    firstName: 'Laura',
+    lastName: 'Méndez',
+    password: 'cliente1234',
+  },
 ]
 
 const adminSideVendorBlueprints = [
@@ -973,8 +983,9 @@ async function main() {
   const primaryCustomer = customersByEmail.get('cliente@test.com')
   const secondaryCustomer = customersByEmail.get('marta@demo.com')
   const thirdCustomer = customersByEmail.get('javier@demo.com')
+  const lauraCustomer = customersByEmail.get('laura@demo.com')
 
-  if (!primaryCustomer || !secondaryCustomer || !thirdCustomer) {
+  if (!primaryCustomer || !secondaryCustomer || !thirdCustomer || !lauraCustomer) {
     throw new Error('No se pudieron crear los clientes demo')
   }
 
@@ -1074,6 +1085,37 @@ async function main() {
     },
   })
 
+  const lauraAddress = await db.address.upsert({
+    where: { id: 'addr-laura-main' },
+    update: {
+      userId: lauraCustomer.id,
+      label: 'Casa',
+      firstName: lauraCustomer.firstName,
+      lastName: lauraCustomer.lastName,
+      line1: 'Calle del Pintor Sorolla 7',
+      city: 'Valencia',
+      province: '46',
+      postalCode: '46002',
+      country: 'ES',
+      phone: '600321321',
+      isDefault: true,
+    },
+    create: {
+      id: 'addr-laura-main',
+      userId: lauraCustomer.id,
+      label: 'Casa',
+      firstName: lauraCustomer.firstName,
+      lastName: lauraCustomer.lastName,
+      line1: 'Calle del Pintor Sorolla 7',
+      city: 'Valencia',
+      province: '46',
+      postalCode: '46002',
+      country: 'ES',
+      phone: '600321321',
+      isDefault: true,
+    },
+  })
+
   // Dummy subscription instances so the vendor dashboard shows real
   // KPIs (suscriptores, MRR, próxima entrega) instead of all-zeros.
   // We stagger nextDeliveryAt across the next two weeks so the "próxima
@@ -1109,12 +1151,15 @@ async function main() {
       cadenceDays: number
       status?: 'ACTIVE' | 'PAUSED'
     }> = [
-      // Cesta mixta semanal — two subscribers, two different drop days
+      // Cesta mixta semanal — two subscribers, two different drop days.
+      // We use lauraCustomer (not primaryCustomer) because the e2e smoke
+      // test subscribes cliente@test.com to this exact plan and the
+      // (buyerId, planId) unique would reject it if we seeded a row first.
       {
-        id: 'sub-cesta-weekly-cliente',
-        buyerId: primaryCustomer.id,
+        id: 'sub-cesta-weekly-laura',
+        buyerId: lauraCustomer.id,
         planId: cestaWeeklyId!,
-        shippingAddressId: primaryAddress.id,
+        shippingAddressId: lauraAddress.id,
         nextDeliveryInDays: 2,
         periodEndInDays: 7,
         cadenceDays: 7,
@@ -1149,12 +1194,13 @@ async function main() {
         cadenceDays: 14,
         status: 'PAUSED',
       },
-      // Huevos semanal — three loyal customers, a popular recurring box
+      // Huevos semanal — three loyal customers, a popular recurring box.
+      // Same reason as cesta weekly: keep primaryCustomer free for e2e.
       {
-        id: 'sub-huevos-weekly-cliente',
-        buyerId: primaryCustomer.id,
+        id: 'sub-huevos-weekly-laura',
+        buyerId: lauraCustomer.id,
         planId: huevosWeeklyId!,
-        shippingAddressId: primaryAddress.id,
+        shippingAddressId: lauraAddress.id,
         nextDeliveryInDays: 3,
         periodEndInDays: 8,
         cadenceDays: 7,
