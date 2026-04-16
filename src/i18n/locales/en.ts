@@ -1222,6 +1222,8 @@ const en: Record<TranslationKeys, string> = {
   'pwa.update.title': 'New version available',
   'pwa.update.cta': 'Update now',
   'pwa.update.dismiss': 'Close',
+  'pwa.push.enable': 'Enable notifications',
+  'pwa.push.disable': 'Disable notifications',
 }
 
 export default en
