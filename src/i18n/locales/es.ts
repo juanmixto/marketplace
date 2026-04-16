@@ -1222,6 +1222,7 @@ const es = {
   'pwa.update.dismiss': 'Cerrar',
   'pwa.push.enable': 'Activar notificaciones',
   'pwa.push.disable': 'Desactivar notificaciones',
+  'pwa.offline.banner': 'Sin conexión — los cambios se guardarán cuando vuelvas a estar en línea',
 } as const satisfies Record<string, string>
 
 export default es

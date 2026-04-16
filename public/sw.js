@@ -246,4 +246,79 @@ self.addEventListener('periodicsync', (event) => {
   )
 })
 
+// ── Background Sync for failed mutations ─────────────────────────────────
+
+const SYNC_TAG = 'mp-cart-sync'
+const SYNC_DB_NAME = 'mp-sync-queue'
+const SYNC_STORE_NAME = 'pending'
+const SYNC_PROTECTED = ['/api/checkout', '/api/orders', '/api/stripe']
+
+function openSyncDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(SYNC_DB_NAME, 1)
+    request.onupgradeneeded = () => {
+      const db = request.result
+      if (!db.objectStoreNames.contains(SYNC_STORE_NAME)) {
+        db.createObjectStore(SYNC_STORE_NAME, { keyPath: 'id', autoIncrement: true })
+      }
+    }
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+self.addEventListener('sync', (event) => {
+  if (event.tag !== SYNC_TAG) return
+
+  event.waitUntil(
+    (async () => {
+      const db = await openSyncDB()
+      const tx = db.transaction(SYNC_STORE_NAME, 'readwrite')
+      const store = tx.objectStore(SYNC_STORE_NAME)
+
+      const entries = await new Promise((resolve, reject) => {
+        const req = store.getAll()
+        req.onsuccess = () => resolve(req.result)
+        req.onerror = () => reject(req.error)
+      })
+
+      const now = Date.now()
+
+      for (const entry of entries) {
+        if (now - entry.createdAt > entry.maxAge) {
+          store.delete(entry.id)
+          continue
+        }
+
+        const url = new URL(entry.url, self.location.origin)
+        if (SYNC_PROTECTED.some((p) => url.pathname.startsWith(p))) {
+          store.delete(entry.id)
+          continue
+        }
+
+        try {
+          const response = await fetch(entry.url, {
+            method: entry.method,
+            body: entry.body,
+            headers: entry.headers,
+          })
+
+          if (response.ok || response.status === 409) {
+            store.delete(entry.id)
+          }
+        } catch {
+          // Network still down — leave in queue.
+        }
+      }
+
+      db.close()
+
+      const clients = await self.clients.matchAll({ type: 'window' })
+      for (const client of clients) {
+        client.postMessage({ type: 'sync-completed' })
+      }
+    })()
+  )
+})
+
 self.__SW_VERSION = SW_VERSION
