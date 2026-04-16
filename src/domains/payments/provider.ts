@@ -31,11 +31,33 @@ export interface ConnectDestination {
   applicationFeeAmountCents: number
 }
 
+declare global {
+  // eslint-disable-next-line no-var
+  var __testCreatePaymentIntentOverride:
+    | ((amountCents: number) => Promise<PaymentIntent>)
+    | undefined
+}
+
+export function setTestCreatePaymentIntentOverride(
+  fn: ((amountCents: number) => Promise<PaymentIntent>) | undefined,
+): void {
+  globalThis.__testCreatePaymentIntentOverride = fn
+}
+
 export async function createPaymentIntent(
   amountCents: number,
   metadata: Record<string, string>,
   options?: { connect?: ConnectDestination }
 ): Promise<PaymentIntent> {
+  // Test-only injection point so integration tests can drive the
+  // provider-failure path without monkey-patching ES module exports
+  // or hitting the real Stripe SDK. Mirrors the test-session pattern
+  // in src/lib/action-session.ts. Production NODE_ENV ('production' /
+  // 'development') ignores the override even if it leaks.
+  if (process.env.NODE_ENV === 'test' && globalThis.__testCreatePaymentIntentOverride) {
+    return globalThis.__testCreatePaymentIntentOverride(amountCents)
+  }
+
   const env = getServerEnv()
 
   if (env.paymentProvider === 'mock') {
