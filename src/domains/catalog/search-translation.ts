@@ -166,7 +166,6 @@ const ACCENT_VARIANTS: Record<string, string[]> = {
   o: ['o', 'ó'],
   u: ['u', 'ú', 'ü'],
   n: ['n', 'ñ'],
-  c: ['c', 'ç'],
 }
 
 // Cap per-term explosion: 2^4 = 16 variants is plenty for typical Spanish
@@ -179,25 +178,39 @@ function wordAccentVariants(word: string): string[] {
   for (let i = 0; i < base.length; i++) {
     if (ACCENT_VARIANTS[base[i]]) positions.push(i)
   }
-  // Long words (manzana, chocolate…) blow past the cap. Rather than drop
-  // variation entirely, only vary the first few positions — typical Spanish
-  // accent marks sit on a single vowel so partial coverage still helps.
-  const effective = positions.slice(0, MAX_VARIANT_POSITIONS)
 
   const out = new Set<string>([word, base])
-  const chars = base.split('')
-  const emit = (idx: number) => {
-    if (idx === effective.length) {
-      out.add(chars.join(''))
-      return
+
+  if (positions.length <= MAX_VARIANT_POSITIONS) {
+    // Full cartesian for short tokens.
+    const chars = base.split('')
+    const emit = (idx: number) => {
+      if (idx === positions.length) {
+        out.add(chars.join(''))
+        return
+      }
+      const pos = positions[idx]
+      for (const variant of ACCENT_VARIANTS[base[pos]]) {
+        chars[pos] = variant
+        emit(idx + 1)
+      }
     }
-    const pos = effective[idx]
-    for (const variant of ACCENT_VARIANTS[base[pos]]) {
-      chars[pos] = variant
-      emit(idx + 1)
+    emit(0)
+  } else {
+    // Long tokens (calabacín, berenjena, mantequilla…) would blow up. Spanish
+    // words almost always carry at most one accented vowel on the stressed
+    // syllable, so emit "one accent at a time" variants over EVERY candidate
+    // position (including near the end) instead of truncating. This yields
+    // O(positions · variants) ≈ a dozen forms per word and, crucially,
+    // "calabacin" → "calabacín" still appears.
+    for (const pos of positions) {
+      for (const variant of ACCENT_VARIANTS[base[pos]]) {
+        if (variant === base[pos]) continue
+        out.add(base.slice(0, pos) + variant + base.slice(pos + 1))
+      }
     }
   }
-  emit(0)
+
   return Array.from(out)
 }
 
