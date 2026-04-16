@@ -16,6 +16,7 @@ export type AnalyticsEventName =
   | 'pwa_launched_standalone'
   | 'pwa_ios_hint_shown'
   | 'pwa_ios_hint_dismissed'
+  | 'pwa_share_target_received'
 
 export interface AnalyticsItemInput {
   id: string
