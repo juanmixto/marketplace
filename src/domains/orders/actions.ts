@@ -27,7 +27,10 @@ import {
 import { getShippingCost } from '@/domains/shipping/calculator'
 import { getActionSession } from '@/lib/action-session'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
-import { createPaymentConfirmedEventPayload } from '@/domains/orders/order-event-payload'
+import {
+  createPaymentConfirmedEventPayload,
+  createPaymentMismatchEventPayload,
+} from '@/domains/orders/order-event-payload'
 import {
   evaluatePromotions,
   type EvaluableCartLine,
@@ -766,6 +769,35 @@ export async function confirmOrder(orderId: string, providerRef: string) {
     providerRef: payment.providerRef,
     nextStatus: 'SUCCEEDED',
   })
+
+  // Defensive amount verification — symmetric with the webhook handler's
+  // doesWebhookPaymentMatchStoredPayment check. In mock mode the amount
+  // was computed server-side so this should never fire, but if confirmOrder
+  // is ever reused from another context the guard prevents confirming a
+  // Payment whose amount was tampered with between creation and confirmation.
+  const expectedAmountCents = Math.round(Number(payment.amount) * 100)
+  const orderGrandTotalCents = Math.round(Number(payment.order.grandTotal) * 100)
+  if (expectedAmountCents !== orderGrandTotalCents) {
+    console.error('[checkout][confirm][amount-mismatch]', {
+      orderId,
+      providerRef,
+      paymentAmount: Number(payment.amount),
+      orderGrandTotal: Number(payment.order.grandTotal),
+    })
+    await db.orderEvent.create({
+      data: {
+        orderId,
+        type: 'PAYMENT_MISMATCH',
+        payload: createPaymentMismatchEventPayload({
+          providerRef: providerRef ?? orderId,
+          amount: orderGrandTotalCents,
+          expectedAmount: Number(payment.amount),
+          expectedCurrency: payment.currency,
+        }),
+      },
+    })
+    throw new Error('La verificación del importe ha fallado. Contacta con soporte.')
+  }
 
   if (!shouldApplyPaymentSucceeded({
     paymentStatus: payment.status,
