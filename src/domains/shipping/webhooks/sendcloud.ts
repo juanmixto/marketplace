@@ -3,7 +3,7 @@ import { mapSendcloudStatus } from '@/domains/shipping/providers/sendcloud/mappe
 import {
   appendShipmentEvent,
   applyShipmentTransition,
-} from '@/domains/shipping/actions'
+} from '@/domains/shipping/transitions'
 import type { ShipmentStatusInternal } from '@/domains/shipping/domain/types'
 
 export { verifySendcloudSignature } from './signature'

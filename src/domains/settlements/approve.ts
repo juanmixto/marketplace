@@ -126,6 +126,11 @@ export async function adjustSettlement(
  * Get settlements pending review
  */
 export async function getPendingSettlements() {
+  const session = await getActionSession()
+  if (!session?.user || session.user.role !== 'SUPERADMIN') {
+    throw new Error('No autorizado')
+  }
+
   return db.settlement.findMany({
     where: { status: 'DRAFT' },
     include: {
