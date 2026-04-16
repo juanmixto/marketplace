@@ -39,7 +39,6 @@ const CALLBACK_ALLOWED_PREFIXES = [
 // Characters that must never appear in a callback path: control chars,
 // backslashes (some browsers normalize `\` → `/`), and `@` (userinfo
 // confusion against `new URL` parsers).
-// eslint-disable-next-line no-control-regex
 const CALLBACK_FORBIDDEN_CHARS = /[\x00-\x1f\x7f\\@]/
 
 export type CallbackRejectionReason =

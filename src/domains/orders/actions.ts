@@ -434,6 +434,7 @@ export async function createOrder(
             id: string
             stock: number | null
           }
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma $queryRaw tagged-template typing requires cast
           const [variant] = await (tx.$queryRaw as any)`
             SELECT id, stock FROM "ProductVariant"
             WHERE id = ${line.variantId}
@@ -457,6 +458,7 @@ export async function createOrder(
             id: string
             stock: number
           }
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma $queryRaw tagged-template typing requires cast
           const [lockedProduct] = await (tx.$queryRaw as any)`
             SELECT id, stock FROM "Product"
             WHERE id = ${line.productId}
@@ -543,6 +545,7 @@ export async function createOrder(
       // guard uses an explicit WHERE clause so maxRedemptions is enforced
       // at the SQL level rather than trusted from the in-memory snapshot.
       for (const applied of appliedByVendorId.values()) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma $executeRaw tagged-template typing requires cast
         const updated = await (tx.$executeRaw as any)`
           UPDATE "Promotion"
           SET "redemptionCount" = "redemptionCount" + 1,

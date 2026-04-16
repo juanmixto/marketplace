@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import Link from 'next/link'
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 
 interface ErrorProps {
@@ -49,12 +50,12 @@ export default function Error({ error, reset }: ErrorProps) {
           >
             Intentar de nuevo
           </button>
-          <a
+          <Link
             href="/"
             className="rounded-lg border-2 border-emerald-600 px-8 py-3 font-semibold text-emerald-600 transition-colors hover:bg-emerald-50 dark:border-emerald-400 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
           >
             Volver al inicio
-          </a>
+          </Link>
         </div>
       </div>
     </main>

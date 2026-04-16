@@ -123,6 +123,7 @@ export function DireccionesClient({
     setEditingId(address.id)
     Object.keys(address).forEach(key => {
       if (key !== 'id' && key !== 'createdAt' && key !== 'updatedAt') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic field copy; keys are filtered above
         setValue(key as keyof AddressForm, (address as any)[key])
       }
     })

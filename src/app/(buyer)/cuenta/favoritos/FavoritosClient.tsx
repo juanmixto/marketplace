@@ -16,7 +16,8 @@ interface FavoriteProduct {
     name: string
     slug: string
     images: string[]
-    basePrice: any // Prisma Decimal type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma Decimal serializes as object|string|number depending on transport
+    basePrice: any
     stock: number
     vendor: {
       displayName: string
@@ -56,6 +57,7 @@ export function FavoritosClient({ initialFavorites }: { initialFavorites: Favori
 
   const handleAddToCart = (fav: FavoriteProduct) => {
     const price = typeof fav.product.basePrice === 'object' && fav.product.basePrice !== null
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma Decimal $numberDecimal access
       ? Number(String((fav.product.basePrice as any).$numberDecimal || fav.product.basePrice))
       : Number(fav.product.basePrice || 0)
 
@@ -104,6 +106,7 @@ export function FavoritosClient({ initialFavorites }: { initialFavorites: Favori
           const imageUrl = fav.product.images?.[0] || ''
           const priceValue = fav.product.basePrice
           const priceString = typeof priceValue === 'object' && priceValue !== null
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma Decimal $numberDecimal access
             ? String((priceValue as any).$numberDecimal || priceValue)
             : String(priceValue || '0.00')
 
