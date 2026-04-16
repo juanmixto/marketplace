@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { useT } from '@/i18n'
+import { trackPwaEvent } from '@/lib/pwa/track'
 
 const DISMISS_KEY = 'mp.pwa.iosHint.dismissedAt'
 const DISMISS_TTL_MS = 14 * 24 * 60 * 60 * 1000 // 14 days
@@ -51,7 +52,10 @@ export default function IosInstallHint() {
     if (!isIosSafari()) return
     if (isStandalone()) return
     if (recentlyDismissed()) return
-    const id = window.setTimeout(() => setVisible(true), REVEAL_DELAY_MS)
+    const id = window.setTimeout(() => {
+      setVisible(true)
+      trackPwaEvent('pwa_ios_hint_shown')
+    }, REVEAL_DELAY_MS)
     return () => window.clearTimeout(id)
   }, [])
 
@@ -64,6 +68,7 @@ export default function IosInstallHint() {
       // ignore — private mode
     }
     setVisible(false)
+    trackPwaEvent('pwa_ios_hint_dismissed')
   }
 
   return (
