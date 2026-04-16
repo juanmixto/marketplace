@@ -19,6 +19,11 @@ import {
   pauseStripeSubscription,
   resumeStripeSubscription,
 } from '@/domains/subscriptions/stripe-subscriptions'
+import { computePausedUntil, type PauseDuration } from '@/domains/subscriptions/pause-duration'
+
+// Re-export for consumers that imported from this module before the
+// refactor (PauseSubscriptionDialog, vendor actions).
+export type { PauseDuration } from '@/domains/subscriptions/pause-duration'
 
 /**
  * Phase 4a of the promotions & subscriptions RFC. Buyer-facing subscription
@@ -531,15 +536,6 @@ export async function cancelSubscription(id: string) {
 
   safeRevalidatePath('/cuenta/suscripciones')
   return updated
-}
-
-export type PauseDuration = '1w' | '2w' | '1m' | 'indefinite'
-
-export function computePausedUntil(duration: PauseDuration): Date | null {
-  if (duration === 'indefinite') return null
-  const now = new Date()
-  const days = duration === '1w' ? 7 : duration === '2w' ? 14 : 30
-  return new Date(now.getTime() + days * 24 * 60 * 60 * 1000)
 }
 
 export async function pauseSubscription(id: string, duration: PauseDuration = 'indefinite') {

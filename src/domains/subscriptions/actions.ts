@@ -609,7 +609,7 @@ export async function skipNextDeliveryAsVendor(subscriptionId: string) {
  */
 export async function pauseSubscriptionAsVendor(
   subscriptionId: string,
-  duration: import('@/domains/subscriptions/buyer-actions').PauseDuration = 'indefinite',
+  duration: import('@/domains/subscriptions/pause-duration').PauseDuration = 'indefinite',
 ) {
   const { vendor } = await requireVendor()
   const sub = await loadVendorOwnedSubscription(subscriptionId, vendor.id)
@@ -618,7 +618,7 @@ export async function pauseSubscriptionAsVendor(
   }
   if (sub.status === 'PAUSED') return sub
 
-  const { computePausedUntil } = await import('@/domains/subscriptions/buyer-actions')
+  const { computePausedUntil } = await import('@/domains/subscriptions/pause-duration')
   const pausedUntil = computePausedUntil(duration)
 
   const updated = await db.subscription.update({

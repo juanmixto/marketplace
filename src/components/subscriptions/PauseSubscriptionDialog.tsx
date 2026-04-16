@@ -7,7 +7,7 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline'
 import { useT } from '@/i18n'
-import type { PauseDuration } from '@/domains/subscriptions/buyer-actions'
+import type { PauseDuration } from '@/domains/subscriptions/pause-duration'
 import type { TranslationKeys } from '@/i18n/locales'
 
 interface Props {

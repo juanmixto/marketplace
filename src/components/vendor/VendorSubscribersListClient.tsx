@@ -24,7 +24,7 @@ import {
   type listMySubscribers,
   type listMySubscriptionPlans,
 } from '@/domains/subscriptions/actions'
-import type { PauseDuration } from '@/domains/subscriptions/buyer-actions'
+import type { PauseDuration } from '@/domains/subscriptions/pause-duration'
 import { PauseSubscriptionDialog } from '@/components/subscriptions/PauseSubscriptionDialog'
 
 type Subscriber = Awaited<ReturnType<typeof listMySubscribers>>[number]
