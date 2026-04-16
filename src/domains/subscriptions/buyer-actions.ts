@@ -349,6 +349,7 @@ export interface SerializedBuyerSubscription {
   createdAt: Date
   updatedAt: Date
   canceledAt: Date | null
+  pausedUntil: Date | null
   plan: {
     id: string
     cadence: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY'
@@ -381,10 +382,52 @@ export interface SerializedBuyerSubscription {
   }
 }
 
+/**
+ * Lazy auto-resume: any PAUSED subscription whose `pausedUntil` has
+ * passed gets flipped back to ACTIVE the next time anyone reads the
+ * list. This avoids a dedicated cron job while keeping the UX honest:
+ * the buyer or vendor sees the subscription as active on their next
+ * page load after the pause expires. The Stripe resume runs inline;
+ * failures are logged and retried the next read.
+ */
+async function autoResumeExpiredPauses(buyerId: string) {
+  const now = new Date()
+  const expired = await db.subscription.findMany({
+    where: {
+      buyerId,
+      status: 'PAUSED',
+      pausedUntil: { not: null, lte: now },
+    },
+    include: { plan: true },
+  })
+  for (const sub of expired) {
+    const nextDeliveryAt = computeFirstDeliveryAt(now, sub.plan.cadence)
+    const periodEnd = computeCurrentPeriodEnd(nextDeliveryAt, sub.plan.cadence)
+    await db.subscription.update({
+      where: { id: sub.id },
+      data: {
+        status: 'ACTIVE',
+        nextDeliveryAt,
+        currentPeriodEnd: periodEnd,
+        pausedUntil: null,
+      },
+    })
+    try {
+      await resumeStripeSubscription(sub.stripeSubscriptionId)
+    } catch (err) {
+      console.error('[subscriptions] auto-resume Stripe failed', {
+        subscriptionId: sub.id,
+        error: err,
+      })
+    }
+  }
+}
+
 export async function listMySubscriptions(
   filter: 'active' | 'canceled' | 'all' = 'all'
 ): Promise<SerializedBuyerSubscription[]> {
   const { buyerId } = await requireBuyer()
+  await autoResumeExpiredPauses(buyerId)
   const rows = await db.subscription.findMany({
     where: {
       buyerId,
@@ -416,6 +459,7 @@ export async function listMySubscriptions(
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     canceledAt: row.canceledAt,
+    pausedUntil: row.pausedUntil,
     plan: {
       id: row.plan.id,
       cadence: row.plan.cadence,
@@ -489,7 +533,16 @@ export async function cancelSubscription(id: string) {
   return updated
 }
 
-export async function pauseSubscription(id: string) {
+export type PauseDuration = '1w' | '2w' | '1m' | 'indefinite'
+
+export function computePausedUntil(duration: PauseDuration): Date | null {
+  if (duration === 'indefinite') return null
+  const now = new Date()
+  const days = duration === '1w' ? 7 : duration === '2w' ? 14 : 30
+  return new Date(now.getTime() + days * 24 * 60 * 60 * 1000)
+}
+
+export async function pauseSubscription(id: string, duration: PauseDuration = 'indefinite') {
   const { buyerId } = await requireBuyer()
   const sub = await loadOwnedSubscription(id, buyerId)
   if (sub.status === 'CANCELED') {
@@ -497,9 +550,11 @@ export async function pauseSubscription(id: string) {
   }
   if (sub.status === 'PAUSED') return sub
 
+  const pausedUntil = computePausedUntil(duration)
+
   const updated = await db.subscription.update({
     where: { id },
-    data: { status: 'PAUSED' },
+    data: { status: 'PAUSED', pausedUntil },
   })
 
   // Phase 4b-γ: mirror the pause into Stripe so invoice collection
@@ -539,6 +594,7 @@ export async function resumeSubscription(id: string) {
       status: 'ACTIVE',
       nextDeliveryAt,
       currentPeriodEnd,
+      pausedUntil: null,
     },
   })
 

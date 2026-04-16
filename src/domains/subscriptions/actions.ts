@@ -607,7 +607,10 @@ export async function skipNextDeliveryAsVendor(subscriptionId: string) {
  *
  * Mirrors the Stripe pause-collection logic from the buyer action.
  */
-export async function pauseSubscriptionAsVendor(subscriptionId: string) {
+export async function pauseSubscriptionAsVendor(
+  subscriptionId: string,
+  duration: import('@/domains/subscriptions/buyer-actions').PauseDuration = 'indefinite',
+) {
   const { vendor } = await requireVendor()
   const sub = await loadVendorOwnedSubscription(subscriptionId, vendor.id)
   if (sub.status === 'CANCELED') {
@@ -615,9 +618,12 @@ export async function pauseSubscriptionAsVendor(subscriptionId: string) {
   }
   if (sub.status === 'PAUSED') return sub
 
+  const { computePausedUntil } = await import('@/domains/subscriptions/buyer-actions')
+  const pausedUntil = computePausedUntil(duration)
+
   const updated = await db.subscription.update({
     where: { id: subscriptionId },
-    data: { status: 'PAUSED' },
+    data: { status: 'PAUSED', pausedUntil },
   })
 
   try {
@@ -662,6 +668,7 @@ export async function resumeSubscriptionAsVendor(subscriptionId: string) {
       status: 'ACTIVE',
       nextDeliveryAt,
       currentPeriodEnd,
+      pausedUntil: null,
     },
   })
 

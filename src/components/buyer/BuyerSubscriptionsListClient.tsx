@@ -28,6 +28,8 @@ import {
 } from '@/domains/subscriptions/buyer-actions'
 import type { TranslationKeys } from '@/i18n/locales'
 import type { BadgeVariant } from '@/domains/catalog/types'
+import type { PauseDuration } from '@/domains/subscriptions/buyer-actions'
+import { PauseSubscriptionDialog } from '@/components/subscriptions/PauseSubscriptionDialog'
 
 type Subscription = Awaited<ReturnType<typeof listMySubscriptions>>[number]
 
@@ -148,6 +150,7 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [rescheduleOpen, setRescheduleOpen] = useState(false)
+  const [pauseDialogOpen, setPauseDialogOpen] = useState(false)
   const [rescheduleValue, setRescheduleValue] = useState<string>(() =>
     toYmd(new Date(subscription.nextDeliveryAt)),
   )
@@ -254,6 +257,19 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
               </span>
             </p>
           )}
+          {isPaused && subscription.pausedUntil && (
+            <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-300">
+              {t('account.subscriptions.pausedUntilLabel').replace(
+                '{date}',
+                formatDate(subscription.pausedUntil),
+              )}
+            </p>
+          )}
+          {isPaused && !subscription.pausedUntil && (
+            <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-300">
+              {t('account.subscriptions.pausedIndefinitely')}
+            </p>
+          )}
           {isCanceled && subscription.canceledAt && (
             <p className="mt-0.5 text-xs text-[var(--muted)]">
               {t('account.subscriptions.canceledOnLabel').replace(
@@ -296,7 +312,7 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
               </button>
               <button
                 type="button"
-                onClick={() => runAction(() => pauseSubscription(subscription.id))}
+                onClick={() => setPauseDialogOpen(true)}
                 disabled={pending}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 min-h-11 px-3 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 disabled:opacity-60 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/40"
               >
@@ -380,6 +396,16 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
           </div>
         </div>
       )}
+
+      <PauseSubscriptionDialog
+        open={pauseDialogOpen}
+        onClose={() => setPauseDialogOpen(false)}
+        onConfirm={(duration: PauseDuration) => {
+          setPauseDialogOpen(false)
+          runAction(() => pauseSubscription(subscription.id, duration))
+        }}
+        pending={pending}
+      />
     </div>
   )
 }

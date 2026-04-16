@@ -24,6 +24,8 @@ import {
   type listMySubscribers,
   type listMySubscriptionPlans,
 } from '@/domains/subscriptions/actions'
+import type { PauseDuration } from '@/domains/subscriptions/buyer-actions'
+import { PauseSubscriptionDialog } from '@/components/subscriptions/PauseSubscriptionDialog'
 
 type Subscriber = Awaited<ReturnType<typeof listMySubscribers>>[number]
 type Plan = Awaited<ReturnType<typeof listMySubscriptionPlans>>[number]
@@ -218,6 +220,7 @@ function SubscriberRow({
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [pauseDialogOpen, setPauseDialogOpen] = useState(false)
   const addr = subscriber.shippingAddress
   const buyer = subscriber.buyer
 
@@ -305,7 +308,7 @@ function SubscriberRow({
               </button>
               <button
                 type="button"
-                onClick={() => runAction(() => pauseSubscriptionAsVendor(subscriber.id))}
+                onClick={() => setPauseDialogOpen(true)}
                 disabled={pending}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 disabled:opacity-60 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/40"
               >
@@ -327,6 +330,16 @@ function SubscriberRow({
           )}
         </div>
       </div>
+
+      <PauseSubscriptionDialog
+        open={pauseDialogOpen}
+        onClose={() => setPauseDialogOpen(false)}
+        onConfirm={(duration: PauseDuration) => {
+          setPauseDialogOpen(false)
+          runAction(() => pauseSubscriptionAsVendor(subscriber.id, duration))
+        }}
+        pending={pending}
+      />
     </div>
   )
 }
