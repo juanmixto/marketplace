@@ -119,6 +119,18 @@ accidental payment replays.
 Navigations to denylisted prefixes also bypass the offline fallback. The
 user sees the browser's native error, not a misleading offline shell.
 
+## Link capturing / launch handler
+
+The manifest declares `launch_handler: { client_mode: 'navigate-existing' }`.
+This is what makes same-origin clicks stay inside the installed PWA
+window instead of spawning a new browser tab. Without it, Chromium
+treats each link click as a separate launch target and opens the
+browser — a common source of "the app is a dead end" bug reports.
+
+`display_override: ['standalone', 'minimal-ui']` provides a deterministic
+fallback chain when the platform doesn't support the primary display mode
+(some Android launchers, WebView embeds).
+
 ## Install prompts
 
 | Platform              | Mechanism                                                |
