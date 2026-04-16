@@ -50,6 +50,7 @@ const ALLOWLIST_FILES: ReadonlySet<string> = new Set([
   // remove the entry from this set.
   //
   // Admin surfaces — internal-facing, not localized yet.
+  'src/app/(admin)/admin/analytics/page.tsx',
   'src/app/(admin)/admin/auditoria/page.tsx',
   'src/app/(admin)/admin/comisiones/page.tsx',
   'src/app/(admin)/admin/configuracion/page.tsx',
