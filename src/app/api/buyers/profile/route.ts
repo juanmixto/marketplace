@@ -3,10 +3,20 @@ import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { apiError, apiInternalError, apiUnauthorized, apiValidationFromZod } from '@/lib/api-response'
+import { PROFILE_FIELD_LIMITS } from '@/shared/types/profile'
 
+// Shape mirrors @/shared/types/profile (single source of truth for field
+// limits via PROFILE_FIELD_LIMITS); messages stay localized to ES here
+// because the API surface speaks Spanish to the buyer client.
 const profileSchema = z.object({
-  firstName: z.string().min(1, 'El nombre es obligatorio').max(50, 'Máximo 50 caracteres'),
-  lastName: z.string().min(1, 'El apellido es obligatorio').max(50, 'Máximo 50 caracteres'),
+  firstName: z
+    .string()
+    .min(PROFILE_FIELD_LIMITS.firstName.min, 'El nombre es obligatorio')
+    .max(PROFILE_FIELD_LIMITS.firstName.max, `Máximo ${PROFILE_FIELD_LIMITS.firstName.max} caracteres`),
+  lastName: z
+    .string()
+    .min(PROFILE_FIELD_LIMITS.lastName.min, 'El apellido es obligatorio')
+    .max(PROFILE_FIELD_LIMITS.lastName.max, `Máximo ${PROFILE_FIELD_LIMITS.lastName.max} caracteres`),
   email: z.string().email('Email inválido'),
 })
 
