@@ -67,6 +67,26 @@ export default [
     plugins: { '@typescript-eslint': tseslint.plugin },
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
+      // Contract enforcement — see docs/ai-guidelines.md §1.2 and §6.
+      // Cross-domain reaches into private/internal subfolders are forbidden.
+      // The audit script (scripts/audit-domain-contracts.mjs) covers
+      // additional dynamic checks (cycles, stores in server graph).
+      'no-restricted-imports': ['error', {
+        patterns: [
+          {
+            group: [
+              '@/domains/*/internal/*',
+              '@/domains/*/internal',
+              '@/domains/*/_*/**',
+              '@/domains/*/_*',
+              '@/domains/*/private/*',
+              '@/domains/*/private',
+            ],
+            message:
+              'Private modules of a domain are not importable from outside that domain. See docs/ai-guidelines.md §1.2.',
+          },
+        ],
+      }],
     },
   },
   // The barrel-only rule lives here on src/lib/ only. See the file
