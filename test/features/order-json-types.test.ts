@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { parseOrderLineSnapshot } from '@/domains/orders/order-line-snapshot'
+import { parseOrderLineSnapshot } from '@/lib/order-line-snapshot'
 import {
   createPaymentConfirmedEventPayload,
   createPaymentFailedEventPayload,

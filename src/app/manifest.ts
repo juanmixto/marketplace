@@ -11,7 +11,18 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: '/?source=pwa',
     scope: '/',
     display: 'standalone',
+    // Fallback chain if `standalone` is unsupported on the platform.
+    // `minimal-ui` keeps back/forward affordances; `browser` is the
+    // last-resort pre-install baseline.
+    display_override: ['standalone', 'minimal-ui'],
     orientation: 'portrait',
+    // Keep same-origin navigations inside the installed window instead of
+    // spawning a new browser tab — fixes Brave/Edge/Chrome desktop
+    // opening every link in the browser. `navigate-existing` focuses the
+    // already-open PWA window and navigates it to the target URL.
+    launch_handler: {
+      client_mode: 'navigate-existing',
+    },
     background_color: siteAppearance.background,
     theme_color: siteAppearance.themeColor,
     categories: ['food', 'shopping', 'lifestyle'],
