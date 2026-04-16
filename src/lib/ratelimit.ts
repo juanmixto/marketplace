@@ -17,6 +17,8 @@
  *   `success: false` instead of an open door.
  */
 
+import { getServerEnv } from '@/lib/env'
+
 interface RateLimitEntry {
   count: number
   resetAt: number
@@ -83,7 +85,7 @@ export async function checkRateLimit(
   const limitKey = `${action}:${cleanKey}`
   const now = Date.now()
 
-  if (process.env.UPSTASH_REDIS_REST_URL) {
+  if (getServerEnv().upstashRedisRestUrl) {
     return checkRateLimitUpstash(action, limitKey, limit, windowSeconds, now, options)
   }
 
@@ -172,13 +174,14 @@ async function checkRateLimitUpstash(
   now: number,
   options: RateLimitOptions
 ): Promise<RateLimitResult> {
+  const env = getServerEnv()
   try {
     const response = await fetch(
-      `${process.env.UPSTASH_REDIS_REST_URL}/incr/${limitKey}`,
+      `${env.upstashRedisRestUrl}/incr/${limitKey}`,
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`,
+          Authorization: `Bearer ${env.upstashRedisRestToken}`,
           'Content-Type': 'application/json',
         },
       }
@@ -201,11 +204,11 @@ async function checkRateLimitUpstash(
     // Set expiry on first request
     if (count === 1) {
       await fetch(
-        `${process.env.UPSTASH_REDIS_REST_URL}/expire/${limitKey}/${windowSeconds}`,
+        `${env.upstashRedisRestUrl}/expire/${limitKey}/${windowSeconds}`,
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`,
+            Authorization: `Bearer ${env.upstashRedisRestToken}`,
           },
         }
       ).catch(() => undefined)
