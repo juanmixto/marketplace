@@ -180,7 +180,6 @@ export function VendorSidebar({ vendor }: Props) {
           {vendor?.slug && (
             <Link
               href={`/productores/${vendor.slug}`}
-              target="_blank"
               title={collapsed ? t('vendor.sidebar.viewStore') : undefined}
               aria-label={t('vendor.sidebar.viewStore')}
               style={labelStyle}
