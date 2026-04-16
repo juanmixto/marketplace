@@ -70,8 +70,19 @@ test.describe('buyer subscription checkout @smoke', () => {
     // --- RESCHEDULE NEXT DELIVERY ---
     // Open the dialog, pick a new date 20 days out, save. Verify the
     // list re-renders with the new date.
-    await page.getByTestId('reschedule-subscription-cta').click()
-    await expect(page.getByTestId('reschedule-subscription-dialog')).toBeVisible()
+    //
+    // CI flake fix (2026-04-16): wait for the network + React hydration to
+    // settle before clicking. The prod build on CI sometimes hydrates the
+    // SubscriptionRow late enough that Playwright clicks a button that
+    // still has no onClick handler attached, so `setRescheduleOpen(true)`
+    // never fires and the dialog never mounts. Waiting for networkidle
+    // gives React time to hydrate, and `toBeEnabled` re-locates the
+    // element post-hydration.
+    await page.waitForLoadState('networkidle')
+    const rescheduleCta = page.getByTestId('reschedule-subscription-cta')
+    await expect(rescheduleCta).toBeEnabled({ timeout: 10_000 })
+    await rescheduleCta.click()
+    await expect(page.getByTestId('reschedule-subscription-dialog')).toBeVisible({ timeout: 10_000 })
 
     const target20 = new Date()
     target20.setDate(target20.getDate() + 20)
