@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation'
 import { isVendor, isAdmin } from '@/lib/roles'
 import { safeRevalidatePath } from '@/lib/revalidate'
 import { parseOrderAddressSnapshot } from '@/types/order'
-import { parseOrderLineSnapshot } from '@/domains/orders/order-line-snapshot'
+import { parseOrderLineSnapshot } from '@/lib/order-line-snapshot'
 import { getShippingProvider } from '@/domains/shipping/providers'
 import { ShippingError } from '@/domains/shipping/domain/errors'
 import type {
