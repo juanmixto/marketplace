@@ -62,11 +62,29 @@ export default function PwaRegister() {
       })
     }
 
+    const requestPeriodicSync = async (registration: ServiceWorkerRegistration) => {
+      try {
+        // periodicSync is Chrome-only; feature-detect before touching it.
+        const mgr = (registration as unknown as { periodicSync?: { register: (tag: string, opts: { minInterval: number }) => Promise<void> } }).periodicSync
+        if (!mgr) return
+        const status = await navigator.permissions.query({
+          name: 'periodic-background-sync' as PermissionName,
+        })
+        if (status.state !== 'granted') return
+        await mgr.register('mp-catalog-prefetch', {
+          minInterval: 12 * 60 * 60 * 1000, // 12 hours
+        })
+      } catch {
+        // Not supported or permission denied — ignore.
+      }
+    }
+
     const register = () => {
       navigator.serviceWorker
         .register('/sw.js', { scope: '/' })
         .then((registration) => {
           watchRegistration(registration)
+          requestPeriodicSync(registration)
         })
         .catch((err) => {
           // Swallow — SW registration failure must never break the app.
