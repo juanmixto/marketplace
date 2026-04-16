@@ -8,7 +8,7 @@ import type { TranslationKeys } from '@/i18n'
 export function Footer() {
   const t = useT()
 
-  const links: Record<string, { href: string; labelKey: TranslationKeys }[]> = {
+  const links = {
     comprar: [
       { href: '/productos',             labelKey: 'allProducts' },
       { href: '/productores',           labelKey: 'producers' },
@@ -27,7 +27,7 @@ export function Footer() {
       { href: '/sobre-nosotros', labelKey: 'aboutUs' },
       { href: '/contacto',       labelKey: 'support' },
     ],
-  }
+  } as const satisfies Record<string, { href: string; labelKey: TranslationKeys }[]>
 
   return (
     <footer className="mt-16 border-t border-[var(--border)] bg-[var(--surface)]">

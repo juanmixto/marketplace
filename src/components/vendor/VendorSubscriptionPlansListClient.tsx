@@ -390,7 +390,7 @@ function PlanRow({ plan }: { plan: Plan }) {
             {formatPrice(Number(plan.priceSnapshot))} / {plan.product.unit} ·{' '}
             {t('vendor.subscriptionPlans.cutoffLabel').replace(
               '{day}',
-              t(DAY_KEYS[plan.cutoffDayOfWeek])
+              t(DAY_KEYS[plan.cutoffDayOfWeek] ?? DAY_KEYS[0]!)
             )}
           </p>
           {!isArchived && (

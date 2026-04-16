@@ -216,7 +216,7 @@ export default async function ProductDetailPage({ params }: Props) {
                   </Badge>
                 ))}
               </div>
-              {product.certifications.length === 1 && (
+              {product.certifications.length === 1 && product.certifications[0] && (
                 <p className="text-xs text-[var(--muted)] leading-relaxed">
                   {getLocalizedCertificationCopy(product.certifications[0], locale).description}
                 </p>

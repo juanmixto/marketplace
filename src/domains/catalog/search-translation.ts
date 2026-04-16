@@ -176,7 +176,8 @@ function wordAccentVariants(word: string): string[] {
   const base = stripDiacritics(word)
   const positions: number[] = []
   for (let i = 0; i < base.length; i++) {
-    if (ACCENT_VARIANTS[base[i]]) positions.push(i)
+    const ch = base[i]!
+    if (ACCENT_VARIANTS[ch]) positions.push(i)
   }
 
   const out = new Set<string>([word, base])
@@ -189,8 +190,10 @@ function wordAccentVariants(word: string): string[] {
         out.add(chars.join(''))
         return
       }
-      const pos = positions[idx]
-      for (const variant of ACCENT_VARIANTS[base[pos]]) {
+      const pos = positions[idx]!
+      const variants = ACCENT_VARIANTS[base[pos]!]
+      if (!variants) return
+      for (const variant of variants) {
         chars[pos] = variant
         emit(idx + 1)
       }
@@ -204,8 +207,11 @@ function wordAccentVariants(word: string): string[] {
     // O(positions · variants) ≈ a dozen forms per word and, crucially,
     // "calabacin" → "calabacín" still appears.
     for (const pos of positions) {
-      for (const variant of ACCENT_VARIANTS[base[pos]]) {
-        if (variant === base[pos]) continue
+      const sourceChar = base[pos]!
+      const variants = ACCENT_VARIANTS[sourceChar]
+      if (!variants) continue
+      for (const variant of variants) {
+        if (variant === sourceChar) continue
         out.add(base.slice(0, pos) + variant + base.slice(pos + 1))
       }
     }
