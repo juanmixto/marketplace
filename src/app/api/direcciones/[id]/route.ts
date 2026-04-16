@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { auth } from '@/lib/auth'
+import { getActionSession } from '@/lib/action-session'
 import { db } from '@/lib/db'
 import {
   clearOtherDefaults,
@@ -26,8 +26,8 @@ interface RouteParams {
 
 export async function PUT(req: NextRequest, { params }: RouteParams) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const session = await getActionSession()
+    if (!session) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
@@ -35,12 +35,14 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
     const body = await req.json()
     const validated = addressSchema.parse(body)
 
-    // Verify ownership
-    const existingAddress = await db.address.findUnique({
-      where: { id },
+    // Scope ownership to the session user. findFirst with both predicates
+    // returns null for both "not found" and "owned by someone else", so we
+    // collapse them into a single 404 to avoid leaking existence.
+    const existingAddress = await db.address.findFirst({
+      where: { id, userId: session.user.id },
     })
 
-    if (!existingAddress || existingAddress.userId !== session.user.id) {
+    if (!existingAddress) {
       return NextResponse.json({ error: 'Dirección no encontrada' }, { status: 404 })
     }
 
@@ -83,19 +85,18 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(_req: NextRequest, { params }: RouteParams) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const session = await getActionSession()
+    if (!session) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
     const { id } = await params
 
-    // Verify ownership
-    const address = await db.address.findUnique({
-      where: { id },
+    const address = await db.address.findFirst({
+      where: { id, userId: session.user.id },
     })
 
-    if (!address || address.userId !== session.user.id) {
+    if (!address) {
       return NextResponse.json({ error: 'Dirección no encontrada' }, { status: 404 })
     }
 

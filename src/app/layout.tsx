@@ -12,6 +12,7 @@ import { SITE_METADATA_BASE } from '@/lib/seo'
 import { SessionProvider } from '@/components/SessionProvider'
 import { LanguageProvider } from '@/i18n'
 import { getServerLocale } from '@/i18n/server'
+import PwaRegister from '@/components/pwa/PwaRegister'
 
 const geist = Geist({
   variable: '--font-geist-sans',
@@ -47,6 +48,15 @@ export const metadata: Metadata = {
     shortcut: siteAppearance.faviconPath,
     apple: siteAppearance.faviconPath,
   },
+  applicationName: SITE_NAME,
+  appleWebApp: {
+    capable: true,
+    title: SITE_NAME,
+    statusBarStyle: 'default',
+  },
+  formatDetection: {
+    telephone: false,
+  },
 }
 
 export const viewport: Viewport = {
@@ -56,6 +66,8 @@ export const viewport: Viewport = {
   ],
   colorScheme: 'light dark',
   viewportFit: 'cover',
+  width: 'device-width',
+  initialScale: 1,
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -74,6 +86,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <Suspense fallback={null}>
                 <AnalyticsProvider />
               </Suspense>
+              <PwaRegister />
               {children}
             </LanguageProvider>
           </ThemeProvider>
