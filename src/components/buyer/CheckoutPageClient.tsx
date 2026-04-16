@@ -5,7 +5,6 @@ import { useCartStore } from '@/domains/orders/cart-store'
 import { useRouter } from 'next/navigation'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { createCheckoutOrder } from '@/domains/orders/actions'
@@ -20,63 +19,22 @@ import {
 import {
   getPreferredCheckoutAddress,
   toCheckoutFormAddress,
+  checkoutFormSchema,
+  type CheckoutFormInput,
   type SavedCheckoutAddress,
 } from '@/domains/orders/checkout'
 import {
   SPAIN_PROVINCES,
-  SPAIN_PROVINCE_BY_PREFIX,
-  getPrefixForProvince,
-  isValidPhone,
-  postalCodeMatchesProvince,
 } from '@/domains/shipping/spain-provinces'
 import { useT } from '@/i18n'
 import { createAnalyticsItem, trackAnalyticsEvent } from '@/lib/analytics'
-
-const VALID_PROVINCE_NAMES = new Set(Object.values(SPAIN_PROVINCE_BY_PREFIX))
-
-const schema = z
-  .object({
-    firstName: z.string().trim().min(1, 'Requerido'),
-    lastName: z.string().trim().min(1, 'Requerido'),
-    line1: z.string().trim().min(5, 'Dirección demasiado corta'),
-    line2: z.string().optional(),
-    city: z.string().trim().min(1, 'Requerido'),
-    province: z
-      .string()
-      .refine(v => VALID_PROVINCE_NAMES.has(v), 'Selecciona una provincia válida'),
-    postalCode: z
-      .string()
-      .trim()
-      .regex(/^\d{5}$/, 'Código postal inválido (5 dígitos)'),
-    phone: z
-      .string()
-      .trim()
-      .optional()
-      .refine(
-        v => !v || isValidPhone(v),
-        'Teléfono inválido (solo dígitos, 9-15 cifras)',
-      ),
-    saveAddress: z.boolean().optional(),
-    selectedAddressId: z.string().optional(),
-  })
-  .superRefine((value, ctx) => {
-    if (!postalCodeMatchesProvince(value.postalCode, value.province)) {
-      const prefix = getPrefixForProvince(value.province)
-      ctx.addIssue({
-        code: 'custom',
-        path: ['postalCode'],
-        message: prefix
-          ? `El código postal de ${value.province} debe empezar por ${prefix}`
-          : 'El código postal no coincide con la provincia',
-      })
-    }
-  })
 
 function sanitizePhoneChar(input: string): string {
   return input.replace(/[^+\d\s()\-]/g, '')
 }
 
-type FormData = z.infer<typeof schema>
+const schema = checkoutFormSchema
+type FormData = CheckoutFormInput
 
 interface Props {
   shippingZones: ShippingZoneLike[]
