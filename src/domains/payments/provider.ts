@@ -32,7 +32,6 @@ export interface ConnectDestination {
 }
 
 declare global {
-  // eslint-disable-next-line no-var
   var __testCreatePaymentIntentOverride:
     | ((amountCents: number) => Promise<PaymentIntent>)
     | undefined
