@@ -9,6 +9,7 @@ import {
   ArrowPathIcon,
   ArchiveBoxIcon,
   ArrowUturnLeftIcon,
+  ArrowTrendingDownIcon,
   InformationCircleIcon,
   PencilSquareIcon,
   UsersIcon,
@@ -56,11 +57,17 @@ const DAY_KEYS: TranslationKeys[] = [
   'vendor.subscriptionPlans.day6',
 ]
 
-interface Props {
-  plans: Plan[]
+interface ChurnStats {
+  canceledThisMonth: number
+  denominator: number
 }
 
-export function VendorSubscriptionPlansListClient({ plans }: Props) {
+interface Props {
+  plans: Plan[]
+  churn: ChurnStats
+}
+
+export function VendorSubscriptionPlansListClient({ plans, churn }: Props) {
   const t = useT()
   const [filter, setFilter] = useState<FilterKey>('active')
 
@@ -132,7 +139,7 @@ export function VendorSubscriptionPlansListClient({ plans }: Props) {
         </Link>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <KpiCard
           icon={<RectangleStackIcon className="h-5 w-5" />}
           label={t('vendor.subscriptionPlans.kpiActivePlans')}
@@ -172,6 +179,20 @@ export function VendorSubscriptionPlansListClient({ plans }: Props) {
           }
           muted={!kpis.nextDelivery}
           href={kpis.nextDelivery ? '/vendor/suscripciones/suscriptores' : undefined}
+        />
+        <KpiCard
+          icon={<ArrowTrendingDownIcon className="h-5 w-5" />}
+          label={t('vendor.subscriptionPlans.kpiChurn')}
+          value={String(churn.canceledThisMonth)}
+          hint={
+            churn.denominator > 0
+              ? t('vendor.subscriptionPlans.kpiChurnHint').replace(
+                  '{rate}',
+                  `${Math.round((churn.canceledThisMonth / churn.denominator) * 100)}%`,
+                )
+              : t('vendor.subscriptionPlans.kpiChurnHintEmpty')
+          }
+          muted={churn.canceledThisMonth === 0}
         />
       </div>
 
