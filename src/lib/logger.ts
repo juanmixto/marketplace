@@ -118,6 +118,47 @@ export interface Logger {
   error: (scope: string, messageOrContext?: string | LogContext, context?: LogContext) => void
 }
 
+// ─── PII redaction ───────────────────────────────────────────────────────────
+
+const DEFAULT_REDACT_KEYS = new Set([
+  'password',
+  'token',
+  'cookie',
+  'authorization',
+  'cardnumber',
+  'cvv',
+  'secret',
+  'client_secret',
+  'clientsecret',
+  'stripe_secret',
+  'stripesecretkey',
+  'webhook_secret',
+])
+
+/**
+ * Shallow-redact sensitive keys from a context object. Keys are matched
+ * case-insensitively against a built-in set (password, token, cookie,
+ * authorization, card*, cvv, secret, etc.). Returns a new object — the
+ * original is never mutated.
+ *
+ * Usage:
+ *   logger.info('scope', redact({ password: 'x', name: 'a' }))
+ *   // → { password: '[REDACTED]', name: 'a' }
+ */
+export function redact(
+  context: LogContext,
+  extraKeys?: readonly string[]
+): LogContext {
+  const sensitiveKeys = extraKeys
+    ? new Set([...DEFAULT_REDACT_KEYS, ...extraKeys.map(k => k.toLowerCase())])
+    : DEFAULT_REDACT_KEYS
+  const out: LogContext = {}
+  for (const [key, value] of Object.entries(context)) {
+    out[key] = sensitiveKeys.has(key.toLowerCase()) ? '[REDACTED]' : value
+  }
+  return out
+}
+
 export const logger: Logger = {
   debug: (scope, message, context) => writeEntry(buildLogEntry('debug', scope, message, context)),
   info: (scope, message, context) => writeEntry(buildLogEntry('info', scope, message, context)),
