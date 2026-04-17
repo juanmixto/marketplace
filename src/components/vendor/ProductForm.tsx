@@ -1,19 +1,23 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { CERTIFICATIONS, TAX_RATES } from '@/lib/constants'
+import { CERTIFICATIONS, PRODUCT_UNITS, TAX_RATES } from '@/lib/constants'
 import { createProduct, updateProduct, updateProductVariants } from '@/domains/vendors/actions'
+import { trackAnalyticsEvent } from '@/lib/analytics'
 import { formatExpirationDateInput } from '@/domains/catalog/availability'
 import { parseAndValidateImages } from '@/lib/image-validation'
 import { ImageUploader } from '@/components/vendor/ImageUploader'
 import type { Category, Product, ProductVariant } from '@/generated/prisma/client'
 import { useT } from '@/i18n'
+import { detectProductDefaults } from '@/domains/catalog/product-autodetect'
+
+type AutoField = 'category' | 'tax' | 'unit' | 'region'
 
 const productFormSchema = z.object({
   name: z.string().min(3, 'Mínimo 3 caracteres').max(100),
@@ -57,7 +61,7 @@ type EditableProduct = Product & {
 interface ProductFormProps {
   categories: Category[]
   initialData?: EditableProduct
-  stripeOnboarded: boolean
+  vendorLocation?: string | null
 }
 
 
@@ -94,7 +98,7 @@ function makeEmptyVariantRow(): VariantRow {
   }
 }
 
-export function ProductForm({ categories, initialData, stripeOnboarded }: ProductFormProps) {
+export function ProductForm({ categories, initialData, vendorLocation }: ProductFormProps) {
   const router = useRouter()
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -126,7 +130,7 @@ export function ProductForm({ categories, initialData, stripeOnboarded }: Produc
       trackStock: initialData?.trackStock ?? true,
       weightGrams: initialData?.weightGrams ?? undefined,
       certifications: initialData?.certifications ?? [],
-      originRegion: initialData?.originRegion ?? '',
+      originRegion: initialData?.originRegion ?? vendorLocation ?? '',
       imagesText: initialData?.images?.join('\n') ?? '',
       expiresAt: formatExpirationDateInput(initialData?.expiresAt),
       status:
@@ -139,6 +143,79 @@ export function ProductForm({ categories, initialData, stripeOnboarded }: Produc
   const selectedCertifications = watch('certifications') ?? []
   const imagesTextValue = watch('imagesText')
   const { valid: validImages } = parseAndValidateImages(imagesTextValue)
+  const trackStockValue = watch('trackStock')
+  const unitValue = watch('unit')
+  const unitOptions = PRODUCT_UNITS.includes(unitValue as (typeof PRODUCT_UNITS)[number])
+    ? PRODUCT_UNITS
+    : ([...PRODUCT_UNITS, unitValue].filter(Boolean) as readonly string[])
+
+  const nameValue = watch('name')
+  const [autoFilled, setAutoFilled] = useState<Set<AutoField>>(() => new Set())
+  const touchedRef = useRef<Record<AutoField, boolean>>({
+    category: false,
+    tax: false,
+    unit: Boolean(initialData?.unit && initialData.unit !== 'kg'),
+    region: Boolean(initialData?.originRegion),
+  })
+  const isEditing = Boolean(initialData)
+
+  useEffect(() => {
+    if (isEditing) return
+    const handle = setTimeout(() => {
+      const detected = detectProductDefaults(nameValue ?? '', categories)
+      const next = new Set<AutoField>()
+      if (detected.category && !touchedRef.current.category) {
+        setValue('categoryId', detected.category.id, { shouldDirty: true })
+        next.add('category')
+      }
+      if (detected.taxRate != null && !touchedRef.current.tax) {
+        setValue('taxRate', detected.taxRate, { shouldDirty: true })
+        next.add('tax')
+      }
+      if (detected.unit && !touchedRef.current.unit) {
+        setValue('unit', detected.unit, { shouldDirty: true })
+        next.add('unit')
+      }
+      if (detected.originRegion && !touchedRef.current.region) {
+        setValue('originRegion', detected.originRegion, { shouldDirty: true })
+        next.add('region')
+      }
+      setAutoFilled(next)
+    }, 300)
+    return () => clearTimeout(handle)
+  }, [nameValue, categories, setValue, isEditing])
+
+  function markTouched(field: AutoField) {
+    touchedRef.current[field] = true
+    setAutoFilled(prev => {
+      if (!prev.has(field)) return prev
+      const next = new Set(prev)
+      next.delete(field)
+      return next
+    })
+  }
+
+  const categoryRegister = register('categoryId')
+  const taxRateRegister = register('taxRate')
+  const unitRegister = register('unit')
+  const originRegionRegister = register('originRegion')
+
+  const autoBadge = (
+    <span className="text-[11px] font-normal text-emerald-600 dark:text-emerald-400">
+      ✨ {t('vendor.newProduct.autoFilledHint')}
+    </span>
+  )
+
+  function labelRow(htmlFor: string, label: string, field: AutoField | null = null) {
+    return (
+      <div className="flex items-baseline justify-between gap-2">
+        <label htmlFor={htmlFor} className="block text-sm font-medium text-[var(--foreground)]">
+          {label}
+        </label>
+        {field && autoFilled.has(field) ? autoBadge : null}
+      </div>
+    )
+  }
 
   async function onSubmit(values: ProductFormValues) {
     setServerError(null)
@@ -184,6 +261,7 @@ export function ProductForm({ categories, initialData, stripeOnboarded }: Produc
     }
 
     try {
+      const wasAlreadyPublished = initialData?.status === 'PENDING_REVIEW'
       if (initialData) {
         await updateProduct(initialData.id, payload)
         await updateProductVariants({
@@ -192,6 +270,22 @@ export function ProductForm({ categories, initialData, stripeOnboarded }: Produc
         })
       } else {
         await createProduct(payload)
+      }
+      const baseEventProps = {
+        product_id: initialData?.id,
+        product_name: values.name,
+        category_id: values.categoryId || undefined,
+        price: values.basePrice,
+        currency: 'EUR',
+        status: values.status,
+      }
+      if (!initialData) {
+        trackAnalyticsEvent('seller_product_created', baseEventProps)
+      }
+      // Fire "published" once when the product transitions into (or is
+      // created as) PENDING_REVIEW — that's our "sent to marketplace" moment.
+      if (values.status === 'PENDING_REVIEW' && !wasAlreadyPublished) {
+        trackAnalyticsEvent('seller_product_published', baseEventProps)
       }
       router.push('/vendor/productos')
       router.refresh()
@@ -228,12 +322,15 @@ export function ProductForm({ categories, initialData, stripeOnboarded }: Produc
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="w-full max-w-full min-w-0 space-y-6 overflow-x-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-6"
+    >
       <div className="rounded-xl border border-sky-200 bg-sky-50/70 px-4 py-3 text-sm text-sky-800 dark:border-sky-900/50 dark:bg-sky-950/20 dark:text-sky-200">
         <p>🌐 {t('vendor.autoTranslateHint')}</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid min-w-0 gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <Input label={t('vendor.nameLabel')} error={errors.name?.message} {...register('name')} />
         </div>
@@ -245,6 +342,8 @@ export function ProductForm({ categories, initialData, stripeOnboarded }: Produc
           <textarea
             id="description"
             rows={3}
+            spellCheck
+            autoCapitalize="sentences"
             className="w-full min-h-24 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 sm:min-h-40 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
             placeholder={t('vendor.descPlaceholder')}
             {...register('description')}
@@ -253,30 +352,41 @@ export function ProductForm({ categories, initialData, stripeOnboarded }: Produc
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="categoryId" className="block text-sm font-medium text-[var(--foreground)]">
-            {t('vendor.category')}
-          </label>
+          {labelRow('categoryId', t('vendor.category'), 'category')}
           <select
             id="categoryId"
             className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
-            {...register('categoryId')}
+            {...categoryRegister}
+            onChange={e => {
+              markTouched('category')
+              categoryRegister.onChange(e)
+            }}
           >
             <option value="">{t('vendor.noCategory')}</option>
             {categories.map(category => (
               <option key={category.id} value={category.id}>
-                {category.name}
+                {category.icon ? `${category.icon} ${category.name}` : category.name}
               </option>
             ))}
           </select>
           {errors.categoryId?.message && <p className="text-xs text-red-600 dark:text-red-400">{errors.categoryId.message}</p>}
         </div>
 
-        <Input
-          label={t('vendor.originRegion')}
-          placeholder="Navarra, Jaén, Girona..."
-          error={errors.originRegion?.message}
-          {...register('originRegion')}
-        />
+        <div className="space-y-1.5">
+          {labelRow('originRegion', t('vendor.originRegion'), 'region')}
+          <input
+            id="originRegion"
+            type="text"
+            placeholder="Navarra, Jaén, Girona..."
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] shadow-sm placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
+            {...originRegionRegister}
+            onChange={e => {
+              markTouched('region')
+              originRegionRegister.onChange(e)
+            }}
+          />
+          {errors.originRegion?.message && <p className="text-xs text-red-600 dark:text-red-400">{errors.originRegion.message}</p>}
+        </div>
 
         <Input
           label={t('vendor.basePrice')}
@@ -287,6 +397,26 @@ export function ProductForm({ categories, initialData, stripeOnboarded }: Produc
           error={errors.basePrice?.message}
           {...register('basePrice')}
         />
+
+        <div className="space-y-1.5">
+          {labelRow('unit', t('vendor.unit'), 'unit')}
+          <select
+            id="unit"
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
+            {...unitRegister}
+            onChange={e => {
+              markTouched('unit')
+              unitRegister.onChange(e)
+            }}
+          >
+            {unitOptions.map(option => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          {errors.unit?.message && <p className="text-xs text-red-600 dark:text-red-400">{errors.unit.message}</p>}
+        </div>
 
         <Input
           label={t('vendor.compareAtPrice')}
@@ -300,13 +430,15 @@ export function ProductForm({ categories, initialData, stripeOnboarded }: Produc
         />
 
         <div className="space-y-1.5">
-          <label htmlFor="taxRate" className="block text-sm font-medium text-[var(--foreground)]">
-            {t('vendor.taxRate')}
-          </label>
+          {labelRow('taxRate', t('vendor.taxRate'), 'tax')}
           <select
             id="taxRate"
             className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
-            {...register('taxRate')}
+            {...taxRateRegister}
+            onChange={e => {
+              markTouched('tax')
+              taxRateRegister.onChange(e)
+            }}
           >
             <option value={TAX_RATES.REDUCED}>4%</option>
             <option value={TAX_RATES.STANDARD}>10%</option>
@@ -315,17 +447,30 @@ export function ProductForm({ categories, initialData, stripeOnboarded }: Produc
           {errors.taxRate?.message && <p className="text-xs text-red-600 dark:text-red-400">{errors.taxRate.message}</p>}
         </div>
 
-        <Input label={t('vendor.unit')} placeholder="kg, caja, docena..." error={errors.unit?.message} {...register('unit')} />
-
-        <Input
-          label={t('vendor.stock')}
-          type="number"
-          inputMode="numeric"
-          min="0"
-          step="1"
-          error={errors.stock?.message}
-          {...register('stock')}
-        />
+        <div className="space-y-2 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-3 sm:col-span-2">
+          <label htmlFor="trackStock" className="flex items-center gap-2 text-sm font-medium text-[var(--foreground)] cursor-pointer">
+            <input
+              id="trackStock"
+              type="checkbox"
+              className="rounded border-[var(--border-strong)] text-emerald-600 accent-emerald-600 dark:accent-emerald-400"
+              {...register('trackStock')}
+            />
+            {t('vendor.trackStock')}
+          </label>
+          {trackStockValue ? (
+            <Input
+              label={t('vendor.stock')}
+              type="number"
+              inputMode="numeric"
+              min="0"
+              step="1"
+              error={errors.stock?.message}
+              {...register('stock')}
+            />
+          ) : (
+            <p className="text-xs text-[var(--muted)] pl-6">{t('vendor.stockUnlimited')}</p>
+          )}
+        </div>
 
         <Input
           label={t('vendor.weightGrams')}
@@ -346,11 +491,6 @@ export function ProductForm({ categories, initialData, stripeOnboarded }: Produc
           error={errors.expiresAt?.message}
           {...register('expiresAt')}
         />
-
-        <div className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground-soft)]">
-          <input id="trackStock" type="checkbox" className="rounded border-[var(--border-strong)] text-emerald-600 accent-emerald-600 dark:accent-emerald-400" {...register('trackStock')} />
-          <label htmlFor="trackStock">{t('vendor.trackStock')}</label>
-        </div>
 
         <div className="space-y-1.5 sm:col-span-2">
           <p className="block text-sm font-medium text-[var(--foreground)]">{t('vendor.certifications')}</p>
@@ -376,7 +516,7 @@ export function ProductForm({ categories, initialData, stripeOnboarded }: Produc
           </div>
         </div>
 
-        <div className="space-y-3 sm:col-span-2">
+        <div className="min-w-0 space-y-3 sm:col-span-2">
           <label className="block text-sm font-semibold text-[var(--foreground)]">
             📸 {t('vendor.images')}
           </label>
@@ -508,9 +648,7 @@ export function ProductForm({ categories, initialData, stripeOnboarded }: Produc
       ) : null}
 
       <div className="space-y-2 border-t border-[var(--border)] pt-4">
-        <p className="text-xs text-[var(--muted)]">
-          {stripeOnboarded ? t('vendor.statusHint') : t('vendor.draftOnlyHint')}
-        </p>
+        <p className="text-xs text-[var(--muted)]">{t('vendor.statusHint')}</p>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <Button type="button" variant="ghost" size="sm" onClick={() => router.push('/vendor/productos')}>
             {t('common.cancel')}
@@ -532,8 +670,7 @@ export function ProductForm({ categories, initialData, stripeOnboarded }: Produc
             type="submit"
             size="sm"
             isLoading={isSubmitting && pendingAction === 'PENDING_REVIEW'}
-            disabled={isSubmitting || !stripeOnboarded}
-            title={stripeOnboarded ? undefined : t('vendor.sendReviewBlocked')}
+            disabled={isSubmitting}
             onClick={() => {
               setPendingAction('PENDING_REVIEW')
               setValue('status', 'PENDING_REVIEW')

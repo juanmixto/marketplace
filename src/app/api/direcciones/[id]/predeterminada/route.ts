@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { getActionSession } from '@/lib/action-session'
 import { db } from '@/lib/db'
 
 interface RouteParams {
@@ -8,19 +8,18 @@ interface RouteParams {
 
 export async function PUT(_req: NextRequest, { params }: RouteParams) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const session = await getActionSession()
+    if (!session) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
     const { id } = await params
 
-    // Verify ownership
-    const address = await db.address.findUnique({
-      where: { id },
+    const address = await db.address.findFirst({
+      where: { id, userId: session.user.id },
     })
 
-    if (!address || address.userId !== session.user.id) {
+    if (!address) {
       return NextResponse.json({ error: 'Dirección no encontrada' }, { status: 404 })
     }
 

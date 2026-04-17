@@ -1,4 +1,5 @@
 import { handlers as nextAuthHandlers } from '@/lib/auth'
+import { reqWithHostHeader } from '@/lib/auth-host'
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit, getClientIP } from '@/lib/ratelimit'
 
@@ -6,7 +7,9 @@ import { checkRateLimit, getClientIP } from '@/lib/ratelimit'
  * NextAuth has built-in handlers for GET/POST to /api/auth/[...nextauth]
  * We wrap the POST handler to add rate limiting for login attempts
  */
-export const GET = nextAuthHandlers.GET
+export function GET(req: NextRequest) {
+  return nextAuthHandlers.GET(reqWithHostHeader(req))
+}
 
 export async function POST(req: NextRequest) {
   // Check if this is a signin request (NextAuth uses query params)
@@ -34,6 +37,5 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Pass through to NextAuth handler
-  return nextAuthHandlers.POST(req)
+  return nextAuthHandlers.POST(reqWithHostHeader(req))
 }

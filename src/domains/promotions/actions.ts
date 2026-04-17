@@ -1,7 +1,6 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { z } from 'zod'
 import { db } from '@/lib/db'
 import { getActionSession } from '@/lib/action-session'
 import { isVendor } from '@/lib/roles'
@@ -25,91 +24,17 @@ async function requireVendor() {
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
-const PROMOTION_KINDS = ['PERCENTAGE', 'FIXED_AMOUNT', 'FREE_SHIPPING'] as const
-const PROMOTION_SCOPES = ['PRODUCT', 'VENDOR', 'CATEGORY'] as const
+import { promotionSchema } from '@/shared/types/promotions'
+import type { z } from 'zod'
 
-const promotionSchema = z
-  .object({
-    name: z.string().min(3, 'Mínimo 3 caracteres').max(100),
-    code: z
-      .string()
-      .trim()
-      .max(40)
-      .regex(/^[A-Z0-9_-]*$/, 'Solo mayúsculas, números, guiones y guiones bajos')
-      .optional()
-      .nullable(),
-    kind: z.enum(PROMOTION_KINDS),
-    value: z.coerce.number().min(0),
-    scope: z.enum(PROMOTION_SCOPES),
-    productId: z.string().min(1).optional().nullable(),
-    categoryId: z.string().min(1).optional().nullable(),
-    minSubtotal: z.coerce.number().min(0).optional().nullable(),
-    maxRedemptions: z.coerce.number().int().positive().max(1_000_000).optional().nullable(),
-    perUserLimit: z.coerce.number().int().positive().max(1000).optional().nullable(),
-    startsAt: z.string().datetime({ offset: true }).or(z.string().date()),
-    endsAt: z.string().datetime({ offset: true }).or(z.string().date()),
-  })
-  .superRefine((data, ctx) => {
-    // Scope ↔ target field
-    if (data.scope === 'PRODUCT' && !data.productId) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['productId'],
-        message: 'Selecciona un producto',
-      })
-    }
-    if (data.scope === 'CATEGORY' && !data.categoryId) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['categoryId'],
-        message: 'Selecciona una categoría',
-      })
-    }
-    if (data.scope === 'VENDOR' && (data.productId || data.categoryId)) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['scope'],
-        message: 'Una promoción de tienda no puede apuntar a un producto o categoría',
-      })
-    }
-
-    // Kind ↔ value
-    if (data.kind === 'PERCENTAGE' && (data.value <= 0 || data.value > 100)) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['value'],
-        message: 'El porcentaje debe estar entre 0 y 100',
-      })
-    }
-    if (data.kind === 'FIXED_AMOUNT' && data.value <= 0) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['value'],
-        message: 'El descuento debe ser mayor que 0',
-      })
-    }
-
-    // Window
-    const starts = new Date(data.startsAt).getTime()
-    const ends = new Date(data.endsAt).getTime()
-    if (Number.isNaN(starts) || Number.isNaN(ends)) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['startsAt'],
-        message: 'Fechas inválidas',
-      })
-      return
-    }
-    if (ends <= starts) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['endsAt'],
-        message: 'La fecha de fin debe ser posterior a la de inicio',
-      })
-    }
-  })
-
-export type PromotionInput = z.infer<typeof promotionSchema>
+// `'use server'` files cannot expose non-async exports — Next.js RSC
+// strips them. We therefore (a) import `PromotionInput` ONLY when
+// needed and (b) avoid `import type {...}` from a non-`'use server'`
+// module here, because Turbopack's RSC scan still keys on the named
+// import even when the `type` keyword erases it. Cross-module type
+// consumers should import `PromotionInput` directly from
+// `@/shared/types/promotions`.
+type PromotionInput = z.infer<typeof promotionSchema>
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 

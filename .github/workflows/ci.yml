@@ -4,7 +4,19 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.vscode/**'
+      - 'LICENSE'
+      - '.gitignore'
   pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.vscode/**'
+      - 'LICENSE'
+      - '.gitignore'
   workflow_dispatch:
 
 permissions:
@@ -31,12 +43,14 @@ jobs:
 
       - uses: ./.github/actions/setup-deps
 
-      - name: Typecheck + tests (parallel)
+      - name: Lint + audit + typecheck + tests (parallel)
         run: |
           set +e
           mkdir -p .ci-logs
-          npm run typecheck:app  > .ci-logs/typecheck-app.log  2>&1 & PID_TC_APP=$!
-          npm run typecheck:test > .ci-logs/typecheck-test.log 2>&1 & PID_TC_TEST=$!
+          npm run lint             > .ci-logs/lint.log             2>&1 & PID_LINT=$!
+          npm run audit:contracts  > .ci-logs/audit-contracts.log  2>&1 & PID_AUDIT=$!
+          npm run typecheck:app    > .ci-logs/typecheck-app.log    2>&1 & PID_TC_APP=$!
+          npm run typecheck:test   > .ci-logs/typecheck-test.log   2>&1 & PID_TC_TEST=$!
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
             npm run test:coverage > .ci-logs/tests.log 2>&1 & PID_TESTS=$!
           else
@@ -44,14 +58,18 @@ jobs:
           fi
 
           STATUS=0
-          wait $PID_TC_APP  || { echo "::group::typecheck:app FAILED";  cat .ci-logs/typecheck-app.log;  echo "::endgroup::"; STATUS=1; }
-          wait $PID_TC_TEST || { echo "::group::typecheck:test FAILED"; cat .ci-logs/typecheck-test.log; echo "::endgroup::"; STATUS=1; }
-          wait $PID_TESTS   || { echo "::group::tests FAILED";          cat .ci-logs/tests.log;          echo "::endgroup::"; STATUS=1; }
+          wait $PID_LINT    || { echo "::group::lint FAILED";             cat .ci-logs/lint.log;             echo "::endgroup::"; STATUS=1; }
+          wait $PID_AUDIT   || { echo "::group::audit:contracts FAILED";  cat .ci-logs/audit-contracts.log;  echo "::endgroup::"; STATUS=1; }
+          wait $PID_TC_APP  || { echo "::group::typecheck:app FAILED";    cat .ci-logs/typecheck-app.log;    echo "::endgroup::"; STATUS=1; }
+          wait $PID_TC_TEST || { echo "::group::typecheck:test FAILED";   cat .ci-logs/typecheck-test.log;   echo "::endgroup::"; STATUS=1; }
+          wait $PID_TESTS   || { echo "::group::tests FAILED";            cat .ci-logs/tests.log;            echo "::endgroup::"; STATUS=1; }
 
           if [ $STATUS -eq 0 ]; then
-            echo "::group::typecheck:app";  cat .ci-logs/typecheck-app.log;  echo "::endgroup::"
-            echo "::group::typecheck:test"; cat .ci-logs/typecheck-test.log; echo "::endgroup::"
-            echo "::group::tests";          cat .ci-logs/tests.log;          echo "::endgroup::"
+            echo "::group::lint";            cat .ci-logs/lint.log;             echo "::endgroup::"
+            echo "::group::audit:contracts"; cat .ci-logs/audit-contracts.log;  echo "::endgroup::"
+            echo "::group::typecheck:app";   cat .ci-logs/typecheck-app.log;    echo "::endgroup::"
+            echo "::group::typecheck:test";  cat .ci-logs/typecheck-test.log;   echo "::endgroup::"
+            echo "::group::tests";           cat .ci-logs/tests.log;            echo "::endgroup::"
           fi
           exit $STATUS
 
@@ -101,10 +119,81 @@ jobs:
       - name: Build
         run: npm run build
 
+  integration-shard:
+    name: Integration shard ${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2]
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: marketplace_test
+          POSTGRES_USER: mp_user
+          POSTGRES_PASSWORD: mp_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mp_user -d marketplace_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 15
+
+    env:
+      DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
+      DATABASE_URL_TEST: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
+      TEST_SHARD_INDEX: ${{ matrix.shard }}
+      TEST_SHARD_TOTAL: "3"
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-deps
+
+      - name: Apply migrations to test DB
+        run: npm run test:db:parallel
+
+      - name: Create .env for seed script
+        run: |
+          echo "DATABASE_URL=$DATABASE_URL" > .env
+          echo "AUTH_SECRET=$AUTH_SECRET" >> .env
+          echo "NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL" >> .env
+          echo "PAYMENT_PROVIDER=$PAYMENT_PROVIDER" >> .env
+
+      - name: Seed database
+        run: npm run db:seed
+
+      - name: Integration tests (shard ${{ matrix.shard }} of 3)
+        run: npm run test:integration
+        timeout-minutes: 10
+
   integration:
     name: Integration
     runs-on: ubuntu-latest
+    needs: integration-shard
+    # Aggregates the matrix shards into a single status check that
+    # branch protection can require by its stable name. Each shard
+    # runs on its own postgres service with a disjoint subset of test
+    # files (see scripts/run-integration-tests.mjs TEST_SHARD_*).
+    steps:
+      - run: echo "All integration shards passed"
+
+  e2e-smoke:
+    name: E2E Smoke
+    runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Runs in parallel with verify/build/integration against `next dev`.
+    # Prod-mode coverage (`next start` + DYNAMIC_SERVER_USAGE etc.) runs
+    # in nightly.yml — a run with PLAYWRIGHT_USE_PROD=1 took ~11 min on
+    # GitHub-hosted runners, which makes it unacceptable for every PR.
+    # The playwright.config.ts env switch (#383) stays wired up so
+    # local developers and nightly can still opt into the prod server.
+    # Blocking required check — see docs/ci-testing-strategy.md §6.
 
     services:
       postgres:
@@ -130,12 +219,29 @@ jobs:
 
       - uses: ./.github/actions/setup-deps
 
-      - name: Run DB-backed tests
-        run: npm run test:db:parallel
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers (chromium only)
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright system deps
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Apply migrations to test DB
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL_TEST }}
 
       - name: Create .env for seed script
         run: |
-          echo "DATABASE_URL=$DATABASE_URL" > .env
+          echo "DATABASE_URL=$DATABASE_URL_TEST" > .env
           echo "AUTH_SECRET=$AUTH_SECRET" >> .env
           echo "NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL" >> .env
           echo "PAYMENT_PROVIDER=$PAYMENT_PROVIDER" >> .env
@@ -143,6 +249,14 @@ jobs:
       - name: Seed database
         run: npm run db:seed
 
-      - name: Integration tests
-        run: npm run test:integration
-        timeout-minutes: 10
+      - name: Run E2E smoke suite
+        run: npm run test:e2e:smoke
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: playwright-report
+          retention-days: 7
+          if-no-files-found: ignore

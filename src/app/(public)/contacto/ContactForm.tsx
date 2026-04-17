@@ -136,6 +136,8 @@ export function ContactForm() {
           {...register('mensaje')}
           id="mensaje"
           rows={5}
+          spellCheck
+          autoCapitalize="sentences"
           placeholder={formCopy.messagePlaceholder}
           className="mt-2 block w-full rounded-lg border border-border px-4 py-2 text-foreground placeholder-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft"
         />

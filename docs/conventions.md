@@ -2,7 +2,7 @@
 
 > Canonical reference. Linked from `AGENTS.md` / `CLAUDE.md`. If anything here drifts from the code, fix the code OR fix this document — never let them disagree silently.
 
-Last verified against `main`: 2026-04-13.
+Last verified against `main`: 2026-04-15.
 
 ---
 
@@ -16,6 +16,14 @@ Last verified against `main`: 2026-04-13.
 - **NextAuth v5 beta.30** — JWT strategy. `auth()` returns the session.
 - **Stripe v22** — Connect Express for vendors.
 - **Zod v4** — schema validation.
+
+### Strictness — current state
+
+`tsconfig.json` enables `strict: true` plus `noFallthroughCasesInSwitch`, `noImplicitReturns`, `noUnusedLocals`, `noUnusedParameters`, and **`noUncheckedIndexedAccess: true`** (Phase 10 of the contract-hardening plan; was a 45-error fix).
+
+`tsconfig.test.json` overrides `noUncheckedIndexedAccess: false` so test code can spread arrays / use bracket access without `!` everywhere — tests fail at runtime if they're wrong, so the extra static guard adds noise without value.
+
+If you add a new array/object index access in `src/`, expect TS to flag the result as `T | undefined`. Use `array[i]!` only when you've already proven the index is in bounds (e.g. inside a `for (let i = 0; i < arr.length; i++)`); otherwise prefer a defensive `?? defaultValue` or a guard.
 
 ---
 
@@ -82,6 +90,28 @@ export async function myAction(input: unknown) {
 ```
 
 For API routes and Server Components use the existing `requireVendor()` / `requireAdmin()` from `src/lib/auth-guard.ts` instead of rolling your own.
+
+---
+
+## Cross-domain imports — go through the barrel
+
+Each domain under `src/domains/<X>/` exports its public surface from `index.ts`. **Cross-domain imports MUST resolve through the barrel**, not via deep paths into another domain's internals:
+
+```ts
+// ✅ Cross-domain: import via the barrel
+import { createCheckoutOrder, checkoutSchema } from '@/domains/orders'
+import type { ProductWithVendor } from '@/domains/catalog'
+
+// ❌ Cross-domain deep import — Phase 4 lint rule will reject
+import { createCheckoutOrder } from '@/domains/orders/actions'
+import type { ProductWithVendor } from '@/domains/catalog/types'
+
+// ✅ Same-domain deep imports remain free
+// (inside src/domains/catalog/queries.ts)
+import { expandSearchQuery } from '@/domains/catalog/search-translation'
+```
+
+When you add a new file to a domain, decide whether it's part of the public surface and update the barrel accordingly. Client-only modules (`'use client'` Zustand stores like `cart-store`, `favorites-store`) are intentionally excluded from barrels so server callers don't accidentally pull in client code.
 
 ---
 
@@ -177,6 +207,38 @@ export const config = {
 
 ---
 
+## Edge proxy — authenticated prefixes (defence in depth)
+
+`src/proxy.ts` runs at the edge before any server component renders. It redirects unauthenticated traffic away from whole route groups via:
+
+```ts
+export const PROTECTED_PREFIXES = ['/admin', '/vendor', '/carrito', '/checkout', '/cuenta'] as const
+```
+
+Two structural tests pin this contract:
+
+- `test/integration/proxy-protected-prefixes.test.ts` — walks `src/app/(buyer|vendor|admin)/` and fails CI if a new top-level segment is added without a matching prefix. Removing an entry from `PROTECTED_PREFIXES` also fails (the canonical 5 segments are pinned).
+- `test/integration/api-route-auth-audit.test.ts` — walks every `src/app/api/**/route.ts` and fails CI when a file has no session helper (`getActionSession`, `auth()`, `require*`, etc.) AND is not on the explicit `PUBLIC_API_ROUTES` allow-list. Each allow-list entry must document a reason.
+
+### Adding a new authenticated route
+
+1. Place it under `(buyer)`, `(vendor)` or `(admin)` in `src/app/`.
+2. If its top-level segment (`/foo`) is not yet in `PROTECTED_PREFIXES`, add it there.
+3. Run `npm run test -- test/integration/proxy-protected-prefixes.test.ts` — must pass.
+
+### Adding a new API route
+
+1. Call `getActionSession()` or an equivalent helper inside the handler before touching any user data.
+2. Scope every query by `userId`/`buyerId`/`vendorId` from the session.
+3. If the endpoint is **intentionally public** (webhook, unauthenticated form), add it to `PUBLIC_API_ROUTES` in `test/integration/api-route-auth-audit.test.ts` with a clear reason.
+4. Run `npm run test -- test/integration/api-route-auth-audit.test.ts` — must pass.
+
+### Out-of-scope: admin host isolation
+
+When `ADMIN_HOST` env is set, `/admin/**` is additionally gated to a dedicated host. See `docs/admin-host.md` for DNS/TLS setup.
+
+---
+
 ## Update `navigation.ts` when activating routes
 
 `src/lib/navigation.ts` flags some routes as `available: false`. When you implement one of them, flip it to `true` in the same PR — otherwise the entry stays hidden in the header.
@@ -195,15 +257,38 @@ export const config = {
 ## Environment variables
 
 ```env
-DATABASE_URL           # PostgreSQL connection string
-NEXTAUTH_SECRET        # NextAuth secret
-NEXTAUTH_URL           # base URL (e.g. http://localhost:3000)
-NEXT_PUBLIC_URL        # same as NEXTAUTH_URL but exposed to the client
-STRIPE_SECRET_KEY      # sk_test_... or sk_live_...
-STRIPE_WEBHOOK_SECRET  # whsec_...
+# Core
+DATABASE_URL                 # PostgreSQL connection string
+AUTH_SECRET                  # NextAuth v5 secret (openssl rand -base64 32)
+AUTH_URL                     # base URL, e.g. http://localhost:3000
+NEXT_PUBLIC_APP_URL          # same base URL, exposed to the client
+
+# Payments (Stripe live mode + Stripe Subscriptions)
+PAYMENT_PROVIDER             # "mock" | "stripe"
+STRIPE_SECRET_KEY            # sk_test_... or sk_live_...
+STRIPE_PUBLISHABLE_KEY       # pk_test_... or pk_live_...
+STRIPE_WEBHOOK_SECRET        # whsec_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+
+# Shipping (Sendcloud, PR #331)
+SHIPPING_PROVIDER            # "SENDCLOUD" (default) | "MOCK"
+SENDCLOUD_PUBLIC_KEY
+SENDCLOUD_SECRET_KEY
+SENDCLOUD_WEBHOOK_SECRET
+SENDCLOUD_SENDER_ID          # numeric sender address id
+SENDCLOUD_BASE_URL           # optional override
+
+# Emails (optional)
+RESEND_API_KEY
+EMAIL_FROM
+CONTACT_EMAIL
+
+# Admin host isolation (optional — see docs/admin-host.md)
+ADMIN_HOST                   # e.g. admin.your-domain.com
 ```
 
-See `.env.example` for the up-to-date list.
+See `.env.example` for the canonical list and `docs/admin-host.md` for the
+ADMIN_HOST setup checklist.
 
 ---
 
@@ -223,11 +308,23 @@ src/
 │       ├── Header.tsx
 │       └── Footer.tsx
 ├── domains/              # Server Actions per business domain
-│   ├── vendors/actions.ts
-│   ├── orders/actions.ts
-│   ├── reviews/actions.ts  # ⚠️ ALREADY EXISTS — do not recreate
-│   ├── payments/
-│   └── settlements/
+│   ├── admin/               # backoffice (superadmin writes, moderation)
+│   ├── analytics/           # KPIs for admin reports dashboard
+│   ├── auth/                # register, password reset, email verification
+│   ├── catalog/             # products, categories, availability, stock
+│   ├── finance/             # commission rules
+│   ├── impersonation/       # superadmin → user impersonation (scaffold, PR #356)
+│   ├── incidents/           # order incidents + admin triage
+│   ├── orders/              # createOrder / confirmOrder / fulfillment FSM
+│   ├── payments/            # Stripe mock + live providers, webhook handlers
+│   ├── portals/             # auth callback validation + portal switcher (PR #356)
+│   ├── promotions/          # vendor promo CRUD + checkout evaluation (RFC 0001)
+│   ├── reviews/             # ⚠️ ALREADY EXISTS — do not recreate
+│   ├── settlements/         # vendor payout periods
+│   ├── shipping/            # Sendcloud provider + mock + label/tracking
+│   │   └── providers/       #   registry.ts selects by SHIPPING_PROVIDER env
+│   ├── subscriptions/       # plan CRUD + buyer lifecycle + Stripe Subscriptions (RFC 0001)
+│   └── vendors/             # vendor profile, Stripe Connect onboarding
 ├── i18n/                 # See src/i18n/README.md for i18n conventions
 ├── lib/
 │   ├── db.ts              # Prisma client → exports { db }
@@ -245,4 +342,6 @@ src/
 
 ## Related documents
 
+- [`docs/ai-guidelines.md`](./ai-guidelines.md) — contract rules, domain boundaries, and how the audit script enforces them.
+- [`docs/ai-workflows.md`](./ai-workflows.md) — recipes: add a feature, refactor safely, change a contract.
 - [`src/i18n/README.md`](../src/i18n/README.md) — i18n conventions (flat keys vs `*-copy.ts` vs `labelKey`).

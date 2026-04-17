@@ -1,0 +1,137 @@
+name: Nightly
+
+on:
+  schedule:
+    # 03:17 UTC daily — off-peak, avoids the top-of-hour GitHub Actions queue.
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AUTH_SECRET: ci-secret-please-change
+  NEXT_PUBLIC_APP_URL: http://localhost:3000
+  PAYMENT_PROVIDER: mock
+
+jobs:
+  full-e2e:
+    name: Full E2E suite (prod server)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Runs the complete Playwright suite against `next start` (production
+    # mode, PLAYWRIGHT_USE_PROD=1). Prod-mode coverage used to live in
+    # ci.yml but the `next start` boot path took ~11 min on GitHub-hosted
+    # runners, unacceptable for PR CI. Nightly absorbs that cost once
+    # per day. See #379 and docs/ci-testing-strategy.md §2.
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: marketplace_test
+          POSTGRES_USER: mp_user
+          POSTGRES_PASSWORD: mp_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mp_user -d marketplace_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 15
+
+    env:
+      DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
+      DATABASE_URL_TEST: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
+      PLAYWRIGHT_USE_PROD: "1"
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-deps
+
+      - name: Apply migrations to test DB
+        run: npx prisma migrate deploy
+
+      - name: Build (for next start)
+        run: npm run build
+
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright system deps
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Create .env for seed script
+        run: |
+          echo "DATABASE_URL=$DATABASE_URL" > .env
+          echo "AUTH_SECRET=$AUTH_SECRET" >> .env
+          echo "NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL" >> .env
+          echo "PAYMENT_PROVIDER=$PAYMENT_PROVIDER" >> .env
+
+      - name: Seed database
+        run: npm run db:seed
+
+      - name: Run full E2E suite
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-report-nightly
+          path: playwright-report
+          retention-days: 14
+          if-no-files-found: ignore
+
+  coverage-trend:
+    name: Coverage trend
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-deps
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: coverage-report-nightly
+          path: coverage
+          retention-days: 30
+          if-no-files-found: ignore
+
+  security-audit:
+    name: Security audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-deps
+
+      - name: npm audit (high + critical only)
+        run: npm audit --audit-level=high
+        continue-on-error: true

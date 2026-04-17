@@ -10,6 +10,23 @@ export const TAX_RATES = {
 export const CERTIFICATIONS = ['ECO-ES', 'DOP', 'KM0', 'BIO', 'IGP'] as const
 export type Certification = typeof CERTIFICATIONS[number]
 
+// Canonical product units shown in the vendor product form dropdown.
+// Existing products with non-canonical units (e.g. legacy free-text) are
+// still supported by appending the current value as an extra option.
+export const PRODUCT_UNITS = [
+  'kg',
+  'g',
+  'l',
+  'ml',
+  'unidad',
+  'docena',
+  'botella',
+  'caja',
+  'manojo',
+  'pieza',
+] as const
+export type ProductUnit = typeof PRODUCT_UNITS[number]
+
 export const ORDER_STATUS_LABELS: Record<string, string> = {
   PLACED: 'Pedido recibido',
   PAYMENT_CONFIRMED: 'Pago confirmado',

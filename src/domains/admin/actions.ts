@@ -2,14 +2,13 @@
 
 import { UserRole } from '@/generated/prisma/enums'
 import { db } from '@/lib/db'
-import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { setMarketplaceConfig } from '@/lib/config'
-import { createAuditLog, getAuditRequestIp, type AuditValue } from '@/lib/audit'
-import { requireAdmin } from '@/lib/auth-guard'
-import { hasRole, isAdmin } from '@/lib/roles'
-import { getActionSession } from '@/lib/action-session'
+import { createAuditLog, getAuditRequestIp, mutateWithAudit, type AuditValue } from '@/lib/audit'
+import { requireAdmin, requireFinanceAdmin, requireOpsAdmin } from '@/lib/auth-guard'
+import { hasRole } from '@/lib/roles'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
+import { assertVendorOnboarded } from '@/domains/vendors'
 
 function getVendorAuditSnapshot(vendor: {
   id: string
@@ -94,25 +93,30 @@ export async function approveVendor(vendorId: string) {
   }
 
   const before = getVendorAuditSnapshot(vendor)
-  const updatedVendor = await db.vendor.update({
-    where: { id: vendorId },
-    data: { status: 'ACTIVE' },
-  })
   const ip = await getAuditRequestIp()
 
-  await createAuditLog({
-    action: 'VENDOR_APPROVED',
-    entityType: 'Vendor',
-    entityId: vendorId,
-    before,
-    after: getVendorAuditSnapshot(updatedVendor),
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    ip,
+  await mutateWithAudit(async tx => {
+    const updatedVendor = await tx.vendor.update({
+      where: { id: vendorId },
+      data: { status: 'ACTIVE' },
+    })
+    return {
+      result: updatedVendor,
+      audit: {
+        action: 'VENDOR_APPROVED',
+        entityType: 'Vendor',
+        entityId: vendorId,
+        before,
+        after: getVendorAuditSnapshot(updatedVendor),
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        ip,
+      },
+    }
   })
 
-  revalidatePath('/admin/productores')
-  revalidatePath('/admin/auditoria')
+  safeRevalidatePath('/admin/productores')
+  safeRevalidatePath('/admin/auditoria')
 }
 
 /**
@@ -124,26 +128,30 @@ export async function rejectVendor(vendorId: string) {
   const vendor = await db.vendor.findUnique({ where: { id: vendorId } })
   if (!vendor) throw new Error('Productor no encontrado')
   const before = getVendorAuditSnapshot(vendor)
-
-  const updatedVendor = await db.vendor.update({
-    where: { id: vendorId },
-    data: { status: 'REJECTED' },
-  })
   const ip = await getAuditRequestIp()
 
-  await createAuditLog({
-    action: 'VENDOR_REJECTED',
-    entityType: 'Vendor',
-    entityId: vendorId,
-    before,
-    after: getVendorAuditSnapshot(updatedVendor),
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    ip,
+  await mutateWithAudit(async tx => {
+    const updatedVendor = await tx.vendor.update({
+      where: { id: vendorId },
+      data: { status: 'REJECTED' },
+    })
+    return {
+      result: updatedVendor,
+      audit: {
+        action: 'VENDOR_REJECTED',
+        entityType: 'Vendor',
+        entityId: vendorId,
+        before,
+        after: getVendorAuditSnapshot(updatedVendor),
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        ip,
+      },
+    }
   })
 
-  revalidatePath('/admin/productores')
-  revalidatePath('/admin/auditoria')
+  safeRevalidatePath('/admin/productores')
+  safeRevalidatePath('/admin/auditoria')
 }
 
 /**
@@ -155,26 +163,30 @@ export async function suspendVendor(vendorId: string) {
   const vendor = await db.vendor.findUnique({ where: { id: vendorId } })
   if (!vendor) throw new Error('Productor no encontrado')
   const before = getVendorAuditSnapshot(vendor)
-
-  const updatedVendor = await db.vendor.update({
-    where: { id: vendorId },
-    data: { status: 'SUSPENDED_TEMP' },
-  })
   const ip = await getAuditRequestIp()
 
-  await createAuditLog({
-    action: 'VENDOR_SUSPENDED',
-    entityType: 'Vendor',
-    entityId: vendorId,
-    before,
-    after: getVendorAuditSnapshot(updatedVendor),
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    ip,
+  await mutateWithAudit(async tx => {
+    const updatedVendor = await tx.vendor.update({
+      where: { id: vendorId },
+      data: { status: 'SUSPENDED_TEMP' },
+    })
+    return {
+      result: updatedVendor,
+      audit: {
+        action: 'VENDOR_SUSPENDED',
+        entityType: 'Vendor',
+        entityId: vendorId,
+        before,
+        after: getVendorAuditSnapshot(updatedVendor),
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        ip,
+      },
+    }
   })
 
-  revalidatePath('/admin/productores')
-  revalidatePath('/admin/auditoria')
+  safeRevalidatePath('/admin/productores')
+  safeRevalidatePath('/admin/auditoria')
 }
 
 // ─── Product moderation ───────────────────────────────────────────────────────
@@ -255,6 +267,10 @@ export async function updateMarketplaceConfigAction(formData: FormData) {
     previousConfig.map(item => [item.key, item.value])
   ) as AuditValue
 
+  // NOTE: `setMarketplaceConfig` is not a direct Prisma call (it upserts via
+  // a helper), so we cannot wrap it with `mutateWithAudit`/`$transaction`
+  // here. Fall back to the legacy direct audit call with `db` passed
+  // explicitly; the audit write will still raise on failure (#381).
   await createAuditLog({
     action: 'MARKETPLACE_CONFIG_UPDATED',
     entityType: 'MarketplaceConfig',
@@ -264,14 +280,14 @@ export async function updateMarketplaceConfigAction(formData: FormData) {
     actorId: session.user.id,
     actorRole: session.user.role,
     ip,
-  })
+  }, db)
 
-  revalidatePath('/admin/configuracion')
-  revalidatePath('/admin/dashboard')
-  revalidatePath('/admin/auditoria')
-  revalidatePath('/')
-  revalidatePath('/carrito')
-  revalidatePath('/checkout')
+  safeRevalidatePath('/admin/configuracion')
+  safeRevalidatePath('/admin/dashboard')
+  safeRevalidatePath('/admin/auditoria')
+  safeRevalidatePath('/')
+  safeRevalidatePath('/carrito')
+  safeRevalidatePath('/checkout')
 }
 
 export async function createCommissionRule(formData: FormData) {
@@ -291,36 +307,41 @@ export async function createCommissionRule(formData: FormData) {
     throw new Error('Debes seleccionar al menos un productor o una categoría')
   }
 
-  const createdRule = await db.commissionRule.create({
-    data: {
-      vendorId: parsed.vendorId ?? null,
-      categoryId: parsed.categoryId ?? null,
-      type: parsed.type,
-      rate: parsed.rate,
-      isActive: true,
-    },
-  })
   const ip = await getAuditRequestIp()
 
-  await createAuditLog({
-    action: 'COMMISSION_RULE_CREATED',
-    entityType: 'CommissionRule',
-    entityId: createdRule.id,
-    after: {
-      id: createdRule.id,
-      vendorId: createdRule.vendorId,
-      categoryId: createdRule.categoryId,
-      type: createdRule.type,
-      rate: Number(createdRule.rate),
-      isActive: createdRule.isActive,
-    },
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    ip,
+  await mutateWithAudit(async tx => {
+    const createdRule = await tx.commissionRule.create({
+      data: {
+        vendorId: parsed.vendorId ?? null,
+        categoryId: parsed.categoryId ?? null,
+        type: parsed.type,
+        rate: parsed.rate,
+        isActive: true,
+      },
+    })
+    return {
+      result: createdRule,
+      audit: {
+        action: 'COMMISSION_RULE_CREATED',
+        entityType: 'CommissionRule',
+        entityId: createdRule.id,
+        after: {
+          id: createdRule.id,
+          vendorId: createdRule.vendorId,
+          categoryId: createdRule.categoryId,
+          type: createdRule.type,
+          rate: Number(createdRule.rate),
+          isActive: createdRule.isActive,
+        },
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        ip,
+      },
+    }
   })
 
-  revalidatePath('/admin/comisiones')
-  revalidatePath('/admin/auditoria')
+  safeRevalidatePath('/admin/comisiones')
+  safeRevalidatePath('/admin/auditoria')
 }
 
 export async function toggleCommissionRule(ruleId: string) {
@@ -332,35 +353,40 @@ export async function toggleCommissionRule(ruleId: string) {
   const rule = await db.commissionRule.findUnique({ where: { id: ruleId } })
   if (!rule) throw new Error('Regla no encontrada')
 
-  const updatedRule = await db.commissionRule.update({
-    where: { id: ruleId },
-    data: { isActive: !rule.isActive },
-  })
   const ip = await getAuditRequestIp()
 
-  await createAuditLog({
-    action: 'COMMISSION_RULE_TOGGLED',
-    entityType: 'CommissionRule',
-    entityId: ruleId,
-    before: {
-      id: rule.id,
-      isActive: rule.isActive,
-      type: rule.type,
-      rate: Number(rule.rate),
-    },
-    after: {
-      id: updatedRule.id,
-      isActive: updatedRule.isActive,
-      type: updatedRule.type,
-      rate: Number(updatedRule.rate),
-    },
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    ip,
+  await mutateWithAudit(async tx => {
+    const updatedRule = await tx.commissionRule.update({
+      where: { id: ruleId },
+      data: { isActive: !rule.isActive },
+    })
+    return {
+      result: updatedRule,
+      audit: {
+        action: 'COMMISSION_RULE_TOGGLED',
+        entityType: 'CommissionRule',
+        entityId: ruleId,
+        before: {
+          id: rule.id,
+          isActive: rule.isActive,
+          type: rule.type,
+          rate: Number(rule.rate),
+        },
+        after: {
+          id: updatedRule.id,
+          isActive: updatedRule.isActive,
+          type: updatedRule.type,
+          rate: Number(updatedRule.rate),
+        },
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        ip,
+      },
+    }
   })
 
-  revalidatePath('/admin/comisiones')
-  revalidatePath('/admin/auditoria')
+  safeRevalidatePath('/admin/comisiones')
+  safeRevalidatePath('/admin/auditoria')
 }
 
 export async function deleteCommissionRule(ruleId: string) {
@@ -372,28 +398,33 @@ export async function deleteCommissionRule(ruleId: string) {
   const rule = await db.commissionRule.findUnique({ where: { id: ruleId } })
   if (!rule) throw new Error('Regla no encontrada')
 
-  await db.commissionRule.delete({ where: { id: ruleId } })
   const ip = await getAuditRequestIp()
 
-  await createAuditLog({
-    action: 'COMMISSION_RULE_DELETED',
-    entityType: 'CommissionRule',
-    entityId: ruleId,
-    before: {
-      id: rule.id,
-      vendorId: rule.vendorId,
-      categoryId: rule.categoryId,
-      type: rule.type,
-      rate: Number(rule.rate),
-      isActive: rule.isActive,
-    },
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    ip,
+  await mutateWithAudit(async tx => {
+    const deletedRule = await tx.commissionRule.delete({ where: { id: ruleId } })
+    return {
+      result: deletedRule,
+      audit: {
+        action: 'COMMISSION_RULE_DELETED',
+        entityType: 'CommissionRule',
+        entityId: ruleId,
+        before: {
+          id: rule.id,
+          vendorId: rule.vendorId,
+          categoryId: rule.categoryId,
+          type: rule.type,
+          rate: Number(rule.rate),
+          isActive: rule.isActive,
+        },
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        ip,
+      },
+    }
   })
 
-  revalidatePath('/admin/comisiones')
-  revalidatePath('/admin/auditoria')
+  safeRevalidatePath('/admin/comisiones')
+  safeRevalidatePath('/admin/auditoria')
 }
 
 export async function createShippingZone(formData: FormData) {
@@ -407,32 +438,37 @@ export async function createShippingZone(formData: FormData) {
     provinces: formData.get('provinces'),
   })
 
-  const createdZone = await db.shippingZone.create({
-    data: {
-      name: parsed.name,
-      provinces: parsed.provinces.split(',').map(value => value.trim()).filter(Boolean),
-      isActive: true,
-    },
-  })
   const ip = await getAuditRequestIp()
 
-  await createAuditLog({
-    action: 'SHIPPING_ZONE_CREATED',
-    entityType: 'ShippingZone',
-    entityId: createdZone.id,
-    after: {
-      id: createdZone.id,
-      name: createdZone.name,
-      provinces: createdZone.provinces,
-      isActive: createdZone.isActive,
-    },
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    ip,
+  await mutateWithAudit(async tx => {
+    const createdZone = await tx.shippingZone.create({
+      data: {
+        name: parsed.name,
+        provinces: parsed.provinces.split(',').map(value => value.trim()).filter(Boolean),
+        isActive: true,
+      },
+    })
+    return {
+      result: createdZone,
+      audit: {
+        action: 'SHIPPING_ZONE_CREATED',
+        entityType: 'ShippingZone',
+        entityId: createdZone.id,
+        after: {
+          id: createdZone.id,
+          name: createdZone.name,
+          provinces: createdZone.provinces,
+          isActive: createdZone.isActive,
+        },
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        ip,
+      },
+    }
   })
 
-  revalidatePath('/admin/envios')
-  revalidatePath('/admin/auditoria')
+  safeRevalidatePath('/admin/envios')
+  safeRevalidatePath('/admin/auditoria')
 }
 
 export async function addShippingRate(formData: FormData) {
@@ -449,37 +485,42 @@ export async function addShippingRate(formData: FormData) {
     freeAbove: formData.get('freeAbove') || undefined,
   })
 
-  const createdRate = await db.shippingRate.create({
-    data: {
-      zoneId: parsed.zoneId,
-      name: parsed.name,
-      minOrderAmount: parsed.minOrderAmount ?? null,
-      price: parsed.price,
-      freeAbove: parsed.freeAbove ?? null,
-      isActive: true,
-    },
-  })
   const ip = await getAuditRequestIp()
 
-  await createAuditLog({
-    action: 'SHIPPING_RATE_CREATED',
-    entityType: 'ShippingRate',
-    entityId: createdRate.id,
-    after: {
-      id: createdRate.id,
-      zoneId: createdRate.zoneId,
-      name: createdRate.name,
-      minOrderAmount: createdRate.minOrderAmount == null ? null : Number(createdRate.minOrderAmount),
-      price: Number(createdRate.price),
-      freeAbove: createdRate.freeAbove == null ? null : Number(createdRate.freeAbove),
-    },
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    ip,
+  await mutateWithAudit(async tx => {
+    const createdRate = await tx.shippingRate.create({
+      data: {
+        zoneId: parsed.zoneId,
+        name: parsed.name,
+        minOrderAmount: parsed.minOrderAmount ?? null,
+        price: parsed.price,
+        freeAbove: parsed.freeAbove ?? null,
+        isActive: true,
+      },
+    })
+    return {
+      result: createdRate,
+      audit: {
+        action: 'SHIPPING_RATE_CREATED',
+        entityType: 'ShippingRate',
+        entityId: createdRate.id,
+        after: {
+          id: createdRate.id,
+          zoneId: createdRate.zoneId,
+          name: createdRate.name,
+          minOrderAmount: createdRate.minOrderAmount == null ? null : Number(createdRate.minOrderAmount),
+          price: Number(createdRate.price),
+          freeAbove: createdRate.freeAbove == null ? null : Number(createdRate.freeAbove),
+        },
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        ip,
+      },
+    }
   })
 
-  revalidatePath('/admin/envios')
-  revalidatePath('/admin/auditoria')
+  safeRevalidatePath('/admin/envios')
+  safeRevalidatePath('/admin/auditoria')
 }
 
 export async function deleteShippingRate(rateId: string) {
@@ -491,28 +532,33 @@ export async function deleteShippingRate(rateId: string) {
   const rate = await db.shippingRate.findUnique({ where: { id: rateId } })
   if (!rate) throw new Error('Tarifa no encontrada')
 
-  await db.shippingRate.delete({ where: { id: rateId } })
   const ip = await getAuditRequestIp()
 
-  await createAuditLog({
-    action: 'SHIPPING_RATE_DELETED',
-    entityType: 'ShippingRate',
-    entityId: rateId,
-    before: {
-      id: rate.id,
-      zoneId: rate.zoneId,
-      name: rate.name,
-      minOrderAmount: rate.minOrderAmount == null ? null : Number(rate.minOrderAmount),
-      price: Number(rate.price),
-      freeAbove: rate.freeAbove == null ? null : Number(rate.freeAbove),
-    },
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    ip,
+  await mutateWithAudit(async tx => {
+    const deletedRate = await tx.shippingRate.delete({ where: { id: rateId } })
+    return {
+      result: deletedRate,
+      audit: {
+        action: 'SHIPPING_RATE_DELETED',
+        entityType: 'ShippingRate',
+        entityId: rateId,
+        before: {
+          id: rate.id,
+          zoneId: rate.zoneId,
+          name: rate.name,
+          minOrderAmount: rate.minOrderAmount == null ? null : Number(rate.minOrderAmount),
+          price: Number(rate.price),
+          freeAbove: rate.freeAbove == null ? null : Number(rate.freeAbove),
+        },
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        ip,
+      },
+    }
   })
 
-  revalidatePath('/admin/envios')
-  revalidatePath('/admin/auditoria')
+  safeRevalidatePath('/admin/envios')
+  safeRevalidatePath('/admin/auditoria')
 }
 
 /**
@@ -535,30 +581,47 @@ export async function reviewProduct(
     throw new Error('El producto no está en revisión')
   }
 
+  // Stripe onboarding is only required to actually go live, so vendors can
+  // submit drafts to review before finishing it. Block approval (not rejection)
+  // until the payout destination is set up.
+  if (validAction === 'approve') {
+    const vendor = await db.vendor.findUnique({
+      where: { id: product.vendorId },
+      select: { stripeOnboarded: true },
+    })
+    if (!vendor) throw new Error('Productor no encontrado')
+    assertVendorOnboarded(vendor)
+  }
+
   const before = getProductAuditSnapshot(product)
-  const updatedProduct = await db.product.update({
-    where: { id: productId },
-    data:
-      validAction === 'approve'
-        ? { status: 'ACTIVE', rejectionNote: null }
-        : { status: 'REJECTED', rejectionNote: note ?? 'No cumple los requisitos del catálogo' },
-  })
   const ip = await getAuditRequestIp()
 
-  await createAuditLog({
-    action: validAction === 'approve' ? 'PRODUCT_APPROVED' : 'PRODUCT_REJECTED',
-    entityType: 'Product',
-    entityId: productId,
-    before,
-    after: getProductAuditSnapshot(updatedProduct),
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    ip,
+  const updatedProduct = await mutateWithAudit(async tx => {
+    const updated = await tx.product.update({
+      where: { id: productId },
+      data:
+        validAction === 'approve'
+          ? { status: 'ACTIVE', rejectionNote: null }
+          : { status: 'REJECTED', rejectionNote: note ?? 'No cumple los requisitos del catálogo' },
+    })
+    return {
+      result: updated,
+      audit: {
+        action: validAction === 'approve' ? 'PRODUCT_APPROVED' : 'PRODUCT_REJECTED',
+        entityType: 'Product',
+        entityId: productId,
+        before,
+        after: getProductAuditSnapshot(updated),
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        ip,
+      },
+    }
   })
 
-  revalidatePath('/admin/productos')
-  revalidatePath('/admin/auditoria')
-  revalidatePath('/vendor/productos')
+  safeRevalidatePath('/admin/productos')
+  safeRevalidatePath('/admin/auditoria')
+  safeRevalidatePath('/vendor/productos')
   revalidateCatalogExperience({ productSlug: updatedProduct.slug })
 }
 
@@ -571,32 +634,39 @@ export async function suspendProduct(productId: string, reason: string) {
   const product = await db.product.findUnique({ where: { id: productId } })
   if (!product) throw new Error('Producto no encontrado')
   const before = getProductAuditSnapshot(product)
-
-  const updatedProduct = await db.product.update({
-    where: { id: productId },
-    data: { status: 'SUSPENDED', rejectionNote: reason },
-  })
   const ip = await getAuditRequestIp()
 
-  await createAuditLog({
-    action: 'PRODUCT_SUSPENDED',
-    entityType: 'Product',
-    entityId: productId,
-    before,
-    after: getProductAuditSnapshot(updatedProduct),
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    ip,
+  const updatedProduct = await mutateWithAudit(async tx => {
+    const updated = await tx.product.update({
+      where: { id: productId },
+      data: { status: 'SUSPENDED', rejectionNote: reason },
+    })
+    return {
+      result: updated,
+      audit: {
+        action: 'PRODUCT_SUSPENDED',
+        entityType: 'Product',
+        entityId: productId,
+        before,
+        after: getProductAuditSnapshot(updated),
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        ip,
+      },
+    }
   })
 
-  revalidatePath('/admin/productos')
-  revalidatePath('/admin/auditoria')
-  revalidatePath('/vendor/productos')
+  safeRevalidatePath('/admin/productos')
+  safeRevalidatePath('/admin/auditoria')
+  safeRevalidatePath('/vendor/productos')
   revalidateCatalogExperience({ productSlug: updatedProduct.slug })
 }
 
 export async function approveSettlement(settlementId: string) {
-  const session = await requireAdmin()
+  // Settlement approval moves real money to vendors. Restrict to
+  // FINANCE_ADMIN + SUPERADMIN; ADMIN_OPS retains visibility but
+  // cannot approve. (#403)
+  const session = await requireFinanceAdmin()
 
   const settlement = await db.settlement.findUnique({ where: { id: settlementId } })
   if (!settlement) throw new Error('Liquidación no encontrada')
@@ -605,29 +675,36 @@ export async function approveSettlement(settlementId: string) {
   }
 
   const before = getSettlementAuditSnapshot(settlement)
-  const updatedSettlement = await db.settlement.update({
-    where: { id: settlementId },
-    data: { status: 'APPROVED' },
-  })
   const ip = await getAuditRequestIp()
 
-  await createAuditLog({
-    action: 'SETTLEMENT_APPROVED',
-    entityType: 'Settlement',
-    entityId: settlementId,
-    before,
-    after: getSettlementAuditSnapshot(updatedSettlement),
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    ip,
+  await mutateWithAudit(async tx => {
+    const updatedSettlement = await tx.settlement.update({
+      where: { id: settlementId },
+      data: { status: 'APPROVED' },
+    })
+    return {
+      result: updatedSettlement,
+      audit: {
+        action: 'SETTLEMENT_APPROVED',
+        entityType: 'Settlement',
+        entityId: settlementId,
+        before,
+        after: getSettlementAuditSnapshot(updatedSettlement),
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        ip,
+      },
+    }
   })
 
-  revalidatePath('/admin/liquidaciones')
-  revalidatePath('/admin/auditoria')
+  safeRevalidatePath('/admin/liquidaciones')
+  safeRevalidatePath('/admin/auditoria')
 }
 
 export async function markSettlementPaid(settlementId: string) {
-  const session = await requireAdmin()
+  // Marking a settlement PAID is the final financial step before payout.
+  // Restrict to FINANCE_ADMIN + SUPERADMIN. (#403)
+  const session = await requireFinanceAdmin()
 
   const settlement = await db.settlement.findUnique({ where: { id: settlementId } })
   if (!settlement) throw new Error('Liquidación no encontrada')
@@ -636,25 +713,30 @@ export async function markSettlementPaid(settlementId: string) {
   }
 
   const before = getSettlementAuditSnapshot(settlement)
-  const updatedSettlement = await db.settlement.update({
-    where: { id: settlementId },
-    data: { status: 'PAID', paidAt: new Date() },
-  })
   const ip = await getAuditRequestIp()
 
-  await createAuditLog({
-    action: 'SETTLEMENT_PAID',
-    entityType: 'Settlement',
-    entityId: settlementId,
-    before,
-    after: getSettlementAuditSnapshot(updatedSettlement),
-    actorId: session.user.id,
-    actorRole: session.user.role,
-    ip,
+  await mutateWithAudit(async tx => {
+    const updatedSettlement = await tx.settlement.update({
+      where: { id: settlementId },
+      data: { status: 'PAID', paidAt: new Date() },
+    })
+    return {
+      result: updatedSettlement,
+      audit: {
+        action: 'SETTLEMENT_PAID',
+        entityType: 'Settlement',
+        entityId: settlementId,
+        before,
+        after: getSettlementAuditSnapshot(updatedSettlement),
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        ip,
+      },
+    }
   })
 
-  revalidatePath('/admin/liquidaciones')
-  revalidatePath('/admin/auditoria')
+  safeRevalidatePath('/admin/liquidaciones')
+  safeRevalidatePath('/admin/auditoria')
 }
 
 // ─── Order management ─────────────────────────────────────────────────────────
@@ -669,8 +751,9 @@ const CANCELLABLE_ORDER_STATUSES = ['PLACED', 'PAYMENT_CONFIRMED', 'PROCESSING',
  *   lines require manual intervention / refund flow).
  */
 export async function cancelOrder(orderId: string, reason: string) {
-  const session = await getActionSession()
-  if (!session || !isAdmin(session.user.role)) throw new Error('Acceso denegado')
+  // Order cancellation rolls back stock + may trigger refunds via the
+  // payments domain. Restrict to OPS + SUPERADMIN. (#403)
+  const session = await requireOpsAdmin()
 
   const order = await db.order.findUnique({
     where: { id: orderId },

@@ -2,7 +2,7 @@
 
 import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
-import { SunIcon, MoonIcon, ComputerDesktopIcon } from '@heroicons/react/24/outline'
+import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import {
   getNextThemePreference,
@@ -33,8 +33,8 @@ export function ThemeToggle({ className }: { className?: string }) {
   const isDark = isDarkThemeSelected(theme, resolvedTheme)
   const nextTheme = getNextThemePreference(theme)
   const label = getThemeToggleLabel(theme, resolvedTheme)
-
-  const Icon = currentTheme === 'system' ? ComputerDesktopIcon : isDark ? MoonIcon : SunIcon
+  const isSystem = currentTheme === 'system'
+  const Icon = isDark ? MoonIcon : SunIcon
 
   return (
     <button
@@ -44,13 +44,19 @@ export function ThemeToggle({ className }: { className?: string }) {
       aria-label={`Cambiar tema. Actual: ${label}. Siguiente: ${nextTheme}`}
       aria-pressed={isDark}
       className={cn(
-        'flex h-9 w-9 items-center justify-center rounded-lg text-[var(--muted)]',
+        'relative flex h-9 w-9 items-center justify-center rounded-lg text-[var(--muted)]',
         'hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]',
         'border border-transparent hover:border-[var(--border)] focus-visible:border-[var(--border)]',
         className
       )}
     >
       <Icon className="h-5 w-5" />
+      {isSystem && (
+        <span
+          aria-hidden="true"
+          className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-full bg-emerald-500 ring-2 ring-[var(--surface)]"
+        />
+      )}
       <span className="sr-only">Cambiar tema ({label})</span>
     </button>
   )

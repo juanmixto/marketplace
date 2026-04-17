@@ -332,7 +332,7 @@ function AlertLine({
         </span>
       ))}
       <span>{suffix}</span>
-      {products.length > 0 && (
+      {products.length > 0 && products[0] && (
         <>
           {' '}
           <Link
@@ -427,7 +427,6 @@ function QuickStockInput({
           />
         )}
       </label>
-      <span className="text-[11px] text-[var(--muted)]">{product.unit}</span>
       {error && (
         <p className="text-[11px] text-red-600 dark:text-red-400" role="alert">
           {error}
@@ -455,7 +454,7 @@ function QuickSubmitButton({ productId }: { productId: string }) {
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="relative flex flex-col items-end">
       <button
         type="button"
         onClick={handleClick}
@@ -466,7 +465,14 @@ function QuickSubmitButton({ productId }: { productId: string }) {
         <PaperAirplaneIcon className="h-3.5 w-3.5" />
         {loading ? t('vendor.productActions.sending') : t('vendor.productActions.sendReview')}
       </button>
-      {error && <p className="text-[11px] text-red-600 dark:text-red-400">{error}</p>}
+      {error && (
+        <p
+          role="alert"
+          className="absolute right-0 top-full z-20 mt-1 max-w-[16rem] rounded-md border border-red-200 bg-white px-2 py-1 text-[11px] leading-snug text-red-700 shadow-md dark:border-red-900/60 dark:bg-gray-900 dark:text-red-300"
+        >
+          {error}
+        </p>
+      )}
     </div>
   )
 }
@@ -545,14 +551,6 @@ function ProductListRow({ product, now }: { product: ProductWithCategory; now: D
           <QuickSubmitButton productId={product.id} />
         </div>
       )}
-
-      <Link
-        href={`/vendor/productos/${product.id}`}
-        aria-label={t('vendor.productActions.edit')}
-        className="relative z-[2] shrink-0 rounded-lg p-2 text-[var(--muted)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
-      >
-        <PencilSquareIcon className="h-5 w-5" />
-      </Link>
 
       <div className="relative z-[2]">
         <ProductActions product={product} />

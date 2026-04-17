@@ -151,6 +151,101 @@ function normalize(input: string): string {
   return input.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
+function stripDiacritics(input: string): string {
+  return input.normalize('NFD').replace(/\p{M}/gu, '')
+}
+
+// Characters whose accented/unaccented forms we treat as interchangeable when
+// generating search variants. Prisma `contains` is a literal substring match
+// (case-insensitive, but accent-sensitive on Postgres), so a user typing
+// "jamon" would otherwise miss "jamón". We emit every plausible combination.
+const ACCENT_VARIANTS: Record<string, string[]> = {
+  a: ['a', 'á'],
+  e: ['e', 'é'],
+  i: ['i', 'í'],
+  o: ['o', 'ó'],
+  u: ['u', 'ú', 'ü'],
+  n: ['n', 'ñ'],
+}
+
+// Cap per-term explosion: 2^4 = 16 variants is plenty for typical Spanish
+// grocery tokens (jamón, aceite, manzana…) without hammering the OR list.
+const MAX_VARIANT_POSITIONS = 4
+
+function wordAccentVariants(word: string): string[] {
+  const base = stripDiacritics(word)
+  const positions: number[] = []
+  for (let i = 0; i < base.length; i++) {
+    const ch = base[i]!
+    if (ACCENT_VARIANTS[ch]) positions.push(i)
+  }
+
+  const out = new Set<string>([word, base])
+
+  if (positions.length <= MAX_VARIANT_POSITIONS) {
+    // Full cartesian for short tokens.
+    const chars = base.split('')
+    const emit = (idx: number) => {
+      if (idx === positions.length) {
+        out.add(chars.join(''))
+        return
+      }
+      const pos = positions[idx]!
+      const variants = ACCENT_VARIANTS[base[pos]!]
+      if (!variants) return
+      for (const variant of variants) {
+        chars[pos] = variant
+        emit(idx + 1)
+      }
+    }
+    emit(0)
+  } else {
+    // Long tokens (calabacín, berenjena, mantequilla…) would blow up. Spanish
+    // words almost always carry at most one accented vowel on the stressed
+    // syllable, so emit "one accent at a time" variants over EVERY candidate
+    // position (including near the end) instead of truncating. This yields
+    // O(positions · variants) ≈ a dozen forms per word and, crucially,
+    // "calabacin" → "calabacín" still appears.
+    for (const pos of positions) {
+      const sourceChar = base[pos]!
+      const variants = ACCENT_VARIANTS[sourceChar]
+      if (!variants) continue
+      for (const variant of variants) {
+        if (variant === sourceChar) continue
+        out.add(base.slice(0, pos) + variant + base.slice(pos + 1))
+      }
+    }
+  }
+
+  return Array.from(out)
+}
+
+// Per-phrase cap on the cartesian product of word variants. Typical
+// "aceite de oliva virgen" stays well under this; pathological queries
+// degrade gracefully instead of generating hundreds of OR clauses.
+const MAX_PHRASE_VARIANTS = 32
+
+function expandAccentVariants(term: string, into: Set<string>): void {
+  into.add(term)
+  into.add(stripDiacritics(term))
+
+  const words = term.split(' ')
+  let phrases: string[] = ['']
+  for (const word of words) {
+    const variants = wordAccentVariants(word)
+    const next: string[] = []
+    for (const prefix of phrases) {
+      for (const variant of variants) {
+        next.push(prefix ? `${prefix} ${variant}` : variant)
+        if (next.length >= MAX_PHRASE_VARIANTS) break
+      }
+      if (next.length >= MAX_PHRASE_VARIANTS) break
+    }
+    phrases = next
+  }
+  for (const phrase of phrases) into.add(phrase)
+}
+
 /**
  * Expand a search query into the original term plus any English→Spanish
  * translations of phrases or individual tokens it contains. Always returns
@@ -191,5 +286,14 @@ export function expandSearchQuery(query: string): string[] {
     if (m) results.add(m)
   }
 
-  return Array.from(results)
+  // Expand every term (original query, translations, partial phrases) into its
+  // accent variants so buyers typing "jamon" match DB rows with "jamón", and
+  // vice versa. Done last so the dictionary lookups (which are keyed on
+  // unaccented English) aren't affected.
+  const withAccents = new Set<string>()
+  for (const term of results) {
+    expandAccentVariants(term, withAccents)
+  }
+
+  return Array.from(withAccents)
 }

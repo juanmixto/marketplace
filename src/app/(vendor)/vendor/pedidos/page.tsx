@@ -4,6 +4,7 @@ import { formatPrice, formatDate } from '@/lib/utils'
 import Image from 'next/image'
 import type { Metadata } from 'next'
 import { FulfillmentActions } from '@/components/vendor/FulfillmentActions'
+import { SellerOrdersTracker } from '@/components/vendor/SellerOrdersTracker'
 import type { BadgeVariant } from '@/domains/catalog/types'
 import { parseOrderAddressSnapshot } from '@/types/order'
 import { getServerT } from '@/i18n/server'
@@ -35,6 +36,16 @@ export default async function VendorPedidosPage() {
     ['SHIPPED', 'DELIVERED', 'CANCELLED'].includes(f.status)
   )
 
+  const trackedOrders = active.map(f => ({
+    fulfillmentId: f.id,
+    orderId: f.orderId,
+    orderValue: f.order.lines.reduce(
+      (sum, line) => sum + Number(line.unitPrice) * line.quantity,
+      0,
+    ),
+    itemCount: f.order.lines.reduce((sum, line) => sum + line.quantity, 0),
+  }))
+
   const totalLabel =
     fulfillments.length === 1
       ? t('vendor.orders.totalOne')
@@ -42,6 +53,7 @@ export default async function VendorPedidosPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
+      <SellerOrdersTracker orders={trackedOrders} />
       <div>
         <h1 className="text-2xl font-bold text-[var(--foreground)]">{t('vendor.orders.title')}</h1>
         <p className="text-sm text-[var(--muted)] mt-0.5">{totalLabel}</p>

@@ -3,8 +3,8 @@
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { getActionSession } from '@/lib/action-session'
-import { getAvailableProductWhere } from '@/domains/catalog/availability'
-import { assertVariantPriceChargeable, getDefaultVariant, getSelectedVariant, getVariantAdjustedPrice, productRequiresVariantSelection } from '@/domains/catalog/variants'
+import { getAvailableProductWhere } from '@/domains/catalog'
+import { assertVariantPriceChargeable, getDefaultVariant, getSelectedVariant, getVariantAdjustedPrice, productRequiresVariantSelection } from '@/domains/catalog'
 import {
   evaluatePromotions,
   type EvaluableCartLine,
@@ -41,6 +41,17 @@ export interface PromotionPreviewResult {
     name: string
     code: string | null
   }>
+  /**
+   * Per-line discount breakdown — lets the cart UI render the effective
+   * price on each row. Keyed by productId+variantId so the cart can look
+   * up its own lines. Distribution is proportional to each line's
+   * contribution to the applicable subtotal.
+   */
+  lineDiscounts: Array<{
+    productId: string
+    variantId: string | null
+    discount: number
+  }>
   unknownCodes: string[]
 }
 
@@ -69,6 +80,10 @@ export async function previewPromotionsForCart(
   })
 
   const lines: EvaluableCartLine[] = []
+  // Parallel array — EvaluableCartLine stays variant-agnostic (the
+  // evaluator doesn't care) but the preview consumer does, so we
+  // track variantId alongside to key the per-line discount output.
+  const lineVariantIds: Array<string | null> = []
   for (const item of items) {
     const product = products.find(p => p.id === item.productId)
     if (!product) continue
@@ -103,6 +118,7 @@ export async function previewPromotionsForCart(
       quantity: item.quantity,
       unitPrice,
     })
+    lineVariantIds.push(selectedVariant?.id ?? null)
   }
 
   if (lines.length === 0) {
@@ -111,6 +127,7 @@ export async function previewPromotionsForCart(
       subtotalDiscount: 0,
       shippingDiscount: 0,
       appliedByVendor: [],
+      lineDiscounts: [],
       unknownCodes: [],
     }
   }
@@ -141,6 +158,45 @@ export async function previewPromotionsForCart(
   })
   const metaById = new Map(promoRows.map(r => [r.id, r]))
 
+  // Distribute each applied promo's discount across the lines it
+  // applied to, proportionally to each line's share of the applicable
+  // subtotal. Mirrors how the order-creation path records the discount
+  // on each vendorFulfillment line, so the cart UI shows the same per-
+  // product cut the buyer will actually see on the receipt.
+  const lineDiscountByIndex: number[] = lines.map(() => 0)
+  for (const applied of result.applied.values()) {
+    if (applied.discountAmount <= 0) continue
+    const promo = promotions.find(p => p.id === applied.promotionId)
+    if (!promo) continue
+
+    const matchingIndices: number[] = []
+    for (let i = 0; i < lines.length; i += 1) {
+      const line = lines[i]!
+      if (line.vendorId !== applied.vendorId) continue
+      if (promo.scope === 'PRODUCT' && line.productId !== promo.productId) continue
+      if (promo.scope === 'CATEGORY' && line.categoryId !== promo.categoryId) continue
+      matchingIndices.push(i)
+    }
+    const applicableSubtotal = matchingIndices.reduce(
+      (acc, i) => acc + lines[i]!.unitPrice * lines[i]!.quantity,
+      0
+    )
+    if (applicableSubtotal <= 0) continue
+
+    for (const i of matchingIndices) {
+      const lineTotal = lines[i]!.unitPrice * lines[i]!.quantity
+      const share = (applied.discountAmount * lineTotal) / applicableSubtotal
+      lineDiscountByIndex[i]! += Math.round(share * 100) / 100
+    }
+  }
+  const lineDiscounts = lines
+    .map((line, i) => ({
+      productId: line.productId,
+      variantId: lineVariantIds[i] ?? null,
+      discount: lineDiscountByIndex[i] ?? 0,
+    }))
+    .filter(entry => entry.discount > 0)
+
   const appliedByVendor = [...result.applied.values()].map(applied => {
     const meta = metaById.get(applied.promotionId)
     return {
@@ -159,6 +215,7 @@ export async function previewPromotionsForCart(
     subtotalDiscount: result.subtotalDiscount,
     shippingDiscount: result.shippingDiscount,
     appliedByVendor,
+    lineDiscounts,
     unknownCodes: result.unknownCodes,
   }
 }

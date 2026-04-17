@@ -17,6 +17,12 @@ import { createAnalyticsItem, trackAnalyticsEvent } from '@/lib/analytics'
 import { getCatalogCopy, translateProductLabel, translateProductUnit } from '@/i18n/catalog-copy'
 import { MinusIcon, PlusIcon } from '@heroicons/react/24/outline'
 
+interface AutoDiscount {
+  kind: 'PERCENTAGE' | 'FIXED_AMOUNT'
+  value: number
+  endsAt: string
+}
+
 interface Props {
   productId: string
   productName: string
@@ -31,6 +37,7 @@ interface Props {
   trackStock: boolean
   stock: number
   variants: ProductVariantOption[]
+  autoDiscount?: AutoDiscount | null
 }
 
 export function ProductPurchasePanel({
@@ -47,6 +54,7 @@ export function ProductPurchasePanel({
   trackStock,
   stock,
   variants,
+  autoDiscount,
 }: Props) {
   const { locale } = useLocale()
   const copy = getCatalogCopy(locale)
@@ -66,9 +74,25 @@ export function ProductPurchasePanel({
   const [selectedVariantId, setSelectedVariantId] = useState<string>(defaultVariant?.id ?? '')
   const requiresVariantSelection = productRequiresVariantSelection(product)
   const selectedVariant = getSelectedVariant(product, selectedVariantId)
-  const displayPrice = getVariantAdjustedPrice(basePrice, selectedVariant)
+  const listPrice = getVariantAdjustedPrice(basePrice, selectedVariant)
   const displayCompareAt = getVariantAdjustedCompareAtPrice(compareAtPrice, selectedVariant)
-  const hasDiscount = displayCompareAt !== null && displayCompareAt > displayPrice
+  const autoDiscountAmount = autoDiscount
+    ? autoDiscount.kind === 'PERCENTAGE'
+      ? Math.min(listPrice, (listPrice * autoDiscount.value) / 100)
+      : Math.min(listPrice, autoDiscount.value)
+    : 0
+  const finalPrice = Math.max(0, listPrice - autoDiscountAmount)
+  // `displayPrice` is what we send to the cart and analytics — it MUST
+  // stay at the list price. The checkout engine re-evaluates promos
+  // and applies the discount as a separate line, so handing it the
+  // already-discounted price would double-discount the order.
+  const displayPrice = listPrice
+  const hasAutoDiscount = autoDiscountAmount > 0
+  const hasDiscount = displayCompareAt !== null && displayCompareAt > listPrice
+  const savingsPct = hasAutoDiscount ? Math.round((autoDiscountAmount / listPrice) * 100) : 0
+  const autoDiscountValidUntil = autoDiscount
+    ? new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'es-ES', { dateStyle: 'medium' }).format(new Date(autoDiscount.endsAt))
+    : null
   const availableStock = getAvailableStockForPurchase(product, selectedVariant)
   const localizedUnit = translateProductUnit(unit, locale)
 
@@ -132,16 +156,38 @@ export function ProductPurchasePanel({
 
   return (
     <div className="mt-6 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-      <div className="flex items-baseline gap-3">
-        <span className="text-4xl font-bold text-[var(--foreground)]">{formatPrice(displayPrice)}</span>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className={`text-4xl font-bold ${hasAutoDiscount ? 'text-emerald-700 dark:text-emerald-400' : 'text-[var(--foreground)]'}`}>
+          {formatPrice(finalPrice)}
+        </span>
         <span className="text-lg text-[var(--muted)]">/ {localizedUnit}</span>
-        {hasDiscount && (
+        {hasAutoDiscount && (
+          <span className="text-xl text-[var(--muted-light)] line-through">{formatPrice(listPrice)}</span>
+        )}
+        {!hasAutoDiscount && hasDiscount && (
           <span className="text-xl text-[var(--muted-light)] line-through">{formatPrice(displayCompareAt!)}</span>
+        )}
+        {hasAutoDiscount && savingsPct > 0 && (
+          <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-white dark:bg-emerald-500 dark:text-gray-950">
+            −{savingsPct}%
+          </span>
         )}
       </div>
       <p className="mt-1 text-sm text-[var(--muted)]">
         {copy.actions.vatIncluded(Number((taxRate * 100).toFixed(0)))}
       </p>
+      {hasAutoDiscount && (
+        <p className="mt-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+          {locale === 'en'
+            ? `You save ${formatPrice(autoDiscountAmount)} — already applied`
+            : `Ahorras ${formatPrice(autoDiscountAmount)} — ya aplicado`}
+          {autoDiscountValidUntil && (
+            <span className="ml-1 text-xs font-normal text-emerald-700/80 dark:text-emerald-400/80">
+              · {locale === 'en' ? `until ${autoDiscountValidUntil}` : `hasta ${autoDiscountValidUntil}`}
+            </span>
+          )}
+        </p>
+      )}
 
       {requiresVariantSelection && (
         <div className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-4">
@@ -308,7 +354,7 @@ export function ProductPurchasePanel({
           Hidden from desktop so the inline panel stays canonical there. */}
       <MobileStickyCta
         visible={showStickyCta}
-        price={displayPrice}
+        price={finalPrice}
         unit={localizedUnit}
       >
         <AddToCartButton

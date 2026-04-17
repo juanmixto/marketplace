@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { generateOrderNumber } from '@/lib/utils'
+// eslint-disable-next-line no-restricted-imports -- calculator stays out of the shipping barrel (dynamic db import)
 import { getShippingCost } from '@/domains/shipping/calculator'
 import { orderLineSnapshotSchema, orderAddressSnapshotSchema } from '@/types/order'
 import {

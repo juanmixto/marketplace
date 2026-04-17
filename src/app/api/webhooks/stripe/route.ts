@@ -1,9 +1,9 @@
+import { createHash } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import {
   assertProviderRefForPaymentStatus,
   doesWebhookPaymentMatchStoredPayment,
-  getWebhookIdempotencyKey,
   isMockWebhookAllowed,
   parseWebhookPaymentIntent,
   retryWebhookOperation,
@@ -29,6 +29,7 @@ import {
   computeCurrentPeriodEnd,
 } from '@/domains/subscriptions/cadence'
 import { sendSubscriptionPaymentFailedEmail } from '@/domains/subscriptions/emails'
+import { logger } from '@/lib/logger'
 import type Stripe from 'stripe'
 
 type WebhookEvent = {
@@ -40,7 +41,7 @@ type WebhookEvent = {
 }
 
 function logInvalidWebhookPayload(event: Stripe.Event | WebhookEvent) {
-  console.error('[stripe-webhook][invalid-payload]', {
+  logger.error('stripe.webhook.invalid_payload', {
     eventId: event.id ?? null,
     eventType: event.type,
     objectType:
@@ -48,6 +49,20 @@ function logInvalidWebhookPayload(event: Stripe.Event | WebhookEvent) {
         ? Object.prototype.toString.call(event.data.object)
         : typeof event.data.object,
   })
+}
+
+/**
+ * Resolve the `event.created` unix timestamp into a JS Date. Stripe
+ * sends `created` as seconds-since-epoch; mock events from tests may
+ * omit it, in which case we fall back to "now" (the watermark guard
+ * still works for replays of the same payload).
+ */
+function eventCreatedAt(event: Stripe.Event | WebhookEvent): Date {
+  const created = (event as { created?: number }).created
+  if (typeof created === 'number' && Number.isFinite(created)) {
+    return new Date(created * 1000)
+  }
+  return new Date()
 }
 
 /**
@@ -81,15 +96,51 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Idempotency: skip events already recorded in OrderEvent by eventId
-  const idempotencyKey = getWebhookIdempotencyKey(event.id)
-  if (idempotencyKey) {
-    const alreadyProcessed = await db.orderEvent.findFirst({
-      where: { payload: { path: ['eventId'], equals: idempotencyKey } },
-      select: { id: true },
-    })
-    if (alreadyProcessed) {
-      return NextResponse.json({ received: true, skipped: 'duplicate' })
+  logger.info('stripe.webhook.received', {
+    eventId: event.id ?? null,
+    eventType: event.type,
+    provider: env.paymentProvider,
+  })
+
+  // Idempotency: try to insert a WebhookDelivery row. If the unique
+  // constraint on (provider, eventId) fires, it's a replay — skip.
+  // This replaces the previous JSON-path lookup against OrderEvent.payload
+  // and covers ALL event types (payment_intent.*, customer.subscription.*,
+  // invoice.*) uniformly. The per-subscription watermark from #417 is
+  // complementary: it catches out-of-order events with _different_ ids.
+  const eventId = event.id ?? null
+  let deliveryId: string | null = null
+  if (eventId) {
+    const payloadHash = createHash('sha256').update(body).digest('hex')
+    try {
+      const delivery = await db.webhookDelivery.create({
+        data: {
+          provider: 'stripe',
+          eventId,
+          eventType: event.type,
+          payloadHash,
+        },
+      })
+      deliveryId = delivery.id
+    } catch (insertError) {
+      const isDuplicate =
+        insertError instanceof Error && /P2002|Unique constraint/i.test(insertError.message)
+      if (isDuplicate) {
+        logger.info('stripe.webhook.duplicate', {
+          eventId,
+          eventType: event.type,
+        })
+        return NextResponse.json({ received: true, skipped: 'duplicate' })
+      }
+      // Non-duplicate DB error: log but don't block the webhook. Stripe
+      // will retry, and next time the insert might succeed. Failing open
+      // is safer than failing closed (which would make Stripe stop
+      // retrying and silently drop the event).
+      logger.error('stripe.webhook.delivery_insert_failed', {
+        eventId,
+        eventType: event.type,
+        error: insertError instanceof Error ? insertError.message : String(insertError),
+      })
     }
   }
 
@@ -113,18 +164,19 @@ export async function POST(req: NextRequest) {
         await handlePaymentFailed(pi.id, event.id)
         break
       }
-      // Phase 4b-α: subscription lifecycle. The handler is idempotent by
-      // construction (state-based sync — applying the same status twice
-      // is a no-op) so we do not need the OrderEvent dedupe table here.
-      // Phase 4b-β will add `invoice.paid` / `invoice.payment_failed`
-      // handling that materializes Orders + VendorFulfillments.
+      // Phase 4b-α: subscription lifecycle. The handlers below dedupe by
+      // event.created (a monotonically increasing per-object Stripe
+      // timestamp) using Subscription.lastStripeEventAt as a watermark.
+      // This protects against Stripe's documented out-of-order delivery,
+      // not just literal replays of the same eventId — the future
+      // WebhookDelivery dedupe (#308) is complementary, not a substitute.
       case 'customer.subscription.created': {
         const parsed = parseStripeSubscriptionEvent(event.data.object)
         if (!parsed) {
           logInvalidWebhookPayload(event)
           break
         }
-        await handleSubscriptionCreated(parsed)
+        await handleSubscriptionCreated(parsed, eventCreatedAt(event))
         break
       }
       case 'customer.subscription.updated':
@@ -134,7 +186,7 @@ export async function POST(req: NextRequest) {
           logInvalidWebhookPayload(event)
           break
         }
-        await handleSubscriptionSync(parsed, event.type)
+        await handleSubscriptionSync(parsed, event.type, eventCreatedAt(event))
         break
       }
       // Phase 4b-β: when Stripe charges a renewal invoice, materialize
@@ -147,7 +199,7 @@ export async function POST(req: NextRequest) {
           logInvalidWebhookPayload(event)
           break
         }
-        await handleInvoicePaid(invoice)
+        await handleInvoicePaid(invoice, eventCreatedAt(event))
         break
       }
       case 'invoice.payment_failed': {
@@ -156,13 +208,45 @@ export async function POST(req: NextRequest) {
           logInvalidWebhookPayload(event)
           break
         }
-        await handleInvoicePaymentFailed(invoice)
+        await handleInvoicePaymentFailed(invoice, eventCreatedAt(event))
         break
       }
     }
   } catch (err) {
-    console.error('[stripe-webhook]', err)
+    logger.error('stripe.webhook.processing_failed', {
+      eventId,
+      eventType: event.type,
+      error: err,
+    })
+    if (deliveryId) {
+      await db.webhookDelivery.update({
+        where: { id: deliveryId },
+        data: {
+          status: 'failed',
+          errorMessage: err instanceof Error ? err.message : String(err),
+        },
+      }).catch(updateErr => {
+        logger.error('stripe.webhook.delivery_update_failed', {
+          eventId,
+          deliveryId,
+          error: updateErr,
+        })
+      })
+    }
     return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 })
+  }
+
+  if (deliveryId) {
+    await db.webhookDelivery.update({
+      where: { id: deliveryId },
+      data: { status: 'processed', processedAt: new Date() },
+    }).catch(updateErr => {
+      logger.error('stripe.webhook.delivery_update_failed', {
+        eventId,
+        deliveryId,
+        error: updateErr,
+      })
+    })
   }
 
   return NextResponse.json({ received: true })
@@ -195,15 +279,14 @@ async function handlePaymentSucceeded(providerRef: string, amount?: number, curr
   if (!doesWebhookPaymentMatchStoredPayment(payment, { amount, currency })) {
     // Security: Amount mismatch indicates possible tampering or data inconsistency
     // Log fraud attempt with full details for investigation
-    console.error('[PAYMENT_FRAUD_ALERT]', {
+    logger.error('stripe.webhook.payment_mismatch', {
+      eventId,
       orderId: payment.orderId,
       providerRef,
       expectedAmount: Number(payment.amount),
       receivedAmount: amount,
       expectedCurrency: payment.currency,
       receivedCurrency: currency,
-      timestamp: new Date().toISOString(),
-      eventId,
     })
 
     await retryWebhookOperation(
@@ -340,17 +423,18 @@ async function handlePaymentFailed(providerRef: string, eventId?: string) {
 }
 
 async function handleSubscriptionCreated(
-  payload: StripeSubscriptionEventPayload
+  payload: StripeSubscriptionEventPayload,
+  eventCreatedAt: Date
 ) {
   // Idempotent: if we already have a local row tied to this Stripe
   // subscription id, this is a replay and we skip straight to the sync
-  // path below.
+  // path below (which carries the same out-of-order guard).
   const existing = await db.subscription.findUnique({
     where: { stripeSubscriptionId: payload.id },
     select: { id: true },
   })
   if (existing) {
-    await handleSubscriptionSync(payload, 'customer.subscription.updated')
+    await handleSubscriptionSync(payload, 'customer.subscription.updated', eventCreatedAt)
     return
   }
 
@@ -363,7 +447,7 @@ async function handleSubscriptionCreated(
   const buyerId = meta.marketplaceBuyerId
   const shippingAddressId = meta.marketplaceShippingAddressId
   if (!planId || !buyerId || !shippingAddressId) {
-    console.error('[stripe-webhook][subscription-created][missing-metadata]', {
+    logger.error('stripe.webhook.subscription_created_missing_metadata', {
       stripeSubscriptionId: payload.id,
       metadata: meta,
     })
@@ -375,7 +459,7 @@ async function handleSubscriptionCreated(
     select: { id: true, cadence: true, archivedAt: true },
   })
   if (!plan || plan.archivedAt) {
-    console.error('[stripe-webhook][subscription-created][plan-missing]', {
+    logger.error('stripe.webhook.subscription_created_plan_missing', {
       planId,
       stripeSubscriptionId: payload.id,
     })
@@ -387,7 +471,7 @@ async function handleSubscriptionCreated(
     select: { id: true },
   })
   if (!address) {
-    console.error('[stripe-webhook][subscription-created][address-missing]', {
+    logger.error('stripe.webhook.subscription_created_address_missing', {
       buyerId,
       shippingAddressId,
       stripeSubscriptionId: payload.id,
@@ -411,6 +495,7 @@ async function handleSubscriptionCreated(
       nextDeliveryAt,
       currentPeriodEnd,
       stripeSubscriptionId: payload.id,
+      lastStripeEventAt: eventCreatedAt,
     },
     update: {
       // The buyer had a prior CANCELED sub for the same plan (we block
@@ -422,28 +507,48 @@ async function handleSubscriptionCreated(
       currentPeriodEnd,
       stripeSubscriptionId: payload.id,
       canceledAt: null,
+      lastStripeEventAt: eventCreatedAt,
     },
   })
 }
 
-async function handleInvoicePaid(invoice: {
-  id: string
-  subscription: string | null
-  amount_paid: number
-}) {
+async function handleInvoicePaid(
+  invoice: {
+    id: string
+    subscription: string | null
+    amount_paid: number
+  },
+  eventCreatedAt: Date
+) {
   if (!invoice.subscription) return
   const subscription = await db.subscription.findUnique({
     where: { stripeSubscriptionId: invoice.subscription },
-    select: { id: true },
+    select: { id: true, lastStripeEventAt: true },
   })
   if (!subscription) {
     // Likely: the `customer.subscription.created` event has not arrived
     // yet (Stripe does not guarantee delivery order). Log at info and
     // rely on Stripe's retry to deliver this event again after the
     // created event has been processed.
-    console.info('[stripe-webhook][invoice-paid][subscription-not-found]', {
+    logger.info('stripe.webhook.invoice_paid_subscription_not_found', {
       stripeSubscriptionId: invoice.subscription,
       invoiceId: invoice.id,
+    })
+    return
+  }
+  // Out-of-order guard: drop stale invoice events whose `created` is
+  // older than the watermark. materializeSubscriptionRenewal also has
+  // its own per-invoice idempotency, but this catches old events
+  // before we touch Order/Payment rows.
+  if (
+    subscription.lastStripeEventAt &&
+    eventCreatedAt.getTime() < subscription.lastStripeEventAt.getTime()
+  ) {
+    logger.info('stripe.webhook.invoice_paid_stale', {
+      stripeSubscriptionId: invoice.subscription,
+      invoiceId: invoice.id,
+      eventCreatedAt: eventCreatedAt.toISOString(),
+      lastStripeEventAt: subscription.lastStripeEventAt.toISOString(),
     })
     return
   }
@@ -452,12 +557,19 @@ async function handleInvoicePaid(invoice: {
     subscriptionId: subscription.id,
     amountPaidCents: invoice.amount_paid,
   })
+  await db.subscription.update({
+    where: { id: subscription.id },
+    data: { lastStripeEventAt: eventCreatedAt },
+  })
 }
 
-async function handleInvoicePaymentFailed(invoice: {
-  id: string
-  subscription: string | null
-}) {
+async function handleInvoicePaymentFailed(
+  invoice: {
+    id: string
+    subscription: string | null
+  },
+  eventCreatedAt: Date
+) {
   if (!invoice.subscription) return
   const subscription = await db.subscription.findUnique({
     where: { stripeSubscriptionId: invoice.subscription },
@@ -472,11 +584,30 @@ async function handleInvoicePaymentFailed(invoice: {
     },
   })
   if (!subscription) return
-  if (subscription.status === 'PAST_DUE' || subscription.status === 'CANCELED') return
+  // Out-of-order guard: drop stale events older than the watermark.
+  if (
+    subscription.lastStripeEventAt &&
+    eventCreatedAt.getTime() < subscription.lastStripeEventAt.getTime()
+  ) {
+    logger.info('stripe.webhook.invoice_payment_failed_stale', {
+      stripeSubscriptionId: invoice.subscription,
+      invoiceId: invoice.id,
+      eventCreatedAt: eventCreatedAt.toISOString(),
+      lastStripeEventAt: subscription.lastStripeEventAt.toISOString(),
+    })
+    return
+  }
+  if (subscription.status === 'PAST_DUE' || subscription.status === 'CANCELED') {
+    await db.subscription.update({
+      where: { id: subscription.id },
+      data: { lastStripeEventAt: eventCreatedAt },
+    })
+    return
+  }
 
   await db.subscription.update({
     where: { id: subscription.id },
-    data: { status: 'PAST_DUE' },
+    data: { status: 'PAST_DUE', lastStripeEventAt: eventCreatedAt },
   })
 
   // Phase 4b-δ: email the buyer so they can update their card. Best-effort.
@@ -492,11 +623,12 @@ async function handleInvoicePaymentFailed(invoice: {
 
 async function handleSubscriptionSync(
   payload: { id: string; status: string; pause_collection?: unknown; canceled_at?: number | null },
-  eventType: 'customer.subscription.updated' | 'customer.subscription.deleted'
+  eventType: 'customer.subscription.updated' | 'customer.subscription.deleted',
+  eventCreatedAt: Date
 ) {
   const subscription = await db.subscription.findUnique({
     where: { stripeSubscriptionId: payload.id },
-    select: { id: true, status: true, canceledAt: true },
+    select: { id: true, status: true, canceledAt: true, lastStripeEventAt: true },
   })
 
   if (!subscription) {
@@ -504,9 +636,25 @@ async function handleSubscriptionSync(
     // so most events will arrive with a stripeSubscriptionId that is not
     // in our DB. This is expected and a no-op. Logged at info level so we
     // can spot wiring issues in phase 4b-β when the public flow opens.
-    console.info('[stripe-webhook][subscription-not-found]', {
+    logger.info('stripe.webhook.subscription_not_found', {
       stripeSubscriptionId: payload.id,
       eventType,
+    })
+    return
+  }
+
+  // Out-of-order guard: drop events whose `created` is older than the
+  // watermark. Without this, a stale `updated(ACTIVE)` arriving after a
+  // newer `deleted(CANCELED)` would resurrect a cancelled subscription.
+  if (
+    subscription.lastStripeEventAt &&
+    eventCreatedAt.getTime() < subscription.lastStripeEventAt.getTime()
+  ) {
+    logger.info('stripe.webhook.subscription_sync_stale', {
+      stripeSubscriptionId: payload.id,
+      eventType,
+      eventCreatedAt: eventCreatedAt.toISOString(),
+      lastStripeEventAt: subscription.lastStripeEventAt.toISOString(),
     })
     return
   }
@@ -520,7 +668,12 @@ async function handleSubscriptionSync(
 
   if (subscription.status === nextStatus) {
     // Idempotent no-op — the row is already in the state this event
-    // asks for. Common when Stripe retries a webhook.
+    // asks for. Still bump the watermark so an even older event that
+    // arrives later cannot pass the guard.
+    await db.subscription.update({
+      where: { id: subscription.id },
+      data: { lastStripeEventAt: eventCreatedAt },
+    })
     return
   }
 
@@ -534,6 +687,7 @@ async function handleSubscriptionSync(
     data: {
       status: nextStatus,
       canceledAt,
+      lastStripeEventAt: eventCreatedAt,
     },
   })
 }
@@ -566,6 +720,8 @@ async function recordWebhookRetryExhaustion({
       },
     })
   } catch (recordError) {
-    console.error('[stripe-webhook][dead-letter-record-failed]', recordError)
+    logger.error('stripe.webhook.dead_letter_record_failed', {
+      error: recordError,
+    })
   }
 }

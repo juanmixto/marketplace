@@ -146,12 +146,12 @@ export default async function Liquidaciones({ searchParams }: PageProps) {
     : settlements
   let selectedLabel: string | null = null
   if (selectedPeriod && filteredSettlements.length > 0) {
+    const head = filteredSettlements[0]!
     if (view === 'month') {
-      const monthStart = startOfMonth(filteredSettlements[0].periodTo)
+      const monthStart = startOfMonth(head.periodTo)
       selectedLabel = format(monthStart, locale === 'en' ? 'LLLL yyyy' : "MMMM 'de' yyyy", { locale: dateLocale })
     } else {
-      const s = filteredSettlements[0]
-      selectedLabel = `${format(s.periodFrom, 'd MMM', { locale: dateLocale })} — ${format(s.periodTo, 'd MMM yyyy', { locale: dateLocale })}`
+      selectedLabel = `${format(head.periodFrom, 'd MMM', { locale: dateLocale })} — ${format(head.periodTo, 'd MMM yyyy', { locale: dateLocale })}`
     }
   }
   const baseQuery = view === 'month' ? '?view=month' : '?view=week'

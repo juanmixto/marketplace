@@ -99,6 +99,8 @@ export function ReviewFormButton({ orderId, productId, productName }: Props) {
             <textarea
               id={`review-${productId}`}
               rows={5}
+              spellCheck
+              autoCapitalize="sentences"
               maxLength={1000}
               value={body}
               onChange={event => setBody(event.target.value)}

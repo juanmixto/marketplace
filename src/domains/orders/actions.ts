@@ -5,7 +5,7 @@ import { db } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import { isRedirectError } from 'next/dist/client/components/redirect-error'
 import { generateOrderNumber } from '@/lib/utils'
-import { createPaymentIntent } from '@/domains/payments/provider'
+import { createPaymentIntent } from '@/domains/payments'
 import {
   calculateOrderPricing,
   checkoutSchema,
@@ -14,31 +14,37 @@ import {
   type CheckoutFormData,
 } from '@/domains/orders/checkout'
 import { orderAddressSnapshotSchema, orderLineSnapshotSchema } from '@/types/order'
-import { assertProviderRefForPaymentStatus, shouldApplyPaymentSucceeded } from '@/domains/payments/webhook'
+import { assertProviderRefForPaymentStatus, shouldApplyPaymentSucceeded } from '@/domains/payments'
 import { getServerEnv } from '@/lib/env'
-import { getAvailableProductWhere } from '@/domains/catalog/availability'
+import { getAvailableProductWhere } from '@/domains/catalog'
 import {
   assertVariantPriceChargeable,
   getDefaultVariant,
   getSelectedVariant,
   getVariantAdjustedPrice,
   productRequiresVariantSelection,
-} from '@/domains/catalog/variants'
+} from '@/domains/catalog'
+// eslint-disable-next-line no-restricted-imports -- calculator stays out of the shipping barrel (dynamic db import)
 import { getShippingCost } from '@/domains/shipping/calculator'
 import { getActionSession } from '@/lib/action-session'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
-import { createPaymentConfirmedEventPayload } from '@/domains/orders/order-event-payload'
+import { logger } from '@/lib/logger'
+import { generateCorrelationId } from '@/lib/correlation'
+import {
+  createPaymentConfirmedEventPayload,
+  createPaymentMismatchEventPayload,
+} from '@/domains/orders/order-event-payload'
 import {
   evaluatePromotions,
   type EvaluableCartLine,
-} from '@/domains/promotions/evaluation'
+} from '@/domains/promotions'
+// eslint-disable-next-line no-restricted-imports -- loader is Prisma-backed and stays out of the promotions barrel
 import { countBuyerRedemptions, loadEvaluablePromotions } from '@/domains/promotions/loader'
+// eslint-disable-next-line no-restricted-imports -- dispatcher is intentionally server-only, excluded from notifications barrel
+import { emit as emitNotification } from '@/domains/notifications/dispatcher'
 
-export interface CartItemInput {
-  productId: string
-  variantId?: string
-  quantity: number
-}
+export type { CartItemInput } from '@/shared/types/cart'
+import type { CartItemInput } from '@/shared/types/cart'
 
 export type CreateCheckoutOrderResult =
   | {
@@ -46,11 +52,29 @@ export type CreateCheckoutOrderResult =
     orderId: string
     clientSecret: string
     orderNumber: string
+    // Phase 4c (#410): true when the same checkoutAttemptId already
+    // produced an Order. The client-side redirect to the confirmation
+    // page uses this to show "your order is already placed" instead
+    // of "creating order…" which would be misleading on a retry.
+    replayed?: boolean
   }
   | {
     ok: false
     error: string
   }
+
+/**
+ * Second return shape of createOrder: includes `replayed: true` when
+ * the server short-circuits because an Order with the submitted
+ * `checkoutAttemptId` already exists. See docs/checkout-dedupe.md for
+ * the full UX matrix.
+ */
+export interface CreateOrderResult {
+  orderId: string
+  clientSecret: string
+  orderNumber: string
+  replayed: boolean
+}
 
 function roundCurrency2(value: number): number {
   return Math.round(value * 100) / 100
@@ -59,6 +83,23 @@ function roundCurrency2(value: number): number {
 function isMissingShippingAddressSnapshotColumnError(error: unknown) {
   return error instanceof Error
     && /P2022|column .*does not exist|shippingAddressSnapshot/i.test(error.message)
+}
+
+/**
+ * Detects Prisma's P2002 unique-constraint error on
+ * `Order.checkoutAttemptId`. Used by `createOrder` to collapse a
+ * concurrent double-submit with the same attempt id into a single
+ * Order — the loser of the race re-reads the winner and returns it
+ * with `replayed: true`.
+ */
+function isCheckoutAttemptIdCollisionError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  // The Prisma message for a UNIQUE violation includes the field name
+  // in one of two shapes depending on client version. Both are safe
+  // to match — we also require P2002 to be present so we don't confuse
+  // this with any other constraint that happens to mention the column.
+  if (!/P2002|Unique constraint/i.test(error.message)) return false
+  return /checkoutAttemptId|Order_checkoutAttemptId_key/i.test(error.message)
 }
 
 function getCheckoutErrorMessage(error: unknown) {
@@ -117,11 +158,75 @@ function getCheckoutErrorMessage(error: unknown) {
 export async function createOrder(
   items: CartItemInput[],
   formData: CheckoutFormData,
-  options: { promotionCode?: string | null } = {}
-): Promise<{ orderId: string; clientSecret: string; orderNumber: string }> {
+  options: { promotionCode?: string | null; checkoutAttemptId?: string | null } = {}
+): Promise<CreateOrderResult> {
   const session = await getActionSession()
   if (!session) redirect('/login')
   const sessionUserId = session.user.id
+
+  // Correlation ID threads through every log emitted by this checkout
+  // attempt. Support can grep a single ID and reconstruct the entire
+  // path: address resolution, stock checks, transaction boundary,
+  // payment intent creation, mock confirmation. When a
+  // checkoutAttemptId is provided, both IDs are logged so each line
+  // can be mapped back to either identifier.
+  const correlationId = generateCorrelationId()
+  const checkoutAttemptId = options.checkoutAttemptId ?? null
+
+  // Pre-check dedupe: if this attempt id already produced an Order,
+  // short-circuit and return the existing row. Covers the "network
+  // dropped before the response" retry case. The UNIQUE constraint
+  // on Order.checkoutAttemptId is the authoritative guard against a
+  // concurrent race — see the catch around the transaction below.
+  if (checkoutAttemptId) {
+    const existing = await db.order.findUnique({
+      where: { checkoutAttemptId },
+      select: {
+        id: true,
+        orderNumber: true,
+        customerId: true,
+      },
+    })
+    if (existing) {
+      // Defence: if a different user somehow presents another user's
+      // attempt id, do NOT leak the Order. Return a generic error.
+      if (existing.customerId !== sessionUserId) {
+        logger.error('checkout.attempt_id_cross_user', {
+          correlationId,
+          checkoutAttemptId,
+          userId: sessionUserId,
+          existingOrderOwner: existing.customerId,
+        })
+        throw new Error('Sesión de checkout inválida. Recarga la página.')
+      }
+      logger.info('checkout.replayed', {
+        correlationId,
+        checkoutAttemptId,
+        userId: sessionUserId,
+        orderId: existing.id,
+        orderNumber: existing.orderNumber,
+      })
+      // Empty clientSecret signals "no fresh PaymentIntent to act on".
+      // The UX matrix (docs/checkout-dedupe.md) says: redirect to the
+      // order confirmation page instead of trying to re-submit payment.
+      return {
+        orderId: existing.id,
+        orderNumber: existing.orderNumber,
+        clientSecret: '',
+        replayed: true,
+      }
+    }
+  }
+
+  logger.info('checkout.start', {
+    correlationId,
+    userId: sessionUserId,
+    itemCount: items.length,
+    hasSelectedAddress:
+      typeof formData.selectedAddressId === 'string' && formData.selectedAddressId.length > 0,
+    saveAddress: Boolean(formData.saveAddress),
+    promotionCode: options.promotionCode ?? null,
+  })
 
   const validatedItems = orderItemsSchema.parse(items)
   // If the buyer picked a saved address, the server resolves the real
@@ -170,9 +275,11 @@ export async function createOrder(
       // Fallback: the saved address was removed. Try to honor the
       // submitted address via the strict schema. If that also fails we
       // throw a friendly error telling the buyer to fix the form.
-      console.warn('[checkout] saved address not found, falling back to submitted address', {
+      logger.warn('checkout.address_fallback', {
+        correlationId,
         userId: sessionUserId,
         selectedAddressId: parsedLenient.selectedAddressId,
+        reason: 'saved-address-not-found',
       })
       try {
         validated = checkoutSchema.parse(formData)
@@ -396,14 +503,16 @@ export async function createOrder(
     }
   }
 
-  // Create payment intent (mock or Stripe)
-  const payment = await createPaymentIntent(
-    Math.round(grandTotal * 100), // cents
-    { userId: sessionUserId },
-    connectDestination ? { connect: connectDestination } : undefined
-  )
-
-  // Create order in transaction
+  // Persist-first (#404): we used to call createPaymentIntent() here,
+  // BEFORE the transaction. If anything inside the transaction failed
+  // (stock conflict, deadlock, promotion budget drained, schema drift,
+  // etc.), the external Stripe PaymentIntent was orphaned with no
+  // matching local Payment row. Now we open the transaction first and
+  // create the Payment row with providerRef = null. createPaymentIntent
+  // runs AFTER commit and the Payment row is then updated with the
+  // real providerRef. If the post-commit provider call fails, we mark
+  // the Payment as FAILED and re-throw so the buyer gets a friendly
+  // "try again" message.
   const env = getServerEnv()
 
   async function createOrderRecord(includeShippingAddressSnapshot: boolean) {
@@ -429,6 +538,7 @@ export async function createOrder(
             id: string
             stock: number | null
           }
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma $queryRaw tagged-template typing requires cast
           const [variant] = await (tx.$queryRaw as any)`
             SELECT id, stock FROM "ProductVariant"
             WHERE id = ${line.variantId}
@@ -452,6 +562,7 @@ export async function createOrder(
             id: string
             stock: number
           }
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma $queryRaw tagged-template typing requires cast
           const [lockedProduct] = await (tx.$queryRaw as any)`
             SELECT id, stock FROM "Product"
             WHERE id = ${line.productId}
@@ -496,9 +607,11 @@ export async function createOrder(
           shouldSaveNewAddress = false
           shippingAddressSnapshot = orderAddressSnapshotSchema.parse(existingAddress)
         } else {
-          console.warn('[checkout] saved address not found, falling back to submitted address', {
+          logger.warn('checkout.address_fallback', {
+            correlationId,
             userId: sessionUserId,
             selectedAddressId: validated.selectedAddressId,
+            reason: 'saved-address-not-found-in-tx',
           })
         }
       }
@@ -524,7 +637,8 @@ export async function createOrder(
             phone: savedAddress.phone,
           })
         } catch (error) {
-          console.error('[checkout] failed to save address, continuing without persisting it', {
+          logger.error('checkout.address_save_failed', {
+            correlationId,
             userId: sessionUserId,
             error,
           })
@@ -538,6 +652,7 @@ export async function createOrder(
       // guard uses an explicit WHERE clause so maxRedemptions is enforced
       // at the SQL level rather than trusted from the in-memory snapshot.
       for (const applied of appliedByVendorId.values()) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma $executeRaw tagged-template typing requires cast
         const updated = await (tx.$executeRaw as any)`
           UPDATE "Promotion"
           SET "redemptionCount" = "redemptionCount" + 1,
@@ -561,6 +676,7 @@ export async function createOrder(
           orderNumber: generateOrderNumber(),
           customerId: sessionUserId,
           addressId: addressId ?? null,
+          ...(checkoutAttemptId ? { checkoutAttemptId } : {}),
           ...(includeShippingAddressSnapshot ? { shippingAddressSnapshot } : {}),
           subtotal,
           discountTotal,
@@ -573,7 +689,10 @@ export async function createOrder(
           payments: {
             create: {
               provider: env.paymentProvider === 'mock' ? 'mock' : 'stripe',
-              providerRef: payment.id,
+              // providerRef is filled in AFTER the transaction commits
+              // by createPaymentIntent, then linked back to this row
+              // via payment.update below.
+              providerRef: null,
               amount: grandTotal,
               currency: 'EUR',
               status: 'PENDING',
@@ -601,15 +720,124 @@ export async function createOrder(
   try {
     order = await createOrderRecord(true)
   } catch (error) {
+    // Concurrent double-submit with the same checkoutAttemptId: the
+    // UNIQUE constraint on Order.checkoutAttemptId tripped. Re-read
+    // the winning row and return it with `replayed: true`. This is the
+    // race path — the pre-check above already handled the sequential
+    // retry case.
+    if (checkoutAttemptId && isCheckoutAttemptIdCollisionError(error)) {
+      const winner = await db.order.findUnique({
+        where: { checkoutAttemptId },
+        select: {
+          id: true,
+          orderNumber: true,
+          customerId: true,
+        },
+      })
+      if (winner && winner.customerId === sessionUserId) {
+        logger.info('checkout.concurrent_replayed', {
+          correlationId,
+          checkoutAttemptId,
+          userId: sessionUserId,
+          orderId: winner.id,
+          orderNumber: winner.orderNumber,
+        })
+        return {
+          orderId: winner.id,
+          orderNumber: winner.orderNumber,
+          clientSecret: '',
+          replayed: true,
+        }
+      }
+      // Winner row unreadable or cross-user — rethrow the original error
+      // so the outer catch in createCheckoutOrder surfaces a clean
+      // failure rather than silently dropping the attempt.
+      throw error
+    }
+
     if (!isMissingShippingAddressSnapshotColumnError(error)) {
       throw error
     }
 
-    console.error('[checkout] shippingAddressSnapshot column missing, retrying without snapshot persistence', {
+    logger.error('checkout.snapshot_column_missing', {
+      correlationId,
+      userId: sessionUserId,
       error,
     })
 
     order = await createOrderRecord(false)
+  }
+
+  // Post-commit: the order + a placeholder Payment row exist. Now we
+  // talk to the payment provider. If it throws we mark the Payment row
+  // as FAILED, emit an OrderEvent for ops visibility, and re-throw so
+  // createCheckoutOrder maps it to a friendly "try again" message.
+  let payment
+  try {
+    payment = await createPaymentIntent(
+      Math.round(grandTotal * 100), // cents
+      { userId: sessionUserId },
+      connectDestination ? { connect: connectDestination } : undefined
+    )
+  } catch (paymentError) {
+    try {
+      await db.payment.updateMany({
+        where: { orderId: order.id, providerRef: null, status: 'PENDING' },
+        data: { status: 'FAILED' },
+      })
+      await db.order.updateMany({
+        where: { id: order.id, paymentStatus: 'PENDING' },
+        data: { paymentStatus: 'FAILED' },
+      })
+      await db.orderEvent.create({
+        data: {
+          orderId: order.id,
+          type: 'PAYMENT_INTENT_CREATION_FAILED',
+          payload: {
+            recordedAt: new Date().toISOString(),
+            error:
+              paymentError instanceof Error
+                ? paymentError.message
+                : String(paymentError),
+          },
+        },
+      })
+    } catch (cleanupError) {
+      logger.error('checkout.payment_mark_failed', {
+        correlationId,
+        userId: sessionUserId,
+        orderId: order.id,
+        cleanupError,
+      })
+    }
+    logger.error('checkout.payment_intent_failed', {
+      correlationId,
+      userId: sessionUserId,
+      orderId: order.id,
+      grandTotalCents: Math.round(grandTotal * 100),
+      error: paymentError,
+    })
+    throw paymentError
+  }
+
+  // Link the placeholder Payment row to the real provider id. updateMany
+  // with the (orderId, providerRef=null) predicate so a retry that
+  // somehow ran twice cannot overwrite an already-linked row.
+  const linked = await db.payment.updateMany({
+    where: { orderId: order.id, providerRef: null, status: 'PENDING' },
+    data: { providerRef: payment.id },
+  })
+  if (linked.count !== 1) {
+    // Defensive: if we somehow committed an order without exactly one
+    // unlinked PENDING payment row, surface it loudly so it is caught
+    // in dev / CI rather than going to production undetected.
+    logger.error('checkout.payment_row_mismatch', {
+      correlationId,
+      userId: sessionUserId,
+      orderId: order.id,
+      count: linked.count,
+      providerRef: payment.id,
+    })
   }
 
   const affectedProductSlugs = [...new Set(products.map(product => product.slug))]
@@ -625,27 +853,74 @@ export async function createOrder(
   safeRevalidatePath('/buscar')
   safeRevalidatePath('/carrito')
 
+  logger.info('checkout.committed', {
+    correlationId,
+    userId: sessionUserId,
+    orderId: order.id,
+    orderNumber: order.orderNumber,
+    providerRef: payment.id,
+    grandTotalCents: Math.round(grandTotal * 100),
+  })
+
+  const customerName = session.user.name?.trim() || 'Cliente'
+  const createdFulfillments = await db.vendorFulfillment.findMany({
+    where: { orderId: order.id },
+    select: { id: true, vendorId: true },
+  })
+  const fulfillmentByVendor = new Map(
+    createdFulfillments.map(f => [f.vendorId, f.id]),
+  )
+  for (const vendorId of vendorIds) {
+    const vendorTotalCents = Math.round(
+      lines
+        .filter(l => l.vendorId === vendorId)
+        .reduce((sum, l) => sum + l.unitPrice * l.quantity, 0) * 100,
+    )
+    emitNotification('order.created', {
+      orderId: order.id,
+      vendorId,
+      fulfillmentId: fulfillmentByVendor.get(vendorId),
+      customerName,
+      totalCents: vendorTotalCents,
+      currency: 'EUR',
+    })
+  }
+
   return {
     orderId: order.id,
     clientSecret: payment.clientSecret,
     orderNumber: order.orderNumber,
+    replayed: false,
   }
 }
 
 export async function createCheckoutOrder(
   items: CartItemInput[],
   formData: CheckoutFormData,
-  options: { promotionCode?: string | null } = {}
+  options: { promotionCode?: string | null; checkoutAttemptId?: string | null } = {}
 ): Promise<CreateCheckoutOrderResult> {
+  // Wrapper correlation id covers the failure path (where createOrder
+  // threw before its own correlationId could be surfaced) plus the
+  // mock-confirmation follow-up call. On the success path createOrder
+  // already logged `checkout.committed` with its own id.
+  const wrapperCorrelationId = generateCorrelationId()
   try {
     const created = await createOrder(items, formData, options)
 
-    if (created.clientSecret.startsWith('mock_')) {
+    // On replay we deliberately skip the mock-confirm side-effect: the
+    // first caller already ran confirmOrder() and the Order is either
+    // already PAID or legitimately still PENDING. Re-confirming would
+    // either be a no-op (idempotent by providerRef) or, if the first
+    // confirm failed, the retry path is the webhook/manual path — not
+    // a fresh mock confirm.
+    if (!created.replayed && created.clientSecret.startsWith('mock_')) {
       try {
         await confirmOrder(created.orderId, created.clientSecret.replace('_secret', ''))
       } catch (error) {
-        console.error('[checkout] mock confirmation failed after order creation', {
+        logger.error('checkout.mock_confirmation_failed', {
+          correlationId: wrapperCorrelationId,
           orderId: created.orderId,
+          orderNumber: created.orderNumber,
           error,
         })
       }
@@ -653,14 +928,18 @@ export async function createCheckoutOrder(
 
     return {
       ok: true,
-      ...created,
+      orderId: created.orderId,
+      clientSecret: created.clientSecret,
+      orderNumber: created.orderNumber,
+      ...(created.replayed ? { replayed: true } : {}),
     }
   } catch (error) {
     if (isRedirectError(error)) {
       throw error
     }
 
-    console.error('[checkout] order creation failed', {
+    logger.error('checkout.tx_failed', {
+      correlationId: wrapperCorrelationId,
       itemCount: items.length,
       selectedAddressId: formData.selectedAddressId ?? null,
       saveAddress: Boolean(formData.saveAddress),
@@ -700,6 +979,36 @@ export async function confirmOrder(orderId: string, providerRef: string) {
     providerRef: payment.providerRef,
     nextStatus: 'SUCCEEDED',
   })
+
+  // Defensive amount verification — symmetric with the webhook handler's
+  // doesWebhookPaymentMatchStoredPayment check. In mock mode the amount
+  // was computed server-side so this should never fire, but if confirmOrder
+  // is ever reused from another context the guard prevents confirming a
+  // Payment whose amount was tampered with between creation and confirmation.
+  const expectedAmountCents = Math.round(Number(payment.amount) * 100)
+  const orderGrandTotalCents = Math.round(Number(payment.order.grandTotal) * 100)
+  if (expectedAmountCents !== orderGrandTotalCents) {
+    logger.error('checkout.confirm_amount_mismatch', {
+      orderId,
+      orderNumber: payment.order.orderNumber,
+      providerRef,
+      paymentAmountCents: expectedAmountCents,
+      orderGrandTotalCents,
+    })
+    await db.orderEvent.create({
+      data: {
+        orderId,
+        type: 'PAYMENT_MISMATCH',
+        payload: createPaymentMismatchEventPayload({
+          providerRef: providerRef ?? orderId,
+          amount: orderGrandTotalCents,
+          expectedAmount: Number(payment.amount),
+          expectedCurrency: payment.currency,
+        }),
+      },
+    })
+    throw new Error('La verificación del importe ha fallado. Contacta con soporte.')
+  }
 
   if (!shouldApplyPaymentSucceeded({
     paymentStatus: payment.status,

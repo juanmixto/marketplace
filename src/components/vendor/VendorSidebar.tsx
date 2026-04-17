@@ -6,6 +6,7 @@ import {
   HomeIcon, ArchiveBoxIcon, ShoppingBagIcon,
   CurrencyEuroIcon, UserCircleIcon, ArrowTopRightOnSquareIcon,
   StarIcon, TagIcon, ArrowPathIcon,
+  ChatBubbleLeftRightIcon, BellIcon,
   ChevronDoubleLeftIcon, XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
@@ -22,6 +23,8 @@ const NAV_META = {
   '/vendor/valoraciones':  StarIcon,
   '/vendor/liquidaciones': CurrencyEuroIcon,
   '/vendor/perfil':        UserCircleIcon,
+  '/vendor/ajustes/telegram':       ChatBubbleLeftRightIcon,
+  '/vendor/ajustes/notificaciones': BellIcon,
 } as const
 
 interface Props {
@@ -180,7 +183,6 @@ export function VendorSidebar({ vendor }: Props) {
           {vendor?.slug && (
             <Link
               href={`/productores/${vendor.slug}`}
-              target="_blank"
               title={collapsed ? t('vendor.sidebar.viewStore') : undefined}
               aria-label={t('vendor.sidebar.viewStore')}
               style={labelStyle}

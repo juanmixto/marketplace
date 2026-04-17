@@ -9,8 +9,13 @@ import {
   ArrowPathIcon,
   ArchiveBoxIcon,
   ArrowUturnLeftIcon,
+  ArrowTrendingDownIcon,
   InformationCircleIcon,
   PencilSquareIcon,
+  UsersIcon,
+  CalendarDaysIcon,
+  BanknotesIcon,
+  RectangleStackIcon,
 } from '@heroicons/react/24/outline'
 import { Badge } from '@/components/ui/badge'
 import { formatPrice } from '@/lib/utils'
@@ -25,6 +30,16 @@ import type { TranslationKeys } from '@/i18n/locales'
 type Plan = Awaited<ReturnType<typeof listMySubscriptionPlans>>[number]
 
 type FilterKey = 'active' | 'archived' | 'all'
+
+// Monthly-equivalent factor for MRR estimation. Weekly cadences charge
+// ~4.33 times per month on average (52/12), biweekly ~2.17, monthly 1.
+// Good enough for the header KPI — the exact number will come from Stripe
+// invoices once phase 4b is live.
+const MRR_FACTOR: Record<Plan['cadence'], number> = {
+  WEEKLY: 52 / 12,
+  BIWEEKLY: 26 / 12,
+  MONTHLY: 1,
+}
 
 const FILTERS: { key: FilterKey; labelKey: TranslationKeys }[] = [
   { key: 'active',   labelKey: 'vendor.subscriptionPlans.filterActive' },
@@ -42,11 +57,17 @@ const DAY_KEYS: TranslationKeys[] = [
   'vendor.subscriptionPlans.day6',
 ]
 
-interface Props {
-  plans: Plan[]
+interface ChurnStats {
+  canceledThisMonth: number
+  denominator: number
 }
 
-export function VendorSubscriptionPlansListClient({ plans }: Props) {
+interface Props {
+  plans: Plan[]
+  churn: ChurnStats
+}
+
+export function VendorSubscriptionPlansListClient({ plans, churn }: Props) {
   const t = useT()
   const [filter, setFilter] = useState<FilterKey>('active')
 
@@ -57,6 +78,41 @@ export function VendorSubscriptionPlansListClient({ plans }: Props) {
       return true
     })
   }, [plans, filter])
+
+  // KPIs are always computed over active (non-archived) plans regardless of
+  // the current filter tab — the header should reflect the business, not the
+  // slice the vendor is currently looking at.
+  const kpis = useMemo(() => {
+    const active = plans.filter(p => p.archivedAt === null)
+    const totalSubscribers = active.reduce((s, p) => s + p.activeSubscribersCount, 0)
+    const mrr = active.reduce(
+      (s, p) => s + p.priceSnapshot * p.activeSubscribersCount * MRR_FACTOR[p.cadence],
+      0,
+    )
+    // Pick the plan whose next delivery is soonest — we surface its
+    // product name as the KPI hint so the vendor knows *what* and *to how
+    // many people* the upcoming drop is, not just *when*.
+    const plansWithNext = active
+      .map(p => ({
+        plan: p,
+        date: p.nextDeliveryAt
+          ? p.nextDeliveryAt instanceof Date
+            ? p.nextDeliveryAt
+            : new Date(p.nextDeliveryAt)
+          : null,
+      }))
+      .filter((x): x is { plan: Plan; date: Date } => x.date !== null)
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+    const nextDeliveryPlan = plansWithNext[0] ?? null
+    return {
+      activePlanCount: active.length,
+      totalSubscribers,
+      mrr,
+      nextDelivery: nextDeliveryPlan?.date ?? null,
+      nextDeliveryProductName: nextDeliveryPlan?.plan.product.name ?? null,
+      nextDeliverySubscriberCount: nextDeliveryPlan?.plan.activeSubscribersCount ?? 0,
+    }
+  }, [plans])
 
   return (
     <div className="space-y-5 max-w-5xl">
@@ -81,6 +137,63 @@ export function VendorSubscriptionPlansListClient({ plans }: Props) {
           <PlusIcon className="h-4 w-4" />
           {t('vendor.subscriptionPlans.newPlan')}
         </Link>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <KpiCard
+          icon={<RectangleStackIcon className="h-5 w-5" />}
+          label={t('vendor.subscriptionPlans.kpiActivePlans')}
+          value={String(kpis.activePlanCount)}
+        />
+        <KpiCard
+          icon={<UsersIcon className="h-5 w-5" />}
+          label={t('vendor.subscriptionPlans.kpiActiveSubscribers')}
+          value={String(kpis.totalSubscribers)}
+          href={kpis.totalSubscribers > 0 ? '/vendor/suscripciones/suscriptores' : undefined}
+          hint={
+            kpis.totalSubscribers > 0
+              ? t('vendor.subscriptionPlans.kpiDrilldownHint')
+              : undefined
+          }
+        />
+        <KpiCard
+          icon={<BanknotesIcon className="h-5 w-5" />}
+          label={t('vendor.subscriptionPlans.kpiMrr')}
+          value={formatPrice(kpis.mrr)}
+          hint={t('vendor.subscriptionPlans.kpiMrrHint')}
+        />
+        <KpiCard
+          icon={<CalendarDaysIcon className="h-5 w-5" />}
+          label={t('vendor.subscriptionPlans.kpiNextDelivery')}
+          value={
+            kpis.nextDelivery
+              ? formatShortDate(kpis.nextDelivery)
+              : t('vendor.subscriptionPlans.kpiNextDeliveryNone')
+          }
+          hint={
+            kpis.nextDelivery && kpis.nextDeliveryProductName
+              ? t('vendor.subscriptionPlans.kpiNextDeliveryHint')
+                  .replace('{product}', kpis.nextDeliveryProductName)
+                  .replace('{count}', String(kpis.nextDeliverySubscriberCount))
+              : undefined
+          }
+          muted={!kpis.nextDelivery}
+          href={kpis.nextDelivery ? '/vendor/suscripciones/suscriptores' : undefined}
+        />
+        <KpiCard
+          icon={<ArrowTrendingDownIcon className="h-5 w-5" />}
+          label={t('vendor.subscriptionPlans.kpiChurn')}
+          value={String(churn.canceledThisMonth)}
+          hint={
+            churn.denominator > 0
+              ? t('vendor.subscriptionPlans.kpiChurnHint').replace(
+                  '{rate}',
+                  `${Math.round((churn.canceledThisMonth / churn.denominator) * 100)}%`,
+                )
+              : t('vendor.subscriptionPlans.kpiChurnHintEmpty')
+          }
+          muted={churn.canceledThisMonth === 0}
+        />
       </div>
 
       {/* Dormant notice — set expectations: phase 3 is vendor-only */}
@@ -128,6 +241,57 @@ export function VendorSubscriptionPlansListClient({ plans }: Props) {
       )}
     </div>
   )
+}
+
+function formatShortDate(d: Date): string {
+  // Locale-aware short date. Matches the visual density of the KPI cards
+  // (we don't want the full weekday spelled out in a 4-column grid).
+  return new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short' }).format(d)
+}
+
+function KpiCard({
+  icon,
+  label,
+  value,
+  hint,
+  muted,
+  href,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string
+  hint?: string
+  muted?: boolean
+  href?: string
+}) {
+  const content = (
+    <>
+      <div className="flex items-center gap-2 text-[var(--muted)]">
+        {icon}
+        <span className="text-xs font-medium uppercase tracking-wide">{label}</span>
+      </div>
+      <p
+        className={`mt-2 text-xl font-semibold ${
+          muted ? 'text-[var(--muted)]' : 'text-[var(--foreground)]'
+        }`}
+      >
+        {value}
+      </p>
+      {hint && <p className="mt-1 text-[11px] text-[var(--muted)]">{hint}</p>}
+    </>
+  )
+  const baseCls = 'rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm'
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className={`${baseCls} block transition hover:border-emerald-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30`}
+      >
+        {content}
+      </Link>
+    )
+  }
+  return <div className={baseCls}>{content}</div>
 }
 
 function EmptyState({ filter }: { filter: FilterKey }) {
@@ -226,9 +390,37 @@ function PlanRow({ plan }: { plan: Plan }) {
             {formatPrice(Number(plan.priceSnapshot))} / {plan.product.unit} ·{' '}
             {t('vendor.subscriptionPlans.cutoffLabel').replace(
               '{day}',
-              t(DAY_KEYS[plan.cutoffDayOfWeek])
+              t(DAY_KEYS[plan.cutoffDayOfWeek] ?? DAY_KEYS[0]!)
             )}
           </p>
+          {!isArchived && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--muted)]">
+              <span className="inline-flex items-center gap-1">
+                <UsersIcon className="h-3.5 w-3.5" />
+                {plan.activeSubscribersCount === 0
+                  ? t('vendor.subscriptionPlans.subscribersNone')
+                  : plan.activeSubscribersCount === 1
+                    ? t('vendor.subscriptionPlans.subscribersOne')
+                    : t('vendor.subscriptionPlans.subscribersOther').replace(
+                        '{count}',
+                        String(plan.activeSubscribersCount),
+                      )}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <CalendarDaysIcon className="h-3.5 w-3.5" />
+                {plan.nextDeliveryAt
+                  ? t('vendor.subscriptionPlans.nextDeliveryLabel').replace(
+                      '{date}',
+                      formatShortDate(
+                        plan.nextDeliveryAt instanceof Date
+                          ? plan.nextDeliveryAt
+                          : new Date(plan.nextDeliveryAt),
+                      ),
+                    )
+                  : t('vendor.subscriptionPlans.nextDeliveryNone')}
+              </span>
+            </div>
+          )}
           {error && (
             <p className="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">
               {error}
@@ -249,6 +441,15 @@ function PlanRow({ plan }: { plan: Plan }) {
             </button>
           ) : (
             <>
+              {plan.activeSubscribersCount > 0 && (
+                <Link
+                  href={`/vendor/suscripciones/suscriptores?plan=${plan.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
+                >
+                  <UsersIcon className="h-4 w-4" />
+                  {t('vendor.subscriptionPlans.viewSubscribers')}
+                </Link>
+              )}
               <Link
                 href={`/vendor/suscripciones/${plan.id}/editar`}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-semibold text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)]"

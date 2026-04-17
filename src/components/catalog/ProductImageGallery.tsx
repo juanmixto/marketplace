@@ -42,12 +42,14 @@ export function ProductImageGallery({ images, alt }: Props) {
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const touch = e.touches[0]
+    if (!touch) return
     touchStartRef.current = { x: touch.clientX, y: touch.clientY }
   }, [])
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     const start = touchStartRef.current
     if (!start) return
     const touch = e.changedTouches[0]
+    if (!touch) return
     const dx = touch.clientX - start.x
     const dy = touch.clientY - start.y
     touchStartRef.current = null
@@ -73,15 +75,15 @@ export function ProductImageGallery({ images, alt }: Props) {
         onTouchEnd={handleTouchEnd}
       >
         <Image
-          key={validImages[safeIndex]}
-          src={validImages[safeIndex]}
+          key={validImages[safeIndex]!}
+          src={validImages[safeIndex]!}
           alt={`${alt} — imagen ${safeIndex + 1}`}
           fill
           draggable={false}
           className="object-cover transition-opacity duration-200"
           sizes="(max-width: 1024px) 100vw, 50vw"
           priority={safeIndex === 0}
-          onError={() => handleError(validImages[safeIndex])}
+          onError={() => handleError(validImages[safeIndex]!)}
         />
 
         {validImages.length > 1 && (

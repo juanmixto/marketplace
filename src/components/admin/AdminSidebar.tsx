@@ -6,7 +6,9 @@ import {
   HomeIcon, ShoppingBagIcon, TruckIcon, UsersIcon, ArchiveBoxIcon,
   ScaleIcon, Cog6ToothIcon, ClipboardDocumentListIcon,
   CurrencyEuroIcon, ExclamationTriangleIcon, ChartBarIcon,
+  PresentationChartLineIcon,
   ArrowTopRightOnSquareIcon, TagIcon, ArrowPathIcon,
+  BellIcon,
   ChevronDoubleLeftIcon, XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
@@ -27,6 +29,8 @@ const NAV_META = {
   '/admin/liquidaciones': CurrencyEuroIcon,
   '/admin/incidencias':   ExclamationTriangleIcon,
   '/admin/informes':      ChartBarIcon,
+  '/admin/analytics':     PresentationChartLineIcon,
+  '/admin/notificaciones': BellIcon,
 } as const
 
 const SIDEBAR_EASE = 'cubic-bezier(0.25, 0.1, 0.25, 1)'

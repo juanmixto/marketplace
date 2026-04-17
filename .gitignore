@@ -42,6 +42,9 @@ yarn-error.log*
 /public/uploads/*
 !/public/uploads/.gitkeep
 
+# Generated service worker (built from public/sw.template.js on prebuild)
+/public/sw.js
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

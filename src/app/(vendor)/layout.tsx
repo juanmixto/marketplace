@@ -3,6 +3,7 @@ import { VendorSidebar } from '@/components/vendor/VendorSidebar'
 import { VendorHeader } from '@/components/vendor/VendorHeader'
 import { SidebarProvider } from '@/components/layout/SidebarProvider'
 import { ImpersonationBanner } from '@/components/vendor/ImpersonationBanner'
+import AppBadgeSync from '@/components/pwa/AppBadgeSync'
 import { db } from '@/lib/db'
 import { requireVendor } from '@/lib/auth-guard'
 import { getAvailablePortals } from '@/lib/portals'
@@ -13,8 +14,20 @@ export default async function VendorLayout({ children }: { children: React.React
 
   const vendor = await db.vendor.findUnique({
     where: { userId: session.user.id },
-    select: { displayName: true, status: true, slug: true },
+    select: { id: true, displayName: true, status: true, slug: true },
   })
+
+  // Count fulfillments that still need vendor action (same 'active' filter
+  // used by `getMyFulfillments`). Feeds the installed-app icon badge so a
+  // vendor sees pending work even when the app window is in the background.
+  const pendingFulfillments = vendor
+    ? await db.vendorFulfillment.count({
+        where: {
+          vendorId: vendor.id,
+          status: { in: ['PENDING', 'CONFIRMED', 'PREPARING', 'READY'] },
+        },
+      })
+    : 0
 
   const portals = getAvailablePortals(session.user.role)
 
@@ -29,7 +42,7 @@ export default async function VendorLayout({ children }: { children: React.React
     <SidebarProvider>
       <div className="flex h-screen bg-[var(--background)]">
         <VendorSidebar vendor={vendor} />
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           {impersonation && (
             <ImpersonationBanner
               adminEmail={impersonatingAdminEmail}
@@ -39,7 +52,8 @@ export default async function VendorLayout({ children }: { children: React.React
             />
           )}
           <VendorHeader user={session.user} vendor={vendor} portals={portals} />
-          <main className="flex-1 overflow-y-auto p-6">{children}</main>
+          <AppBadgeSync count={pendingFulfillments} />
+          <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">{children}</main>
         </div>
       </div>
     </SidebarProvider>

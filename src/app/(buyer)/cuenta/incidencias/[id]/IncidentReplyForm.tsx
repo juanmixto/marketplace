@@ -53,6 +53,8 @@ export function IncidentReplyForm({ incidentId }: Props) {
       <textarea
         id="incident-reply"
         rows={4}
+        spellCheck
+        autoCapitalize="sentences"
         value={body}
         onChange={event => setBody(event.target.value)}
         placeholder={t('incident.detail.replyPlaceholder')}

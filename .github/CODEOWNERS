@@ -1,0 +1,53 @@
+# CODEOWNERS — load-bearing files that must not change without owner review.
+#
+# This file is read by GitHub when a PR touches a matching path: the listed
+# owners are auto-requested as reviewers. It only enforces blocking review
+# when the repo's branch protection rule requires reviews from CODEOWNERS
+# (Settings → Branches → main → Require review from CODEOWNERS).
+#
+# Phase 7 of the contract-hardening plan. Add specialized owners here as
+# the team grows. Globbing semantics:
+#   /path/file       — exact file
+#   /path/*          — direct children only
+#   /path/**         — recursive
+#
+# Last entry wins, so the catch-all default goes first.
+
+* @juanmixto
+
+# --- Database schema -------------------------------------------------------
+# Migrations and schema changes require a deliberate review because they
+# affect every running deployment and existing rows.
+/prisma/schema.prisma                       @juanmixto
+/prisma/migrations/**                       @juanmixto
+
+# --- Auth, env, API response envelope --------------------------------------
+# Single sources of truth that the rest of the app trusts blindly.
+/src/lib/env.ts                             @juanmixto
+/src/lib/auth.ts                            @juanmixto
+/src/lib/auth-config.ts                     @juanmixto
+/src/lib/auth-guard.ts                      @juanmixto
+/src/lib/action-session.ts                  @juanmixto
+/src/lib/api-response.ts                    @juanmixto
+
+# --- Shared contracts (created in Phase 5) ---------------------------------
+# Any change here propagates to every consumer; reviewer must verify
+# backwards-compat shims and snapshot version discriminants.
+/src/shared/**                              @juanmixto
+
+# --- Domain public surface (barrels from Phase 3) --------------------------
+# Internal files inside each domain are free to evolve; the index.ts is
+# the contract surface that other domains depend on.
+/src/domains/*/index.ts                     @juanmixto
+
+# --- Webhook entrypoints ---------------------------------------------------
+# Signature verification + dedupe lives here; bypass risk on edits.
+/src/app/api/webhooks/**                    @juanmixto
+
+# --- CI and infra ----------------------------------------------------------
+/.github/workflows/**                       @juanmixto
+/.github/CODEOWNERS                         @juanmixto
+/eslint.config.mjs                          @juanmixto
+/tsconfig.json                              @juanmixto
+/tsconfig.app.json                          @juanmixto
+/tsconfig.test.json                         @juanmixto

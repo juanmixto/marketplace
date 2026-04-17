@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getMyProduct, getMyVendorProfile } from '@/domains/vendors/actions'
+import { getActivePromotionsForProduct } from '@/domains/promotions/public'
 import { VendorProductPreview } from '@/components/vendor/VendorProductPreview'
 
 interface Props { params: Promise<{ id: string }> }
@@ -18,5 +19,17 @@ export default async function VendorProductPreviewPage({ params }: Props) {
   ])
   if (!product) notFound()
 
-  return <VendorProductPreview product={product} vendor={vendor} />
+  const activePromotions = await getActivePromotionsForProduct({
+    productId: product.id,
+    vendorId: product.vendorId,
+    categoryId: product.categoryId,
+  })
+
+  return (
+    <VendorProductPreview
+      product={product}
+      vendor={vendor}
+      activePromotions={activePromotions}
+    />
+  )
 }

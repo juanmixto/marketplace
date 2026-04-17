@@ -42,6 +42,7 @@ const vendorBlueprints = [
     },
     vendor: {
       slug: 'finca-garcia',
+      category: 'ORCHARD' as const,
       displayName: 'Finca García',
       description: 'Somos Carlos y Pilar, tercera generación en la Sierra de Gredos. Cultivamos hortalizas y huevos camperos en 12 hectáreas de tierra heredada, siguiendo las prácticas que nos enseñó el abuelo Tomás: rotación de cultivos, compost propio y cero químicos desde 1987.\n\nNuestra finca funciona con temporada corta y recogida diaria. No almacenamos: lo que se recolecta por la mañana sale hacia tu casa esa misma tarde. Trabajamos con variedades locales —tomates de Barco, pimientos de asar, judiones del valle— porque creemos que el sabor no se negocia.\n\nDurante los meses de invierno hacemos conservas, mermeladas y encurtidos con el excedente de temporada, siempre en lotes pequeños y con recetas de casa. Si tienes alguna duda sobre nuestros productos o quieres saber qué hay disponible esta semana, escríbenos sin compromiso.',
       location: 'Ávila, Castilla y León',
@@ -257,6 +258,7 @@ const vendorBlueprints = [
     },
     vendor: {
       slug: 'huerta-la-solana',
+      category: 'ORCHARD' as const,
       displayName: 'Huerta La Solana',
       description: 'Nos dedicamos al cítrico y la fruta de hueso desde hace más de cuarenta años. Lo que empezó como un pequeño huerto familiar entre naranjos se ha convertido en una finca de 8 hectáreas donde cultivamos naranjas, mandarinas, fresas y fruta de temporada.\n\nCada pieza se recolecta bajo pedido: no usamos cámaras frigoríficas ni tratamientos de postcosecha. Del árbol a tu mesa en 24-48 horas. También producimos miel cruda de azahar, porque nuestras colmenas conviven con los naranjos y el resultado merece la pena.\n\nEstamos en plena huerta valenciana, a pocos kilómetros de la Albufera. Si pasas por la zona, avísanos y te enseñamos la finca encantados.',
       location: 'Valencia, Comunidad Valenciana',
@@ -344,6 +346,7 @@ const vendorBlueprints = [
     },
     vendor: {
       slug: 'queseria-monteazul',
+      category: 'CHEESE' as const,
       displayName: 'Quesería Monteazul',
       description: 'En Monteazul hacemos queso como se hacía antes: con leche cruda del día, cuajo natural y el tiempo que cada pieza necesita. Nuestro rebaño de 120 cabras pasta libre en los Picos de Europa, y la diferencia se nota en la leche.\n\nTenemos tres líneas de producto: queso fresco (de 3 a 7 días), semicurado (45 días en cava de piedra) y curado (mínimo 90 días, con corteza natural lavada). También elaboramos yogur de oveja con fermentos propios y mantequilla batida a diario.\n\nMateo, el maestro quesero, lleva 22 años perfeccionando las recetas. Cada lote es pequeño —entre 40 y 60 piezas— y cada uno tiene su propio carácter. No hay dos quesos iguales, y eso es exactamente lo que buscamos.',
       location: 'Cangas de Onís, Asturias',
@@ -432,6 +435,7 @@ const vendorBlueprints = [
     },
     vendor: {
       slug: 'bodega-ribera-viva',
+      category: 'WINERY' as const,
       displayName: 'Bodega Ribera Viva',
       description: 'Somos una bodega familiar en la Ribera del Duero con 6 hectáreas de viñedo propio y una producción que rara vez supera las 15.000 botellas al año. Nos gusta decir que hacemos vinos honestos: sin adornos, sin trucos, con la expresión pura de la uva y el terreno.\n\nNuestras cepas de tempranillo tienen entre 25 y 40 años, y las trabajamos en ecológico desde 2018. Ana se encarga de la viña y la cosecha, y Pablo del trabajo en bodega. Criamos en barrica cuando la uva lo pide, pero nunca como obligación.\n\nAdemás del vino, elaboramos aceite de oliva virgen extra con aceitunas de la finca y conservas artesanas con producto de nuestra huerta. Todo bajo el mismo principio: buen producto, sin intermediarios, directo a tu mesa.',
       location: 'Valladolid, Castilla y León',
@@ -517,6 +521,7 @@ const vendorBlueprints = [
     },
     vendor: {
       slug: 'obrador-santa-ines',
+      category: 'BAKERY' as const,
       displayName: 'Obrador Santa Inés',
       description: 'Nuestro obrador nació en 2019 con una idea simple: recuperar el pan de verdad. Usamos harinas ecológicas molidas a piedra, masas madre que alimentamos a diario y fermentaciones de entre 24 y 48 horas. No tenemos prisa, y se nota en cada bocado.\n\nElena aprendió el oficio en panaderías de Francia y Alemania antes de abrir Santa Inés en el casco antiguo de Pamplona. Hoy somos un equipo de cuatro personas que hornea cada mañana a las cinco. Pan de pueblo, hogazas integrales, chapatas, croissants de mantequilla y bollería de temporada.\n\nTambién hacemos galletas, bizcochos y repostería seca que aguanta bien el envío. Todo sale del mismo obrador, con los mismos ingredientes y el mismo cuidado. Si quieres probar nuestro pan, te recomendamos hacer el pedido antes de las 11:00 para que salga en el horneado del día siguiente.',
       location: 'Pamplona, Navarra',
@@ -614,6 +619,16 @@ const customerBlueprints = [
     lastName: 'Romero',
     password: 'cliente1234',
   },
+  {
+    // Extra demo customer reserved for dummy subscription instances on the
+    // vendor dashboard — keeping primaryCustomer (cliente@test.com) free of
+    // seeded subscriptions so the e2e smoke test can create its own without
+    // hitting the (buyerId, planId) unique.
+    email: 'laura@demo.com',
+    firstName: 'Laura',
+    lastName: 'Méndez',
+    password: 'cliente1234',
+  },
 ]
 
 const adminSideVendorBlueprints = [
@@ -626,6 +641,7 @@ const adminSideVendorBlueprints = [
     },
     vendor: {
       slug: 'almazara-nueva-era',
+      category: 'OLIVE_OIL' as const,
       displayName: 'Almazara Nueva Era',
       description: 'Solicitud pendiente de revisión documental y validación del registro sanitario.',
       location: 'Jaén, Andalucía',
@@ -645,6 +661,7 @@ const adminSideVendorBlueprints = [
     },
     vendor: {
       slug: 'granja-los-almendros',
+      category: 'FARM' as const,
       displayName: 'Granja Los Almendros',
       description: 'Alta iniciada, a la espera de completar documentación bancaria y fiscal.',
       location: 'Segovia, Castilla y León',
@@ -664,6 +681,7 @@ const adminSideVendorBlueprints = [
     },
     vendor: {
       slug: 'secano-del-sur',
+      category: 'DRYLAND' as const,
       displayName: 'Secano del Sur',
       description: 'Cuenta suspendida temporalmente por incidencias reiteradas en preparación de pedidos.',
       location: 'Almería, Andalucía',
@@ -847,6 +865,104 @@ async function main() {
   }
   console.log(`  ✓ ${adminSideVendorBlueprints.length} productores extra para moderación`)
 
+  // Seeded subscription plans for the "Cesta mixta de huerta" so e2e and
+  // local dev have a buyable recurring box without running through the
+  // vendor UI. We seed BOTH weekly and biweekly so the confirmation-page
+  // cadence selector has something to pick between — verifying the
+  // multi-cadence feature end-to-end. Mock mode never validates
+  // `stripePriceId` against the real Stripe API, so synthetic ids are safe.
+  const fincaGarcia = vendorsBySlug.get('finca-garcia')
+  if (fincaGarcia) {
+    await db.subscriptionPlan.upsert({
+      where: { productId_cadence: { productId: 'prod-cesta-huerta', cadence: 'WEEKLY' } },
+      update: {
+        priceSnapshot: 14.5,
+        taxRateSnapshot: 0.04,
+        cutoffDayOfWeek: 5,
+        stripePriceId: 'price_mock_cesta_huerta_weekly',
+        archivedAt: null,
+      },
+      create: {
+        id: 'plan-cesta-huerta-weekly',
+        vendorId: fincaGarcia.id,
+        productId: 'prod-cesta-huerta',
+        cadence: 'WEEKLY',
+        priceSnapshot: 14.5,
+        taxRateSnapshot: 0.04,
+        cutoffDayOfWeek: 5,
+        stripePriceId: 'price_mock_cesta_huerta_weekly',
+      },
+    })
+    await db.subscriptionPlan.upsert({
+      where: { productId_cadence: { productId: 'prod-cesta-huerta', cadence: 'BIWEEKLY' } },
+      update: {
+        priceSnapshot: 27,
+        taxRateSnapshot: 0.04,
+        cutoffDayOfWeek: 5,
+        stripePriceId: 'price_mock_cesta_huerta_biweekly',
+        archivedAt: null,
+      },
+      create: {
+        id: 'plan-cesta-huerta-biweekly',
+        vendorId: fincaGarcia.id,
+        productId: 'prod-cesta-huerta',
+        cadence: 'BIWEEKLY',
+        // Slightly higher per-delivery price when you only get one every
+        // 14 days — typical pack-and-ship fixed cost amortization.
+        priceSnapshot: 27,
+        taxRateSnapshot: 0.04,
+        cutoffDayOfWeek: 5,
+        stripePriceId: 'price_mock_cesta_huerta_biweekly',
+      },
+    })
+    console.log(`  ✓ Plan de suscripción: cesta-mixta-huerta (semanal + quincenal)`)
+
+    // Additional dummy plans so the vendor dashboard has a realistic mix of
+    // cadences and products — a one-product marketplace looks empty and
+    // hides bugs like "what if a plan has no image / different unit".
+    await db.subscriptionPlan.upsert({
+      where: { productId_cadence: { productId: 'prod-huevos', cadence: 'WEEKLY' } },
+      update: {
+        priceSnapshot: 4.8,
+        taxRateSnapshot: 0.04,
+        cutoffDayOfWeek: 5,
+        stripePriceId: 'price_mock_huevos_weekly',
+        archivedAt: null,
+      },
+      create: {
+        id: 'plan-huevos-weekly',
+        vendorId: fincaGarcia.id,
+        productId: 'prod-huevos',
+        cadence: 'WEEKLY',
+        priceSnapshot: 4.8,
+        taxRateSnapshot: 0.04,
+        cutoffDayOfWeek: 5,
+        stripePriceId: 'price_mock_huevos_weekly',
+      },
+    })
+    await db.subscriptionPlan.upsert({
+      where: { productId_cadence: { productId: 'prod-calabacin', cadence: 'WEEKLY' } },
+      update: {
+        priceSnapshot: 2.9,
+        taxRateSnapshot: 0.04,
+        cutoffDayOfWeek: 5,
+        stripePriceId: 'price_mock_calabacin_weekly',
+        archivedAt: null,
+      },
+      create: {
+        id: 'plan-calabacin-weekly',
+        vendorId: fincaGarcia.id,
+        productId: 'prod-calabacin',
+        cadence: 'WEEKLY',
+        priceSnapshot: 2.9,
+        taxRateSnapshot: 0.04,
+        cutoffDayOfWeek: 5,
+        stripePriceId: 'price_mock_calabacin_weekly',
+      },
+    })
+    console.log(`  ✓ Planes extra: huevos (semanal), calabacín (semanal)`)
+  }
+
   const customersByEmail = new Map<string, { id: string; firstName: string; lastName: string }>()
   for (const customer of customerBlueprints) {
     const user = await upsertUser({
@@ -867,8 +983,9 @@ async function main() {
   const primaryCustomer = customersByEmail.get('cliente@test.com')
   const secondaryCustomer = customersByEmail.get('marta@demo.com')
   const thirdCustomer = customersByEmail.get('javier@demo.com')
+  const lauraCustomer = customersByEmail.get('laura@demo.com')
 
-  if (!primaryCustomer || !secondaryCustomer || !thirdCustomer) {
+  if (!primaryCustomer || !secondaryCustomer || !thirdCustomer || !lauraCustomer) {
     throw new Error('No se pudieron crear los clientes demo')
   }
 
@@ -902,6 +1019,249 @@ async function main() {
       isDefault: true,
     },
   })
+
+  // Secondary / tertiary customer shipping addresses. Needed so the dummy
+  // Subscription rows below can reference a real `shippingAddressId` for
+  // each buyer — the schema makes that FK required.
+  const secondaryAddress = await db.address.upsert({
+    where: { id: 'addr-marta-main' },
+    update: {
+      userId: secondaryCustomer.id,
+      label: 'Casa',
+      firstName: secondaryCustomer.firstName,
+      lastName: secondaryCustomer.lastName,
+      line1: 'Carrer de Balmes 124',
+      city: 'Barcelona',
+      province: '08',
+      postalCode: '08008',
+      country: 'ES',
+      phone: '600456456',
+      isDefault: true,
+    },
+    create: {
+      id: 'addr-marta-main',
+      userId: secondaryCustomer.id,
+      label: 'Casa',
+      firstName: secondaryCustomer.firstName,
+      lastName: secondaryCustomer.lastName,
+      line1: 'Carrer de Balmes 124',
+      city: 'Barcelona',
+      province: '08',
+      postalCode: '08008',
+      country: 'ES',
+      phone: '600456456',
+      isDefault: true,
+    },
+  })
+
+  const thirdAddress = await db.address.upsert({
+    where: { id: 'addr-javier-main' },
+    update: {
+      userId: thirdCustomer.id,
+      label: 'Casa',
+      firstName: thirdCustomer.firstName,
+      lastName: thirdCustomer.lastName,
+      line1: 'Avenida de la Constitución 42',
+      city: 'Sevilla',
+      province: '41',
+      postalCode: '41001',
+      country: 'ES',
+      phone: '600789789',
+      isDefault: true,
+    },
+    create: {
+      id: 'addr-javier-main',
+      userId: thirdCustomer.id,
+      label: 'Casa',
+      firstName: thirdCustomer.firstName,
+      lastName: thirdCustomer.lastName,
+      line1: 'Avenida de la Constitución 42',
+      city: 'Sevilla',
+      province: '41',
+      postalCode: '41001',
+      country: 'ES',
+      phone: '600789789',
+      isDefault: true,
+    },
+  })
+
+  const lauraAddress = await db.address.upsert({
+    where: { id: 'addr-laura-main' },
+    update: {
+      userId: lauraCustomer.id,
+      label: 'Casa',
+      firstName: lauraCustomer.firstName,
+      lastName: lauraCustomer.lastName,
+      line1: 'Calle del Pintor Sorolla 7',
+      city: 'Valencia',
+      province: '46',
+      postalCode: '46002',
+      country: 'ES',
+      phone: '600321321',
+      isDefault: true,
+    },
+    create: {
+      id: 'addr-laura-main',
+      userId: lauraCustomer.id,
+      label: 'Casa',
+      firstName: lauraCustomer.firstName,
+      lastName: lauraCustomer.lastName,
+      line1: 'Calle del Pintor Sorolla 7',
+      city: 'Valencia',
+      province: '46',
+      postalCode: '46002',
+      country: 'ES',
+      phone: '600321321',
+      isDefault: true,
+    },
+  })
+
+  // Dummy subscription instances so the vendor dashboard shows real
+  // KPIs (suscriptores, MRR, próxima entrega) instead of all-zeros.
+  // We stagger nextDeliveryAt across the next two weeks so the "próxima
+  // entrega" column varies plan to plan. Plan IDs are looked up by
+  // (productId, cadence) because the upsert above may hit a pre-existing
+  // row with a different id (e.g. one the vendor created via the UI).
+  if (fincaGarcia) {
+    const planLookup = await db.subscriptionPlan.findMany({
+      where: { vendorId: fincaGarcia.id },
+      select: { id: true, productId: true, cadence: true },
+    })
+    const planIdFor = (productId: string, cadence: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY') =>
+      planLookup.find(p => p.productId === productId && p.cadence === cadence)?.id ?? null
+    const cestaWeeklyId = planIdFor('prod-cesta-huerta', 'WEEKLY')
+    const cestaBiweeklyId = planIdFor('prod-cesta-huerta', 'BIWEEKLY')
+    const huevosWeeklyId = planIdFor('prod-huevos', 'WEEKLY')
+    const calabacinWeeklyId = planIdFor('prod-calabacin', 'WEEKLY')
+    const now = new Date()
+    const daysFromNow = (n: number) => {
+      const d = new Date(now)
+      d.setUTCDate(d.getUTCDate() + n)
+      d.setUTCHours(9, 0, 0, 0)
+      return d
+    }
+
+    const dummySubscriptions: Array<{
+      id: string
+      buyerId: string
+      planId: string
+      shippingAddressId: string
+      nextDeliveryInDays: number
+      periodEndInDays: number
+      cadenceDays: number
+      status?: 'ACTIVE' | 'PAUSED'
+    }> = [
+      // Cesta mixta semanal — two subscribers, two different drop days.
+      // We use lauraCustomer (not primaryCustomer) because the e2e smoke
+      // test subscribes cliente@test.com to this exact plan and the
+      // (buyerId, planId) unique would reject it if we seeded a row first.
+      {
+        id: 'sub-cesta-weekly-laura',
+        buyerId: lauraCustomer.id,
+        planId: cestaWeeklyId!,
+        shippingAddressId: lauraAddress.id,
+        nextDeliveryInDays: 2,
+        periodEndInDays: 7,
+        cadenceDays: 7,
+      },
+      {
+        id: 'sub-cesta-weekly-marta',
+        buyerId: secondaryCustomer.id,
+        planId: cestaWeeklyId!,
+        shippingAddressId: secondaryAddress.id,
+        nextDeliveryInDays: 5,
+        periodEndInDays: 10,
+        cadenceDays: 7,
+      },
+      // Cesta mixta quincenal — one active + one paused, to exercise both
+      // status branches (the KPI count must ignore paused subs).
+      {
+        id: 'sub-cesta-biweekly-javier',
+        buyerId: thirdCustomer.id,
+        planId: cestaBiweeklyId!,
+        shippingAddressId: thirdAddress.id,
+        nextDeliveryInDays: 9,
+        periodEndInDays: 16,
+        cadenceDays: 14,
+      },
+      {
+        id: 'sub-cesta-biweekly-marta-paused',
+        buyerId: secondaryCustomer.id,
+        planId: cestaBiweeklyId!,
+        shippingAddressId: secondaryAddress.id,
+        nextDeliveryInDays: 12,
+        periodEndInDays: 20,
+        cadenceDays: 14,
+        status: 'PAUSED',
+      },
+      // Huevos semanal — three loyal customers, a popular recurring box.
+      // Same reason as cesta weekly: keep primaryCustomer free for e2e.
+      {
+        id: 'sub-huevos-weekly-laura',
+        buyerId: lauraCustomer.id,
+        planId: huevosWeeklyId!,
+        shippingAddressId: lauraAddress.id,
+        nextDeliveryInDays: 3,
+        periodEndInDays: 8,
+        cadenceDays: 7,
+      },
+      {
+        id: 'sub-huevos-weekly-marta',
+        buyerId: secondaryCustomer.id,
+        planId: huevosWeeklyId!,
+        shippingAddressId: secondaryAddress.id,
+        nextDeliveryInDays: 6,
+        periodEndInDays: 11,
+        cadenceDays: 7,
+      },
+      {
+        id: 'sub-huevos-weekly-javier',
+        buyerId: thirdCustomer.id,
+        planId: huevosWeeklyId!,
+        shippingAddressId: thirdAddress.id,
+        nextDeliveryInDays: 4,
+        periodEndInDays: 9,
+        cadenceDays: 7,
+      },
+      // Calabacín — a single enthusiast, shows the "1 suscriptor" copy branch
+      {
+        id: 'sub-calabacin-weekly-javier',
+        buyerId: thirdCustomer.id,
+        planId: calabacinWeeklyId!,
+        shippingAddressId: thirdAddress.id,
+        nextDeliveryInDays: 7,
+        periodEndInDays: 14,
+        cadenceDays: 7,
+      },
+    ]
+
+    for (const s of dummySubscriptions) {
+      if (!s.planId) continue
+      // Match on the (buyerId, planId) unique so we're idempotent even if
+      // a previous partial run created the row with a different cuid.
+      await db.subscription.upsert({
+        where: { buyerId_planId: { buyerId: s.buyerId, planId: s.planId } },
+        update: {
+          status: s.status ?? 'ACTIVE',
+          shippingAddressId: s.shippingAddressId,
+          currentPeriodEnd: daysFromNow(s.periodEndInDays),
+          nextDeliveryAt: daysFromNow(s.nextDeliveryInDays),
+          canceledAt: null,
+        },
+        create: {
+          id: s.id,
+          buyerId: s.buyerId,
+          planId: s.planId,
+          shippingAddressId: s.shippingAddressId,
+          status: s.status ?? 'ACTIVE',
+          currentPeriodEnd: daysFromNow(s.periodEndInDays),
+          nextDeliveryAt: daysFromNow(s.nextDeliveryInDays),
+          skippedDeliveries: [],
+        },
+      })
+    }
+    console.log(`  ✓ ${dummySubscriptions.length} suscripciones demo (activas + paused)`)
+  }
 
   await db.shippingZone.upsert({
     where: { id: 'zone-peninsula' },

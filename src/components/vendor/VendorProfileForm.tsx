@@ -12,11 +12,25 @@ import {
 } from '@heroicons/react/24/outline'
 import { Input } from '@/components/ui/input'
 import { updateVendorProfile } from '@/domains/vendors/actions'
+import { trackAnalyticsEvent } from '@/lib/analytics'
 import { isAllowedImageUrl } from '@/lib/image-validation'
 import { VendorHeroUpload } from './VendorHeroUpload'
 import type { Vendor } from '@/generated/prisma/client'
 import { useT } from '@/i18n'
 import { useMemo } from 'react'
+
+const VENDOR_CATEGORY_OPTIONS = [
+  { value: 'BAKERY', labelKey: 'vendorVisual.bakery' },
+  { value: 'CHEESE', labelKey: 'vendorVisual.cheese' },
+  { value: 'WINERY', labelKey: 'vendorVisual.winery' },
+  { value: 'ORCHARD', labelKey: 'vendorVisual.orchard' },
+  { value: 'OLIVE_OIL', labelKey: 'vendorVisual.oliveOil' },
+  { value: 'FARM', labelKey: 'vendorVisual.farm' },
+  { value: 'DRYLAND', labelKey: 'vendorVisual.dryland' },
+  { value: 'LOCAL_PRODUCER', labelKey: 'vendorVisual.localProducer' },
+] as const
+
+type VendorCategoryOption = (typeof VENDOR_CATEGORY_OPTIONS)[number]['value']
 
 function buildProfileSchema(t: ReturnType<typeof useT>) {
   const imageFieldSchema = z
@@ -30,6 +44,13 @@ function buildProfileSchema(t: ReturnType<typeof useT>) {
     displayName: z.string().min(3, t('vendor.profileForm.nameMin')).max(80),
     description: z.string().max(2000).optional(),
     location: z.string().max(100).optional(),
+    category: z
+      .union([
+        z.enum(VENDOR_CATEGORY_OPTIONS.map(c => c.value) as [VendorCategoryOption, ...VendorCategoryOption[]]),
+        z.literal(''),
+        z.undefined(),
+      ])
+      .optional(),
     logo: imageFieldSchema,
     coverImage: imageFieldSchema,
     orderCutoffTime: z
@@ -74,6 +95,7 @@ export function VendorProfileForm({ vendor }: Props) {
       displayName: vendor.displayName,
       description: vendor.description ?? '',
       location: vendor.location ?? '',
+      category: (vendor.category ?? '') as VendorCategoryOption | '',
       logo: vendor.logo ?? '',
       coverImage: vendor.coverImage ?? '',
       orderCutoffTime: vendor.orderCutoffTime ?? '',
@@ -97,6 +119,25 @@ export function VendorProfileForm({ vendor }: Props) {
         await updateVendorProfile(values)
         lastSavedJsonRef.current = JSON.stringify(values)
         setSaveState('saved')
+        trackAnalyticsEvent('seller_profile_completed', {
+          vendor_id: vendor.id,
+          vendor_category: values.category || undefined,
+        })
+        // First successful save acts as the "seller onboarding completed"
+        // signal. Dedup per-vendor via localStorage so we fire once even if
+        // the user edits their profile later.
+        try {
+          const storageKey = `seller_signup_completed:${vendor.id}`
+          if (typeof window !== 'undefined' && !window.localStorage.getItem(storageKey)) {
+            trackAnalyticsEvent('seller_signup_completed', {
+              vendor_id: vendor.id,
+              vendor_category: values.category || undefined,
+            })
+            window.localStorage.setItem(storageKey, new Date().toISOString())
+          }
+        } catch {
+          // Silent: analytics must never break saves.
+        }
         // Refresh server components so the vendor layout sidebar (which reads
         // displayName/logo from the DB) reflects the new values without needing
         // a full page reload.
@@ -106,7 +147,7 @@ export function VendorProfileForm({ vendor }: Props) {
         setServerError(err instanceof Error ? err.message : t('vendor.profileForm.profileSaveError'))
       }
     },
-    [router, t],
+    [router, t, vendor.id],
   )
 
   useEffect(() => {
@@ -154,6 +195,8 @@ export function VendorProfileForm({ vendor }: Props) {
           <textarea
             id="description"
             rows={4}
+            spellCheck
+            autoCapitalize="sentences"
             className="w-full min-h-[8rem] resize-y rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm leading-relaxed text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 sm:min-h-[12rem] dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
             placeholder={t('vendor.profileForm.descriptionPlaceholder')}
             {...register('description')}
@@ -167,6 +210,25 @@ export function VendorProfileForm({ vendor }: Props) {
           error={errors.location?.message}
           {...register('location')}
         />
+
+        <div className="space-y-1.5">
+          <label htmlFor="vendor-category" className="block text-sm font-medium text-[var(--foreground)]">
+            {t('vendor.profileForm.categoryLabel')}
+          </label>
+          <select
+            id="vendor-category"
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
+            {...register('category')}
+          >
+            <option value="">{t('vendor.profileForm.categoryAuto')}</option>
+            {VENDOR_CATEGORY_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>
+                {t(opt.labelKey)}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-[var(--muted)]">{t('vendor.profileForm.categoryHint')}</p>
+        </div>
 
         <Controller
           control={control}

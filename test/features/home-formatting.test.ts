@@ -7,28 +7,39 @@ function readSource(path: string) {
   return readFileSync(new URL(path, import.meta.url), 'utf8')
 }
 
-test('buildHomeStats formats compact counters for large catalog numbers', () => {
+test('buildHomeStats carries raw counters through the descriptor shape', () => {
   const stats = buildHomeStats({
     activeVendors: 1234,
     activeProducts: 18250,
     averageRating: 4.92,
   })
 
-  assert.equal(stats[0]?.value, '1,2 mil+')
-  assert.equal(stats[1]?.value, '18,3 mil+')
-  assert.equal(stats[2]?.value, '4.9★')
+  assert.equal(stats[0]?.kind, 'count')
+  assert.equal(stats[0]?.kind === 'count' ? stats[0].count : null, 1234)
+  assert.equal(stats[1]?.kind, 'count')
+  assert.equal(stats[1]?.kind === 'count' ? stats[1].count : null, 18250)
+  assert.equal(stats[2]?.kind, 'rating')
+  assert.equal(stats[2]?.kind === 'rating' ? stats[2].rating : null, 4.92)
 })
 
-test('buildHomeStats shows zero values when there is no live catalog yet', () => {
+test('buildHomeStats emits the growing-marketplace labelKey when there is no live catalog yet', () => {
   const stats = buildHomeStats({
     activeVendors: 0,
     activeProducts: 0,
     averageRating: null,
   })
 
-  assert.equal(stats[0]?.value, '0')
-  assert.equal(stats[1]?.value, '0')
-  assert.equal(stats[2]?.label, 'Marketplace en crecimiento')
+  assert.equal(stats[0]?.kind === 'count' ? stats[0].count : null, 0)
+  assert.equal(stats[1]?.kind === 'count' ? stats[1].count : null, 0)
+  assert.equal(stats[2]?.labelKey, 'home.stats.marketplaceGrowing')
+})
+
+test('HomePageClient formats the hero counters with locale-aware Intl.NumberFormat', () => {
+  const source = readSource('../../src/app/(public)/HomePageClient.tsx')
+
+  assert.match(source, /new Intl\.NumberFormat\(intlLocale/)
+  assert.match(source, /notation: 'compact'/)
+  assert.match(source, /t\(s\.labelKey\)/)
 })
 
 test('home page client uses locale-aware helpers for quick-access cards and category labels', () => {

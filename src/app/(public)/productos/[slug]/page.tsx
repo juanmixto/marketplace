@@ -21,12 +21,16 @@ import { getCatalogCopy, getLocalizedCertificationCopy, getLocalizedProductCopy 
 import { getServerLocale } from '@/i18n/server'
 import { translateCategoryLabel } from '@/lib/portals'
 import { getServerEnv } from '@/lib/env'
-import { getActionSession } from '@/lib/action-session'
 import { SubscribeToBoxButton } from '@/components/catalog/SubscribeToBoxButton'
 import { getActivePromotionsForProduct } from '@/domains/promotions/public'
 import { ProductPromotions } from '@/components/catalog/ProductPromotions'
 
-export const revalidate = 300
+// Force dynamic rendering. This page reads cookies via `getServerLocale`,
+// a dynamic API. A prior `export const revalidate = 300` silently opted
+// into ISR which Next.js 16 now rejects at prod runtime with
+// DYNAMIC_SERVER_USAGE (see #379). Caching is per-request via
+// Prisma/React.cache instead.
+export const dynamic = 'force-dynamic'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -100,26 +104,35 @@ export default async function ProductDetailPage({ params }: Props) {
     categoryId: product.categoryId ?? null,
   })
 
-  // Phase 4b-β: compute whether to show the "Subscribe" CTA. Hidden
-  // unless the buyer beta flag is on, the vendor has published an
-  // active plan AND it has been successfully provisioned in Stripe.
-  const subscribeFlagOn = getServerEnv().subscriptionsBuyerBeta
-  const sessionForSubscribe = subscribeFlagOn ? await getActionSession() : null
-  const showSubscribeCta = Boolean(
-    subscribeFlagOn &&
-    product.subscriptionPlan &&
-    !product.subscriptionPlan.archivedAt &&
-    product.subscriptionPlan.stripePriceId
+  // An "auto-applied" promo is one that a buyer gets without typing a
+  // code and without needing to reach a minimum subtotal — i.e. it
+  // already reflects the final unit price on this page. We pull it out
+  // so the purchase panel can render the effective price (the buyer's
+  // #1 concern) instead of forcing them to do mental math against a
+  // banner. Only product/category scoped PERCENTAGE or FIXED_AMOUNT
+  // promos qualify; vendor-wide / free-shipping / code-gated ones stay
+  // in the informational list below.
+  const autoAppliedPromotion = activePromotions.find(
+    promo =>
+      !promo.code &&
+      (!promo.minSubtotal || promo.minSubtotal <= 0) &&
+      (promo.scope === 'PRODUCT' || promo.scope === 'CATEGORY') &&
+      (promo.kind === 'PERCENTAGE' || promo.kind === 'FIXED_AMOUNT'),
+  ) ?? null
+  const informationalPromotions = activePromotions.filter(
+    promo => promo.id !== autoAppliedPromotion?.id,
   )
-  let defaultAddressIdForSubscribe: string | null = null
-  if (showSubscribeCta && sessionForSubscribe) {
-    const defaultAddress = await db.address.findFirst({
-      where: { userId: sessionForSubscribe.user.id },
-      orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }],
-      select: { id: true },
-    })
-    defaultAddressIdForSubscribe = defaultAddress?.id ?? null
-  }
+
+  // Phase 4b-β: show the "Subscribe" CTA when the vendor has published
+  // at least one active, Stripe-provisioned plan for this product. The
+  // CTA links to a dedicated confirmation page that lists every
+  // available cadence — so here we only need to know whether AT LEAST
+  // one plan exists.
+  const subscribeFlagOn = getServerEnv().subscriptionsBuyerBeta
+  const subscribablePlans = product.subscriptionPlans.filter(
+    plan => !plan.archivedAt && plan.stripePriceId,
+  )
+  const showSubscribeCta = Boolean(subscribeFlagOn && subscribablePlans.length > 0)
   const breadcrumbData = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -203,7 +216,7 @@ export default async function ProductDetailPage({ params }: Props) {
                   </Badge>
                 ))}
               </div>
-              {product.certifications.length === 1 && (
+              {product.certifications.length === 1 && product.certifications[0] && (
                 <p className="text-xs text-[var(--muted)] leading-relaxed">
                   {getLocalizedCertificationCopy(product.certifications[0], locale).description}
                 </p>
@@ -251,6 +264,16 @@ export default async function ProductDetailPage({ params }: Props) {
             </Link>
           </div>
 
+          {product.originRegion &&
+            product.vendor.location &&
+            product.originRegion !== product.vendor.location && (
+              <p className="mt-1 text-xs text-[var(--muted-light)]">
+                {locale === 'en'
+                  ? `Grown in ${product.originRegion} · Producer based in ${product.vendor.location}`
+                  : `Cultivado en ${product.originRegion} · Productor en ${product.vendor.location}`}
+              </p>
+            )}
+
           <div className="mt-3">
             <AutoTranslatedBadge translation={localizedProduct.translation} variant="full" />
           </div>
@@ -258,24 +281,6 @@ export default async function ProductDetailPage({ params }: Props) {
           {/* Description */}
           {localizedProduct.description && (
             <p className="mt-5 text-[var(--foreground-soft)] leading-relaxed">{localizedProduct.description}</p>
-          )}
-
-          <ProductPromotions promotions={activePromotions} locale={locale} />
-
-          {/* Origin highlight */}
-          {product.originRegion && (
-            <div className="mt-5 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20">
-              <MapPinIcon className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-              <div>
-                <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">{copy.product.originTitle}</p>
-                <p className="text-sm text-emerald-800 dark:text-emerald-300">
-                  {copy.product.originFrom} <span className="font-medium">{product.originRegion}</span>
-                  {product.vendor.location && product.vendor.location !== product.originRegion && (
-                    <span className="text-emerald-700 dark:text-emerald-400"> · {product.vendor.location}</span>
-                  )}
-                </p>
-              </div>
-            </div>
           )}
 
           <ProductPurchasePanel
@@ -298,16 +303,21 @@ export default async function ProductDetailPage({ params }: Props) {
               stock: variant.stock,
               isActive: variant.isActive,
             }))}
+            autoDiscount={
+              autoAppliedPromotion
+                ? {
+                    kind: autoAppliedPromotion.kind as 'PERCENTAGE' | 'FIXED_AMOUNT',
+                    value: autoAppliedPromotion.value,
+                    endsAt: autoAppliedPromotion.endsAt.toISOString(),
+                  }
+                : null
+            }
           />
 
-          {showSubscribeCta && product.subscriptionPlan && (
-            <SubscribeToBoxButton
-              planId={product.subscriptionPlan.id}
-              cadence={product.subscriptionPlan.cadence}
-              priceEur={Number(product.subscriptionPlan.priceSnapshot)}
-              unit={localizedProduct.unit}
-              defaultAddressId={defaultAddressIdForSubscribe}
-            />
+          <ProductPromotions promotions={informationalPromotions} locale={locale} />
+
+          {showSubscribeCta && (
+            <SubscribeToBoxButton productId={product.id} />
           )}
 
           {/* Trust strip */}

@@ -5,6 +5,7 @@ import {
   type SendcloudWebhookPayload,
 } from '@/domains/shipping/webhooks/sendcloud'
 import { ensureShippingProvidersRegistered } from '@/domains/shipping/providers'
+import { getServerEnv } from '@/lib/env'
 
 /**
  * Sendcloud parcel-status webhook.
@@ -16,7 +17,7 @@ import { ensureShippingProvidersRegistered } from '@/domains/shipping/providers'
 export async function POST(req: NextRequest) {
   ensureShippingProvidersRegistered()
 
-  const secret = process.env.SENDCLOUD_WEBHOOK_SECRET
+  const secret = getServerEnv().sendcloudWebhookSecret
   if (!secret) {
     console.error('[sendcloud-webhook] missing SENDCLOUD_WEBHOOK_SECRET')
     return NextResponse.json({ error: 'not_configured' }, { status: 503 })

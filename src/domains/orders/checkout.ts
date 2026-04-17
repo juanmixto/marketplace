@@ -4,9 +4,29 @@ import {
   getPrefixForProvince,
   isValidPhone,
   postalCodeMatchesProvince,
-} from '@/domains/shipping/spain-provinces'
+} from '@/domains/shipping'
 
 const VALID_PROVINCE_NAMES = new Set(Object.values(SPAIN_PROVINCE_BY_PREFIX))
+
+// Postal-code-matches-province cross-field check, used by both the
+// server `addressSchema` and the client `checkoutFormSchema`. The
+// signature matches `z.SuperRefineFunction` so each consumer just
+// passes it to `.superRefine(...)` without re-deriving the rule.
+function postalProvinceRefiner(
+  value: { postalCode: string; province: string },
+  ctx: z.RefinementCtx
+) {
+  if (!postalCodeMatchesProvince(value.postalCode, value.province)) {
+    const prefix = getPrefixForProvince(value.province)
+    ctx.addIssue({
+      code: 'custom',
+      path: ['postalCode'],
+      message: prefix
+        ? `El código postal de ${value.province} debe empezar por ${prefix}`
+        : 'El código postal no coincide con la provincia',
+    })
+  }
+}
 
 export const addressSchema = z
   .object({
@@ -29,18 +49,50 @@ export const addressSchema = z
       .optional()
       .refine(v => !v || isValidPhone(v), 'Teléfono inválido'),
   })
-  .superRefine((value, ctx) => {
-    if (!postalCodeMatchesProvince(value.postalCode, value.province)) {
-      const prefix = getPrefixForProvince(value.province)
-      ctx.addIssue({
-        code: 'custom',
-        path: ['postalCode'],
-        message: prefix
-          ? `El código postal de ${value.province} debe empezar por ${prefix}`
-          : 'El código postal no coincide con la provincia',
-      })
-    }
+  .superRefine(postalProvinceRefiner)
+
+/**
+ * Form schema used by the buyer-facing checkout client. Mirrors
+ * `addressSchema` but with localized error messages and the two
+ * additional form-level fields (`saveAddress`, `selectedAddressId`)
+ * that React-Hook-Form needs at the top level. The server payload
+ * structure (with `address` nested) is built from this flat data
+ * before the action call.
+ *
+ * Phase 9 of the contract-hardening plan moved this here so that
+ * `CheckoutPageClient.tsx` no longer redeclares the same Zod object
+ * inline. The server `addressSchema` and this client schema now
+ * share the same postal-code/province refinement and stay in
+ * lock-step when fields are added.
+ */
+export const checkoutFormSchema = z
+  .object({
+    firstName: z.string().trim().min(1, 'Requerido'),
+    lastName: z.string().trim().min(1, 'Requerido'),
+    line1: z.string().trim().min(5, 'Dirección demasiado corta'),
+    line2: z.string().optional(),
+    city: z.string().trim().min(1, 'Requerido'),
+    province: z
+      .string()
+      .refine(v => VALID_PROVINCE_NAMES.has(v), 'Selecciona una provincia válida'),
+    postalCode: z
+      .string()
+      .trim()
+      .regex(/^\d{5}$/, 'Código postal inválido (5 dígitos)'),
+    phone: z
+      .string()
+      .trim()
+      .optional()
+      .refine(
+        v => !v || isValidPhone(v),
+        'Teléfono inválido (solo dígitos, 9-15 cifras)',
+      ),
+    saveAddress: z.boolean().optional(),
+    selectedAddressId: z.string().optional(),
   })
+  .superRefine(postalProvinceRefiner)
+
+export type CheckoutFormInput = z.infer<typeof checkoutFormSchema>
 
 export const checkoutSchema = z.object({
   address: addressSchema,

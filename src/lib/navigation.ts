@@ -22,6 +22,8 @@ export const vendorNavItems: LocalizedNavItem[] = [
   { href: '/vendor/valoraciones',    labelKey: 'vendor.nav.reviews',       available: true },
   { href: '/vendor/liquidaciones',   labelKey: 'vendor.nav.settlements',   available: true },
   { href: '/vendor/perfil',          labelKey: 'vendor.nav.profile',       available: true },
+  { href: '/vendor/ajustes/telegram', labelKey: 'vendor.nav.telegram',      available: true },
+  { href: '/vendor/ajustes/notificaciones', labelKey: 'vendor.nav.notifications', available: true },
 ]
 
 export const adminNavItems: AppNavItem[] = [
@@ -38,6 +40,8 @@ export const adminNavItems: AppNavItem[] = [
   { href: '/admin/liquidaciones', label: 'Liquidaciones', available: true },
   { href: '/admin/incidencias', label: 'Incidencias', available: true },
   { href: '/admin/informes', label: 'Informes', available: true },
+  { href: '/admin/analytics', label: 'Analytics', available: true },
+  { href: '/admin/notificaciones', label: 'Notificaciones', available: true },
 ]
 
 export const buyerAccountItems: AppNavItem[] = [

@@ -28,6 +28,22 @@ enum VendorStatus {
   SUSPENDED_PERM
 }
 
+// Public-facing producer type shown as a badge on vendor cards and the
+// vendor detail page. Closed enum: adding a value requires a migration,
+// which keeps labels consistent across the marketplace. When null, we
+// fall back to a regex heuristic over displayName + description (see
+// src/domains/vendors/visuals.ts).
+enum VendorCategory {
+  BAKERY
+  CHEESE
+  WINERY
+  ORCHARD
+  OLIVE_OIL
+  FARM
+  DRYLAND
+  LOCAL_PRODUCER
+}
+
 enum ProductStatus {
   DRAFT
   PENDING_REVIEW
@@ -189,8 +205,13 @@ model User {
   reviews                 Review[]
   favorites               Favorite[]
   subscriptions           Subscription[]
+  pushSubscriptions       PushSubscription[]
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
+  telegramLink            TelegramLink?
+  telegramLinkTokens      TelegramLinkToken[]
+  notificationPreferences NotificationPreference[]
+  notificationDeliveries  NotificationDelivery[]
 
   @@index([email])
   @@index([role])
@@ -235,26 +256,27 @@ model VerificationToken {
 // ─── Catalog ──────────────────────────────────────────────────────────────────
 
 model Vendor {
-  id              String       @id @default(cuid())
-  userId          String       @unique
-  slug            String       @unique
+  id              String          @id @default(cuid())
+  userId          String          @unique
+  slug            String          @unique
   displayName     String
-  description     String?      @db.Text
+  description     String?         @db.Text
   logo            String?
   coverImage      String?
   location        String?
-  status          VendorStatus @default(APPLYING)
-  commissionRate  Decimal      @default(0.12) @db.Decimal(5, 4)
-  avgRating       Decimal?     @db.Decimal(3, 2)
-  totalReviews    Int          @default(0)
+  category        VendorCategory?
+  status          VendorStatus    @default(APPLYING)
+  commissionRate  Decimal         @default(0.12) @db.Decimal(5, 4)
+  avgRating       Decimal?        @db.Decimal(3, 2)
+  totalReviews    Int             @default(0)
   orderCutoffTime String?
-  preparationDays Int?         @default(2)
+  preparationDays Int?            @default(2)
   iban            String?
   bankAccountName String?
   stripeAccountId String?
-  stripeOnboarded Boolean      @default(false)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  stripeOnboarded Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   user              User                @relation(fields: [userId], references: [id])
   products          Product[]
@@ -350,7 +372,10 @@ model Product {
   reviews           Review[]
   favorites         Favorite[]
   promotions        Promotion[]
-  subscriptionPlan  SubscriptionPlan?
+  // Multi-cadence (phase 4b-β follow-up): a product can now have more
+  // than one active SubscriptionPlan, one per cadence. The unique
+  // constraint is on (productId, cadence) — see model SubscriptionPlan.
+  subscriptionPlans SubscriptionPlan[]
 
   @@index([status, categoryId])
   @@index([vendorId, status])
@@ -441,6 +466,11 @@ model Address {
 model Order {
   id                      String        @id @default(cuid())
   orderNumber             String        @unique
+  // Server-issued idempotency key (#410). Populated from the checkout
+  // page render; `createOrder` rejects a duplicate by returning the
+  // existing Order's id with `replayed: true`. Nullable for historical
+  // rows created before the column existed.
+  checkoutAttemptId       String?       @unique
   customerId              String
   addressId               String?
   shippingAddressSnapshot Json?
@@ -534,7 +564,7 @@ model VendorFulfillment {
   // locked at order time. Free shipping promotions zero the vendor's share
   // of the shipping line via Order.shippingCost recalculation, not here.
   promotionId    String?
-  discountAmount Decimal           @default(0) @db.Decimal(10, 2)
+  discountAmount Decimal @default(0) @db.Decimal(10, 2)
 
   order         Order          @relation(fields: [orderId], references: [id])
   vendor        Vendor         @relation(fields: [vendorId], references: [id])
@@ -619,6 +649,35 @@ model OrderEvent {
   order Order @relation(fields: [orderId], references: [id])
 
   @@index([orderId])
+}
+
+/// First-class delivery bookkeeping for webhook events. Lets the
+/// stripe webhook handler dedupe by `(provider, eventId)` via a real
+/// unique constraint instead of a JSON-path lookup against
+/// `OrderEvent.payload`. Created (insert + unique violation = duplicate)
+/// in the route handler before any business state mutation; updated to
+/// `processed` / `failed` after the handler returns. Replaces the
+/// dedupe responsibility of `OrderEvent` while leaving its
+/// business-event responsibility intact.
+///
+/// `payloadHash` is sha256(raw body), useful for forensic comparisons
+/// without storing the full payload (which can carry PII or card
+/// metadata depending on the provider).
+model WebhookDelivery {
+  id           String    @id @default(cuid())
+  provider     String    @default("stripe")
+  eventId      String
+  eventType    String
+  providerRef  String?
+  status       String    @default("received")
+  errorMessage String?
+  payloadHash  String?
+  receivedAt   DateTime  @default(now())
+  processedAt  DateTime?
+
+  @@unique([provider, eventId])
+  @@index([provider, eventType, receivedAt])
+  @@index([status, receivedAt])
 }
 
 /// Dead-letter queue for webhook events that could not be reconciled to an
@@ -760,36 +819,36 @@ model Settlement {
 // into the checkout flow. No Stripe Coupon sync yet.
 
 model Promotion {
-  id              String         @id @default(cuid())
-  vendorId        String
-  vendor          Vendor         @relation(fields: [vendorId], references: [id])
+  id       String @id @default(cuid())
+  vendorId String
+  vendor   Vendor @relation(fields: [vendorId], references: [id])
 
-  name            String
-  code            String?        // vendor-defined coupon code, uppercased
-  kind            PromotionKind
+  name  String
+  code  String? // vendor-defined coupon code, uppercased
+  kind  PromotionKind
   // For PERCENTAGE this is 0..100. For FIXED_AMOUNT it is an absolute EUR
   // amount. For FREE_SHIPPING it is ignored (stored as 0).
-  value           Decimal        @db.Decimal(10, 2)
+  value Decimal       @db.Decimal(10, 2)
 
-  scope           PromotionScope
-  productId       String?
-  product         Product?       @relation(fields: [productId], references: [id])
-  categoryId      String?
-  category        Category?      @relation(fields: [categoryId], references: [id])
+  scope      PromotionScope
+  productId  String?
+  product    Product?       @relation(fields: [productId], references: [id])
+  categoryId String?
+  category   Category?      @relation(fields: [categoryId], references: [id])
 
-  minSubtotal     Decimal?       @db.Decimal(10, 2)
+  minSubtotal     Decimal? @db.Decimal(10, 2)
   maxRedemptions  Int?
-  perUserLimit    Int?           @default(1)
-  redemptionCount Int            @default(0)
+  perUserLimit    Int?     @default(1)
+  redemptionCount Int      @default(0)
 
-  startsAt        DateTime
-  endsAt          DateTime
-  archivedAt      DateTime?
+  startsAt   DateTime
+  endsAt     DateTime
+  archivedAt DateTime?
 
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  fulfillments    VendorFulfillment[]
+  fulfillments VendorFulfillment[]
 
   @@unique([vendorId, code])
   @@index([vendorId, archivedAt])
@@ -804,30 +863,42 @@ model Promotion {
 // representing an actual buyer subscription instance.
 
 model SubscriptionPlan {
-  id               String              @id @default(cuid())
-  vendorId         String
-  vendor           Vendor              @relation(fields: [vendorId], references: [id])
-  productId        String              @unique
-  product          Product             @relation(fields: [productId], references: [id])
+  id        String  @id @default(cuid())
+  vendorId  String
+  vendor    Vendor  @relation(fields: [vendorId], references: [id])
+  // Multi-cadence: a single product can have up to one plan per cadence
+  // (e.g. weekly + biweekly + monthly). The unique constraint used to
+  // be on productId alone, which forced a single subscription offer
+  // per product. Phase 4b-β lifts that so buyers can pick the frequency
+  // they want on the confirmation page — see @@unique at the bottom.
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
 
-  cadence          SubscriptionCadence
+  cadence         SubscriptionCadence
   // Prices and tax rates are snapshotted on the plan so a later product
   // edit does not retroactively change the amount charged on renewals.
-  priceSnapshot    Decimal             @db.Decimal(10, 2)
-  taxRateSnapshot  Decimal             @db.Decimal(4, 3)
+  priceSnapshot   Decimal             @db.Decimal(10, 2)
+  taxRateSnapshot Decimal             @db.Decimal(4, 3)
   // 0 = Sunday … 6 = Saturday. The vendor's skip/cancel deadline for the
   // next scheduled delivery. e.g. cutoff=5 (Friday) for a Monday drop.
-  cutoffDayOfWeek  Int
+  cutoffDayOfWeek Int
 
   // Reserved for phase 4b. Stripe Price id for the recurring charge.
-  stripePriceId    String?
-  archivedAt       DateTime?
+  stripePriceId String?
+  archivedAt    DateTime?
 
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  subscriptions    Subscription[]
+  subscriptions Subscription[]
 
+  // Vendor can publish at most one ACTIVE plan per (product, cadence).
+  // A second plan with the same cadence on the same product would mean
+  // two concurrent recurring offers that only differ by id — banned at
+  // the DB level rather than trusting the app-layer check in
+  // createSubscriptionPlan. Different cadences coexist fine:
+  // (prod-cesta, WEEKLY) + (prod-cesta, BIWEEKLY) is valid.
+  @@unique([productId, cadence])
   @@index([vendorId, archivedAt])
 }
 
@@ -838,30 +909,45 @@ model SubscriptionPlan {
 // 'true' the server action that creates new rows refuses to run, so no
 // buyer can end up with a dangling "subscribed but never charged" record.
 model Subscription {
-  id                    String             @id @default(cuid())
-  buyerId               String
-  buyer                 User               @relation(fields: [buyerId], references: [id])
-  planId                String
-  plan                  SubscriptionPlan   @relation(fields: [planId], references: [id])
-  shippingAddressId     String
-  shippingAddress       Address            @relation(fields: [shippingAddressId], references: [id])
+  id                String           @id @default(cuid())
+  buyerId           String
+  buyer             User             @relation(fields: [buyerId], references: [id])
+  planId            String
+  plan              SubscriptionPlan @relation(fields: [planId], references: [id])
+  shippingAddressId String
+  shippingAddress   Address          @relation(fields: [shippingAddressId], references: [id])
 
-  status                SubscriptionStatus @default(ACTIVE)
+  status            SubscriptionStatus @default(ACTIVE)
   // Computed from the plan cadence on every cycle transition. Renewals
   // (phase 4b) will read this to schedule the next charge.
-  currentPeriodEnd      DateTime
-  nextDeliveryAt        DateTime
+  currentPeriodEnd  DateTime
+  nextDeliveryAt    DateTime
   // Array of ISO-dates (YYYY-MM-DD) the buyer asked to skip. Stored as
   // JSON so we can also persist optional notes per skip in the future
   // without a migration.
-  skippedDeliveries     Json               @default("[]")
+  skippedDeliveries Json               @default("[]")
 
   // Reserved for phase 4b.
-  stripeSubscriptionId  String?            @unique
+  stripeSubscriptionId String? @unique
 
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
-  canceledAt            DateTime?
+  // Watermark for Stripe webhook ordering. Each accepted
+  // customer.subscription.* / invoice.* event sets this to its
+  // top-level event.created timestamp; subsequent events with an
+  // older `created` are dropped as out-of-order to prevent state
+  // regressions (e.g. a stale `updated(ACTIVE)` overwriting a
+  // newer `deleted(CANCELED)`). Stripe does not guarantee delivery
+  // order, so we cannot trust the arrival sequence.
+  lastStripeEventAt DateTime?
+
+  // When set, the subscription auto-resumes on this date. Null means
+  // the pause is indefinite (the old behaviour). Populated by the
+  // "pause with duration" dialog so the vendor doesn't lose recurring
+  // revenue to forgotten pauses.
+  pausedUntil DateTime?
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  canceledAt DateTime?
 
   @@unique([buyerId, planId])
   @@index([buyerId, status])
@@ -962,4 +1048,113 @@ model PasswordResetToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// ─── Push Notifications ──────────────────────────────────────────────────────
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String   @db.Text
+  auth      String   @db.Text
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─── Notifications (Telegram) ────────────────────────────────────────────────
+// See docs/rfcs/0002-telegram-integration.md. All tables are additive; feature
+// is dormant until TELEGRAM_BOT_TOKEN is set.
+
+enum NotificationChannel {
+  TELEGRAM
+}
+
+enum NotificationEventType {
+  ORDER_CREATED
+  ORDER_PENDING
+  MESSAGE_RECEIVED
+}
+
+enum NotificationDeliveryStatus {
+  SENT
+  FAILED
+  SKIPPED
+}
+
+model TelegramLink {
+  id         String    @id @default(cuid())
+  userId     String    @unique
+  chatId     String    @unique
+  username   String?
+  isActive   Boolean   @default(true)
+  linkedAt   DateTime  @default(now())
+  lastSeenAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([isActive])
+}
+
+model TelegramLinkToken {
+  id         String    @id @default(cuid())
+  userId     String
+  token      String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model NotificationPreference {
+  id        String                @id @default(cuid())
+  userId    String
+  channel   NotificationChannel
+  eventType NotificationEventType
+  enabled   Boolean               @default(true)
+  updatedAt DateTime              @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channel, eventType])
+  @@index([userId])
+}
+
+model NotificationDelivery {
+  id         String                     @id @default(cuid())
+  userId     String
+  channel    NotificationChannel
+  eventType  NotificationEventType
+  status     NotificationDeliveryStatus
+  error      String?                    @db.Text
+  payloadRef String?
+  createdAt  DateTime                   @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+model TelegramActionLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  chatId    String
+  action    String
+  payload   Json
+  success   Boolean
+  error     String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([chatId, createdAt])
 }
