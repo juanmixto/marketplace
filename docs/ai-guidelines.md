@@ -182,6 +182,7 @@ Enforcement is layered:
    - Domain-level dependency cycles (A imports B imports A transitively).
    - `*-store.ts` pulled into the server graph (files without `'use client'`).
    - Belt-and-braces sweep for `any` in `src/domains/` with an explicit allowlist.
+   - Exported Zod schemas in `src/shared/types/` or `src/domains/` that have no corresponding freeze test in `test/contracts/`. Catches schemas added without the matching shape-pin test (the freeze pattern from PRs #502/#509/#511/#513). Maintained allowlist: `SCHEMA_FREEZE_ALLOWLIST` in the script.
    Run locally with `npm run audit:contracts`. Flags: `--soft` (always exit 0), `--json` (machine-readable).
 3. **Code review** — rules this document can express normatively but tooling cannot (e.g. "don't add abstractions for hypothetical futures", scope discipline).
 
