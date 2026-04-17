@@ -128,7 +128,6 @@ export function ProductActions({ product }: Props) {
             {product.status === 'ACTIVE' && !isExpired && (
               <Link
                 href={`/productos/${product.slug}`}
-                target="_blank"
                 className="block px-4 py-2 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
                 onClick={() => setMenuOpen(false)}
               >
