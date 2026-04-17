@@ -1,25 +1,18 @@
 /* Mercado Productor — PWA service worker.
  *
- * Phase 3 (current): stale-while-revalidate runtime cache for a strict
- * allow-list of public static assets. Navigations still use the
- * Phase 2 offline fallback. Everything else is pass-through.
+ * Runtime strategy:
+ *   - Stale-while-revalidate for a strict allow-list of static assets
+ *   - Stale-while-revalidate for product images (/_next/image, /uploads/*)
+ *   - Navigation preload to cut SW boot latency on cold page loads
+ *   - Offline shell fallback when navigations fail
+ *   - Everything else is pass-through
  *
  * Caches
  * ------
- * - mp-offline-v1 : precached `/offline` shell (Phase 2)
- * - mp-static-v1  : runtime SWR cache for static assets (Phase 3)
- *
- * Allow-list for the static cache
- * -------------------------------
- * We only cache things that are either:
- *   a) content-addressed (hashed, safe to cache forever), or
- *   b) brand assets that change rarely and are same-origin public.
- *
- *   - /_next/static/*       (hashed JS/CSS/media from Next build)
- *   - /icons/icon-*.png     (manifest icons)
- *   - /favicon.svg, /favicon.ico
- *   - /opengraph-image, /twitter-image (crawler-facing OG images)
- *   - Anything ending in .woff2 under /_next/static (next/font)
+ * - mp-offline-v1  : precached `/offline` shell
+ * - mp-static-v1   : SWR cache for static assets (JS/CSS/fonts/icons)
+ * - mp-images-v1   : SWR cache for optimized product images, LRU 200
+ * - mp-prefetch-v1 : periodic-sync catalog JSON
  *
  * Exclusions (denylist — defensive second layer)
  * ----------------------------------------------
@@ -27,7 +20,7 @@
  *   Anything with query strings indicating user state
  *
  * An URL must pass the allow-list AND not hit the denylist to be cached.
- * LRU trim at MAX_STATIC_ENTRIES keeps the cache from growing unbounded.
+ * LRU trim keeps each cache from growing unbounded.
  */
 
 // __BUILD_ID__ is replaced at build time by scripts/build-sw.mjs. The
@@ -35,9 +28,11 @@
 const SW_VERSION = '__BUILD_ID__'
 const OFFLINE_CACHE = 'mp-offline-v1'
 const STATIC_CACHE = 'mp-static-v1'
+const IMAGE_CACHE = 'mp-images-v1'
 const PREFETCH_CACHE = 'mp-prefetch-v1'
 const OFFLINE_URL = '/offline'
 const MAX_STATIC_ENTRIES = 60
+const MAX_IMAGE_ENTRIES = 200
 
 const PROTECTED_PREFIXES = [
   '/api/',
@@ -68,6 +63,17 @@ function isCacheableStatic(url) {
   return false
 }
 
+function isCacheableImage(url) {
+  if (url.origin !== self.location.origin) return false
+  if (isProtected(url)) return false
+  const path = url.pathname
+  // Next's image optimizer — all product/CDN images flow through here.
+  if (path === '/_next/image' || path.startsWith('/_next/image?')) return true
+  // Locally-hosted uploads (LocalUploader dev/self-hosted path).
+  if (path.startsWith('/uploads/')) return true
+  return false
+}
+
 async function trimCache(cacheName, maxEntries) {
   const cache = await caches.open(cacheName)
   const keys = await cache.keys()
@@ -92,11 +98,20 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
-      const allowed = new Set([OFFLINE_CACHE, STATIC_CACHE, PREFETCH_CACHE])
+      const allowed = new Set([OFFLINE_CACHE, STATIC_CACHE, IMAGE_CACHE, PREFETCH_CACHE])
       const keys = await caches.keys()
       await Promise.all(
         keys.filter((k) => !allowed.has(k)).map((k) => caches.delete(k))
       )
+      // Navigation preload lets the browser start fetching the page in
+      // parallel with SW boot — saves ~50–300 ms on cold navigations.
+      if (self.registration.navigationPreload) {
+        try {
+          await self.registration.navigationPreload.enable()
+        } catch {
+          // Some browsers don't support it; ignore.
+        }
+      }
       await self.clients.claim()
     })()
   )
@@ -106,6 +121,9 @@ function handleNavigation(event) {
   event.respondWith(
     (async () => {
       try {
+        // Prefer the preload response if the browser fired one.
+        const preload = await event.preloadResponse
+        if (preload) return preload
         return await fetch(event.request)
       } catch {
         const cache = await caches.open(OFFLINE_CACHE)
@@ -148,6 +166,32 @@ function handleStaticAsset(event) {
   )
 }
 
+function handleImageAsset(event) {
+  event.respondWith(
+    (async () => {
+      const cache = await caches.open(IMAGE_CACHE)
+      const cached = await cache.match(event.request)
+      const networkPromise = fetch(event.request)
+        .then(async (response) => {
+          if (response && response.ok && response.type === 'basic') {
+            await cache.put(event.request, response.clone())
+            event.waitUntil(trimCache(IMAGE_CACHE, MAX_IMAGE_ENTRIES))
+          }
+          return response
+        })
+        .catch(() => null)
+
+      if (cached) {
+        event.waitUntil(networkPromise)
+        return cached
+      }
+      const network = await networkPromise
+      if (network) return network
+      return fetch(event.request)
+    })()
+  )
+}
+
 self.addEventListener('fetch', (event) => {
   const req = event.request
   if (req.method !== 'GET') return
@@ -163,6 +207,11 @@ self.addEventListener('fetch', (event) => {
 
   if (isCacheableStatic(url)) {
     handleStaticAsset(event)
+    return
+  }
+
+  if (isCacheableImage(url)) {
+    handleImageAsset(event)
     return
   }
   // Everything else: pass-through. No respondWith, no caching.
