@@ -35,13 +35,13 @@ src/lib/pwa/sync-queue.ts               → IndexedDB queue for bg sync replay
 src/components/pwa/PwaRegister.tsx      → Registers SW, captures install prompt, periodic sync, update flow
 src/components/pwa/InstallButton.tsx    → Android/desktop Chrome install CTA
 src/components/pwa/IosInstallHint.tsx   → iOS Safari "Add to Home Screen" hint
-src/components/pwa/UpdateToast.tsx      → "New version available" skip-waiting UI
 src/components/pwa/OfflineIndicator.tsx → Fixed offline banner
 src/components/pwa/AppBadgeSync.tsx     → Feeds numeric counts to the OS icon badge
 src/components/pwa/PushOptIn.tsx        → Opt-in/out button for push notifications
 
 prisma/schema.prisma:PushSubscription   → Endpoint / keys / userAgent
-public/sw.js                            → Versioned: mp-sw-vN
+public/sw.template.js                   → Source template; __BUILD_ID__ substituted by scripts/build-sw.mjs
+public/sw.js                            → Generated on prebuild (gitignored). SW_VERSION = git short SHA
 ```
 
 ## Feature matrix
@@ -54,7 +54,7 @@ public/sw.js                            → Versioned: mp-sw-vN
 | Runtime static asset cache     | #428  | all                  | ✅ shipped   |
 | iOS install hint + playbook    | #429  | Safari iOS           | ✅ shipped   |
 | Manifest shortcuts + screenshots | #444 | Chrome Android       | ✅ shipped   |
-| SW update toast                | #445  | all                  | ✅ shipped   |
+| SW auto-update (transparent)   | #445  | all                  | ✅ shipped   |
 | Lighthouse CI gate             | #446  | CI                   | ✅ shipped   |
 | App badge                      | #447  | Chrome desktop/Android | ✅ shipped |
 | Install funnel analytics       | #448  | all                  | ✅ shipped   |
@@ -65,7 +65,7 @@ public/sw.js                            → Versioned: mp-sw-vN
 
 ## Service worker
 
-The SW is versioned via `SW_VERSION` in `public/sw.js`. Current: **`mp-sw-v4`**.
+The SW is versioned via `SW_VERSION` in `public/sw.js`. The value is **auto-generated per build** by [`scripts/build-sw.mjs`](../scripts/build-sw.mjs), which substitutes `__BUILD_ID__` in `public/sw.template.js` with the git short SHA (or `VERCEL_GIT_COMMIT_SHA` / `GITHUB_SHA` on CI). So every deploy ships a new SW — no manual bump.
 
 ### Caches
 
@@ -76,7 +76,7 @@ The SW is versioned via `SW_VERSION` in `public/sw.js`. Current: **`mp-sw-v4`**.
 | `mp-prefetch-v1`   | Fase3 | `/api/catalog/featured?limit=12` JSON      | Replaced on periodic sync |
 
 On `activate` the SW deletes any cache not in the current allow-list. That's
-how old versions get pruned when we bump `SW_VERSION`.
+how old versions get pruned on each deploy.
 
 ### Event handlers in `sw.js`
 
@@ -85,7 +85,7 @@ how old versions get pruned when we bump `SW_VERSION`.
 | `install`          | Precache `/offline`, call `skipWaiting`                   |
 | `activate`         | Prune caches outside allow-list, call `clients.claim`     |
 | `fetch`            | Navigation fallback + static asset SWR (denylist enforced)|
-| `message`          | Handle `SKIP_WAITING` from UpdateToast                    |
+| `message`          | Handle `SKIP_WAITING` posted by PwaRegister on auto-update |
 | `push`             | Show OS notification with icon/badge/vibrate              |
 | `notificationclick`| Focus existing tab or open new one at target URL          |
 | `periodicsync`     | Tag `mp-catalog-prefetch` — refresh catalog JSON (respects save-data) |
@@ -283,13 +283,25 @@ tagged with `{ua: 'android'|'ios'|'desktop'|'unknown', source_url: <path>}`.
 | `pwa_ios_hint_dismissed`      | IosInstallHint dismiss           |
 | `pwa_share_target_received`   | ShareTargetPage (reserved, not wired in route) |
 
-## Bumping the SW version
+## Deploying a new SW (auto-update flow)
 
-1. Edit `SW_VERSION` in `public/sw.js`.
-2. If you add a new cache, add its name to the `allowed` Set in `activate`.
-3. If you remove a cache, leave the name out of `allowed` so it gets purged.
-4. Deploy. `UpdateToast` offers "Update now" to active users; users on
-   closed tabs pick up the new SW on next visit.
+Since `SW_VERSION` is injected from the git SHA, **you don't bump it manually** — every deploy ships a new SW file byte-content, so browsers detect the update automatically.
+
+Flow on the client (see [`PwaRegister.tsx`](../src/components/pwa/PwaRegister.tsx)):
+
+1. Browser polls `/sw.js` on registration and periodically → sees the new byte content → installs the new SW (`installing` → `installed`).
+2. `PwaRegister` detects `state === 'installed'` with a controller already active → posts `SKIP_WAITING` **automatically**. No user prompt.
+3. `controllerchange` fires → `PwaRegister` triggers a one-shot `window.location.reload()`.
+4. User sees the new version.
+
+Safety guards (also in `PwaRegister`):
+
+- If the current route starts with `/checkout`, `/vendor`, `/admin`, or `/auth`, the update is **deferred** — applied when the tab becomes hidden.
+- If any form on the page has dirty fields (value differs from `defaultValue`), same deferral.
+
+Cache changes:
+- If you add a new cache, add its name to the `allowed` Set in the SW's `activate` handler.
+- If you remove a cache, leave the name out of `allowed` so it gets purged on the next activation.
 
 ## Debugging a stuck SW on a real device
 
@@ -343,9 +355,9 @@ Run this after any change to the PWA surface.
 - [ ] Without VAPID env: `<PushOptIn />` hidden, no errors in console
 
 ### Update flow
-- [ ] Bump `SW_VERSION`, redeploy → open tab shows `<UpdateToast />` within seconds
-- [ ] Click "Update now" → single reload → new SW active
-- [ ] First-time visitors don't see the toast
+- [ ] Make any code change, rebuild, restart → open tab auto-reloads within seconds to the new version (no prompt)
+- [ ] Open the installed PWA on `/checkout` with a form filled in → no auto-reload; update applies when tab is hidden
+- [ ] First-time visitors don't reload (no controller yet, fresh install)
 
 ### Regression checks
 - [ ] `/api/*` requests never show `(ServiceWorker)` in the Network tab

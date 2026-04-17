@@ -7,7 +7,7 @@ test('SW sync handler rejects payment-related mutations', async () => {
   const fs = await import('node:fs')
   const path = await import('node:path')
 
-  const swPath = path.join(process.cwd(), 'public/sw.js')
+  const swPath = path.join(process.cwd(), 'public/sw.template.js')
   const swContent = fs.readFileSync(swPath, 'utf-8')
 
   // The sync handler must explicitly block checkout and payment endpoints.
@@ -20,7 +20,7 @@ test('SW sync handler uses the correct tag', async () => {
   const fs = await import('node:fs')
   const path = await import('node:path')
 
-  const swPath = path.join(process.cwd(), 'public/sw.js')
+  const swPath = path.join(process.cwd(), 'public/sw.template.js')
   const swContent = fs.readFileSync(swPath, 'utf-8')
 
   assert.ok(swContent.includes("'mp-cart-sync'"), 'SW must use mp-cart-sync tag')
@@ -30,7 +30,7 @@ test('SW sync handler removes expired entries', async () => {
   const fs = await import('node:fs')
   const path = await import('node:path')
 
-  const swPath = path.join(process.cwd(), 'public/sw.js')
+  const swPath = path.join(process.cwd(), 'public/sw.template.js')
   const swContent = fs.readFileSync(swPath, 'utf-8')
 
   // Must check createdAt + maxAge.
@@ -42,7 +42,7 @@ test('SW sync handler treats 409 Conflict as success', async () => {
   const fs = await import('node:fs')
   const path = await import('node:path')
 
-  const swPath = path.join(process.cwd(), 'public/sw.js')
+  const swPath = path.join(process.cwd(), 'public/sw.template.js')
   const swContent = fs.readFileSync(swPath, 'utf-8')
 
   // 409 means "already applied" — should delete the entry, not retry.
@@ -101,7 +101,7 @@ test('sync-queue and SW use the same IndexedDB name', async () => {
   const fs = await import('node:fs')
   const path = await import('node:path')
 
-  const swPath = path.join(process.cwd(), 'public/sw.js')
+  const swPath = path.join(process.cwd(), 'public/sw.template.js')
   const swContent = fs.readFileSync(swPath, 'utf-8')
 
   const queuePath = path.join(process.cwd(), 'src/lib/pwa/sync-queue.ts')

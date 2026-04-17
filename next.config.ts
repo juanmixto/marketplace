@@ -17,6 +17,19 @@ export function buildHeaderRules(isDevelopment = process.env.NODE_ENV === 'devel
       source: '/:path*',
       headers: getSecurityHeaders(),
     },
+    {
+      // The service worker must never be stale — otherwise a CDN or
+      // browser cache can pin users to an old SW for hours after a deploy.
+      source: '/sw.js',
+      headers: [
+        NO_STORE_CACHE_HEADER,
+        { key: 'Service-Worker-Allowed', value: '/' },
+      ],
+    },
+    {
+      source: '/manifest.webmanifest',
+      headers: [{ key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' }],
+    },
   ]
 
   if (!isDevelopment) {

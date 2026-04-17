@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "postinstall": "prisma generate",
-    "predev": "prisma generate && node --env-file-if-exists=.env --env-file-if-exists=.env.local ./node_modules/prisma/build/index.js migrate deploy",
+    "predev": "prisma generate && node --env-file-if-exists=.env --env-file-if-exists=.env.local ./node_modules/prisma/build/index.js migrate deploy && node ./scripts/build-sw.mjs",
     "dev": "next dev",
-    "prebuild": "prisma generate",
+    "prebuild": "prisma generate && node ./scripts/build-sw.mjs",
     "build": "next build",
     "start": "next start",
     "test": "node ./scripts/run-node-tests.mjs",

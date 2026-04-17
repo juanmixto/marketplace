@@ -14,7 +14,6 @@ import { SessionProvider } from '@/components/SessionProvider'
 import { LanguageProvider } from '@/i18n'
 import { getServerLocale } from '@/i18n/server'
 import PwaRegister from '@/components/pwa/PwaRegister'
-import UpdateToast from '@/components/pwa/UpdateToast'
 import OfflineIndicator from '@/components/pwa/OfflineIndicator'
 
 const geist = Geist({
@@ -91,7 +90,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               </Suspense>
               <PostHogProvider />
               <PwaRegister />
-              <UpdateToast />
               <OfflineIndicator />
               {children}
             </LanguageProvider>
