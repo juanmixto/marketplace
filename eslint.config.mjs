@@ -3,6 +3,9 @@ import tseslint from 'typescript-eslint'
 
 // Phase 11 of the contract-hardening plan.
 //
+// See `docs/ai-guidelines.md` §1.2, §1.3, §1.5, §6.1 for the
+// canonical narrative. Quick summary below for in-file context.
+//
 // History: Phase 4 attempted app-wide barrel-only enforcement, but
 // the barrels created in Phase 3 re-exported server-only modules
 // (queries, services without 'use server') that Next.js then bundled

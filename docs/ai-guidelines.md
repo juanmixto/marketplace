@@ -1,6 +1,6 @@
 ---
 title: AI Guidelines — contract rules for agents working in parallel
-last_verified_against_main: 2026-04-16
+last_verified_against_main: 2026-04-17
 ---
 
 # AI Guidelines — contract rules for agents working in parallel
@@ -53,16 +53,38 @@ import { bar } from '@/domains/orders/_private/helpers'
 import { useCartStore } from '@/domains/orders/cart-store' // except from the same domain or explicit client boundaries — see §4
 ```
 
-> **Today's reality (2026-04-16):** all 18 domains ship an `index.ts` barrel (added in PR #480) that `export *`s from their public files — stores are deliberately excluded. Call sites are a mix: some import from the barrel (`@/domains/orders`), others still use file-level imports (`@/domains/orders/actions`). Both are tolerated today. New code should prefer the barrel; opportunistic migration is welcome but avoid wholesale churn that conflicts with other agents.
+> **Today's reality (2026-04-17):** all 18 domains ship an `index.ts` barrel (added in PR #480) that `export *`s only from **client-safe** modules — `'use server'` actions, pure types, schemas, constants, and utilities that don't touch `@/lib/db`. Server-only modules (queries, services, dynamic-db imports, webhooks) were trimmed out of every barrel in PR #500 (Phase 11) so a client component pulling the barrel doesn't drag Prisma into its bundle.
+>
+> **Cross-domain enforcement is now active inside `src/domains/`** (PR #500): a file in `src/domains/X/` cannot reach `@/domains/Y/<anything>` deeply — it must use the `@/domains/Y` barrel, OR add `// eslint-disable-next-line no-restricted-imports` with a justification (the 4 documented sites are server modules consuming a deliberately-excluded server-only file like `@/domains/promotions/loader` or `@/domains/shipping/calculator`).
+>
+> `src/app/` and `src/components/` remain free to deep-import — pages and components keep ergonomics flexibility, and the trimmed barrels mean both styles are bundle-safe.
 
 ### 1.3 Working with barrels
 
 All existing domains ship a barrel. Rule of thumb for agents:
 
-- **New code:** import from the barrel (`import { foo } from '@/domains/orders'`) unless that creates an import cycle.
-- **Editing existing call sites:** if the file already imports deep (`@/domains/orders/actions`), don't churn it just to use the barrel — leave it unless you're already modifying that import line.
-- **Creating a new domain:** add an `index.ts` barrel from the start. `export *` from the public files; **never** from `*-store.ts` or private subfolders.
-- **Adding to an existing barrel:** if you add a new public file to a domain, add an `export *` line to its `index.ts` in the same PR.
+- **New code in `src/app/` or `src/components/`:** import from the barrel (`import { foo } from '@/domains/orders'`) unless that creates an import cycle. Deep imports remain tolerated.
+- **New code in `src/domains/X/`:** importing from another domain `Y` MUST go through `@/domains/Y` (the barrel). Lint enforces this. If the symbol you need isn't in `Y`'s barrel, the symbol's source file is server-only and was deliberately excluded — see §1.5.
+- **Editing existing call sites in `src/app/` / `src/components/`:** if the file already imports deep, don't churn it just to use the barrel — leave it unless you're already modifying that import line.
+- **Creating a new domain:** add an `index.ts` barrel from the start. `export *` only from **client-safe** files (no `@/lib/db`, no dynamic db imports, no auth) plus `'use server'` actions; **never** from `*-store.ts` or private subfolders. Add the new domain folder name to `DOMAINS` in `eslint.config.mjs` so per-domain lint overrides activate.
+- **Adding to an existing barrel:** before adding `export * from './newFile'`, confirm `newFile.ts` doesn't import `@/lib/db` or `@/lib/auth` (and isn't `'use server'`). If it does, leave it out of the barrel and document with a comment in `index.ts`.
+
+### 1.5 When a server-only module needs to be deep-imported
+
+A short list of files that intentionally live outside their domain's barrel because they touch `@/lib/db` without `'use server'` (Next.js would otherwise bundle them into client chunks via the barrel):
+
+- `@/domains/admin/{orders,producers,promotions,subscriptions}`
+- `@/domains/admin-stats/queries`
+- `@/domains/analytics/service`
+- `@/domains/auth/{credentials,email-verification}`
+- `@/domains/catalog/queries`
+- `@/domains/finance/commission`
+- `@/domains/promotions/{loader,public}`
+- `@/domains/reviews/{notifications,pending}`
+- `@/domains/shipping/{calculator,transitions,webhooks/sendcloud,providers}`
+- `@/domains/subscriptions/{renewal,stripe-subscriptions}`
+
+Server callers (route handlers, other server actions) deep-import these directly with `// eslint-disable-next-line no-restricted-imports -- <reason>`. Keep the disable line + reason; the audit script counts them.
 
 ### 1.4 No circular dependencies between domains
 
@@ -151,8 +173,10 @@ Enforcement is layered:
 
 1. **[`eslint.config.mjs`](../eslint.config.mjs)** — blocks at lint time. Relevant rules:
    - `@typescript-eslint/no-explicit-any` (errors in `src/**`, off under `test/`, `e2e/`, `scripts/`).
-   - `no-restricted-imports` on `src/lib/**` — forbids `@/domains/*/*` deep imports (barrel-only in lib). Added in PR #483 (Phase 4). Limited to `src/lib/` because a wider scope collides with Next.js bundling of barrel re-exports into client bundles; the barrel-split into server/client halves is the prerequisite for app-wide enforcement.
+   - `no-restricted-imports` on `src/lib/**` — forbids `@/domains/*/*` deep imports (barrel-only in lib). Added in PR #483 (Phase 4).
+   - `no-restricted-imports` on `src/domains/<X>/**` — forbids cross-domain deep imports of `@/domains/<Y>/*` (Y ≠ X). Same-domain deep imports are still allowed. Two `'use client'` Zustand stores (`@/domains/orders/cart-store`, `@/domains/catalog/favorites-store`) are explicit allowlist exceptions. Extended in PR #500 (Phase 11) once trimmed barrels made it bundle-safe.
    - `no-restricted-imports` on `src/**` — forbids cross-domain reaches into `@/domains/*/internal/*`, `@/domains/*/_*/**`, `@/domains/*/private/*`.
+   - **Not yet enforced** in `src/app/` and `src/components/`: pages and components keep deep-import ergonomics. The convention recommends barrels but lint doesn't block.
    - Runs in CI via `npm run lint`.
 2. **[`scripts/audit-domain-contracts.mjs`](../scripts/audit-domain-contracts.mjs)** — covers dynamic checks that static lint can't express cleanly:
    - Domain-level dependency cycles (A imports B imports A transitively).
@@ -193,6 +217,7 @@ The **cross-domain store rule** is intentionally in the audit script rather than
 
 Tracked so the next agent doesn't re-discover them:
 
-- **`eslint-plugin-boundaries`** — installed (dep present in `package.json`) but not yet wired into [`eslint.config.mjs`](../eslint.config.mjs). Wiring it would enable declarative domain-to-domain allow-lists beyond what `no-restricted-imports` covers. Defer until the barrel server/client split lands.
-- **App-wide barrel-only enforcement** — PR #483 landed enforcement for `src/lib/ → @/domains/<d>/*` only. Extending to `src/domains/`, `src/app/`, and `src/components/` requires first splitting each domain barrel into server + client halves (`index.ts` + `index.client.ts`) so Next.js doesn't bundle server-only code into client chunks. That refactor is its own PR.
-- **Per-domain schema freeze tests** — [`test/contracts/`](../test/contracts/) (plural) already exists and covers global invariants (i18n parity, dark mode, a11y, SEO, etc. — see its [`README.md`](../test/contracts/README.md)). Not yet populated: snapshot-style tests that freeze the shape of a domain's exported Zod schemas so a silent rename/removal fails CI. Recommended when a domain's public surface stabilises.
+- **`eslint-plugin-boundaries`** — installed (dep present in `package.json`) but not yet wired into [`eslint.config.mjs`](../eslint.config.mjs). Phase 4 tried both v5 (`entry-point`) and v6 (`dependencies`) syntaxes; v5 didn't fire and v6 didn't accept the cross-element entry-point matching needed. We use `no-restricted-imports` with per-domain overrides instead. Wiring `boundaries` is still a candidate if its v6 schema gets the missing matcher; not blocking anything.
+- **Per-domain schema freeze tests** — [`test/contracts/`](../test/contracts/) (plural) already exists and covers global invariants. PR #502 added the JSON-snapshot freeze (orderLine + orderAddress); the per-domain Zod schemas (e.g. `checkoutFormSchema`, `addressSchema`, the various promotion / subscription schemas) are not yet pinned. Recommended pattern: one `domains/<X>.contract.test.ts` file per domain that asserts `exportedSchema.shape` matches a frozen snapshot of field names + zod kinds.
+- **App-wide barrel-only enforcement extension to `src/app/` / `src/components/`** — PR #500 (Phase 11) landed `src/lib/` + `src/domains/` enforcement. Pages and components remain free to deep-import. Extending requires either (a) splitting every barrel into server vs client halves (`index.ts` + `index.client.ts`) — significant refactor — or (b) accepting that some component imports stay deep with disable comments. Defer until there's a concrete drift incident motivating it.
+- **CODEOWNERS branch-protection wiring** — `.github/CODEOWNERS` shipped in PR #481 (Phase 7) but its blocking effect requires a manual GitHub setting: Settings → Branches → `main` → Branch protection rules → "Require review from CODEOWNERS". Repo owner action; cannot ship in code.
