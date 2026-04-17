@@ -109,10 +109,55 @@ Collect from the user:
      - DB down
      - Code bug in handler
      - Subscription-before-created race
-5. If dead after 3 days, it will hit DLQ. Check:
-     SELECT * FROM "WebhookDeadLetter" ORDER BY "createdAt" DESC LIMIT 20;
-   Rehydrate manually after fixing the root cause.
+5. If dead after 3 days, it will hit DLQ. Use the CLI (see
+   "DLQ operations" section below):
+     npm run dlq:list
+     npm run dlq:list -- --json
 ```
+
+## DLQ operations (#419)
+
+The `WebhookDeadLetter` table holds Stripe events the handler couldn't
+reconcile to an existing Payment/Order. Operators triage it with two
+scripts backed by `src/domains/payments/webhook-dlq-ops.ts`:
+
+| Command | Purpose |
+|---|---|
+| `npm run dlq:list` | Last 50 unresolved rows, table output. |
+| `npm run dlq:list -- --json` | Same content as JSON — pipe to `jq` / monitoring. |
+| `npm run dlq:list -- --include-resolved` | Show historical resolved rows too. |
+| `npm run dlq:list -- --event-type <type>` | Narrow by Stripe event type. |
+| `npm run dlq:list -- --provider <name>` | Narrow by provider (default `stripe`). |
+| `npm run dlq:list -- --limit N` | Page size (clamped 1..500). |
+| `npm run dlq:resolve -- <rowId> --by "<email>"` | Stamp a row as resolved after you manually replayed it via Stripe dashboard. |
+
+### Alert thresholds
+
+`shouldAlertDlq()` in `webhook-dlq-ops.ts` implements the default policy:
+
+- **total pending ≥ 10** → alert
+- **new in last 24h ≥ 3** → alert
+
+Wire the JSON output to your oncall channel (cron every 15 min):
+
+```bash
+DLQ_JSON=$(npm run -s dlq:list -- --json)
+if [ "$(jq -r '.alerting' <<<"$DLQ_JSON")" = "true" ]; then
+  curl -X POST "$SLACK_WEBHOOK_URL" \
+    -d "{\"text\": \"DLQ alert: $(jq -c '.counts' <<<"$DLQ_JSON")\"}"
+fi
+```
+
+### Manual replay flow
+
+1. `npm run dlq:list` — pick the row to replay. Note `eventId` and `providerRef`.
+2. Stripe dashboard → Developers → Events → find `eventId` → **Resend**.
+3. Watch logs for `stripe.webhook.received` with that `eventId` and the
+   follow-up handler event (`stripe.webhook.payment_*` or similar).
+4. If it processes cleanly, mark it resolved:
+   `npm run dlq:resolve -- <rowId> --by "<your@email>"`
+5. If it still fails, capture the new error from
+   `stripe.webhook.processing_failed` and escalate.
 
 ## Scenario 4: amount mismatch (possible fraud / tampering)
 
