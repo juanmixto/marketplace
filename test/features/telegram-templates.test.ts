@@ -88,8 +88,13 @@ test('messageReceivedTemplate truncates preview to 120 chars and escapes it', ()
     conversationId: 'conv_1',
     vendorId: 'vnd_1',
     fromUserName: '<Juan>',
-    preview: '<b>' + 'a'.repeat(200) + '</b>',
+    preview: '<i>' + 'a'.repeat(200) + '</i>',
   })
   assert.ok(msg.text.includes('&lt;Juan&gt;'), 'sender name escaped')
-  assert.ok(!msg.text.includes('<b>'), 'raw HTML in preview is escaped')
+  // Template wraps the sender name in <b>…</b>; the assertion targets
+  // a tag (<i>) that would only appear if the user-controlled preview
+  // wasn't escaped.
+  assert.ok(!msg.text.includes('<i>'), 'raw HTML in user preview is escaped')
+  // preview sliced to 120 chars → no closing </i> survives
+  assert.ok(!msg.text.includes('</i>'), 'preview is truncated before the closing tag')
 })
