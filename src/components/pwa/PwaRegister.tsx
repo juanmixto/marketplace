@@ -32,18 +32,55 @@ export default function PwaRegister() {
     // Track whether a controllerchange reload has already fired so we
     // never reload twice in a row from a single SKIP_WAITING round-trip.
     let reloadedForUpdate = false
+    let pendingWaiting: ServiceWorker | null = null
 
-    const notifyUpdate = (registration: ServiceWorkerRegistration) => {
-      ;(
-        window as unknown as { __pwaWaitingRegistration?: ServiceWorkerRegistration }
-      ).__pwaWaitingRegistration = registration
-      window.dispatchEvent(new CustomEvent('pwa:updateready'))
+    // Routes where an auto-reload would destroy in-flight user work.
+    // Keep in sync with the SW's PROTECTED_PREFIXES denylist.
+    const PROTECTED_PREFIXES = ['/checkout', '/vendor', '/admin', '/auth']
+
+    const isProtectedPath = () =>
+      PROTECTED_PREFIXES.some((p) => window.location.pathname.startsWith(p))
+
+    const hasDirtyForm = () => {
+      const forms = document.querySelectorAll('form')
+      for (const form of forms) {
+        const fields = form.querySelectorAll<
+          HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+        >('input, textarea, select')
+        for (const field of fields) {
+          if (field instanceof HTMLSelectElement) {
+            for (const option of field.options) {
+              if (option.selected !== option.defaultSelected) return true
+            }
+            continue
+          }
+          if (field.type === 'hidden' || field.type === 'submit' || field.type === 'button') continue
+          if (field instanceof HTMLInputElement && (field.type === 'checkbox' || field.type === 'radio')) {
+            if (field.checked !== field.defaultChecked) return true
+            continue
+          }
+          if (field.value !== field.defaultValue) return true
+        }
+      }
+      return false
+    }
+
+    const applyUpdate = (waiting: ServiceWorker) => {
+      waiting.postMessage('SKIP_WAITING')
+    }
+
+    const scheduleUpdate = (waiting: ServiceWorker) => {
+      if (isProtectedPath() || hasDirtyForm()) {
+        // Defer: apply when the tab is hidden or the user navigates.
+        pendingWaiting = waiting
+        return
+      }
+      applyUpdate(waiting)
     }
 
     const watchRegistration = (registration: ServiceWorkerRegistration) => {
-      // If a new SW is already waiting by the time we register, surface it.
       if (registration.waiting && navigator.serviceWorker.controller) {
-        notifyUpdate(registration)
+        scheduleUpdate(registration.waiting)
       }
 
       registration.addEventListener('updatefound', () => {
@@ -52,15 +89,23 @@ export default function PwaRegister() {
         installing.addEventListener('statechange', () => {
           if (
             installing.state === 'installed' &&
-            navigator.serviceWorker.controller
+            navigator.serviceWorker.controller &&
+            registration.waiting
           ) {
-            // An existing controller means this is an upgrade, not a
-            // first install — time to offer the update to the user.
-            notifyUpdate(registration)
+            scheduleUpdate(registration.waiting)
           }
         })
       })
     }
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && pendingWaiting) {
+        const waiting = pendingWaiting
+        pendingWaiting = null
+        applyUpdate(waiting)
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
 
     const requestPeriodicSync = async (registration: ServiceWorkerRegistration) => {
       try {
@@ -128,6 +173,7 @@ export default function PwaRegister() {
     return () => {
       window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt)
       window.removeEventListener('appinstalled', onAppInstalled)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
       navigator.serviceWorker.removeEventListener(
         'controllerchange',
         onControllerChange

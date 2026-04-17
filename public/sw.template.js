@@ -30,7 +30,9 @@
  * LRU trim at MAX_STATIC_ENTRIES keeps the cache from growing unbounded.
  */
 
-const SW_VERSION = 'mp-sw-v4'
+// __BUILD_ID__ is replaced at build time by scripts/build-sw.mjs. The
+// literal below is only used if the template is served directly (dev).
+const SW_VERSION = '__BUILD_ID__'
 const OFFLINE_CACHE = 'mp-offline-v1'
 const STATIC_CACHE = 'mp-static-v1'
 const PREFETCH_CACHE = 'mp-prefetch-v1'
