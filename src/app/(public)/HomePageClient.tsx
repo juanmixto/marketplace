@@ -146,6 +146,7 @@ export function HomePageClient({ featured, categories, vendors, heroStats, publi
                     alt=""
                     width={200}
                     height={200}
+                    priority={i === 1}
                     className="w-full object-cover aspect-square"
                   />
                 </div>

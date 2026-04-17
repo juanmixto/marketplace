@@ -74,6 +74,18 @@ test('buildContentSecurityPolicy allows React development tooling requirements i
   assert.match(csp, /connect-src 'self' ws: wss: https:\/\/api\.stripe\.com https:\/\/js\.stripe\.com/)
 })
 
+test('buildContentSecurityPolicy treats NODE_ENV=test as a non-production runtime', () => {
+  const previousNodeEnv = process.env.NODE_ENV
+  Object.assign(process.env, { NODE_ENV: 'test' })
+
+  const csp = buildContentSecurityPolicy()
+
+  assert.match(csp, /script-src 'self' 'unsafe-inline' 'unsafe-eval' https:\/\/js\.stripe\.com/)
+  assert.match(csp, /connect-src 'self' ws: wss: https:\/\/api\.stripe\.com https:\/\/js\.stripe\.com/)
+
+  Object.assign(process.env, { NODE_ENV: previousNodeEnv })
+})
+
 test('buildHeaderRules skips Next asset cache overrides during development', () => {
   const headers = buildHeaderRules(true)
 

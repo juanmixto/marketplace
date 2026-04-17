@@ -1,5 +1,4 @@
 import { defineConfig, devices } from '@playwright/test'
-
 /**
  * Playwright config for marketplace E2E tests.
  *
@@ -29,6 +28,7 @@ import { defineConfig, devices } from '@playwright/test'
  * #380.
  */
 const useProdServer = process.env.PLAYWRIGHT_USE_PROD === '1'
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -61,20 +61,11 @@ export default defineConfig({
         // Prod mode (`next start`) requires a prior `next build`. The CI
         // job arranges that by depending on the `build` job and
         // downloading its `.next` artifact before Playwright runs.
-        command: useProdServer ? 'npm run start' : 'npm run dev',
+        command: useProdServer
+          ? 'node ./scripts/start-playwright-webserver.mjs --prod'
+          : 'node ./scripts/start-playwright-webserver.mjs',
         url: 'http://localhost:3000',
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
-        env: {
-          DATABASE_URL: process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL ?? '',
-          // `next start` refuses to run with NODE_ENV=test. Dev mode is
-          // forgiving. Use production for the prod path, test for dev.
-          NODE_ENV: useProdServer ? 'production' : 'test',
-          PAYMENT_PROVIDER: 'mock',
-          // Phase 4b-β: enable the buyer-side subscribe CTA + mutations so
-          // the subscriptions smoke can exercise the full mock checkout
-          // flow. No-op if the running server already has it set.
-          SUBSCRIPTIONS_BUYER_BETA: 'true',
-        },
       },
 })

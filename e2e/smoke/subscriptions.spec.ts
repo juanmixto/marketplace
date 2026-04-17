@@ -7,10 +7,9 @@
 // "Cambiar fecha" (reschedule) flow.
 //
 // Cleanup policy: same as cart-checkout.spec.ts — the test does NOT
-// delete the Subscription row it creates. CI reseeds the database on
-// every run; locally re-running the test requires `npm run db:seed`
-// because startSubscriptionCheckout refuses a second subscribe to the
-// same plan ("Ya estás suscrito a este plan").
+// delete the Subscription row it creates. The Playwright webserver now
+// resets DATABASE_URL_TEST before seeding, so the smoke suite remains
+// repeatable across local and CI reruns without a manual cleanup step.
 
 import { test, expect } from '@playwright/test'
 import { TEST_USERS, loginAs } from '../helpers/auth'

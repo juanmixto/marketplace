@@ -23,16 +23,18 @@ import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { TEST_USERS, loginAs } from '../helpers/auth'
 
-const SEEDED_PRODUCT_SLUG = 'tomates-cherry-ecologicos'
-const SEEDED_ADDRESS_LINE1 = 'Calle Mayor 18'
+const SEEDED_PRODUCT_SLUG = 'calabacin-tierno-temporada'
+const SEEDED_ADDRESS_LINE1 = 'Carrer de Balmes 124'
 
 test.describe('cart and checkout @smoke', () => {
   test('buyer adds a product, checks out with the mock provider and lands on confirmation', async ({ page }) => {
-    await loginAs(page, TEST_USERS.customer)
+    // Dedicated buyer so this flow never shares persisted cart state with
+    // other smoke specs running in parallel.
+    await loginAs(page, TEST_USERS.customerCheckout)
 
     // --- PRODUCT DETAIL → ADD TO CART ---
     await page.goto(`/productos/${SEEDED_PRODUCT_SLUG}`)
-    await expect(page.getByRole('heading', { name: /tomates cherry/i })).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('heading', { name: /calabac[ií]n/i })).toBeVisible({ timeout: 10_000 })
 
     const addToCart = page.getByRole('button', { name: /añadir al carrito/i }).first()
     await expect(addToCart).toBeEnabled({ timeout: 5_000 })
@@ -43,7 +45,7 @@ test.describe('cart and checkout @smoke', () => {
 
     // --- CART ---
     await page.goto('/carrito')
-    await expect(page.getByText(/tomates cherry/i).first()).toBeVisible({ timeout: 5_000 })
+    await expect(page.getByText(/calabac[ií]n/i).first()).toBeVisible({ timeout: 5_000 })
 
     const toCheckout = page.getByRole('link', { name: /ir al checkout/i }).first()
     await toCheckout.click()
@@ -54,10 +56,14 @@ test.describe('cart and checkout @smoke', () => {
     // Wait for saved addresses to load so the preferred one is auto-
     // selected and handleConfirmClick can bypass client-side validation.
     await expect(page.getByText(SEEDED_ADDRESS_LINE1)).toBeVisible({ timeout: 10_000 })
+    // Cold dev boots can still be reconciling promo/address requests here,
+    // which briefly detaches the confirm CTA from the DOM. Wait for the
+    // checkout screen to settle before clicking so the smoke stays stable.
+    await page.waitForLoadState('networkidle')
 
     // Confirm button text includes the total price. Match on the verb.
     const confirm = page.getByRole('button', { name: /confirmar pedido/i })
-    await expect(confirm).toBeEnabled({ timeout: 5_000 })
+    await expect(confirm).toBeEnabled({ timeout: 10_000 })
     await confirm.click()
 
     // --- CONFIRMATION ---

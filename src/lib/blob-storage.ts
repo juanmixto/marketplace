@@ -97,7 +97,11 @@ class VercelBlobUploader implements BlobUploader {
     }
     let put: VercelBlobPut
     try {
-      const mod = (await import('@vercel/blob' as string)) as { put: VercelBlobPut }
+      const dynamicImport = new Function(
+        'modulePath',
+        'return import(modulePath)',
+      ) as (modulePath: string) => Promise<{ put: VercelBlobPut }>
+      const mod = await dynamicImport('@vercel/blob')
       put = mod.put
     } catch {
       throw new Error(

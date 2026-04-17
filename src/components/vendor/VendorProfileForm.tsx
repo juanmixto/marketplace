@@ -14,7 +14,6 @@ import { Input } from '@/components/ui/input'
 import { updateVendorProfile } from '@/domains/vendors/actions'
 import { isAllowedImageUrl } from '@/lib/image-validation'
 import { VendorHeroUpload } from './VendorHeroUpload'
-import type { Vendor } from '@/generated/prisma/client'
 import { useT } from '@/i18n'
 import { useMemo } from 'react'
 
@@ -70,7 +69,18 @@ type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 const AUTOSAVE_DEBOUNCE_MS = 900
 
 interface Props {
-  vendor: Vendor
+  vendor: {
+    displayName: string
+    description: string | null
+    location: string | null
+    category: string | null
+    logo: string | null
+    coverImage: string | null
+    orderCutoffTime: string | null
+    preparationDays: number | null
+    iban: string | null
+    bankAccountName: string | null
+  }
 }
 
 export function VendorProfileForm({ vendor }: Props) {

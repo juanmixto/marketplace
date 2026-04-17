@@ -12,6 +12,11 @@
 
 # testing
 /coverage
+/test-results
+/playwright-report
+
+# editor
+.vscode/
 
 # next.js
 /.next/

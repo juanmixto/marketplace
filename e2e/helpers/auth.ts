@@ -7,6 +7,7 @@ export interface TestUser {
 
 export const TEST_USERS = {
   customer: { email: 'cliente@test.com', password: 'cliente1234' },
+  customerCheckout: { email: 'marta@demo.com', password: 'cliente1234' },
   vendor: { email: 'productor@test.com', password: 'vendor1234' },
   admin: { email: 'admin@marketplace.com', password: 'admin1234' },
 } as const satisfies Record<string, TestUser>

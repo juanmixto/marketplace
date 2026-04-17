@@ -7,13 +7,20 @@ import {
   XMarkIcon,
   ExclamationTriangleIcon,
   LinkIcon,
+  ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline'
 import { isAllowedImageUrl } from '@/lib/image-validation'
-import { compressImage } from '@/lib/image-compress'
+import {
+  formatBytes,
+  IMAGE_INPUT_ACCEPT,
+  ImageCompressionError,
+  isSupportedImageInputType,
+  prepareImageForUpload,
+} from '@/lib/image-compress'
 import { useT } from '@/i18n'
+import { useMobileUploadDevice } from '@/components/vendor/useMobileUploadDevice'
 
 const MAX_BYTES = 5 * 1024 * 1024
-const ACCEPTED = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 type Slot = 'cover' | 'logo'
 
@@ -36,31 +43,42 @@ export function VendorHeroUpload({
 }: Props) {
   const t = useT()
   const coverInputRef = useRef<HTMLInputElement>(null)
+  const coverCameraInputRef = useRef<HTMLInputElement>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
+  const logoCameraInputRef = useRef<HTMLInputElement>(null)
   const [coverUploading, setCoverUploading] = useState(false)
   const [logoUploading, setLogoUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [uploadHint, setUploadHint] = useState<string | null>(null)
   const [showUrls, setShowUrls] = useState(false)
   const [coverUrlDraft, setCoverUrlDraft] = useState(coverValue)
   const [logoUrlDraft, setLogoUrlDraft] = useState(logoValue)
+  const isMobileUploadDevice = useMobileUploadDevice()
 
   const hasCover = coverValue !== '' && isAllowedImageUrl(coverValue)
   const hasLogo = logoValue !== '' && isAllowedImageUrl(logoValue)
 
   async function upload(rawFile: File, slot: Slot) {
     setError(null)
-    if (!ACCEPTED.has(rawFile.type)) {
+    setUploadHint(null)
+    if (!isSupportedImageInputType(rawFile.type)) {
       setError(t('vendor.heroUpload.unsupported'))
       return
     }
     const setUploading = slot === 'cover' ? setCoverUploading : setLogoUploading
     setUploading(true)
     try {
-      const file = await compressImage(rawFile, slot === 'cover' ? 'cover' : 'avatar')
-      if (file.size > MAX_BYTES) {
+      const prepared = await prepareImageForUpload(rawFile, slot === 'cover' ? 'cover' : 'avatar')
+      const file = prepared.file
+      if (prepared.compressedSize > MAX_BYTES) {
         setError(t('vendor.heroUpload.tooLarge'))
         return
       }
+      setUploadHint(
+        t('vendor.heroUpload.optimizedSummary')
+          .replace('{from}', formatBytes(prepared.originalSize))
+          .replace('{to}', formatBytes(prepared.compressedSize))
+      )
       const formData = new FormData()
       formData.append('file', file)
       const res = await fetch('/api/upload', { method: 'POST', body: formData })
@@ -77,7 +95,17 @@ export function VendorHeroUpload({
         setLogoUrlDraft(data.url)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('vendor.heroUpload.uploadError'))
+      if (err instanceof ImageCompressionError) {
+        const translationKey =
+          err.code === 'heic-not-supported'
+            ? 'vendor.heroUpload.heicUnsupported'
+            : err.code === 'file-too-large'
+              ? 'vendor.heroUpload.tooLarge'
+              : 'vendor.heroUpload.unsupported'
+        setError(t(translationKey))
+      } else {
+        setError(err instanceof Error ? err.message : t('vendor.heroUpload.uploadError'))
+      }
     } finally {
       setUploading(false)
     }
@@ -210,23 +238,108 @@ export function VendorHeroUpload({
       <input
         ref={coverInputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept={IMAGE_INPUT_ACCEPT}
         className="hidden"
         onChange={e => {
           const f = e.target.files?.[0]
           if (f) void upload(f, 'cover')
+          e.target.value = ''
         }}
       />
       <input
         ref={logoInputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept={IMAGE_INPUT_ACCEPT}
         className="hidden"
         onChange={e => {
           const f = e.target.files?.[0]
           if (f) void upload(f, 'logo')
+          e.target.value = ''
         }}
       />
+      {isMobileUploadDevice && (
+        <>
+          <input
+            ref={coverCameraInputRef}
+            type="file"
+            accept={IMAGE_INPUT_ACCEPT}
+            capture="environment"
+            className="hidden"
+            onChange={e => {
+              const f = e.target.files?.[0]
+              if (f) void upload(f, 'cover')
+              e.target.value = ''
+            }}
+          />
+          <input
+            ref={logoCameraInputRef}
+            type="file"
+            accept={IMAGE_INPUT_ACCEPT}
+            capture="environment"
+            className="hidden"
+            onChange={e => {
+              const f = e.target.files?.[0]
+              if (f) void upload(f, 'logo')
+              e.target.value = ''
+            }}
+          />
+        </>
+      )}
+
+      {isMobileUploadDevice && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
+              {coverLabel}
+            </p>
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={() => coverInputRef.current?.click()}
+                disabled={coverUploading}
+                className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--foreground)] transition hover:border-emerald-300 dark:hover:border-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <ArrowUpTrayIcon className="h-4 w-4" />
+                {t('vendor.heroUpload.choosePhoto')}
+              </button>
+              <button
+                type="button"
+                onClick={() => coverCameraInputRef.current?.click()}
+                disabled={coverUploading}
+                className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 text-sm text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <CameraIcon className="h-4 w-4" />
+                {t('vendor.heroUpload.takePhoto')}
+              </button>
+            </div>
+          </div>
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
+              {logoLabel}
+            </p>
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={() => logoInputRef.current?.click()}
+                disabled={logoUploading}
+                className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--foreground)] transition hover:border-emerald-300 dark:hover:border-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <ArrowUpTrayIcon className="h-4 w-4" />
+                {t('vendor.heroUpload.choosePhoto')}
+              </button>
+              <button
+                type="button"
+                onClick={() => logoCameraInputRef.current?.click()}
+                disabled={logoUploading}
+                className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 text-sm text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <CameraIcon className="h-4 w-4" />
+                {t('vendor.heroUpload.takePhoto')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showUrls && (
         <div className="space-y-2 pt-1">
@@ -253,6 +366,12 @@ export function VendorHeroUpload({
         <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400">
           <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{error}</span>
+        </div>
+      )}
+
+      {uploadHint && !error && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300">
+          {uploadHint}
         </div>
       )}
     </div>

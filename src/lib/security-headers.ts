@@ -19,7 +19,9 @@ function shouldEnforceHttpsHeaders() {
   })
 }
 
-export function buildContentSecurityPolicy(isDevelopment = process.env.NODE_ENV === 'development') {
+export function buildContentSecurityPolicy(
+  isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test',
+) {
   const directives = [
     "default-src 'self'",
     "base-uri 'self'",

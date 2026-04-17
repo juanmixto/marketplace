@@ -15,6 +15,18 @@ export default async function VendorPerfilPage() {
   const t = await getServerT()
 
   const addressPrefill = await getVendorAddressPrefill()
+  const profileFormVendor = {
+    displayName: vendor.displayName,
+    description: vendor.description,
+    location: vendor.location,
+    category: vendor.category,
+    logo: vendor.logo,
+    coverImage: vendor.coverImage,
+    orderCutoffTime: vendor.orderCutoffTime,
+    preparationDays: vendor.preparationDays,
+    iban: vendor.iban,
+    bankAccountName: vendor.bankAccountName,
+  }
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -36,7 +48,7 @@ export default async function VendorPerfilPage() {
         <VendorAddressForm initial={addressPrefill} />
       </section>
 
-      <VendorProfileForm vendor={vendor} />
+      <VendorProfileForm vendor={profileFormVendor} />
     </div>
   )
 }

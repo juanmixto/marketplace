@@ -17,6 +17,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:app": "tsc -p tsconfig.app.json --noEmit",
     "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
+    "audit:contracts": "node ./scripts/audit-domain-contracts.mjs",
     "prisma:generate": "prisma generate",
     "db:migrate": "node --env-file=.env --env-file-if-exists=.env.local ./node_modules/prisma/build/index.js migrate dev",
     "db:seed": "node --env-file=.env --env-file-if-exists=.env.local --import tsx prisma/seed.ts",

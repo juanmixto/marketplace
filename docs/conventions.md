@@ -280,4 +280,6 @@ src/
 
 ## Related documents
 
+- [`docs/ai-guidelines.md`](./ai-guidelines.md) — contract rules, domain boundaries, and how the audit script enforces them.
+- [`docs/ai-workflows.md`](./ai-workflows.md) — recipes: add a feature, refactor safely, change a contract.
 - [`src/i18n/README.md`](../src/i18n/README.md) — i18n conventions (flat keys vs `*-copy.ts` vs `labelKey`).
