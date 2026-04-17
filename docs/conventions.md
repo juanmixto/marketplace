@@ -17,6 +17,14 @@ Last verified against `main`: 2026-04-15.
 - **Stripe v22** — Connect Express for vendors.
 - **Zod v4** — schema validation.
 
+### Strictness — current state
+
+`tsconfig.json` enables `strict: true` plus `noFallthroughCasesInSwitch`, `noImplicitReturns`, `noUnusedLocals`, `noUnusedParameters`, and **`noUncheckedIndexedAccess: true`** (Phase 10 of the contract-hardening plan; was a 45-error fix).
+
+`tsconfig.test.json` overrides `noUncheckedIndexedAccess: false` so test code can spread arrays / use bracket access without `!` everywhere — tests fail at runtime if they're wrong, so the extra static guard adds noise without value.
+
+If you add a new array/object index access in `src/`, expect TS to flag the result as `T | undefined`. Use `array[i]!` only when you've already proven the index is in bounds (e.g. inside a `for (let i = 0; i < arr.length; i++)`); otherwise prefer a defensive `?? defaultValue` or a guard.
+
 ---
 
 ## Imports — the ones that bite
@@ -82,6 +90,28 @@ export async function myAction(input: unknown) {
 ```
 
 For API routes and Server Components use the existing `requireVendor()` / `requireAdmin()` from `src/lib/auth-guard.ts` instead of rolling your own.
+
+---
+
+## Cross-domain imports — go through the barrel
+
+Each domain under `src/domains/<X>/` exports its public surface from `index.ts`. **Cross-domain imports MUST resolve through the barrel**, not via deep paths into another domain's internals:
+
+```ts
+// ✅ Cross-domain: import via the barrel
+import { createCheckoutOrder, checkoutSchema } from '@/domains/orders'
+import type { ProductWithVendor } from '@/domains/catalog'
+
+// ❌ Cross-domain deep import — Phase 4 lint rule will reject
+import { createCheckoutOrder } from '@/domains/orders/actions'
+import type { ProductWithVendor } from '@/domains/catalog/types'
+
+// ✅ Same-domain deep imports remain free
+// (inside src/domains/catalog/queries.ts)
+import { expandSearchQuery } from '@/domains/catalog/search-translation'
+```
+
+When you add a new file to a domain, decide whether it's part of the public surface and update the barrel accordingly. Client-only modules (`'use client'` Zustand stores like `cart-store`, `favorites-store`) are intentionally excluded from barrels so server callers don't accidentally pull in client code.
 
 ---
 

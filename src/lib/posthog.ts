@@ -1,0 +1,81 @@
+import posthog from 'posthog-js'
+
+/**
+ * Single place that knows whether PostHog is usable. Guards against SSR and
+ * missing config so call sites can stay terse.
+ */
+let initialized = false
+
+function getApiKey(): string | null {
+  const key = process.env.NEXT_PUBLIC_POSTHOG_KEY
+  return key && key.length > 0 ? key : null
+}
+
+function getApiHost(): string {
+  return process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com'
+}
+
+export function isPostHogEnabled(): boolean {
+  return typeof window !== 'undefined' && getApiKey() !== null
+}
+
+export function initPostHog(): void {
+  if (initialized) return
+  if (typeof window === 'undefined') return
+  const apiKey = getApiKey()
+  if (!apiKey) return
+
+  try {
+    posthog.init(apiKey, {
+      api_host: getApiHost(),
+      autocapture: false,
+      capture_pageview: true,
+      capture_pageleave: true,
+      persistence: 'localStorage+cookie',
+      disable_session_recording: true,
+      loaded: ph => {
+        if (process.env.NODE_ENV === 'development') {
+          ph.debug(false)
+        }
+      },
+    })
+    initialized = true
+  } catch {
+    // Silent: analytics must never break the app.
+  }
+}
+
+export function identifyPostHog(
+  distinctId: string,
+  properties: Record<string, unknown> = {},
+): void {
+  if (!isPostHogEnabled()) return
+  try {
+    posthog.identify(distinctId, properties)
+  } catch {
+    // Silent
+  }
+}
+
+export function resetPostHog(): void {
+  if (!isPostHogEnabled()) return
+  try {
+    posthog.reset()
+  } catch {
+    // Silent
+  }
+}
+
+export function capturePostHog(
+  event: string,
+  properties: Record<string, unknown> = {},
+): void {
+  if (!isPostHogEnabled()) return
+  try {
+    posthog.capture(event, properties)
+  } catch {
+    // Silent
+  }
+}
+
+export { posthog }

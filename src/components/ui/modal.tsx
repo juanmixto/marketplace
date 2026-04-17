@@ -42,7 +42,7 @@ export function Modal({ open, onClose, title, children, size = 'md', className }
       )
 
       if (focusables.length > 0) {
-        focusables[0].focus()
+        focusables[0]!.focus()
       } else {
         dialog.focus()
       }
@@ -72,8 +72,8 @@ export function Modal({ open, onClose, title, children, size = 'md', className }
       return
     }
 
-    const first = focusables[0]
-    const last = focusables[focusables.length - 1]
+    const first = focusables[0]!
+    const last = focusables[focusables.length - 1]!
     const active = document.activeElement as HTMLElement | null
 
     if (event.shiftKey && active === first) {

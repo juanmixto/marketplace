@@ -53,14 +53,16 @@ import { bar } from '@/domains/orders/_private/helpers'
 import { useCartStore } from '@/domains/orders/cart-store' // except from the same domain or explicit client boundaries — see §4
 ```
 
-> **Today's reality (2026-04-16):** no domain ships a barrel `index.ts`. The cross-domain import surface is *file-level* (e.g. `@/domains/orders/actions`). That is the current convention documented in [`docs/conventions.md`](./conventions.md). The rule above formalises that surface rather than forcing a retrofit to barrels.
+> **Today's reality (2026-04-16):** all 18 domains ship an `index.ts` barrel (added in PR #480) that `export *`s from their public files — stores are deliberately excluded. Call sites are a mix: some import from the barrel (`@/domains/orders`), others still use file-level imports (`@/domains/orders/actions`). Both are tolerated today. New code should prefer the barrel; opportunistic migration is welcome but avoid wholesale churn that conflicts with other agents.
 
-### 1.3 When a barrel (`index.ts`) exists
+### 1.3 Working with barrels
 
-If a domain ships an `index.ts`, it becomes the **only** legal entry point for that domain from outside. Deep file imports from that domain become forbidden. Rule of thumb for agents:
+All existing domains ship a barrel. Rule of thumb for agents:
 
-- **Creating a new domain?** Add an `index.ts` barrel and re-export only the stable public surface (no stores, no `// @internal` symbols).
-- **Migrating an existing domain to a barrel?** Land the barrel + every call-site update in the **same PR**. Do not leave the repo in a mixed state.
+- **New code:** import from the barrel (`import { foo } from '@/domains/orders'`) unless that creates an import cycle.
+- **Editing existing call sites:** if the file already imports deep (`@/domains/orders/actions`), don't churn it just to use the barrel — leave it unless you're already modifying that import line.
+- **Creating a new domain:** add an `index.ts` barrel from the start. `export *` from the public files; **never** from `*-store.ts` or private subfolders.
+- **Adding to an existing barrel:** if you add a new public file to a domain, add an `export *` line to its `index.ts` in the same PR.
 
 ### 1.4 No circular dependencies between domains
 
@@ -145,41 +147,21 @@ See [`docs/conventions.md`](./conventions.md) §Prisma for field-name gotchas. R
 
 ## 6. Imports — enforcement
 
-The project does not currently ship ESLint (see §9 for the roadmap). Until it does, the enforcement mechanism is:
+Enforcement is layered:
 
-1. **This document** — normative.
-2. **[`scripts/audit-domain-contracts.mjs`](../scripts/audit-domain-contracts.mjs)** — reports violations. Run locally with `node scripts/audit-domain-contracts.mjs` or in CI.
-3. **Code review** — reviewers (human or agent) reject PRs that violate these rules.
+1. **[`eslint.config.mjs`](../eslint.config.mjs)** — blocks at lint time. Relevant rules:
+   - `@typescript-eslint/no-explicit-any` (errors in `src/**`, off under `test/`, `e2e/`, `scripts/`).
+   - `no-restricted-imports` on `src/lib/**` — forbids `@/domains/*/*` deep imports (barrel-only in lib). Added in PR #483 (Phase 4). Limited to `src/lib/` because a wider scope collides with Next.js bundling of barrel re-exports into client bundles; the barrel-split into server/client halves is the prerequisite for app-wide enforcement.
+   - `no-restricted-imports` on `src/**` — forbids cross-domain reaches into `@/domains/*/internal/*`, `@/domains/*/_*/**`, `@/domains/*/private/*`.
+   - Runs in CI via `npm run lint`.
+2. **[`scripts/audit-domain-contracts.mjs`](../scripts/audit-domain-contracts.mjs)** — covers dynamic checks that static lint can't express cleanly:
+   - Domain-level dependency cycles (A imports B imports A transitively).
+   - `*-store.ts` pulled into the server graph (files without `'use client'`).
+   - Belt-and-braces sweep for `any` in `src/domains/` with an explicit allowlist.
+   Run locally with `npm run audit:contracts`. Flags: `--soft` (always exit 0), `--json` (machine-readable).
+3. **Code review** — rules this document can express normatively but tooling cannot (e.g. "don't add abstractions for hypothetical futures", scope discipline).
 
-Violations that the audit script flags today:
-
-- Deep imports into a future `internal/`, `_private/`, or `_*/` subfolder of a domain.
-- Cross-domain import of a `*-store.ts` file.
-- Uses of `any` in `src/domains/` outside the allowlist.
-
-When ESLint is adopted, the target rules will be:
-
-```jsonc
-// .eslintrc — target, not currently installed
-{
-  "rules": {
-    "no-restricted-imports": ["error", {
-      "patterns": [
-        {
-          "group": ["@/domains/*/internal/*", "@/domains/*/_*/**"],
-          "message": "Private modules of a domain are not importable from outside the domain. See docs/ai-guidelines.md §1."
-        },
-        {
-          "group": ["@/domains/*/**-store", "@/domains/*/*-store.ts"],
-          "message": "Zustand stores must be imported from the same domain, not cross-domain. See docs/ai-guidelines.md §4."
-        }
-      ]
-    }]
-  }
-}
-```
-
-> The pattern above is the **target**. When ESLint lands, the owner of that PR should validate it against the current import graph (the audit script's report is a useful starting point).
+The **cross-domain store rule** is intentionally in the audit script rather than ESLint: stores may legitimately be imported from client components outside the owning domain, and the `'use client'` signal that distinguishes valid from invalid imports is easier to check dynamically than with a static glob.
 
 ---
 
@@ -201,7 +183,8 @@ When ESLint is adopted, the target rules will be:
 - [ ] No new `any` in `src/domains/` (except in the audit allowlist).
 - [ ] If a Prisma schema changed: a migration file was generated and is backward compatible.
 - [ ] If a public contract (exported function / Zod schema / Prisma field) changed: either non-breaking, or versioned with deprecation per §2.2.
-- [ ] Ran `node scripts/audit-domain-contracts.mjs` — no new violations introduced.
+- [ ] Ran `npm run lint` — clean (blocks on the `no-restricted-imports` rule).
+- [ ] Ran `npm run audit:contracts` — no new violations introduced.
 - [ ] Ran `npm run typecheck` — clean.
 - [ ] PR description lists any contract changes and whether they are breaking.
 
@@ -211,7 +194,6 @@ When ESLint is adopted, the target rules will be:
 
 Tracked so the next agent doesn't re-discover them:
 
-- **ESLint + `no-restricted-imports`** — not installed. Adopting it means adding `eslint`, `@typescript-eslint/*`, a config, and a `lint` script to `package.json`. The audit script is the interim measure.
-- **Domain barrels** — none today. If/when barrels are added, update §1.3 and migrate all cross-domain call sites in the same PR.
-- **Contract tests** — [`test/contract/`](../test/contract/) does not exist yet. Recommended when a domain's surface stabilises.
-- **`orders` ↔ `shipping` cycle** — both domains import each other at the file level: `orders/actions.ts` → `shipping/calculator`, `orders/checkout.ts` → `shipping/spain-provinces`, and `shipping/actions.ts` → `orders/order-line-snapshot`. `order-line-snapshot.ts` is an 8-line parser around a shared type in `src/types/order.ts` and is a good candidate to move to a neutral location (e.g. `src/types/` or `src/lib/orders-snapshot.ts`) to break the cycle. Tracked by [`scripts/audit-domain-contracts.mjs`](../scripts/audit-domain-contracts.mjs).
+- **`eslint-plugin-boundaries`** — installed (dep present in `package.json`) but not yet wired into [`eslint.config.mjs`](../eslint.config.mjs). Wiring it would enable declarative domain-to-domain allow-lists beyond what `no-restricted-imports` covers. Defer until the barrel server/client split lands.
+- **App-wide barrel-only enforcement** — PR #483 landed enforcement for `src/lib/ → @/domains/<d>/*` only. Extending to `src/domains/`, `src/app/`, and `src/components/` requires first splitting each domain barrel into server + client halves (`index.ts` + `index.client.ts`) so Next.js doesn't bundle server-only code into client chunks. That refactor is its own PR.
+- **Per-domain schema freeze tests** — [`test/contracts/`](../test/contracts/) (plural) already exists and covers global invariants (i18n parity, dark mode, a11y, SEO, etc. — see its [`README.md`](../test/contracts/README.md)). Not yet populated: snapshot-style tests that freeze the shape of a domain's exported Zod schemas so a silent rename/removal fails CI. Recommended when a domain's public surface stabilises.

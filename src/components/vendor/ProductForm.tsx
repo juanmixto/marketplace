@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { CERTIFICATIONS, PRODUCT_UNITS, TAX_RATES } from '@/lib/constants'
 import { createProduct, updateProduct, updateProductVariants } from '@/domains/vendors/actions'
+import { trackAnalyticsEvent } from '@/lib/analytics'
 import { formatExpirationDateInput } from '@/domains/catalog/availability'
 import { parseAndValidateImages } from '@/lib/image-validation'
 import { ImageUploader } from '@/components/vendor/ImageUploader'
@@ -260,6 +261,7 @@ export function ProductForm({ categories, initialData, vendorLocation }: Product
     }
 
     try {
+      const wasAlreadyPublished = initialData?.status === 'PENDING_REVIEW'
       if (initialData) {
         await updateProduct(initialData.id, payload)
         await updateProductVariants({
@@ -268,6 +270,22 @@ export function ProductForm({ categories, initialData, vendorLocation }: Product
         })
       } else {
         await createProduct(payload)
+      }
+      const baseEventProps = {
+        product_id: initialData?.id,
+        product_name: values.name,
+        category_id: values.categoryId || undefined,
+        price: values.basePrice,
+        currency: 'EUR',
+        status: values.status,
+      }
+      if (!initialData) {
+        trackAnalyticsEvent('seller_product_created', baseEventProps)
+      }
+      // Fire "published" once when the product transitions into (or is
+      // created as) PENDING_REVIEW — that's our "sent to marketplace" moment.
+      if (values.status === 'PENDING_REVIEW' && !wasAlreadyPublished) {
+        trackAnalyticsEvent('seller_product_published', baseEventProps)
       }
       router.push('/vendor/productos')
       router.refresh()

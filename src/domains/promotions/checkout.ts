@@ -3,8 +3,8 @@
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { getActionSession } from '@/lib/action-session'
-import { getAvailableProductWhere } from '@/domains/catalog/availability'
-import { assertVariantPriceChargeable, getDefaultVariant, getSelectedVariant, getVariantAdjustedPrice, productRequiresVariantSelection } from '@/domains/catalog/variants'
+import { getAvailableProductWhere } from '@/domains/catalog'
+import { assertVariantPriceChargeable, getDefaultVariant, getSelectedVariant, getVariantAdjustedPrice, productRequiresVariantSelection } from '@/domains/catalog'
 import {
   evaluatePromotions,
   type EvaluableCartLine,
@@ -171,29 +171,29 @@ export async function previewPromotionsForCart(
 
     const matchingIndices: number[] = []
     for (let i = 0; i < lines.length; i += 1) {
-      const line = lines[i]
+      const line = lines[i]!
       if (line.vendorId !== applied.vendorId) continue
       if (promo.scope === 'PRODUCT' && line.productId !== promo.productId) continue
       if (promo.scope === 'CATEGORY' && line.categoryId !== promo.categoryId) continue
       matchingIndices.push(i)
     }
     const applicableSubtotal = matchingIndices.reduce(
-      (acc, i) => acc + lines[i].unitPrice * lines[i].quantity,
+      (acc, i) => acc + lines[i]!.unitPrice * lines[i]!.quantity,
       0
     )
     if (applicableSubtotal <= 0) continue
 
     for (const i of matchingIndices) {
-      const lineTotal = lines[i].unitPrice * lines[i].quantity
+      const lineTotal = lines[i]!.unitPrice * lines[i]!.quantity
       const share = (applied.discountAmount * lineTotal) / applicableSubtotal
-      lineDiscountByIndex[i] += Math.round(share * 100) / 100
+      lineDiscountByIndex[i]! += Math.round(share * 100) / 100
     }
   }
   const lineDiscounts = lines
     .map((line, i) => ({
       productId: line.productId,
-      variantId: lineVariantIds[i],
-      discount: lineDiscountByIndex[i],
+      variantId: lineVariantIds[i] ?? null,
+      discount: lineDiscountByIndex[i] ?? 0,
     }))
     .filter(entry => entry.discount > 0)
 

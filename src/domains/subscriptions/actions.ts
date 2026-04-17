@@ -6,7 +6,16 @@ import { db } from '@/lib/db'
 import { getActionSession } from '@/lib/action-session'
 import { isVendor } from '@/lib/roles'
 import { safeRevalidatePath } from '@/lib/revalidate'
-import { provisionPlanPrice } from '@/domains/subscriptions/stripe-subscriptions'
+import {
+  advanceByCadence,
+  computeCurrentPeriodEnd,
+  isBeforeCutoff,
+} from '@/domains/subscriptions/cadence'
+import {
+  pauseStripeSubscription,
+  provisionPlanPrice,
+  resumeStripeSubscription,
+} from '@/domains/subscriptions/stripe-subscriptions'
 
 /**
  * Phase 3 of the promotions & subscriptions RFC
@@ -266,6 +275,48 @@ export async function listMySubscriptionPlans(
   )
 }
 
+export interface VendorSubscriptionChurnStats {
+  canceledThisMonth: number
+  // Denominator for the simple rate the KPI card displays: active at the
+  // start of the month + canceled during the month. This matches the
+  // "rolling monthly churn" definition most SaaS dashboards show. Zero
+  // means we don't have enough data yet — the UI renders a dash instead
+  // of a misleading 0%.
+  denominator: number
+}
+
+/**
+ * Aggregates the vendor's monthly churn so the dashboard KPI card can show
+ * "bajas este mes" alongside the active count. Computed in a single pair
+ * of queries rather than looping over plans so it stays cheap as the
+ * vendor scales.
+ */
+export async function getMyMonthlyChurnStats(): Promise<VendorSubscriptionChurnStats> {
+  const { vendor } = await requireVendor()
+  const now = new Date()
+  const firstOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+
+  const [canceledThisMonth, stillActive] = await Promise.all([
+    db.subscription.count({
+      where: {
+        plan: { vendorId: vendor.id },
+        canceledAt: { gte: firstOfMonth },
+      },
+    }),
+    db.subscription.count({
+      where: {
+        plan: { vendorId: vendor.id },
+        status: { in: ['ACTIVE', 'PAUSED', 'PAST_DUE'] },
+      },
+    }),
+  ])
+
+  return {
+    canceledThisMonth,
+    denominator: stillActive + canceledThisMonth,
+  }
+}
+
 export interface SerializedVendorSubscriber {
   id: string
   status: 'ACTIVE' | 'PAUSED' | 'CANCELED' | 'PAST_DUE'
@@ -473,6 +524,165 @@ export async function unarchiveSubscriptionPlan(planId: string) {
     data: { archivedAt: null },
   })
 
+  safeRevalidatePath('/vendor/suscripciones')
+  return updated
+}
+
+/**
+ * Loads a subscription that belongs to a plan owned by the current
+ * vendor. Returns the full row needed by the lifecycle actions below.
+ * Throws a generic 404-ish error if the vendor does not own the plan —
+ * we deliberately do not leak "exists but not yours" vs "does not exist".
+ */
+async function loadVendorOwnedSubscription(subscriptionId: string, vendorId: string) {
+  const sub = await db.subscription.findFirst({
+    where: { id: subscriptionId, plan: { vendorId } },
+    include: {
+      plan: {
+        select: {
+          id: true,
+          cadence: true,
+          cutoffDayOfWeek: true,
+          product: { select: { id: true, name: true } },
+        },
+      },
+    },
+  })
+  if (!sub) throw new Error('Suscripción no encontrada')
+  return sub
+}
+
+/**
+ * Vendor-initiated "skip next delivery". Mirrors the buyer action but
+ * scoped to subscriptions on one of the vendor's own plans. Use case:
+ * the vendor has a supply issue on Friday (a hailstorm, a sick farmer,
+ * a late delivery from their own supplier) and needs to push the drop
+ * by one cadence without asking every buyer to click "skip" themselves.
+ *
+ * Same cutoff rule as the buyer action: we refuse once the cutoff day
+ * for the week has passed, because by then the pack-and-ship cycle is
+ * already in motion and an honest "skip" can't retroactively undo it.
+ */
+export async function skipNextDeliveryAsVendor(subscriptionId: string) {
+  const { vendor } = await requireVendor()
+  const sub = await loadVendorOwnedSubscription(subscriptionId, vendor.id)
+  if (sub.status !== 'ACTIVE') {
+    throw new Error('Solo puedes saltar entregas en una suscripción activa')
+  }
+
+  const now = new Date()
+  if (!isBeforeCutoff(now, sub.nextDeliveryAt, sub.plan.cutoffDayOfWeek)) {
+    throw new Error(
+      'Ya ha pasado el día de cierre para saltar esta entrega. Aplica a la próxima.'
+    )
+  }
+
+  const skipped = Array.isArray(sub.skippedDeliveries)
+    ? (sub.skippedDeliveries as unknown[]).filter((v): v is string => typeof v === 'string')
+    : []
+  const skippedDate = sub.nextDeliveryAt.toISOString().slice(0, 10)
+  if (skipped.includes(skippedDate)) return sub
+
+  const advancedNextDelivery = advanceByCadence(sub.nextDeliveryAt, sub.plan.cadence)
+  const advancedPeriodEnd = computeCurrentPeriodEnd(advancedNextDelivery, sub.plan.cadence)
+
+  const updated = await db.subscription.update({
+    where: { id: subscriptionId },
+    data: {
+      skippedDeliveries: [...skipped, skippedDate],
+      nextDeliveryAt: advancedNextDelivery,
+      currentPeriodEnd: advancedPeriodEnd,
+    },
+  })
+  safeRevalidatePath('/vendor/suscripciones/suscriptores')
+  safeRevalidatePath('/vendor/suscripciones')
+  return updated
+}
+
+/**
+ * Vendor-initiated pause. Stops the delivery cycle until the vendor (or
+ * the buyer) resumes. Intended for: the vendor goes on holiday, has a
+ * broken production line, or otherwise can't fulfil for a while. The
+ * buyer still sees their subscription as paused on their account.
+ *
+ * Mirrors the Stripe pause-collection logic from the buyer action.
+ */
+export async function pauseSubscriptionAsVendor(
+  subscriptionId: string,
+  duration: import('@/domains/subscriptions/pause-duration').PauseDuration = 'indefinite',
+) {
+  const { vendor } = await requireVendor()
+  const sub = await loadVendorOwnedSubscription(subscriptionId, vendor.id)
+  if (sub.status === 'CANCELED') {
+    throw new Error('No se puede pausar una suscripción cancelada')
+  }
+  if (sub.status === 'PAUSED') return sub
+
+  const { computePausedUntil } = await import('@/domains/subscriptions/pause-duration')
+  const pausedUntil = computePausedUntil(duration)
+
+  const updated = await db.subscription.update({
+    where: { id: subscriptionId },
+    data: { status: 'PAUSED', pausedUntil },
+  })
+
+  try {
+    await pauseStripeSubscription(sub.stripeSubscriptionId)
+  } catch (err) {
+    console.error('[subscriptions] Stripe vendor-pause failed — local row is paused, Stripe will need manual reconcile', {
+      subscriptionId,
+      stripeSubscriptionId: sub.stripeSubscriptionId,
+      error: err,
+    })
+  }
+
+  safeRevalidatePath('/vendor/suscripciones/suscriptores')
+  safeRevalidatePath('/vendor/suscripciones')
+  return updated
+}
+
+/**
+ * Vendor-initiated resume. Companion to pauseSubscriptionAsVendor so the
+ * vendor can un-pause without asking the buyer. Resets nextDeliveryAt to
+ * "one cadence from now" so the buyer gets the usual lead time, same
+ * policy as the buyer-side resume.
+ */
+export async function resumeSubscriptionAsVendor(subscriptionId: string) {
+  const { vendor } = await requireVendor()
+  const sub = await loadVendorOwnedSubscription(subscriptionId, vendor.id)
+  if (sub.status !== 'PAUSED') {
+    throw new Error('Solo puedes reanudar una suscripción pausada')
+  }
+
+  // Lazy-load the cadence helper to avoid a circular import through
+  // computeFirstDeliveryAt — actions.ts already imports the other
+  // helpers from the same module so this is safe.
+  const { computeFirstDeliveryAt } = await import('@/domains/subscriptions/cadence')
+  const now = new Date()
+  const nextDeliveryAt = computeFirstDeliveryAt(now, sub.plan.cadence)
+  const currentPeriodEnd = computeCurrentPeriodEnd(nextDeliveryAt, sub.plan.cadence)
+
+  const updated = await db.subscription.update({
+    where: { id: subscriptionId },
+    data: {
+      status: 'ACTIVE',
+      nextDeliveryAt,
+      currentPeriodEnd,
+      pausedUntil: null,
+    },
+  })
+
+  try {
+    await resumeStripeSubscription(sub.stripeSubscriptionId)
+  } catch (err) {
+    console.error('[subscriptions] Stripe vendor-resume failed — local row is active, Stripe will need manual reconcile', {
+      subscriptionId,
+      stripeSubscriptionId: sub.stripeSubscriptionId,
+      error: err,
+    })
+  }
+
+  safeRevalidatePath('/vendor/suscripciones/suscriptores')
   safeRevalidatePath('/vendor/suscripciones')
   return updated
 }

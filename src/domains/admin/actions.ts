@@ -5,11 +5,10 @@ import { db } from '@/lib/db'
 import { z } from 'zod'
 import { setMarketplaceConfig } from '@/lib/config'
 import { createAuditLog, getAuditRequestIp, mutateWithAudit, type AuditValue } from '@/lib/audit'
-import { requireAdmin } from '@/lib/auth-guard'
-import { hasRole, isAdmin } from '@/lib/roles'
-import { getActionSession } from '@/lib/action-session'
+import { requireAdmin, requireFinanceAdmin, requireOpsAdmin } from '@/lib/auth-guard'
+import { hasRole } from '@/lib/roles'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
-import { assertVendorOnboarded } from '@/domains/vendors/onboarding'
+import { assertVendorOnboarded } from '@/domains/vendors'
 
 function getVendorAuditSnapshot(vendor: {
   id: string
@@ -664,7 +663,10 @@ export async function suspendProduct(productId: string, reason: string) {
 }
 
 export async function approveSettlement(settlementId: string) {
-  const session = await requireAdmin()
+  // Settlement approval moves real money to vendors. Restrict to
+  // FINANCE_ADMIN + SUPERADMIN; ADMIN_OPS retains visibility but
+  // cannot approve. (#403)
+  const session = await requireFinanceAdmin()
 
   const settlement = await db.settlement.findUnique({ where: { id: settlementId } })
   if (!settlement) throw new Error('Liquidación no encontrada')
@@ -700,7 +702,9 @@ export async function approveSettlement(settlementId: string) {
 }
 
 export async function markSettlementPaid(settlementId: string) {
-  const session = await requireAdmin()
+  // Marking a settlement PAID is the final financial step before payout.
+  // Restrict to FINANCE_ADMIN + SUPERADMIN. (#403)
+  const session = await requireFinanceAdmin()
 
   const settlement = await db.settlement.findUnique({ where: { id: settlementId } })
   if (!settlement) throw new Error('Liquidación no encontrada')
@@ -747,8 +751,9 @@ const CANCELLABLE_ORDER_STATUSES = ['PLACED', 'PAYMENT_CONFIRMED', 'PROCESSING',
  *   lines require manual intervention / refund flow).
  */
 export async function cancelOrder(orderId: string, reason: string) {
-  const session = await getActionSession()
-  if (!session || !isAdmin(session.user.role)) throw new Error('Acceso denegado')
+  // Order cancellation rolls back stock + may trigger refunds via the
+  // payments domain. Restrict to OPS + SUPERADMIN. (#403)
+  const session = await requireOpsAdmin()
 
   const order = await db.order.findUnique({
     where: { id: orderId },

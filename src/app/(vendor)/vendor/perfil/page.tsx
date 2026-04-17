@@ -16,6 +16,7 @@ export default async function VendorPerfilPage() {
 
   const addressPrefill = await getVendorAddressPrefill()
   const profileFormVendor = {
+    id: vendor.id,
     displayName: vendor.displayName,
     description: vendor.description,
     location: vendor.location,

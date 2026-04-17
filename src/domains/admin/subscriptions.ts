@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { requireAdmin } from '@/lib/auth-guard'
 
 /**
  * Phase 5 admin read-only overview for subscriptions. Gathers the
@@ -59,6 +60,7 @@ const CADENCE_TO_MONTHLY_MULTIPLIER: Record<
 }
 
 export async function getSubscriptionsOverview(): Promise<SubscriptionsOverview> {
+  await requireAdmin()
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 

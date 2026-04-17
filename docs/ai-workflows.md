@@ -16,7 +16,8 @@ last_verified_against_main: 2026-04-16
 3. Plan the smallest change that solves the task.
 4. Before opening a PR run:
    - `npm run typecheck`
-   - `node scripts/audit-domain-contracts.mjs`
+   - `npm run lint`
+   - `npm run audit:contracts`
    - the relevant slice of the test suite
 5. PR description lists any contract changes and whether they are breaking.
 
@@ -67,13 +68,13 @@ last_verified_against_main: 2026-04-16
 
 1. Create [`src/domains/notifications/`](../src/domains/notifications/).
 2. Add files for the feature (`actions.ts`, `types.ts`, `queries.ts` as needed).
-3. **Create a barrel** `src/domains/notifications/index.ts` re-exporting the public surface:
+3. **Create a barrel** `src/domains/notifications/index.ts` matching the style of the other 18 domains:
    ```ts
-   export { sendNotification, markRead } from './actions'
-   export type { Notification } from './types'
-   // NOT exported: internal helpers, *-store.ts files, @internal symbols
+   export * from './actions'
+   export * from './types'
+   // NOT exported: *-store.ts, anything under internal/ or _*/
    ```
-4. Call sites outside the domain import from `@/domains/notifications`, not from individual files. (For existing domains without a barrel the file-level import surface is still the norm — see [`docs/ai-guidelines.md`](./ai-guidelines.md) §1.2.)
+4. Call sites outside the domain should import from `@/domains/notifications`. (Existing domains still have a mix of barrel and deep imports — don't churn them; see [`docs/ai-guidelines.md`](./ai-guidelines.md) §1.3.)
 5. Add the domain to the directory layout block in [`docs/conventions.md`](./conventions.md).
 
 ---
@@ -157,23 +158,27 @@ From [`AGENTS.md`](../AGENTS.md):
 ## Imports — quick reference
 
 ```ts
-// ✅ Correct
+// ✅ Correct — preferred for new code (uses the domain barrel)
+import { getOrderDetail } from '@/domains/orders'
 import { db } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { UserRole } from '@/generated/prisma/enums'
-import { getOrderDetail } from '@/domains/orders/actions'
 import { useCartStore } from '@/domains/orders/cart-store' // only from 'use client' files
+
+// ✅ Tolerated — existing deep file imports still work. Don't churn them just
+// to switch to the barrel; only touch when you're editing the import line anyway.
+import { getOrderDetail } from '@/domains/orders/actions'
 
 // ❌ Wrong — path does not exist
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 import { PrismaClient } from '@prisma/client'
 
-// ❌ Wrong — reaches into private/internal subfolder of another domain
+// ❌ Wrong — reaches into private/internal subfolder of another domain (ESLint blocks)
 import { foo } from '@/domains/orders/internal/price-calc'
 import { bar } from '@/domains/orders/_helpers/format'
 
-// ❌ Wrong — Zustand store pulled into the server graph
+// ❌ Wrong — Zustand store pulled into the server graph (audit script flags)
 // (file does not start with 'use client')
 import { useCartStore } from '@/domains/orders/cart-store'
 ```
@@ -184,8 +189,9 @@ import { useCartStore } from '@/domains/orders/cart-store'
 
 ```bash
 npm run typecheck                          # tsc --noEmit
-node scripts/audit-domain-contracts.mjs    # lint architecture rules
-node scripts/audit-domain-contracts.mjs --soft --json   # machine-readable, never fails
+npm run lint                               # eslint . --max-warnings=0
+npm run audit:contracts                    # dynamic architecture checks
+npm run audit:contracts -- --soft --json   # machine-readable, never fails
 npm run test                               # node tests
 npm run test:e2e:smoke                     # playwright smoke
 ./scripts/git-hygiene.sh                   # branch hygiene (periodically)
@@ -197,5 +203,5 @@ npm run test:e2e:smoke                     # playwright smoke
 
 - **…you're not sure which domain something belongs to.** Leave it where it is and ask. Arbitrary reshuffles create merge conflicts for other agents.
 - **…the rule says X but the code clearly needs Y.** Write the guideline update in the same PR and justify it. The guidelines are source of truth — but they *follow* code when a good reason exists.
-- **…the audit script is wrong.** Open a PR fixing [`scripts/audit-domain-contracts.mjs`](../scripts/audit-domain-contracts.mjs) with a test case (a fixture file under `test/contract/audit/` would be ideal). Don't silently widen the allowlist.
+- **…the audit script is wrong.** Open a PR fixing [`scripts/audit-domain-contracts.mjs`](../scripts/audit-domain-contracts.mjs) with a regression case (e.g. a fixture under `test/contracts/audit/` asserting the script's JSON output). Don't silently widen the allowlist.
 - **…you hit a merge conflict from another agent's work.** Prefer `git rebase origin/main` on a small branch over trying to untangle. Ask the user if stuck.

@@ -156,9 +156,9 @@ function stripDiacritics(input: string): string {
 }
 
 // Characters whose accented/unaccented forms we treat as interchangeable when
-// generating search variants for terms that already carry an accent or `ñ`.
-// This keeps queries like "honey" from exploding into nonsense variants while
-// still letting "ecológico" also search for "ecologico".
+// generating search variants. Prisma `contains` is a literal substring match
+// (case-insensitive, but accent-sensitive on Postgres), so a user typing
+// "jamon" would otherwise miss "jamón". We emit every plausible combination.
 const ACCENT_VARIANTS: Record<string, string[]> = {
   a: ['a', 'á'],
   e: ['e', 'é'],
@@ -176,7 +176,8 @@ function wordAccentVariants(word: string): string[] {
   const base = stripDiacritics(word)
   const positions: number[] = []
   for (let i = 0; i < base.length; i++) {
-    if (ACCENT_VARIANTS[base[i]]) positions.push(i)
+    const ch = base[i]!
+    if (ACCENT_VARIANTS[ch]) positions.push(i)
   }
 
   const out = new Set<string>([word, base])
@@ -189,8 +190,10 @@ function wordAccentVariants(word: string): string[] {
         out.add(chars.join(''))
         return
       }
-      const pos = positions[idx]
-      for (const variant of ACCENT_VARIANTS[base[pos]]) {
+      const pos = positions[idx]!
+      const variants = ACCENT_VARIANTS[base[pos]!]
+      if (!variants) return
+      for (const variant of variants) {
         chars[pos] = variant
         emit(idx + 1)
       }
@@ -204,8 +207,11 @@ function wordAccentVariants(word: string): string[] {
     // O(positions · variants) ≈ a dozen forms per word and, crucially,
     // "calabacin" → "calabacín" still appears.
     for (const pos of positions) {
-      for (const variant of ACCENT_VARIANTS[base[pos]]) {
-        if (variant === base[pos]) continue
+      const sourceChar = base[pos]!
+      const variants = ACCENT_VARIANTS[sourceChar]
+      if (!variants) continue
+      for (const variant of variants) {
+        if (variant === sourceChar) continue
         out.add(base.slice(0, pos) + variant + base.slice(pos + 1))
       }
     }
@@ -221,10 +227,7 @@ const MAX_PHRASE_VARIANTS = 32
 
 function expandAccentVariants(term: string, into: Set<string>): void {
   into.add(term)
-  const base = stripDiacritics(term)
-  if (base === term) return
-
-  into.add(base)
+  into.add(stripDiacritics(term))
 
   const words = term.split(' ')
   let phrases: string[] = ['']

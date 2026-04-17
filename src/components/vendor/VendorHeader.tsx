@@ -44,7 +44,6 @@ export function VendorHeader({ user, vendor, portals = [] }: Props) {
         {vendor?.slug && (
           <Link
             href={`/productores/${vendor.slug}`}
-            target="_blank"
             className="hidden sm:inline-flex rounded-lg px-3 py-1.5 text-sm text-[var(--muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
           >
             {t('vendor.header.myShowcase')} ↗

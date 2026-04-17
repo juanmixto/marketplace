@@ -12,6 +12,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { Input } from '@/components/ui/input'
 import { updateVendorProfile } from '@/domains/vendors/actions'
+import { trackAnalyticsEvent } from '@/lib/analytics'
 import { isAllowedImageUrl } from '@/lib/image-validation'
 import { VendorHeroUpload } from './VendorHeroUpload'
 import { useT } from '@/i18n'
@@ -70,6 +71,7 @@ const AUTOSAVE_DEBOUNCE_MS = 900
 
 interface Props {
   vendor: {
+    id: string
     displayName: string
     description: string | null
     location: string | null
@@ -128,6 +130,25 @@ export function VendorProfileForm({ vendor }: Props) {
         await updateVendorProfile(values)
         lastSavedJsonRef.current = JSON.stringify(values)
         setSaveState('saved')
+        trackAnalyticsEvent('seller_profile_completed', {
+          vendor_id: vendor.id,
+          vendor_category: values.category || undefined,
+        })
+        // First successful save acts as the "seller onboarding completed"
+        // signal. Dedup per-vendor via localStorage so we fire once even if
+        // the user edits their profile later.
+        try {
+          const storageKey = `seller_signup_completed:${vendor.id}`
+          if (typeof window !== 'undefined' && !window.localStorage.getItem(storageKey)) {
+            trackAnalyticsEvent('seller_signup_completed', {
+              vendor_id: vendor.id,
+              vendor_category: values.category || undefined,
+            })
+            window.localStorage.setItem(storageKey, new Date().toISOString())
+          }
+        } catch {
+          // Silent: analytics must never break saves.
+        }
         // Refresh server components so the vendor layout sidebar (which reads
         // displayName/logo from the DB) reflects the new values without needing
         // a full page reload.
@@ -137,7 +158,7 @@ export function VendorProfileForm({ vendor }: Props) {
         setServerError(err instanceof Error ? err.message : t('vendor.profileForm.profileSaveError'))
       }
     },
-    [router, t],
+    [router, t, vendor.id],
   )
 
   useEffect(() => {

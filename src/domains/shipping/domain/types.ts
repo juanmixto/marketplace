@@ -1,4 +1,7 @@
-export type ShippingProviderCode = 'SENDCLOUD'
+// Re-export the canonical Prisma enum so domain code keeps the same
+// import path while the source of truth lives in @/shared/types/shipping.
+import { ShippingProviderCode } from '@/shared/types/shipping'
+export { ShippingProviderCode }
 
 export interface PostalAddress {
   contactName: string

@@ -1,9 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo } from 'react'
+import { useMemo, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   ArrowLeftIcon,
+  ForwardIcon,
+  PauseIcon,
+  PlayIcon,
   UsersIcon,
   MapPinIcon,
   CalendarDaysIcon,
@@ -13,10 +17,15 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { formatPrice } from '@/lib/utils'
 import { useT } from '@/i18n'
-import type {
-  listMySubscribers,
-  listMySubscriptionPlans,
+import {
+  pauseSubscriptionAsVendor,
+  resumeSubscriptionAsVendor,
+  skipNextDeliveryAsVendor,
+  type listMySubscribers,
+  type listMySubscriptionPlans,
 } from '@/domains/subscriptions/actions'
+import type { PauseDuration } from '@/domains/subscriptions/pause-duration'
+import { PauseSubscriptionDialog } from '@/components/subscriptions/PauseSubscriptionDialog'
 
 type Subscriber = Awaited<ReturnType<typeof listMySubscribers>>[number]
 type Plan = Awaited<ReturnType<typeof listMySubscriptionPlans>>[number]
@@ -208,8 +217,28 @@ function SubscriberRow({
   cadenceLabel: string
 }) {
   const t = useT()
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
+  const [pauseDialogOpen, setPauseDialogOpen] = useState(false)
   const addr = subscriber.shippingAddress
   const buyer = subscriber.buyer
+
+  const isActive = subscriber.status === 'ACTIVE'
+  const isPaused = subscriber.status === 'PAUSED'
+
+  function runAction(action: () => Promise<unknown>) {
+    if (pending) return
+    setError(null)
+    startTransition(async () => {
+      try {
+        await action()
+        router.refresh()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t('vendor.subscribers.errorGeneric'))
+      }
+    })
+  }
 
   return (
     <div className="p-4">
@@ -258,8 +287,59 @@ function SubscriberRow({
               {t('vendor.subscribers.pausedHint')}
             </p>
           )}
+          {error && (
+            <p className="text-xs text-red-600 dark:text-red-400" role="alert">
+              {error}
+            </p>
+          )}
+        </div>
+
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {isActive && (
+            <>
+              <button
+                type="button"
+                onClick={() => runAction(() => skipNextDeliveryAsVendor(subscriber.id))}
+                disabled={pending}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-semibold text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] disabled:opacity-60"
+              >
+                <ForwardIcon className="h-4 w-4" />
+                {t('vendor.subscribers.skipNext')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPauseDialogOpen(true)}
+                disabled={pending}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 disabled:opacity-60 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/40"
+              >
+                <PauseIcon className="h-4 w-4" />
+                {t('vendor.subscribers.pause')}
+              </button>
+            </>
+          )}
+          {isPaused && (
+            <button
+              type="button"
+              onClick={() => runAction(() => resumeSubscriptionAsVendor(subscriber.id))}
+              disabled={pending}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-60 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
+            >
+              <PlayIcon className="h-4 w-4" />
+              {t('vendor.subscribers.resume')}
+            </button>
+          )}
         </div>
       </div>
+
+      <PauseSubscriptionDialog
+        open={pauseDialogOpen}
+        onClose={() => setPauseDialogOpen(false)}
+        onConfirm={(duration: PauseDuration) => {
+          setPauseDialogOpen(false)
+          runAction(() => pauseSubscriptionAsVendor(subscriber.id, duration))
+        }}
+        pending={pending}
+      />
     </div>
   )
 }

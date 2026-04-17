@@ -332,7 +332,7 @@ function AlertLine({
         </span>
       ))}
       <span>{suffix}</span>
-      {products.length > 0 && (
+      {products.length > 0 && products[0] && (
         <>
           {' '}
           <Link

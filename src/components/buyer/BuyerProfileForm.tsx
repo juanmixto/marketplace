@@ -7,12 +7,9 @@ import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { useT } from '@/i18n'
 import type { TranslationKeys } from '@/i18n'
+import { PROFILE_FIELD_LIMITS, profileBaseSchema } from '@/shared/types/profile'
 
-const profileSchemaShape = z.object({
-  firstName: z.string().min(1).max(50),
-  lastName: z.string().min(1).max(50),
-  email: z.string().email(),
-})
+const profileSchemaShape = profileBaseSchema
 
 const passwordSchemaShape = z.object({
   currentPassword: z.string().min(1),
@@ -22,8 +19,14 @@ const passwordSchemaShape = z.object({
 
 function buildSchemas(t: (key: TranslationKeys) => string) {
   const profileSchema = z.object({
-    firstName: z.string().min(1, t('account.profileNameRequired')).max(50),
-    lastName: z.string().min(1, t('account.profileLastNameRequired')).max(50),
+    firstName: z
+      .string()
+      .min(PROFILE_FIELD_LIMITS.firstName.min, t('account.profileNameRequired'))
+      .max(PROFILE_FIELD_LIMITS.firstName.max),
+    lastName: z
+      .string()
+      .min(PROFILE_FIELD_LIMITS.lastName.min, t('account.profileLastNameRequired'))
+      .max(PROFILE_FIELD_LIMITS.lastName.max),
     email: z.string().email(t('account.profileEmailInvalid')),
   })
 

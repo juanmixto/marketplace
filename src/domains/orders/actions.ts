@@ -5,7 +5,7 @@ import { db } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import { isRedirectError } from 'next/dist/client/components/redirect-error'
 import { generateOrderNumber } from '@/lib/utils'
-import { createPaymentIntent } from '@/domains/payments/provider'
+import { createPaymentIntent } from '@/domains/payments'
 import {
   calculateOrderPricing,
   checkoutSchema,
@@ -14,31 +14,33 @@ import {
   type CheckoutFormData,
 } from '@/domains/orders/checkout'
 import { orderAddressSnapshotSchema, orderLineSnapshotSchema } from '@/types/order'
-import { assertProviderRefForPaymentStatus, shouldApplyPaymentSucceeded } from '@/domains/payments/webhook'
+import { assertProviderRefForPaymentStatus, shouldApplyPaymentSucceeded } from '@/domains/payments'
 import { getServerEnv } from '@/lib/env'
-import { getAvailableProductWhere } from '@/domains/catalog/availability'
+import { getAvailableProductWhere } from '@/domains/catalog'
 import {
   assertVariantPriceChargeable,
   getDefaultVariant,
   getSelectedVariant,
   getVariantAdjustedPrice,
   productRequiresVariantSelection,
-} from '@/domains/catalog/variants'
+} from '@/domains/catalog'
+// eslint-disable-next-line no-restricted-imports -- calculator stays out of the shipping barrel (dynamic db import)
 import { getShippingCost } from '@/domains/shipping/calculator'
 import { getActionSession } from '@/lib/action-session'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
-import { createPaymentConfirmedEventPayload } from '@/domains/orders/order-event-payload'
+import {
+  createPaymentConfirmedEventPayload,
+  createPaymentMismatchEventPayload,
+} from '@/domains/orders/order-event-payload'
 import {
   evaluatePromotions,
   type EvaluableCartLine,
-} from '@/domains/promotions/evaluation'
+} from '@/domains/promotions'
+// eslint-disable-next-line no-restricted-imports -- loader is Prisma-backed and stays out of the promotions barrel
 import { countBuyerRedemptions, loadEvaluablePromotions } from '@/domains/promotions/loader'
 
-export interface CartItemInput {
-  productId: string
-  variantId?: string
-  quantity: number
-}
+export type { CartItemInput } from '@/shared/types/cart'
+import type { CartItemInput } from '@/shared/types/cart'
 
 export type CreateCheckoutOrderResult =
   | {
@@ -396,14 +398,16 @@ export async function createOrder(
     }
   }
 
-  // Create payment intent (mock or Stripe)
-  const payment = await createPaymentIntent(
-    Math.round(grandTotal * 100), // cents
-    { userId: sessionUserId },
-    connectDestination ? { connect: connectDestination } : undefined
-  )
-
-  // Create order in transaction
+  // Persist-first (#404): we used to call createPaymentIntent() here,
+  // BEFORE the transaction. If anything inside the transaction failed
+  // (stock conflict, deadlock, promotion budget drained, schema drift,
+  // etc.), the external Stripe PaymentIntent was orphaned with no
+  // matching local Payment row. Now we open the transaction first and
+  // create the Payment row with providerRef = null. createPaymentIntent
+  // runs AFTER commit and the Payment row is then updated with the
+  // real providerRef. If the post-commit provider call fails, we mark
+  // the Payment as FAILED and re-throw so the buyer gets a friendly
+  // "try again" message.
   const env = getServerEnv()
 
   async function createOrderRecord(includeShippingAddressSnapshot: boolean) {
@@ -429,6 +433,7 @@ export async function createOrder(
             id: string
             stock: number | null
           }
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma $queryRaw tagged-template typing requires cast
           const [variant] = await (tx.$queryRaw as any)`
             SELECT id, stock FROM "ProductVariant"
             WHERE id = ${line.variantId}
@@ -452,6 +457,7 @@ export async function createOrder(
             id: string
             stock: number
           }
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma $queryRaw tagged-template typing requires cast
           const [lockedProduct] = await (tx.$queryRaw as any)`
             SELECT id, stock FROM "Product"
             WHERE id = ${line.productId}
@@ -538,6 +544,7 @@ export async function createOrder(
       // guard uses an explicit WHERE clause so maxRedemptions is enforced
       // at the SQL level rather than trusted from the in-memory snapshot.
       for (const applied of appliedByVendorId.values()) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma $executeRaw tagged-template typing requires cast
         const updated = await (tx.$executeRaw as any)`
           UPDATE "Promotion"
           SET "redemptionCount" = "redemptionCount" + 1,
@@ -573,7 +580,10 @@ export async function createOrder(
           payments: {
             create: {
               provider: env.paymentProvider === 'mock' ? 'mock' : 'stripe',
-              providerRef: payment.id,
+              // providerRef is filled in AFTER the transaction commits
+              // by createPaymentIntent, then linked back to this row
+              // via payment.update below.
+              providerRef: null,
               amount: grandTotal,
               currency: 'EUR',
               status: 'PENDING',
@@ -610,6 +620,67 @@ export async function createOrder(
     })
 
     order = await createOrderRecord(false)
+  }
+
+  // Post-commit: the order + a placeholder Payment row exist. Now we
+  // talk to the payment provider. If it throws we mark the Payment row
+  // as FAILED, emit an OrderEvent for ops visibility, and re-throw so
+  // createCheckoutOrder maps it to a friendly "try again" message.
+  let payment
+  try {
+    payment = await createPaymentIntent(
+      Math.round(grandTotal * 100), // cents
+      { userId: sessionUserId },
+      connectDestination ? { connect: connectDestination } : undefined
+    )
+  } catch (paymentError) {
+    try {
+      await db.payment.updateMany({
+        where: { orderId: order.id, providerRef: null, status: 'PENDING' },
+        data: { status: 'FAILED' },
+      })
+      await db.order.updateMany({
+        where: { id: order.id, paymentStatus: 'PENDING' },
+        data: { paymentStatus: 'FAILED' },
+      })
+      await db.orderEvent.create({
+        data: {
+          orderId: order.id,
+          type: 'PAYMENT_INTENT_CREATION_FAILED',
+          payload: {
+            recordedAt: new Date().toISOString(),
+            error:
+              paymentError instanceof Error
+                ? paymentError.message
+                : String(paymentError),
+          },
+        },
+      })
+    } catch (cleanupError) {
+      console.error('[checkout] failed to mark payment as FAILED after provider error', {
+        orderId: order.id,
+        cleanupError,
+      })
+    }
+    throw paymentError
+  }
+
+  // Link the placeholder Payment row to the real provider id. updateMany
+  // with the (orderId, providerRef=null) predicate so a retry that
+  // somehow ran twice cannot overwrite an already-linked row.
+  const linked = await db.payment.updateMany({
+    where: { orderId: order.id, providerRef: null, status: 'PENDING' },
+    data: { providerRef: payment.id },
+  })
+  if (linked.count !== 1) {
+    // Defensive: if we somehow committed an order without exactly one
+    // unlinked PENDING payment row, surface it loudly so it is caught
+    // in dev / CI rather than going to production undetected.
+    console.error('[checkout] expected exactly one unlinked Payment row to update, found', {
+      orderId: order.id,
+      count: linked.count,
+      providerRef: payment.id,
+    })
   }
 
   const affectedProductSlugs = [...new Set(products.map(product => product.slug))]
@@ -700,6 +771,35 @@ export async function confirmOrder(orderId: string, providerRef: string) {
     providerRef: payment.providerRef,
     nextStatus: 'SUCCEEDED',
   })
+
+  // Defensive amount verification — symmetric with the webhook handler's
+  // doesWebhookPaymentMatchStoredPayment check. In mock mode the amount
+  // was computed server-side so this should never fire, but if confirmOrder
+  // is ever reused from another context the guard prevents confirming a
+  // Payment whose amount was tampered with between creation and confirmation.
+  const expectedAmountCents = Math.round(Number(payment.amount) * 100)
+  const orderGrandTotalCents = Math.round(Number(payment.order.grandTotal) * 100)
+  if (expectedAmountCents !== orderGrandTotalCents) {
+    console.error('[checkout][confirm][amount-mismatch]', {
+      orderId,
+      providerRef,
+      paymentAmount: Number(payment.amount),
+      orderGrandTotal: Number(payment.order.grandTotal),
+    })
+    await db.orderEvent.create({
+      data: {
+        orderId,
+        type: 'PAYMENT_MISMATCH',
+        payload: createPaymentMismatchEventPayload({
+          providerRef: providerRef ?? orderId,
+          amount: orderGrandTotalCents,
+          expectedAmount: Number(payment.amount),
+          expectedCurrency: payment.currency,
+        }),
+      },
+    })
+    throw new Error('La verificación del importe ha fallado. Contacta con soporte.')
+  }
 
   if (!shouldApplyPaymentSucceeded({
     paymentStatus: payment.status,

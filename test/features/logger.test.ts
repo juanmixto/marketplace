@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildLogEntry, serializeContext } from '@/lib/logger'
+import { buildLogEntry, serializeContext, redact } from '@/lib/logger'
 
 test('buildLogEntry captures level, scope and ISO timestamp', () => {
   const entry = buildLogEntry('info', 'stripe-webhook', 'received')
@@ -39,4 +39,39 @@ test('serializeContext preserves primitive and plain-object values untouched', (
 test('buildLogEntry omits context when none is provided', () => {
   const entry = buildLogEntry('debug', 'noop', 'ping')
   assert.equal('context' in entry, false)
+})
+
+test('redact replaces default sensitive keys with [REDACTED]', () => {
+  const input = {
+    password: 'hunter2',
+    token: 'jwt_abc',
+    name: 'visible',
+    orderId: 'o-1',
+    authorization: 'Bearer xxx',
+    cardNumber: 'hidden',
+    CVV: '123',
+  }
+  const result = redact(input)
+  assert.equal(result.password, '[REDACTED]')
+  assert.equal(result.token, '[REDACTED]')
+  assert.equal(result.authorization, '[REDACTED]')
+  assert.equal(result.cardNumber, '[REDACTED]')
+  assert.equal(result.CVV, '[REDACTED]')
+  assert.equal(result.name, 'visible')
+  assert.equal(result.orderId, 'o-1')
+})
+
+test('redact accepts extra custom keys', () => {
+  const result = redact({ email: 'a@b.com', phone: '12345', city: 'Madrid' }, ['email', 'phone'])
+  assert.equal(result.email, '[REDACTED]')
+  assert.equal(result.phone, '[REDACTED]')
+  assert.equal(result.city, 'Madrid')
+})
+
+test('redact does not mutate the original object', () => {
+  const input = { password: 'secret', name: 'ok' }
+  const result = redact(input)
+  assert.notEqual(result, input)
+  assert.equal(input.password, 'secret')
+  assert.equal(result.password, '[REDACTED]')
 })
