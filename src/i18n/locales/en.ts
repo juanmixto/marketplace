@@ -685,6 +685,7 @@ const en: Record<TranslationKeys, string> = {
   'vendor.orders.statusShipped': 'Shipped',
   'vendor.orders.statusDelivered': 'Delivered',
   'vendor.orders.statusCancelled': 'Cancelled',
+  'vendor.orders.statusIncident': 'Incident',
 
   // Vendor – fulfillment actions
   'vendor.fulfillment.confirm': 'Confirm order',
@@ -696,12 +697,18 @@ const en: Record<TranslationKeys, string> = {
   'vendor.fulfillment.trackingLabel': 'Tracking number',
   'vendor.fulfillment.carrierLabel': 'Carrier',
   'vendor.fulfillment.updateError': 'Failed to update the order',
-  'vendor.fulfillment.prepare': 'Prepare order',
+  'vendor.fulfillment.prepare': 'Generate shipping label',
   'vendor.fulfillment.preparing': 'Generating label…',
+  'vendor.fulfillment.hintPrepare': 'Once generated, the order is ready to ship.',
+  'vendor.fulfillment.hintLabelRequested': 'Generating the label — this can take a few seconds.',
+  'vendor.fulfillment.hintLabelFailed': 'Label generation failed. Retry or report an incident.',
+  'vendor.fulfillment.hintReady': 'Print the label and hand the parcel to the carrier.',
   'vendor.fulfillment.printLabel': 'Print label',
   'vendor.fulfillment.viewTracking': 'View tracking',
   'vendor.fulfillment.retryLabel': 'Retry label',
   'vendor.fulfillment.markIncident': 'Report incident',
+  'vendor.fulfillment.resolveIncident': 'Resolve incident',
+  'vendor.fulfillment.hintIncident': 'This order is flagged as an incident. Resolve it once the issue is fixed to move it back to its previous state.',
   'vendor.fulfillment.labelFailed': 'Could not generate the label',
   'vendor.fulfillment.addressMissing': 'Set up your origin address before preparing orders',
 

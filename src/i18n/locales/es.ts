@@ -684,6 +684,7 @@ const es = {
   'vendor.orders.statusShipped': 'Enviado',
   'vendor.orders.statusDelivered': 'Entregado',
   'vendor.orders.statusCancelled': 'Cancelado',
+  'vendor.orders.statusIncident': 'Incidencia',
 
   // Vendor – fulfillment actions
   'vendor.fulfillment.confirm': 'Confirmar pedido',
@@ -695,12 +696,18 @@ const es = {
   'vendor.fulfillment.trackingLabel': 'Número de seguimiento',
   'vendor.fulfillment.carrierLabel': 'Transportista',
   'vendor.fulfillment.updateError': 'Error al actualizar el pedido',
-  'vendor.fulfillment.prepare': 'Preparar pedido',
+  'vendor.fulfillment.prepare': 'Generar etiqueta de envío',
   'vendor.fulfillment.preparing': 'Generando etiqueta…',
+  'vendor.fulfillment.hintPrepare': 'Al generarla, el pedido queda listo para enviar.',
+  'vendor.fulfillment.hintLabelRequested': 'Estamos generando la etiqueta, esto puede tardar unos segundos.',
+  'vendor.fulfillment.hintLabelFailed': 'La generación falló. Reintenta o marca una incidencia.',
+  'vendor.fulfillment.hintReady': 'Imprime la etiqueta y entrega el paquete al transportista.',
   'vendor.fulfillment.printLabel': 'Imprimir etiqueta',
   'vendor.fulfillment.viewTracking': 'Ver seguimiento',
   'vendor.fulfillment.retryLabel': 'Reintentar etiqueta',
   'vendor.fulfillment.markIncident': 'Marcar incidencia',
+  'vendor.fulfillment.resolveIncident': 'Resolver incidencia',
+  'vendor.fulfillment.hintIncident': 'El pedido está en incidencia. Resuélvela cuando el problema esté solucionado para volver a su estado anterior.',
   'vendor.fulfillment.labelFailed': 'No se pudo generar la etiqueta',
   'vendor.fulfillment.addressMissing': 'Configura tu dirección de origen antes de preparar pedidos',
 
