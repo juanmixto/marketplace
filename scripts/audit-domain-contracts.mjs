@@ -2,8 +2,9 @@
 /**
  * audit-domain-contracts.mjs
  *
- * Lightweight enforcement of the rules in docs/ai-guidelines.md while the repo
- * has no ESLint. Walks src/, parses imports with regex, and reports:
+ * Dynamic enforcement of the rules in docs/ai-guidelines.md that ESLint
+ * can't express cleanly (cycles, 'use client' cross-checks, domain-scoped
+ * allowlists). Walks src/, parses imports with regex, and reports:
  *
  *   1. Cross-domain deep imports into `internal/`, `_private/`, `_*` subfolders.
  *   2. Imports of `*-store.ts` (Zustand) from non-`'use client'` files.
