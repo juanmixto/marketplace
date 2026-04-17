@@ -8,13 +8,7 @@ import { sendEmail } from '@/lib/email'
 import { getServerEnv } from '@/lib/env'
 import { EmailVerificationEmail } from '@/emails/EmailVerification'
 import { createElement } from 'react'
-
-const schema = z.object({
-  firstName: z.string().min(1).max(50),
-  lastName: z.string().min(1).max(50),
-  email: z.string().email(),
-  password: z.string().min(8).max(100),
-})
+import { registerSchema as schema } from '@/shared/types/auth'
 
 import { isUniqueConstraintViolation } from '@/lib/prisma-errors'
 

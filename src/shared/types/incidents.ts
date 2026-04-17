@@ -1,0 +1,42 @@
+import { z } from 'zod'
+import { IncidentType } from '@/generated/prisma/enums'
+
+/**
+ * Shared incident contracts. Both bodies were previously declared
+ * inline in their respective routes:
+ *
+ *   - openIncidentBodySchema       → src/app/api/incidents/route.ts
+ *   - incidentMessageBodySchema    → src/app/api/incidents/[id]/messages/route.ts
+ *
+ * The numeric limits are exported so any future client-side counter
+ * (e.g. "N/5000 characters") stays in sync with the server cap.
+ */
+export const INCIDENT_DESCRIPTION_LIMITS = {
+  min: 10,
+  max: 5000,
+} as const
+
+export const INCIDENT_MESSAGE_LIMITS = {
+  min: 1,
+  max: 5000,
+} as const
+
+export const openIncidentBodySchema = z.object({
+  orderId: z.string().min(1),
+  type: z.nativeEnum(IncidentType),
+  description: z
+    .string()
+    .min(INCIDENT_DESCRIPTION_LIMITS.min)
+    .max(INCIDENT_DESCRIPTION_LIMITS.max),
+})
+
+export type OpenIncidentInput = z.infer<typeof openIncidentBodySchema>
+
+export const incidentMessageBodySchema = z.object({
+  body: z
+    .string()
+    .min(INCIDENT_MESSAGE_LIMITS.min)
+    .max(INCIDENT_MESSAGE_LIMITS.max),
+})
+
+export type IncidentMessageInput = z.infer<typeof incidentMessageBodySchema>

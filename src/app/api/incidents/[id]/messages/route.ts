@@ -2,10 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { addIncidentMessage } from '@/domains/incidents/actions'
 import { IncidentAuthError, IncidentValidationError } from '@/domains/incidents/errors'
-
-const bodySchema = z.object({
-  body: z.string().min(1).max(5000),
-})
+import { incidentMessageBodySchema as bodySchema } from '@/shared/types/incidents'
 
 interface RouteParams {
   params: Promise<{ id: string }>
