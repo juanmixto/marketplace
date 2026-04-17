@@ -1,14 +1,24 @@
 ---
 title: RFC 0002 — Telegram Integration for Vendors
-status: Draft
+status: Implemented (EPICs 1–4, 7; EPIC 5 infra only)
 authors: planning-agent
 created: 2026-04-17
-target_release: TBD
+last_updated: 2026-04-17
 related:
   - docs/conventions.md
   - docs/ai-guidelines.md
   - docs/ai-workflows.md
+  - docs/runbooks/telegram-setup.md
 ---
+
+> **Status note (2026-04-17):** PR #515 landed EPICs 1–4 and 7. EPIC 5
+> shipped the callback-query dispatcher infrastructure but deferred the
+> real button handlers (`confirmOrder`, `markAsShipped`) because the
+> vendor domains don't yet expose single-call entrypoints for those
+> transitions — per §5.3, inlining would have duplicated domain logic
+> in the Telegram layer. Follow-up issues should add
+> `confirmFulfillment` / `markShipped` actions in the owning domain
+> first, then wire the Telegram buttons.
 
 # RFC 0002 — Telegram Integration for Vendors
 
