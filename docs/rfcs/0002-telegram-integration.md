@@ -1,6 +1,6 @@
 ---
 title: RFC 0002 — Telegram Integration for Vendors
-status: Implemented (EPICs 1–4, 7; EPIC 5 infra only)
+status: Implemented (EPICs 1–4, 6, 7; EPIC 5 partial — Confirmar landed, Marcar enviado deferred)
 authors: planning-agent
 created: 2026-04-17
 last_updated: 2026-04-17
@@ -11,14 +11,23 @@ related:
   - docs/runbooks/telegram-setup.md
 ---
 
-> **Status note (2026-04-17):** PR #515 landed EPICs 1–4 and 7. EPIC 5
-> shipped the callback-query dispatcher infrastructure but deferred the
-> real button handlers (`confirmOrder`, `markAsShipped`) because the
-> vendor domains don't yet expose single-call entrypoints for those
-> transitions — per §5.3, inlining would have duplicated domain logic
-> in the Telegram layer. Follow-up issues should add
-> `confirmFulfillment` / `markShipped` actions in the owning domain
-> first, then wire the Telegram buttons.
+> **Status note (2026-04-17):**
+>
+> - **PR #515** landed EPICs 1–4, 6, and 7: domain, dispatcher, webhook,
+>   linking, templates, preferences, outbound service, admin audit
+>   dashboard, rate limits (outbound + inbound), structured logs,
+>   22 unit tests.
+> - **PR #518** landed the first EPIC-5 button — **✅ Confirmar** on
+>   `order.created` messages. New domain action
+>   `confirmFulfillmentByUserId(userId, fulfillmentId)` in
+>   `vendors/actions.ts` reuses the existing `VALID_TRANSITIONS` FSM;
+>   Telegram layer carries no business logic.
+> - **Still deferred (EPIC 5):** the "Marcar enviado" button, because
+>   `prepareFulfillment` (CONFIRMED → PREPARING → READY) branches into
+>   Sendcloud label creation and is hard to lift into a session-less
+>   variant without duplicating logic. Acceptable scope hand-off per
+>   §5.3 ("stop and open a separate issue to add one in the owning
+>   domain — do NOT inline logic in the Telegram layer").
 
 # RFC 0002 — Telegram Integration for Vendors
 
