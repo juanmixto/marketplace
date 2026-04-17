@@ -462,6 +462,11 @@ model Address {
 model Order {
   id                      String        @id @default(cuid())
   orderNumber             String        @unique
+  // Server-issued idempotency key (#410). Populated from the checkout
+  // page render; `createOrder` rejects a duplicate by returning the
+  // existing Order's id with `replayed: true`. Nullable for historical
+  // rows created before the column existed.
+  checkoutAttemptId       String?       @unique
   customerId              String
   addressId               String?
   shippingAddressSnapshot Json?
