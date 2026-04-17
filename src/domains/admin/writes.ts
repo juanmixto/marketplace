@@ -5,7 +5,7 @@ import { db } from '@/lib/db'
 import { getAuditRequestIp, mutateWithAudit } from '@/lib/audit'
 import { requireCatalogAdmin, requireSuperadmin } from '@/lib/auth-guard'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
-import { parseExpirationDateInput } from '@/domains/catalog/availability'
+import { parseExpirationDateInput } from '@/domains/catalog'
 
 // ─── Snapshots ────────────────────────────────────────────────────────────────
 

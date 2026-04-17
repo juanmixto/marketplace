@@ -8,7 +8,7 @@ import { createAuditLog, getAuditRequestIp, mutateWithAudit, type AuditValue } f
 import { requireAdmin, requireFinanceAdmin, requireOpsAdmin } from '@/lib/auth-guard'
 import { hasRole } from '@/lib/roles'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
-import { assertVendorOnboarded } from '@/domains/vendors/onboarding'
+import { assertVendorOnboarded } from '@/domains/vendors'
 
 function getVendorAuditSnapshot(vendor: {
   id: string

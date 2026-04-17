@@ -3,8 +3,8 @@
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { getActionSession } from '@/lib/action-session'
-import { getAvailableProductWhere } from '@/domains/catalog/availability'
-import { assertVariantPriceChargeable, getDefaultVariant, getSelectedVariant, getVariantAdjustedPrice, productRequiresVariantSelection } from '@/domains/catalog/variants'
+import { getAvailableProductWhere } from '@/domains/catalog'
+import { assertVariantPriceChargeable, getDefaultVariant, getSelectedVariant, getVariantAdjustedPrice, productRequiresVariantSelection } from '@/domains/catalog'
 import {
   evaluatePromotions,
   type EvaluableCartLine,

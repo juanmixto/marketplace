@@ -5,7 +5,7 @@ import { db } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import { isRedirectError } from 'next/dist/client/components/redirect-error'
 import { generateOrderNumber } from '@/lib/utils'
-import { createPaymentIntent } from '@/domains/payments/provider'
+import { createPaymentIntent } from '@/domains/payments'
 import {
   calculateOrderPricing,
   checkoutSchema,
@@ -14,16 +14,17 @@ import {
   type CheckoutFormData,
 } from '@/domains/orders/checkout'
 import { orderAddressSnapshotSchema, orderLineSnapshotSchema } from '@/types/order'
-import { assertProviderRefForPaymentStatus, shouldApplyPaymentSucceeded } from '@/domains/payments/webhook'
+import { assertProviderRefForPaymentStatus, shouldApplyPaymentSucceeded } from '@/domains/payments'
 import { getServerEnv } from '@/lib/env'
-import { getAvailableProductWhere } from '@/domains/catalog/availability'
+import { getAvailableProductWhere } from '@/domains/catalog'
 import {
   assertVariantPriceChargeable,
   getDefaultVariant,
   getSelectedVariant,
   getVariantAdjustedPrice,
   productRequiresVariantSelection,
-} from '@/domains/catalog/variants'
+} from '@/domains/catalog'
+// eslint-disable-next-line no-restricted-imports -- calculator stays out of the shipping barrel (dynamic db import)
 import { getShippingCost } from '@/domains/shipping/calculator'
 import { getActionSession } from '@/lib/action-session'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
@@ -34,7 +35,8 @@ import {
 import {
   evaluatePromotions,
   type EvaluableCartLine,
-} from '@/domains/promotions/evaluation'
+} from '@/domains/promotions'
+// eslint-disable-next-line no-restricted-imports -- loader is Prisma-backed and stays out of the promotions barrel
 import { countBuyerRedemptions, loadEvaluablePromotions } from '@/domains/promotions/loader'
 
 export type { CartItemInput } from '@/shared/types/cart'

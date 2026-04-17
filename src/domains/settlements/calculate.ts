@@ -6,6 +6,7 @@
  */
 
 import { db } from '@/lib/db'
+// eslint-disable-next-line no-restricted-imports -- finance/commission stays out of the barrel (dynamic db import)
 import { resolveEffectiveCommissionRate } from '@/domains/finance/commission'
 
 export interface SettlementData {
