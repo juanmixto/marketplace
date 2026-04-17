@@ -360,6 +360,47 @@ export async function advanceFulfillment(
   safeRevalidatePath('/vendor/pedidos')
 }
 
+/**
+ * Confirm a PENDING fulfillment on behalf of the vendor identified by userId
+ * rather than a browser session. Used by out-of-band entrypoints (Telegram
+ * webhook callbacks) where the caller has authenticated the vendor through
+ * a different mechanism (a TelegramLink whose chatId mapped to this userId).
+ *
+ * Ownership is enforced by scoping the lookup to (id, vendor.userId). The
+ * transition is PENDING → CONFIRMED; any other state is rejected so
+ * double-taps on a stale Telegram message cannot advance further than the
+ * FSM intended.
+ */
+export async function confirmFulfillmentByUserId(
+  userId: string,
+  fulfillmentId: string,
+): Promise<
+  | { ok: true; fulfillmentId: string }
+  | { ok: false; code: 'NOT_FOUND' | 'INVALID_STATE'; message: string }
+> {
+  const fulfillment = await db.vendorFulfillment.findFirst({
+    where: { id: fulfillmentId, vendor: { userId } },
+    select: { id: true, status: true },
+  })
+  if (!fulfillment) {
+    return { ok: false, code: 'NOT_FOUND', message: 'Fulfillment no encontrado' }
+  }
+  if (fulfillment.status !== 'PENDING') {
+    return {
+      ok: false,
+      code: 'INVALID_STATE',
+      message: `No se puede confirmar desde el estado ${fulfillment.status}`,
+    }
+  }
+
+  await db.vendorFulfillment.update({
+    where: { id: fulfillmentId },
+    data: { status: 'CONFIRMED' },
+  })
+  safeRevalidatePath('/vendor/pedidos')
+  return { ok: true, fulfillmentId }
+}
+
 export async function getMyFulfillments(filter?: 'active' | 'urgent' | 'shipped' | 'all') {
   const { vendor } = await requireVendor()
 

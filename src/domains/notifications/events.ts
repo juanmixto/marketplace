@@ -12,6 +12,7 @@ export type NotificationEventName =
 export const orderCreatedPayloadSchema = z.object({
   orderId: z.string().min(1),
   vendorId: z.string().min(1),
+  fulfillmentId: z.string().min(1).optional(),
   customerName: z.string().min(1).max(120),
   totalCents: z.number().int().nonnegative(),
   currency: z.string().length(3),
@@ -21,6 +22,7 @@ export type OrderCreatedPayload = z.infer<typeof orderCreatedPayloadSchema>
 export const orderPendingPayloadSchema = z.object({
   orderId: z.string().min(1),
   vendorId: z.string().min(1),
+  fulfillmentId: z.string().min(1).optional(),
   reason: z.enum(['NEEDS_CONFIRMATION', 'NEEDS_SHIPMENT']),
 })
 export type OrderPendingPayload = z.infer<typeof orderPendingPayloadSchema>
