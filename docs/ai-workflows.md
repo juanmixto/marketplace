@@ -203,5 +203,5 @@ npm run test:e2e:smoke                     # playwright smoke
 
 - **…you're not sure which domain something belongs to.** Leave it where it is and ask. Arbitrary reshuffles create merge conflicts for other agents.
 - **…the rule says X but the code clearly needs Y.** Write the guideline update in the same PR and justify it. The guidelines are source of truth — but they *follow* code when a good reason exists.
-- **…the audit script is wrong.** Open a PR fixing [`scripts/audit-domain-contracts.mjs`](../scripts/audit-domain-contracts.mjs) with a test case (a fixture file under `test/contract/audit/` would be ideal). Don't silently widen the allowlist.
+- **…the audit script is wrong.** Open a PR fixing [`scripts/audit-domain-contracts.mjs`](../scripts/audit-domain-contracts.mjs) with a regression case (e.g. a fixture under `test/contracts/audit/` asserting the script's JSON output). Don't silently widen the allowlist.
 - **…you hit a merge conflict from another agent's work.** Prefer `git rebase origin/main` on a small branch over trying to untangle. Ask the user if stuck.
