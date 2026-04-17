@@ -42,7 +42,6 @@ interface ImageUploaderProps {
 export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) {
   const t = useT()
   const inputRef = useRef<HTMLInputElement>(null)
-  const cameraInputRef = useRef<HTMLInputElement>(null)
   const [dragActive, setDragActive] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [uploading, setUploading] = useState<UploadingItem[]>([])
@@ -119,15 +118,10 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
     onChange(urls.filter(u => u !== url))
   }
 
-  function openCameraPicker() {
-    if (dropZoneDisabled) return
-    cameraInputRef.current?.click()
-  }
-
   const dropZoneDisabled = disabled || remainingSlots === 0
 
   return (
-    <div className="space-y-3 min-w-0">
+    <div className="space-y-3">
       <label
         htmlFor="product-image-upload"
         onDragEnter={event => {
@@ -143,7 +137,7 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
           setDragActive(false)
         }}
         onDrop={handleDrop}
-        className={`flex w-full min-w-0 cursor-pointer flex-col gap-3 rounded-xl border border-dashed px-4 py-3 text-left transition sm:flex-row sm:items-center ${
+        className={`flex cursor-pointer items-center gap-3 rounded-xl border border-dashed px-4 py-3 text-left transition ${
           dropZoneDisabled
             ? 'cursor-not-allowed border-[var(--border)] bg-[var(--surface-raised)] opacity-60'
             : dragActive
@@ -151,18 +145,16 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
               : 'border-[var(--border)] bg-[var(--surface-raised)] hover:border-emerald-300 dark:hover:border-emerald-700'
         }`}
       >
-        <div className="flex min-w-0 flex-1 items-start gap-3">
-          <ArrowUpTrayIcon className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-          <div className="min-w-0 flex-1">
-            <p className="break-words text-sm font-medium text-[var(--foreground)] sm:truncate">
-              {t('vendor.upload.title')}
-            </p>
-            <p className="break-words text-xs text-[var(--muted)] sm:truncate">
-              {t('vendor.upload.subtitle')}
-            </p>
-          </div>
+        <ArrowUpTrayIcon className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-[var(--foreground)]">
+            {t('vendor.upload.title')}
+          </p>
+          <p className="truncate text-xs text-[var(--muted)]">
+            {t('vendor.upload.subtitle')}
+          </p>
         </div>
-        <span className="shrink-0 text-xs text-[var(--muted)] sm:self-center">
+        <span className="shrink-0 text-xs text-[var(--muted)]">
           {remainingSlots}/{MAX_IMAGES}
         </span>
         <input
@@ -181,33 +173,6 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
         />
       </label>
 
-      <div className="flex flex-col gap-2 sm:hidden">
-        <button
-          type="button"
-          onClick={openCameraPicker}
-          disabled={dropZoneDisabled}
-          className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] transition hover:bg-[var(--surface)] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {t('vendor.upload.takePhoto')}
-        </button>
-        <p className="text-xs text-[var(--muted)]">
-          {t('vendor.upload.takePhotoHint')}
-        </p>
-      </div>
-
-      <input
-        ref={cameraInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        disabled={dropZoneDisabled}
-        onChange={event => {
-          void acceptFiles(event.target.files)
-          if (cameraInputRef.current) cameraInputRef.current.value = ''
-        }}
-      />
-
       {error && (
         <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400">
           <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
@@ -216,7 +181,7 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
       )}
 
       {(urls.length > 0 || uploading.length > 0) && (
-        <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           {urls.map(url => (
             <div
               key={url}

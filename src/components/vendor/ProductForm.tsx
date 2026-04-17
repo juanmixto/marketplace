@@ -322,15 +322,13 @@ export function ProductForm({ categories, initialData, vendorLocation }: Product
   }
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="w-full max-w-full min-w-0 space-y-6 overflow-x-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-6"
-    >
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
       <div className="rounded-xl border border-sky-200 bg-sky-50/70 px-4 py-3 text-sm text-sky-800 dark:border-sky-900/50 dark:bg-sky-950/20 dark:text-sky-200">
         <p>🌐 {t('vendor.autoTranslateHint')}</p>
       </div>
 
-      <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <Input label={t('vendor.nameLabel')} error={errors.name?.message} {...register('name')} />
         </div>
@@ -516,7 +514,7 @@ export function ProductForm({ categories, initialData, vendorLocation }: Product
           </div>
         </div>
 
-        <div className="min-w-0 space-y-3 sm:col-span-2">
+        <div className="space-y-3 sm:col-span-2">
           <label className="block text-sm font-semibold text-[var(--foreground)]">
             📸 {t('vendor.images')}
           </label>

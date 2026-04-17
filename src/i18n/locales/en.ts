@@ -356,8 +356,6 @@ const en: Record<TranslationKeys, string> = {
   'vendor.upload.subtitle': 'Or click to choose files. JPG, PNG or WEBP, up to 5 MB.',
   'vendor.upload.slotsLeft': 'slots remaining',
   'vendor.upload.remove': 'Remove image',
-  'vendor.upload.takePhoto': 'Take photo',
-  'vendor.upload.takePhotoHint': 'This opens the mobile camera or device gallery.',
   'vendor.upload.unsupported': 'unsupported file type',
   'vendor.upload.tooLarge': 'file too large (max 5 MB)',
   'vendor.upload.error': 'Could not upload the image',
