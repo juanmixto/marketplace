@@ -7,9 +7,18 @@
  * admin UI in the future without shelling out.
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyDelegate = { findMany: (args?: any) => Promise<any>; count: (args?: any) => Promise<number>; update: (args: any) => Promise<any> }
-export type WebhookDlqOpsClient = { webhookDeadLetter: AnyDelegate }
+/**
+ * Structural type for the subset of `PrismaClient['webhookDeadLetter']`
+ * we actually use. We keep it loose (`unknown`) rather than binding to
+ * the Prisma generated delegate so unit tests can mock it with a plain
+ * object without reimplementing the full Prisma surface.
+ */
+type WebhookDlqDelegate = {
+  findMany: (args?: { where?: Record<string, unknown>; orderBy?: Record<string, unknown>; take?: number; select?: Record<string, unknown> }) => Promise<unknown[]>
+  count: (args?: { where?: Record<string, unknown> }) => Promise<number>
+  update: (args: { where: { id: string }; data: Record<string, unknown> }) => Promise<unknown>
+}
+export type WebhookDlqOpsClient = { webhookDeadLetter: WebhookDlqDelegate }
 
 export interface DlqListOptions {
   limit?: number
