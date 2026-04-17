@@ -401,6 +401,34 @@ const en: Record<TranslationKeys, string> = {
   'vendor.nav.reviews': 'Reviews',
   'vendor.nav.settlements': 'Settlements',
   'vendor.nav.profile': 'My profile',
+  'vendor.nav.telegram': 'Telegram',
+  'vendor.nav.notifications': 'Notifications',
+
+  // Vendor – telegram settings
+  'vendor.telegram.title': 'Telegram',
+  'vendor.telegram.subtitle': 'Get instant alerts for new orders and reply with one tap.',
+  'vendor.telegram.comingSoon': 'Coming soon. You will be able to receive order alerts on Telegram.',
+  'vendor.telegram.connected': 'Connected',
+  'vendor.telegram.connectedAs': 'Connected as @{username}',
+  'vendor.telegram.disconnect': 'Disconnect',
+  'vendor.telegram.disconnecting': 'Disconnecting…',
+  'vendor.telegram.connect': 'Connect Telegram',
+  'vendor.telegram.connecting': 'Generating link…',
+  'vendor.telegram.connectHint': 'We will open the chat with @{bot}. Tap "Start" to finish linking.',
+  'vendor.telegram.linkError': 'Could not generate the link.',
+  'vendor.telegram.disconnectError': 'Could not disconnect.',
+
+  // Vendor – notification preferences
+  'vendor.notifications.title': 'Notifications',
+  'vendor.notifications.subtitle': 'Choose which alerts you want on each channel.',
+  'vendor.notifications.comingSoon': 'Coming soon.',
+  'vendor.notifications.needsLink': 'Connect Telegram from Settings → Telegram to start receiving alerts.',
+  'vendor.notifications.event.ORDER_CREATED': 'New orders',
+  'vendor.notifications.event.ORDER_PENDING': 'Orders that need action',
+  'vendor.notifications.event.MESSAGE_RECEIVED': 'Customer messages',
+  'vendor.notifications.enabled': 'Enabled',
+  'vendor.notifications.disabled': 'Disabled',
+  'vendor.notifications.saveError': 'Could not save.',
 
   // Vendor – dashboard
   'vendor.dashboard.pageTitle': 'Dashboard',

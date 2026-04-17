@@ -36,6 +36,7 @@ const DOMAINS = [
   'finance',
   'impersonation',
   'incidents',
+  'notifications',
   'orders',
   'payments',
   'portals',

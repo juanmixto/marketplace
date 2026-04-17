@@ -399,6 +399,34 @@ const es = {
   'vendor.nav.reviews': 'Valoraciones',
   'vendor.nav.settlements': 'Liquidaciones',
   'vendor.nav.profile': 'Mi perfil',
+  'vendor.nav.telegram': 'Bot Telegram',
+  'vendor.nav.notifications': 'Notificaciones',
+
+  // Vendor – telegram settings
+  'vendor.telegram.title': 'Telegram',
+  'vendor.telegram.subtitle': 'Recibe avisos de pedidos nuevos y responde con un toque.',
+  'vendor.telegram.comingSoon': 'Próximamente. Podrás recibir avisos de pedidos en tu Telegram.',
+  'vendor.telegram.connected': 'Conectado',
+  'vendor.telegram.connectedAs': 'Conectado como @{username}',
+  'vendor.telegram.disconnect': 'Desvincular',
+  'vendor.telegram.disconnecting': 'Desvinculando…',
+  'vendor.telegram.connect': 'Conectar Telegram',
+  'vendor.telegram.connecting': 'Generando enlace…',
+  'vendor.telegram.connectHint': 'Te llevaremos al chat con el bot @{bot}. Toca «Start» para completar la vinculación.',
+  'vendor.telegram.linkError': 'No se pudo generar el enlace.',
+  'vendor.telegram.disconnectError': 'No se pudo desvincular.',
+
+  // Vendor – notification preferences
+  'vendor.notifications.title': 'Notificaciones',
+  'vendor.notifications.subtitle': 'Elige qué avisos quieres recibir por cada canal.',
+  'vendor.notifications.comingSoon': 'Próximamente.',
+  'vendor.notifications.needsLink': 'Conecta Telegram desde Ajustes → Telegram para recibir estos avisos.',
+  'vendor.notifications.event.ORDER_CREATED': 'Nuevos pedidos',
+  'vendor.notifications.event.ORDER_PENDING': 'Pedidos que requieren acción',
+  'vendor.notifications.event.MESSAGE_RECEIVED': 'Mensajes de clientes',
+  'vendor.notifications.enabled': 'Activado',
+  'vendor.notifications.disabled': 'Desactivado',
+  'vendor.notifications.saveError': 'No se pudo guardar.',
 
   // Vendor – dashboard
   'vendor.dashboard.pageTitle': 'Panel',
