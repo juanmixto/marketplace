@@ -50,11 +50,29 @@ export type CreateCheckoutOrderResult =
     orderId: string
     clientSecret: string
     orderNumber: string
+    // Phase 4c (#410): true when the same checkoutAttemptId already
+    // produced an Order. The client-side redirect to the confirmation
+    // page uses this to show "your order is already placed" instead
+    // of "creating order…" which would be misleading on a retry.
+    replayed?: boolean
   }
   | {
     ok: false
     error: string
   }
+
+/**
+ * Second return shape of createOrder: includes `replayed: true` when
+ * the server short-circuits because an Order with the submitted
+ * `checkoutAttemptId` already exists. See docs/checkout-dedupe.md for
+ * the full UX matrix.
+ */
+export interface CreateOrderResult {
+  orderId: string
+  clientSecret: string
+  orderNumber: string
+  replayed: boolean
+}
 
 function roundCurrency2(value: number): number {
   return Math.round(value * 100) / 100
@@ -63,6 +81,23 @@ function roundCurrency2(value: number): number {
 function isMissingShippingAddressSnapshotColumnError(error: unknown) {
   return error instanceof Error
     && /P2022|column .*does not exist|shippingAddressSnapshot/i.test(error.message)
+}
+
+/**
+ * Detects Prisma's P2002 unique-constraint error on
+ * `Order.checkoutAttemptId`. Used by `createOrder` to collapse a
+ * concurrent double-submit with the same attempt id into a single
+ * Order — the loser of the race re-reads the winner and returns it
+ * with `replayed: true`.
+ */
+function isCheckoutAttemptIdCollisionError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  // The Prisma message for a UNIQUE violation includes the field name
+  // in one of two shapes depending on client version. Both are safe
+  // to match — we also require P2002 to be present so we don't confuse
+  // this with any other constraint that happens to mention the column.
+  if (!/P2002|Unique constraint/i.test(error.message)) return false
+  return /checkoutAttemptId|Order_checkoutAttemptId_key/i.test(error.message)
 }
 
 function getCheckoutErrorMessage(error: unknown) {
@@ -121,8 +156,8 @@ function getCheckoutErrorMessage(error: unknown) {
 export async function createOrder(
   items: CartItemInput[],
   formData: CheckoutFormData,
-  options: { promotionCode?: string | null } = {}
-): Promise<{ orderId: string; clientSecret: string; orderNumber: string }> {
+  options: { promotionCode?: string | null; checkoutAttemptId?: string | null } = {}
+): Promise<CreateOrderResult> {
   const session = await getActionSession()
   if (!session) redirect('/login')
   const sessionUserId = session.user.id
@@ -130,9 +165,57 @@ export async function createOrder(
   // Correlation ID threads through every log emitted by this checkout
   // attempt. Support can grep a single ID and reconstruct the entire
   // path: address resolution, stock checks, transaction boundary,
-  // payment intent creation, mock confirmation. When #309 ships a
-  // persistent checkoutAttemptId, prefer that.
+  // payment intent creation, mock confirmation. When a
+  // checkoutAttemptId is provided, both IDs are logged so each line
+  // can be mapped back to either identifier.
   const correlationId = generateCorrelationId()
+  const checkoutAttemptId = options.checkoutAttemptId ?? null
+
+  // Pre-check dedupe: if this attempt id already produced an Order,
+  // short-circuit and return the existing row. Covers the "network
+  // dropped before the response" retry case. The UNIQUE constraint
+  // on Order.checkoutAttemptId is the authoritative guard against a
+  // concurrent race — see the catch around the transaction below.
+  if (checkoutAttemptId) {
+    const existing = await db.order.findUnique({
+      where: { checkoutAttemptId },
+      select: {
+        id: true,
+        orderNumber: true,
+        customerId: true,
+      },
+    })
+    if (existing) {
+      // Defence: if a different user somehow presents another user's
+      // attempt id, do NOT leak the Order. Return a generic error.
+      if (existing.customerId !== sessionUserId) {
+        logger.error('checkout.attempt_id_cross_user', {
+          correlationId,
+          checkoutAttemptId,
+          userId: sessionUserId,
+          existingOrderOwner: existing.customerId,
+        })
+        throw new Error('Sesión de checkout inválida. Recarga la página.')
+      }
+      logger.info('checkout.replayed', {
+        correlationId,
+        checkoutAttemptId,
+        userId: sessionUserId,
+        orderId: existing.id,
+        orderNumber: existing.orderNumber,
+      })
+      // Empty clientSecret signals "no fresh PaymentIntent to act on".
+      // The UX matrix (docs/checkout-dedupe.md) says: redirect to the
+      // order confirmation page instead of trying to re-submit payment.
+      return {
+        orderId: existing.id,
+        orderNumber: existing.orderNumber,
+        clientSecret: '',
+        replayed: true,
+      }
+    }
+  }
+
   logger.info('checkout.start', {
     correlationId,
     userId: sessionUserId,
@@ -591,6 +674,7 @@ export async function createOrder(
           orderNumber: generateOrderNumber(),
           customerId: sessionUserId,
           addressId: addressId ?? null,
+          ...(checkoutAttemptId ? { checkoutAttemptId } : {}),
           ...(includeShippingAddressSnapshot ? { shippingAddressSnapshot } : {}),
           subtotal,
           discountTotal,
@@ -634,6 +718,41 @@ export async function createOrder(
   try {
     order = await createOrderRecord(true)
   } catch (error) {
+    // Concurrent double-submit with the same checkoutAttemptId: the
+    // UNIQUE constraint on Order.checkoutAttemptId tripped. Re-read
+    // the winning row and return it with `replayed: true`. This is the
+    // race path — the pre-check above already handled the sequential
+    // retry case.
+    if (checkoutAttemptId && isCheckoutAttemptIdCollisionError(error)) {
+      const winner = await db.order.findUnique({
+        where: { checkoutAttemptId },
+        select: {
+          id: true,
+          orderNumber: true,
+          customerId: true,
+        },
+      })
+      if (winner && winner.customerId === sessionUserId) {
+        logger.info('checkout.concurrent_replayed', {
+          correlationId,
+          checkoutAttemptId,
+          userId: sessionUserId,
+          orderId: winner.id,
+          orderNumber: winner.orderNumber,
+        })
+        return {
+          orderId: winner.id,
+          orderNumber: winner.orderNumber,
+          clientSecret: '',
+          replayed: true,
+        }
+      }
+      // Winner row unreadable or cross-user — rethrow the original error
+      // so the outer catch in createCheckoutOrder surfaces a clean
+      // failure rather than silently dropping the attempt.
+      throw error
+    }
+
     if (!isMissingShippingAddressSnapshotColumnError(error)) {
       throw error
     }
@@ -745,13 +864,14 @@ export async function createOrder(
     orderId: order.id,
     clientSecret: payment.clientSecret,
     orderNumber: order.orderNumber,
+    replayed: false,
   }
 }
 
 export async function createCheckoutOrder(
   items: CartItemInput[],
   formData: CheckoutFormData,
-  options: { promotionCode?: string | null } = {}
+  options: { promotionCode?: string | null; checkoutAttemptId?: string | null } = {}
 ): Promise<CreateCheckoutOrderResult> {
   // Wrapper correlation id covers the failure path (where createOrder
   // threw before its own correlationId could be surfaced) plus the
@@ -761,7 +881,13 @@ export async function createCheckoutOrder(
   try {
     const created = await createOrder(items, formData, options)
 
-    if (created.clientSecret.startsWith('mock_')) {
+    // On replay we deliberately skip the mock-confirm side-effect: the
+    // first caller already ran confirmOrder() and the Order is either
+    // already PAID or legitimately still PENDING. Re-confirming would
+    // either be a no-op (idempotent by providerRef) or, if the first
+    // confirm failed, the retry path is the webhook/manual path — not
+    // a fresh mock confirm.
+    if (!created.replayed && created.clientSecret.startsWith('mock_')) {
       try {
         await confirmOrder(created.orderId, created.clientSecret.replace('_secret', ''))
       } catch (error) {
@@ -776,7 +902,10 @@ export async function createCheckoutOrder(
 
     return {
       ok: true,
-      ...created,
+      orderId: created.orderId,
+      clientSecret: created.clientSecret,
+      orderNumber: created.orderNumber,
+      ...(created.replayed ? { replayed: true } : {}),
     }
   } catch (error) {
     if (isRedirectError(error)) {

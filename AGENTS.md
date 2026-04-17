@@ -12,6 +12,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Git workflow (trunk-based, branch prefixes, hygiene)** — see [`docs/git-workflow.md`](docs/git-workflow.md). `main` is the only long-lived branch; no `integration/*`, `develop`, `next`. Run `scripts/git-hygiene.sh` periodically.
 - **PWA (service worker, manifest, install prompts, offline fallback, cache allow-list)** — see [`docs/pwa.md`](docs/pwa.md). Required reading before touching `public/sw.js`, `src/app/manifest.ts`, or anything under `src/components/pwa/`. The SW has a strict denylist (`/api`, `/admin`, `/vendor`, `/checkout`, `/auth`) that must never be weakened.
 - **Payment incidents runbook (checkout + webhook log events, investigation recipes)** — see [`docs/runbooks/payment-incidents.md`](docs/runbooks/payment-incidents.md). Read before renaming any `checkout.*` or `stripe.webhook.*` log scope; oncall queries depend on them.
+- **Checkout idempotency (`checkoutAttemptId`, double-submit dedupe, replay UX)** — see [`docs/checkout-dedupe.md`](docs/checkout-dedupe.md). Required reading before changing `createOrder` / `createCheckoutOrder` signatures or the `Order.checkoutAttemptId` UNIQUE constraint.
 
 ## Concurrent-agent safety
 
