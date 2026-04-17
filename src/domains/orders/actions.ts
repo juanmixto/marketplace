@@ -40,6 +40,8 @@ import {
 } from '@/domains/promotions'
 // eslint-disable-next-line no-restricted-imports -- loader is Prisma-backed and stays out of the promotions barrel
 import { countBuyerRedemptions, loadEvaluablePromotions } from '@/domains/promotions/loader'
+// eslint-disable-next-line no-restricted-imports -- dispatcher is intentionally server-only, excluded from notifications barrel
+import { emit as emitNotification } from '@/domains/notifications/dispatcher'
 
 export type { CartItemInput } from '@/shared/types/cart'
 import type { CartItemInput } from '@/shared/types/cart'
@@ -859,6 +861,22 @@ export async function createOrder(
     providerRef: payment.id,
     grandTotalCents: Math.round(grandTotal * 100),
   })
+
+  const customerName = session.user.name?.trim() || 'Cliente'
+  for (const vendorId of vendorIds) {
+    const vendorTotalCents = Math.round(
+      lines
+        .filter(l => l.vendorId === vendorId)
+        .reduce((sum, l) => sum + l.unitPrice * l.quantity, 0) * 100,
+    )
+    emitNotification('order.created', {
+      orderId: order.id,
+      vendorId,
+      customerName,
+      totalCents: vendorTotalCents,
+      currency: 'EUR',
+    })
+  }
 
   return {
     orderId: order.id,

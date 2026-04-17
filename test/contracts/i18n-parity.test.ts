@@ -37,6 +37,7 @@ const INTENTIONAL_COPY_KEYS = new Set<string>([
   'vendor.stock',                 // "Stock" reads the same in ES and EN
   'vendor.productForm.variantsColStock', // "Stock" reads the same in ES and EN (variant table column)
   'vendor.profileForm.ibanLabel', // "IBAN" is an untranslatable acronym
+  'vendor.telegram.title',        // brand name, same in both locales
 ])
 
 /**
