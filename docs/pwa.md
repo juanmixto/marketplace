@@ -73,7 +73,23 @@ The SW is versioned via `SW_VERSION` in `public/sw.js`. The value is **auto-gene
 |--------------------|-------|--------------------------------------------|-------------------------|
 | `mp-offline-v1`    | 2     | `/offline` only                            | Precache on install     |
 | `mp-static-v1`     | 3     | `/_next/static/*`, icons, favicons, OG     | Stale-while-revalidate, LRU 60 |
+| `mp-images-v1`     | 4     | `/_next/image` + `/uploads/*`              | Stale-while-revalidate, LRU 200 |
 | `mp-prefetch-v1`   | Fase3 | `/api/catalog/featured?limit=12` JSON      | Replaced on periodic sync |
+
+### Navigation preload
+
+The `activate` handler calls `registration.navigationPreload.enable()` on
+supported browsers. This lets the browser kick off the page fetch in
+parallel with SW boot instead of waiting for the SW to wake up, which
+saves roughly 50–300 ms on cold navigations. `handleNavigation` prefers
+the preload response when available and falls back to `fetch` otherwise.
+
+### HTTP-layer caching
+
+- `/_next/static/*` → `public, max-age=31536000, immutable` (content-hashed)
+- `/_next/image` → `public, max-age=86400, stale-while-revalidate=604800`
+- `/sw.js` → `no-store` (deploys must never be pinned)
+- `/manifest.webmanifest` → `public, max-age=0, must-revalidate`
 
 On `activate` the SW deletes any cache not in the current allow-list. That's
 how old versions get pruned on each deploy.
@@ -322,7 +338,7 @@ Run this after any change to the PWA surface.
 - [ ] `npm run build && npm start`
 - [ ] DevTools › Application › Manifest: zero errors, 3 icons + 3 shortcuts + 2 screenshots
 - [ ] Service Workers: active, scope `/`, version matches `SW_VERSION`
-- [ ] Cache Storage: `mp-offline-v1`, `mp-static-v1` present; `mp-prefetch-v1` appears after periodic sync
+- [ ] Cache Storage: `mp-offline-v1`, `mp-static-v1` present; `mp-images-v1` fills as you browse product images; `mp-prefetch-v1` appears after periodic sync
 - [ ] Lighthouse › PWA audit › "Installable": ✅
 - [ ] Lighthouse › Performance on repeat visit: ≥ first-visit score
 - [ ] Install via URL bar icon → app launches in its own window in `standalone` mode

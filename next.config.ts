@@ -11,6 +11,16 @@ const NO_STORE_CACHE_HEADER = {
   value: 'no-store, no-cache, must-revalidate, proxy-revalidate',
 }
 
+// Next emits content-hashed filenames under /_next/static (e.g. the
+// JS bundle filename includes a build hash). That means a given URL
+// never changes meaning — perfect candidate for long-term immutable
+// caching. `no-store` here was over-defensive and forced every repeat
+// visitor to revalidate on each request.
+const STATIC_IMMUTABLE_CACHE_HEADER = {
+  key: 'Cache-Control',
+  value: 'public, max-age=31536000, immutable',
+}
+
 export function buildHeaderRules(isDevelopment = process.env.NODE_ENV === 'development'): HeaderRule[] {
   const rules: HeaderRule[] = [
     {
@@ -36,11 +46,17 @@ export function buildHeaderRules(isDevelopment = process.env.NODE_ENV === 'devel
     rules.unshift(
       {
         source: '/_next/static/:path*',
-        headers: [NO_STORE_CACHE_HEADER],
+        headers: [STATIC_IMMUTABLE_CACHE_HEADER],
       },
       {
+        // Optimized images — deterministic per source+query, safe to
+        // cache for a day at the HTTP layer. The SW layer on top (see
+        // public/sw.template.js → mp-images-v1) gives repeat visits a
+        // disk-hit instead of a network round trip.
         source: '/_next/image',
-        headers: [NO_STORE_CACHE_HEADER],
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' },
+        ],
       },
     )
   }
