@@ -74,6 +74,10 @@ const PUBLIC_API_ROUTES: ReadonlyArray<{ path: string; why: string }> = [
     path: 'src/app/api/incidents/[id]/messages/route.ts',
     why: 'Thin wrapper — delegates to postIncidentMessage() which enforces ownership via getActionSession.',
   },
+  {
+    path: 'src/app/api/healthcheck/route.ts',
+    why: 'Synthetic health probe. Public by design — external monitors and the marketplace-pwa-server doctor script hit it without credentials. Returns only boolean + model name + error message; no user data.',
+  },
 ]
 
 const SESSION_KEYWORDS = [
