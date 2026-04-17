@@ -2,13 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { openIncident } from '@/domains/incidents/actions'
 import { IncidentAuthError, IncidentValidationError } from '@/domains/incidents/errors'
-import { IncidentType } from '@/generated/prisma/enums'
-
-const bodySchema = z.object({
-  orderId: z.string().min(1),
-  type: z.nativeEnum(IncidentType),
-  description: z.string().min(10).max(5000),
-})
+import { openIncidentBodySchema as bodySchema } from '@/shared/types/incidents'
 
 /**
  * POST /api/incidents — buyer opens an incident on one of their orders.
