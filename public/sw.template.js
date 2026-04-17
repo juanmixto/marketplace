@@ -63,15 +63,35 @@ function isCacheableStatic(url) {
   return false
 }
 
+// Cross-origin hosts whose images we allow into the SWR cache. Must match
+// the remotePatterns allow-list in next.config.ts so we never cache from
+// a host the app wouldn't otherwise render.
+const CDN_IMAGE_HOST_SUFFIXES = [
+  'images.unsplash.com',
+  '.cloudinary.com',
+  '.uploadthing.com',
+  '.public.blob.vercel-storage.com',
+]
+
+function isAllowedImageHost(hostname) {
+  return CDN_IMAGE_HOST_SUFFIXES.some((suffix) =>
+    suffix.startsWith('.') ? hostname.endsWith(suffix) : hostname === suffix
+  )
+}
+
 function isCacheableImage(url) {
-  if (url.origin !== self.location.origin) return false
-  if (isProtected(url)) return false
-  const path = url.pathname
-  // Next's image optimizer — all product/CDN images flow through here.
-  if (path === '/_next/image' || path.startsWith('/_next/image?')) return true
-  // Locally-hosted uploads (LocalUploader dev/self-hosted path).
-  if (path.startsWith('/uploads/')) return true
-  return false
+  if (url.origin === self.location.origin) {
+    if (isProtected(url)) return false
+    const path = url.pathname
+    // Next's image optimizer — most product/CDN images flow through here.
+    if (path === '/_next/image' || path.startsWith('/_next/image?')) return true
+    // Locally-hosted uploads (LocalUploader dev/self-hosted path).
+    if (path.startsWith('/uploads/')) return true
+    return false
+  }
+  // Cross-origin: only the whitelisted CDN hosts. Responses will be
+  // opaque (no CORS), but they're still cacheable as raw bytes.
+  return isAllowedImageHost(url.hostname)
 }
 
 async function trimCache(cacheName, maxEntries) {
@@ -173,7 +193,13 @@ function handleImageAsset(event) {
       const cached = await cache.match(event.request)
       const networkPromise = fetch(event.request)
         .then(async (response) => {
-          if (response && response.ok && response.type === 'basic') {
+          if (!response) return response
+          // Same-origin → basic+ok. Cross-origin no-CORS → opaque
+          // (status 0). Cache both — opaque bytes are fine for <img>.
+          const cacheable =
+            (response.ok && response.type === 'basic') ||
+            response.type === 'opaque'
+          if (cacheable) {
             await cache.put(event.request, response.clone())
             event.waitUntil(trimCache(IMAGE_CACHE, MAX_IMAGE_ENTRIES))
           }
