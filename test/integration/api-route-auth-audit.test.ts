@@ -63,6 +63,10 @@ const PUBLIC_API_ROUTES: ReadonlyArray<{ path: string; why: string }> = [
     why: 'Sendcloud webhook. Authenticates via HMAC signature, not a session.',
   },
   {
+    path: 'src/app/api/telegram/webhook/route.ts',
+    why: 'Telegram webhook. Authenticates via URL + header secret (constant-time compare), not a session. Returns 404 when TELEGRAM_BOT_TOKEN is unset.',
+  },
+  {
     path: 'src/app/api/incidents/route.ts',
     why: 'Thin wrapper — delegates every mutation to openIncident() which calls getActionSession internally. Route file itself has no auth keyword.',
   },
