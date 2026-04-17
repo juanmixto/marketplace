@@ -29,27 +29,7 @@ async function requireVendor() {
 
 // ─── Product schemas ──────────────────────────────────────────────────────────
 
-const productSchema = z.object({
-  name: z.string().min(3, 'Mínimo 3 caracteres').max(100),
-  description: z.string().max(2000).optional(),
-  categoryId: z.string().optional(),
-  basePrice: z.coerce.number().positive('Precio debe ser positivo'),
-  compareAtPrice: z.coerce.number().positive().optional().nullable(),
-  taxRate: z.coerce.number().refine(v => [0.04, 0.10, 0.21].includes(v), 'IVA inválido'),
-  unit: z.string().min(1).max(20),
-  stock: z.coerce.number().int().min(0),
-  trackStock: z.coerce.boolean(),
-  weightGrams: z.coerce.number().int().positive().max(50000).optional().nullable(),
-  certifications: z.array(z.string()).default([]),
-  originRegion: z.string().max(100).optional(),
-  images: z
-    .array(z.string().refine(isAllowedImageUrl, 'URL de imagen no permitida'))
-    .default([]),
-  expiresAt: z.string().date().optional().nullable(),
-  status: z.enum(['DRAFT', 'PENDING_REVIEW']).default('DRAFT'),
-})
-
-type ProductInput = z.infer<typeof productSchema>
+import { productSchema, type ProductInput } from '@/shared/types/products'
 
 // ─── CRUD productos ───────────────────────────────────────────────────────────
 

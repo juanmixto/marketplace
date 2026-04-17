@@ -33,21 +33,25 @@ async function requireVendor() {
   return { session, vendor }
 }
 
-const SUBSCRIPTION_CADENCES = ['WEEKLY', 'BIWEEKLY', 'MONTHLY'] as const
+import {
+  subscriptionPlanSchema,
+  SUBSCRIPTION_CADENCES,
+} from '@/shared/types/subscriptions'
+
+// `'use server'` files cannot expose non-async exports — Next.js RSC
+// strips them. We therefore (a) inline the input type here and (b)
+// avoid `import type {...}` from a non-`'use server'` module above,
+// because Turbopack's RSC scan still keys on the named import even
+// when the `type` keyword erases it. Cross-module type consumers
+// should import `SubscriptionPlanInput` directly from
+// `@/shared/types/subscriptions`.
+type SubscriptionPlanInput = z.infer<typeof subscriptionPlanSchema>
 
 function cadenceLabel(cadence: (typeof SUBSCRIPTION_CADENCES)[number]): string {
   if (cadence === 'WEEKLY') return 'semanal'
   if (cadence === 'BIWEEKLY') return 'quincenal'
   return 'mensual'
 }
-
-const subscriptionPlanSchema = z.object({
-  productId: z.string().min(1, 'Selecciona un producto'),
-  cadence: z.enum(SUBSCRIPTION_CADENCES),
-  cutoffDayOfWeek: z.coerce.number().int().min(0).max(6),
-})
-
-export type SubscriptionPlanInput = z.infer<typeof subscriptionPlanSchema>
 
 export async function createSubscriptionPlan(input: SubscriptionPlanInput) {
   const { vendor } = await requireVendor()
