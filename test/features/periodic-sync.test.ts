@@ -19,7 +19,7 @@ test('periodic sync tag is consistent between SW comment and PwaRegister', async
   const fs = await import('node:fs')
   const path = await import('node:path')
 
-  const swPath = path.join(process.cwd(), 'public/sw.js')
+  const swPath = path.join(process.cwd(), 'public/sw.template.js')
   const swContent = fs.readFileSync(swPath, 'utf-8')
 
   // SW defines the tag as a constant.
@@ -40,7 +40,7 @@ test('SW periodic sync handler references navigator.connection.saveData', async 
   const fs = await import('node:fs')
   const path = await import('node:path')
 
-  const swPath = path.join(process.cwd(), 'public/sw.js')
+  const swPath = path.join(process.cwd(), 'public/sw.template.js')
   const swContent = fs.readFileSync(swPath, 'utf-8')
 
   assert.ok(swContent.includes('conn.saveData'), 'SW must respect saveData flag')
@@ -60,14 +60,17 @@ test('featured API route file exists', async () => {
 
 // ── SW version bumped ────────────────────────────────────────────────────
 
-test('SW version is mp-sw-v4 after periodic sync addition', async () => {
+test('SW template uses the __BUILD_ID__ placeholder for per-deploy versioning', async () => {
   const fs = await import('node:fs')
   const path = await import('node:path')
 
-  const swPath = path.join(process.cwd(), 'public/sw.js')
+  const swPath = path.join(process.cwd(), 'public/sw.template.js')
   const swContent = fs.readFileSync(swPath, 'utf-8')
 
-  assert.ok(swContent.includes("'mp-sw-v4'"), 'SW version must be bumped to v4')
+  assert.ok(
+    swContent.includes("'__BUILD_ID__'"),
+    'SW template must keep __BUILD_ID__ placeholder — scripts/build-sw.mjs substitutes it at build time'
+  )
 })
 
 // ── Prefetch cache name matches SW ───────────────────────────────────────
@@ -76,7 +79,7 @@ test('prefetch cache name is consistent between SW and prefetch-cache module', a
   const fs = await import('node:fs')
   const path = await import('node:path')
 
-  const swPath = path.join(process.cwd(), 'public/sw.js')
+  const swPath = path.join(process.cwd(), 'public/sw.template.js')
   const swContent = fs.readFileSync(swPath, 'utf-8')
 
   const modulePath = path.join(process.cwd(), 'src/lib/pwa/prefetch-cache.ts')
@@ -92,7 +95,7 @@ test('SW activate allows the prefetch cache', async () => {
   const fs = await import('node:fs')
   const path = await import('node:path')
 
-  const swPath = path.join(process.cwd(), 'public/sw.js')
+  const swPath = path.join(process.cwd(), 'public/sw.template.js')
   const swContent = fs.readFileSync(swPath, 'utf-8')
 
   // The allowed set in activate must include the prefetch cache.
