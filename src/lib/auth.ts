@@ -5,7 +5,8 @@ import Credentials from 'next-auth/providers/credentials'
 import { db } from '@/lib/db'
 import { authConfig } from './auth-config'
 import { applyNormalizedAuthHostEnv } from './auth-host'
-import { authorizeCredentials } from '@/domains/auth'
+// eslint-disable-next-line no-restricted-imports -- credentials.ts is Prisma-backed and stays out of the auth barrel; src/lib/auth.ts is the only consumer
+import { authorizeCredentials } from '@/domains/auth/credentials'
 
 applyNormalizedAuthHostEnv(process.env)
 

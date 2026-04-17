@@ -4,7 +4,7 @@ import {
   getPrefixForProvince,
   isValidPhone,
   postalCodeMatchesProvince,
-} from '@/domains/shipping/spain-provinces'
+} from '@/domains/shipping'
 
 const VALID_PROVINCE_NAMES = new Set(Object.values(SPAIN_PROVINCE_BY_PREFIX))
 

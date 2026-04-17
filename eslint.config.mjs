@@ -1,39 +1,92 @@
 import nextCoreWebVitals from 'eslint-config-next/core-web-vitals'
 import tseslint from 'typescript-eslint'
 
-// Phase 4 of the contract-hardening plan — minimum viable enforcement.
+// Phase 11 of the contract-hardening plan.
 //
-// Original goal: block deep cross-domain imports app-wide so each
-// domain's barrel (src/domains/<X>/index.ts) is the only public surface.
-// Reality: barrels created in Phase 3 re-export server-only modules
-// (Prisma-touching queries, services), and Next.js's module graph
-// follows those re-exports into client components — even when the
-// client only needs a type. Enforcing barrel-only would require first
-// splitting every domain barrel into server vs client halves
-// (`index.ts` vs `index.client.ts`), which is a much larger refactor.
+// History: Phase 4 attempted app-wide barrel-only enforcement, but
+// the barrels created in Phase 3 re-exported server-only modules
+// (queries, services without 'use server') that Next.js then bundled
+// into client components, breaking the build. Phase 4 was
+// scope-reduced to enforce only `src/lib/` -> `@/domains/<X>` edges.
 //
-// What this PR ships instead:
-// 1. The eslint-plugin-boundaries dep is installed for future use.
-// 2. The barrel-only rule is enforced ONLY for src/lib/ → src/domains/
-//    edges, where the importer is unambiguously server-side.
-// 3. The migration helper at scripts/migrate-cross-domain-imports.mjs
-//    is kept in-tree for the future enforcement PR.
-// 4. Stripe's eager `new Stripe()` call moved to a lazy getter (it
-//    was breaking any test that loaded the vendors barrel without
-//    STRIPE_SECRET_KEY).
+// Phase 11 closes the loop: each domain barrel was trimmed to only
+// re-export client-safe modules (types, schemas, pure utilities, and
+// 'use server' actions which Next.js handles as RPC stubs even from
+// client callers). With trimmed barrels, the build is safe regardless
+// of who imports from the barrel — server or client.
 //
-// Server-only module hygiene inside src/domains/<X>/ still relies on
-// PR review until the barrel split lands.
+// Enforcement therefore extends to:
+//   - src/lib/   (kept from Phase 4)
+//   - src/domains/<X>/ -> src/domains/<Y>/  (cross-domain edges)
+//
+// src/app/ and src/components/ remain unrestricted: barrels are
+// safe but pages and components freely deep-import for ergonomics.
+//
+// The two 'use client' Zustand stores are explicit allowlist exceptions.
+
+const DOMAINS = [
+  'admin',
+  'admin-stats',
+  'analytics',
+  'auth',
+  'catalog',
+  'finance',
+  'impersonation',
+  'incidents',
+  'orders',
+  'payments',
+  'portals',
+  'promotions',
+  'push-notifications',
+  'reviews',
+  'settlements',
+  'shipping',
+  'subscriptions',
+  'vendors',
+]
+
+// 'use client' Zustand stores intentionally sit outside the barrels
+// (the barrel is server-safe by construction). Consumers must keep
+// importing them by their full path.
+const ALLOWED_CLIENT_STORE_DEEP_IMPORTS = [
+  '@/domains/orders/cart-store',
+  '@/domains/catalog/favorites-store',
+]
 
 const crossDomainRestriction = {
   patterns: [
     {
-      group: ['@/domains/*/*'],
+      group: [
+        '@/domains/*/*',
+        ...ALLOWED_CLIENT_STORE_DEEP_IMPORTS.map(p => `!${p}`),
+      ],
       message:
-        'Inside src/lib/, cross-domain imports must go through the barrel: @/domains/<X> instead of reaching into the internals.',
+        'Cross-domain imports must go through the barrel: @/domains/<X> instead of reaching into the internals.',
     },
   ],
 }
+
+const perDomainOverrides = DOMAINS.map(name => ({
+  files: [`src/domains/${name}/**/*.{ts,tsx}`],
+  rules: {
+    'no-restricted-imports': [
+      'error',
+      {
+        patterns: [
+          {
+            group: [
+              '@/domains/*/*',
+              `!@/domains/${name}/*`,
+              `!@/domains/${name}/**`,
+              ...ALLOWED_CLIENT_STORE_DEEP_IMPORTS.map(p => `!${p}`),
+            ],
+            message: `Cross-domain imports must go through the barrel: @/domains/<X>. (Same-domain deep imports of @/domains/${name}/* are still allowed.)`,
+          },
+        ],
+      },
+    ],
+  },
+}))
 
 export default [
   {
@@ -89,15 +142,13 @@ export default [
       }],
     },
   },
-  // The barrel-only rule lives here on src/lib/ only. See the file
-  // header for why src/domains/, src/app/, src/components/ aren't
-  // included yet.
   {
     files: ['src/lib/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': ['error', crossDomainRestriction],
     },
   },
+  ...perDomainOverrides,
   {
     files: ['test/**/*.{ts,tsx}', 'e2e/**/*.{ts,tsx}', 'scripts/**/*.{ts,tsx,mjs,js}'],
     plugins: { '@typescript-eslint': tseslint.plugin },
