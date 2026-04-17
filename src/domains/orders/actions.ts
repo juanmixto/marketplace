@@ -37,11 +37,8 @@ import {
 } from '@/domains/promotions/evaluation'
 import { countBuyerRedemptions, loadEvaluablePromotions } from '@/domains/promotions/loader'
 
-export interface CartItemInput {
-  productId: string
-  variantId?: string
-  quantity: number
-}
+export type { CartItemInput } from '@/shared/types/cart'
+import type { CartItemInput } from '@/shared/types/cart'
 
 export type CreateCheckoutOrderResult =
   | {
