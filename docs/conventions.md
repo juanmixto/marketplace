@@ -207,6 +207,38 @@ export const config = {
 
 ---
 
+## Edge proxy — authenticated prefixes (defence in depth)
+
+`src/proxy.ts` runs at the edge before any server component renders. It redirects unauthenticated traffic away from whole route groups via:
+
+```ts
+export const PROTECTED_PREFIXES = ['/admin', '/vendor', '/carrito', '/checkout', '/cuenta'] as const
+```
+
+Two structural tests pin this contract:
+
+- `test/integration/proxy-protected-prefixes.test.ts` — walks `src/app/(buyer|vendor|admin)/` and fails CI if a new top-level segment is added without a matching prefix. Removing an entry from `PROTECTED_PREFIXES` also fails (the canonical 5 segments are pinned).
+- `test/integration/api-route-auth-audit.test.ts` — walks every `src/app/api/**/route.ts` and fails CI when a file has no session helper (`getActionSession`, `auth()`, `require*`, etc.) AND is not on the explicit `PUBLIC_API_ROUTES` allow-list. Each allow-list entry must document a reason.
+
+### Adding a new authenticated route
+
+1. Place it under `(buyer)`, `(vendor)` or `(admin)` in `src/app/`.
+2. If its top-level segment (`/foo`) is not yet in `PROTECTED_PREFIXES`, add it there.
+3. Run `npm run test -- test/integration/proxy-protected-prefixes.test.ts` — must pass.
+
+### Adding a new API route
+
+1. Call `getActionSession()` or an equivalent helper inside the handler before touching any user data.
+2. Scope every query by `userId`/`buyerId`/`vendorId` from the session.
+3. If the endpoint is **intentionally public** (webhook, unauthenticated form), add it to `PUBLIC_API_ROUTES` in `test/integration/api-route-auth-audit.test.ts` with a clear reason.
+4. Run `npm run test -- test/integration/api-route-auth-audit.test.ts` — must pass.
+
+### Out-of-scope: admin host isolation
+
+When `ADMIN_HOST` env is set, `/admin/**` is additionally gated to a dedicated host. See `docs/admin-host.md` for DNS/TLS setup.
+
+---
+
 ## Update `navigation.ts` when activating routes
 
 `src/lib/navigation.ts` flags some routes as `available: false`. When you implement one of them, flip it to `true` in the same PR — otherwise the entry stays hidden in the header.
