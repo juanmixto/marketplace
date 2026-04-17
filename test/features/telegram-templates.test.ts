@@ -20,6 +20,38 @@ test('orderCreatedTemplate escapes HTML in customer name', () => {
   assert.ok(msg.text.includes('&lt;script&gt;'), 'must include the escaped form')
 })
 
+test('orderCreatedTemplate includes confirm callback when fulfillmentId present', () => {
+  const msg = orderCreatedTemplate({
+    orderId: 'ord_ABC',
+    vendorId: 'vnd_1',
+    fulfillmentId: 'ful_XYZ',
+    customerName: 'Alice',
+    totalCents: 100,
+    currency: 'EUR',
+  })
+  const buttons = (msg.inline_keyboard ?? []).flat()
+  const confirm = buttons.find(b => 'callback_data' in b)
+  assert.ok(confirm, 'confirm button must exist when fulfillmentId is set')
+  assert.equal(
+    'callback_data' in confirm! ? confirm.callback_data : '',
+    'confirmFulfillment:ful_XYZ',
+    'callback_data shape is "confirmFulfillment:<fulfillmentId>"',
+  )
+})
+
+test('orderCreatedTemplate omits confirm button when fulfillmentId is missing', () => {
+  const msg = orderCreatedTemplate({
+    orderId: 'ord_ABC',
+    vendorId: 'vnd_1',
+    customerName: 'Alice',
+    totalCents: 100,
+    currency: 'EUR',
+  })
+  const buttons = (msg.inline_keyboard ?? []).flat()
+  const hasCallback = buttons.some(b => 'callback_data' in b)
+  assert.equal(hasCallback, false, 'no callback button without a fulfillmentId')
+})
+
 test('orderCreatedTemplate formats money and uses last 8 chars of id', () => {
   const msg = orderCreatedTemplate({
     orderId: 'prefix_longABC12345',

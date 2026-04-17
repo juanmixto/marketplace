@@ -863,6 +863,13 @@ export async function createOrder(
   })
 
   const customerName = session.user.name?.trim() || 'Cliente'
+  const createdFulfillments = await db.vendorFulfillment.findMany({
+    where: { orderId: order.id },
+    select: { id: true, vendorId: true },
+  })
+  const fulfillmentByVendor = new Map(
+    createdFulfillments.map(f => [f.vendorId, f.id]),
+  )
   for (const vendorId of vendorIds) {
     const vendorTotalCents = Math.round(
       lines
@@ -872,6 +879,7 @@ export async function createOrder(
     emitNotification('order.created', {
       orderId: order.id,
       vendorId,
+      fulfillmentId: fulfillmentByVendor.get(vendorId),
       customerName,
       totalCents: vendorTotalCents,
       currency: 'EUR',
