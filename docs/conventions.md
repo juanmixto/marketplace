@@ -17,18 +17,13 @@ Last verified against `main`: 2026-04-15.
 - **Stripe v22** — Connect Express for vendors.
 - **Zod v4** — schema validation.
 
-### Strictness — current state and roadmap
+### Strictness — current state
 
-`tsconfig.json` enables `strict: true` plus `noFallthroughCasesInSwitch`, `noImplicitReturns`, `noUnusedLocals`, `noUnusedParameters`. **`noUncheckedIndexedAccess` is intentionally OFF**.
+`tsconfig.json` enables `strict: true` plus `noFallthroughCasesInSwitch`, `noImplicitReturns`, `noUnusedLocals`, `noUnusedParameters`, and **`noUncheckedIndexedAccess: true`** (Phase 10 of the contract-hardening plan; was a 45-error fix).
 
-A dry-run with the flag on (Phase 7 of the contract-hardening plan, captured in `tsconfig.strict.json`) surfaces **45 type errors** concentrated in:
+`tsconfig.test.json` overrides `noUncheckedIndexedAccess: false` so test code can spread arrays / use bracket access without `!` everywhere — tests fail at runtime if they're wrong, so the extra static guard adds noise without value.
 
-- `src/domains/promotions/checkout.ts` — 10 errors around cart-line iteration that needs guard-or-throw.
-- `src/app/(buyer)/cuenta/suscripciones/nueva/page.tsx` — 10 errors around the optional `sample` variant.
-- `src/components/catalog/ProductImageGallery.tsx` — 6 errors around `images[index]` access.
-- `src/components/{ui/modal,vendor/VendorProductPreview,layout/Footer,…}` — the rest are scattered single-digit hits.
-
-The flag will be enabled in a follow-up PR after these sites are fixed. To re-run the dry-run: `npx tsc -p tsconfig.strict.json --noEmit`.
+If you add a new array/object index access in `src/`, expect TS to flag the result as `T | undefined`. Use `array[i]!` only when you've already proven the index is in bounds (e.g. inside a `for (let i = 0; i < arr.length; i++)`); otherwise prefer a defensive `?? defaultValue` or a guard.
 
 ---
 

@@ -59,7 +59,7 @@ export default async function ComoVender() {
 
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             {copy.benefits.map((benefit, idx) => {
-              const Icon = benefitIcons[idx]
+              const Icon = benefitIcons[idx] ?? benefitIcons[0]
               return (
                 <div key={`${benefit.title}-${idx}`} className="rounded-lg border border-accent-soft bg-accent-soft p-6">
                   <Icon className="mb-4 h-8 w-8 text-accent" />

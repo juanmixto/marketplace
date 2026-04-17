@@ -42,7 +42,7 @@ export default async function ComoFunciona() {
         <div className="mx-auto max-w-4xl">
           <div className="space-y-12">
             {copy.steps.map((step, idx) => {
-              const Icon = stepIcons[idx]
+              const Icon = stepIcons[idx] ?? stepIcons[0]
               const isLast = idx === copy.steps.length - 1
 
               return (

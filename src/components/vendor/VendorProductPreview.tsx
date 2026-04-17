@@ -40,7 +40,7 @@ const STATUS_UI: Record<
 export async function VendorProductPreview({ product, vendor, activePromotions = [] }: Props) {
   const t = await getServerT()
   const locale = await getServerLocale()
-  const statusEntry = STATUS_UI[product.status] ?? STATUS_UI.DRAFT
+  const statusEntry = STATUS_UI[product.status] ?? STATUS_UI.DRAFT!
   const basePrice = Number(product.basePrice)
   const compareAtPrice = product.compareAtPrice !== null ? Number(product.compareAtPrice) : null
   const hasCompareAt = compareAtPrice !== null && compareAtPrice > basePrice

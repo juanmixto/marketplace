@@ -64,7 +64,7 @@ export default async function NewSubscriptionPage({
     },
   })
   if (plans.length === 0) notFound()
-  const sample = plans[0]
+  const sample = plans[0]!
   if (sample.product.status !== 'ACTIVE' || sample.product.deletedAt) {
     notFound()
   }
