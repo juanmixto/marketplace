@@ -28,6 +28,8 @@ import {
 import { getShippingCost } from '@/domains/shipping/calculator'
 import { getActionSession } from '@/lib/action-session'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
+import { logger } from '@/lib/logger'
+import { generateCorrelationId } from '@/lib/correlation'
 import {
   createPaymentConfirmedEventPayload,
   createPaymentMismatchEventPayload,
@@ -125,6 +127,22 @@ export async function createOrder(
   if (!session) redirect('/login')
   const sessionUserId = session.user.id
 
+  // Correlation ID threads through every log emitted by this checkout
+  // attempt. Support can grep a single ID and reconstruct the entire
+  // path: address resolution, stock checks, transaction boundary,
+  // payment intent creation, mock confirmation. When #309 ships a
+  // persistent checkoutAttemptId, prefer that.
+  const correlationId = generateCorrelationId()
+  logger.info('checkout.start', {
+    correlationId,
+    userId: sessionUserId,
+    itemCount: items.length,
+    hasSelectedAddress:
+      typeof formData.selectedAddressId === 'string' && formData.selectedAddressId.length > 0,
+    saveAddress: Boolean(formData.saveAddress),
+    promotionCode: options.promotionCode ?? null,
+  })
+
   const validatedItems = orderItemsSchema.parse(items)
   // If the buyer picked a saved address, the server resolves the real
   // address from the DB and ignores the submitted address payload. Use
@@ -172,9 +190,11 @@ export async function createOrder(
       // Fallback: the saved address was removed. Try to honor the
       // submitted address via the strict schema. If that also fails we
       // throw a friendly error telling the buyer to fix the form.
-      console.warn('[checkout] saved address not found, falling back to submitted address', {
+      logger.warn('checkout.address_fallback', {
+        correlationId,
         userId: sessionUserId,
         selectedAddressId: parsedLenient.selectedAddressId,
+        reason: 'saved-address-not-found',
       })
       try {
         validated = checkoutSchema.parse(formData)
@@ -502,9 +522,11 @@ export async function createOrder(
           shouldSaveNewAddress = false
           shippingAddressSnapshot = orderAddressSnapshotSchema.parse(existingAddress)
         } else {
-          console.warn('[checkout] saved address not found, falling back to submitted address', {
+          logger.warn('checkout.address_fallback', {
+            correlationId,
             userId: sessionUserId,
             selectedAddressId: validated.selectedAddressId,
+            reason: 'saved-address-not-found-in-tx',
           })
         }
       }
@@ -530,7 +552,8 @@ export async function createOrder(
             phone: savedAddress.phone,
           })
         } catch (error) {
-          console.error('[checkout] failed to save address, continuing without persisting it', {
+          logger.error('checkout.address_save_failed', {
+            correlationId,
             userId: sessionUserId,
             error,
           })
@@ -615,7 +638,9 @@ export async function createOrder(
       throw error
     }
 
-    console.error('[checkout] shippingAddressSnapshot column missing, retrying without snapshot persistence', {
+    logger.error('checkout.snapshot_column_missing', {
+      correlationId,
+      userId: sessionUserId,
       error,
     })
 
@@ -657,11 +682,20 @@ export async function createOrder(
         },
       })
     } catch (cleanupError) {
-      console.error('[checkout] failed to mark payment as FAILED after provider error', {
+      logger.error('checkout.payment_mark_failed', {
+        correlationId,
+        userId: sessionUserId,
         orderId: order.id,
         cleanupError,
       })
     }
+    logger.error('checkout.payment_intent_failed', {
+      correlationId,
+      userId: sessionUserId,
+      orderId: order.id,
+      grandTotalCents: Math.round(grandTotal * 100),
+      error: paymentError,
+    })
     throw paymentError
   }
 
@@ -676,7 +710,9 @@ export async function createOrder(
     // Defensive: if we somehow committed an order without exactly one
     // unlinked PENDING payment row, surface it loudly so it is caught
     // in dev / CI rather than going to production undetected.
-    console.error('[checkout] expected exactly one unlinked Payment row to update, found', {
+    logger.error('checkout.payment_row_mismatch', {
+      correlationId,
+      userId: sessionUserId,
       orderId: order.id,
       count: linked.count,
       providerRef: payment.id,
@@ -696,6 +732,15 @@ export async function createOrder(
   safeRevalidatePath('/buscar')
   safeRevalidatePath('/carrito')
 
+  logger.info('checkout.committed', {
+    correlationId,
+    userId: sessionUserId,
+    orderId: order.id,
+    orderNumber: order.orderNumber,
+    providerRef: payment.id,
+    grandTotalCents: Math.round(grandTotal * 100),
+  })
+
   return {
     orderId: order.id,
     clientSecret: payment.clientSecret,
@@ -708,6 +753,11 @@ export async function createCheckoutOrder(
   formData: CheckoutFormData,
   options: { promotionCode?: string | null } = {}
 ): Promise<CreateCheckoutOrderResult> {
+  // Wrapper correlation id covers the failure path (where createOrder
+  // threw before its own correlationId could be surfaced) plus the
+  // mock-confirmation follow-up call. On the success path createOrder
+  // already logged `checkout.committed` with its own id.
+  const wrapperCorrelationId = generateCorrelationId()
   try {
     const created = await createOrder(items, formData, options)
 
@@ -715,8 +765,10 @@ export async function createCheckoutOrder(
       try {
         await confirmOrder(created.orderId, created.clientSecret.replace('_secret', ''))
       } catch (error) {
-        console.error('[checkout] mock confirmation failed after order creation', {
+        logger.error('checkout.mock_confirmation_failed', {
+          correlationId: wrapperCorrelationId,
           orderId: created.orderId,
+          orderNumber: created.orderNumber,
           error,
         })
       }
@@ -731,7 +783,8 @@ export async function createCheckoutOrder(
       throw error
     }
 
-    console.error('[checkout] order creation failed', {
+    logger.error('checkout.tx_failed', {
+      correlationId: wrapperCorrelationId,
       itemCount: items.length,
       selectedAddressId: formData.selectedAddressId ?? null,
       saveAddress: Boolean(formData.saveAddress),
@@ -780,11 +833,12 @@ export async function confirmOrder(orderId: string, providerRef: string) {
   const expectedAmountCents = Math.round(Number(payment.amount) * 100)
   const orderGrandTotalCents = Math.round(Number(payment.order.grandTotal) * 100)
   if (expectedAmountCents !== orderGrandTotalCents) {
-    console.error('[checkout][confirm][amount-mismatch]', {
+    logger.error('checkout.confirm_amount_mismatch', {
       orderId,
+      orderNumber: payment.order.orderNumber,
       providerRef,
-      paymentAmount: Number(payment.amount),
-      orderGrandTotal: Number(payment.order.grandTotal),
+      paymentAmountCents: expectedAmountCents,
+      orderGrandTotalCents,
     })
     await db.orderEvent.create({
       data: {
