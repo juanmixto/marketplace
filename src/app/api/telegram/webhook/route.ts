@@ -3,6 +3,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { getTelegramConfig } from '@/domains/notifications/telegram/config'
 import { telegramUpdateSchema } from '@/domains/notifications/telegram/update-schema'
 import { handleTelegramUpdate } from '@/domains/notifications/telegram/controller'
+import { checkInboundRateLimit } from '@/domains/notifications/telegram/rate-limit'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -15,10 +16,27 @@ function secretsMatch(provided: string | null, expected: string): boolean {
   return timingSafeEqual(a, b)
 }
 
+function extractClientIp(req: Request): string {
+  const forwarded = req.headers.get('x-forwarded-for')
+  if (forwarded) {
+    const first = forwarded.split(',')[0]?.trim()
+    if (first) return first
+  }
+  const realIp = req.headers.get('x-real-ip')
+  if (realIp) return realIp
+  return 'unknown'
+}
+
 export async function POST(req: Request): Promise<Response> {
   const config = getTelegramConfig()
   if (!config) {
     return NextResponse.json({ error: 'not found' }, { status: 404 })
+  }
+
+  const ip = extractClientIp(req)
+  if (!checkInboundRateLimit(ip)) {
+    console.warn('telegram.webhook.rate_limited', { ip })
+    return new NextResponse(null, { status: 200 })
   }
 
   const url = new URL(req.url)
