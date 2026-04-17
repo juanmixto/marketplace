@@ -121,6 +121,23 @@ test('vendor ProductForm numeric inputs declare inputMode for mobile keyboards',
   )
 })
 
+test('vendor image uploader exposes an explicit mobile camera action and capture input', () => {
+  const source = read('src/components/vendor/ImageUploader.tsx')
+  assert.match(
+    source,
+    /vendor\.upload\.takePhoto/,
+    'ImageUploader must expose a visible camera action for mobile users',
+  )
+  assert.match(source, /capture="environment"/, 'ImageUploader must keep a camera capture input')
+  assert.match(source, /accept="image\/\*"/, 'ImageUploader camera input must accept generic images')
+})
+
+test('vendor layout keeps vendor content from overflowing horizontally on mobile', () => {
+  const source = read('src/app/(vendor)/layout.tsx')
+  assert.match(source, /min-w-0 flex-1 flex-col overflow-hidden/, 'vendor shell must allow flex children to shrink')
+  assert.match(source, /overflow-y-auto overflow-x-hidden/, 'vendor main must prevent horizontal page scroll on mobile')
+})
+
 test('checkout address form exposes autoComplete tokens for mobile prefill', () => {
   const source = read('src/components/buyer/CheckoutPageClient.tsx')
   const required = [
