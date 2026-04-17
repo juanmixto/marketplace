@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { requireRole } from '@/lib/auth-guard'
 import { ADMIN_ROLES } from '@/lib/roles'
 import { formatDate } from '@/lib/utils'
+import { NotificationDeliveryStatus } from '@/generated/prisma/enums'
 
 export const metadata: Metadata = { title: 'Notificaciones | Admin' }
 export const revalidate = 30
@@ -17,14 +18,21 @@ type PageProps = {
   searchParams?: Promise<{ status?: string; userId?: string }> | { status?: string; userId?: string }
 }
 
+function parseStatus(raw: string | undefined): NotificationDeliveryStatus | null {
+  if (!raw) return null
+  const upper = raw.toUpperCase()
+  if (upper === 'SENT' || upper === 'FAILED' || upper === 'SKIPPED') return upper
+  return null
+}
+
 export default async function AdminNotificationsPage({ searchParams }: PageProps) {
   await requireRole([...ADMIN_ROLES])
   const filters = await Promise.resolve(searchParams ?? {})
-  const status = filters.status?.trim().toUpperCase()
+  const status = parseStatus(filters.status)
   const userId = filters.userId?.trim()
 
   const deliveryWhere = {
-    ...(status === 'SENT' || status === 'FAILED' || status === 'SKIPPED' ? { status } : {}),
+    ...(status ? { status } : {}),
     ...(userId ? { userId } : {}),
   }
 
