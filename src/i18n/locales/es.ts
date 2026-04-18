@@ -1013,6 +1013,20 @@ const es = {
   'account.deletePasswordRequired': 'Introduce tu contraseña para confirmar.',
   'account.deleteInvalidPassword': 'Contraseña incorrecta.',
   'account.deleteError': 'Error al eliminar la cuenta',
+  // Admin 2FA enrollment (#559)
+  'admin.2fa.title': 'Activar autenticación en dos pasos',
+  'admin.2fa.description': 'Las cuentas de administración requieren un segundo factor TOTP (Google Authenticator, 1Password, Bitwarden, etc.). Escanea el código QR y confirma con un código de seis dígitos para terminar. No podrás acceder al panel hasta completar este paso.',
+  'admin.2fa.generating': 'Generando clave…',
+  'admin.2fa.startFailed': 'No se pudo iniciar la configuración.',
+  'admin.2fa.stepScan': '1. Escanea este código',
+  'admin.2fa.qrAlt': 'Código QR para configurar TOTP',
+  'admin.2fa.manualLabel': '¿No puedes escanear? Copia el enlace manualmente',
+  'admin.2fa.stepEnter': '2. Introduce el código que muestra tu app',
+  'admin.2fa.codePlaceholder': 'Código de 6 dígitos',
+  'admin.2fa.invalidCode': 'Código incorrecto. Inténtalo de nuevo.',
+  'admin.2fa.verifyError': 'Error al verificar el código.',
+  'admin.2fa.verifying': 'Verificando…',
+  'admin.2fa.activate': 'Activar 2FA',
   'account.privacyPolicy': 'Leer Política de Privacidad',
 
   // Account – addresses
