@@ -401,6 +401,59 @@ export async function confirmFulfillmentByUserId(
   return { ok: true, fulfillmentId }
 }
 
+/**
+ * Mark a READY fulfillment as SHIPPED on behalf of the vendor identified by
+ * userId rather than a browser session. Mirrors confirmFulfillmentByUserId
+ * for out-of-band entrypoints (Telegram webhook callbacks).
+ *
+ * Only READY → SHIPPED is allowed — any other state is rejected so stale
+ * Telegram buttons cannot move the FSM backwards or skip states. The
+ * parent order status is recomputed in the same transaction as
+ * advanceFulfillment does.
+ */
+export async function markShippedByUserId(
+  userId: string,
+  fulfillmentId: string,
+): Promise<
+  | { ok: true; fulfillmentId: string }
+  | { ok: false; code: 'NOT_FOUND' | 'INVALID_STATE'; message: string }
+> {
+  const fulfillment = await db.vendorFulfillment.findFirst({
+    where: { id: fulfillmentId, vendor: { userId } },
+    select: { id: true, status: true, orderId: true },
+  })
+  if (!fulfillment) {
+    return { ok: false, code: 'NOT_FOUND', message: 'Fulfillment no encontrado' }
+  }
+  if (fulfillment.status !== 'READY') {
+    return {
+      ok: false,
+      code: 'INVALID_STATE',
+      message: `No se puede marcar como enviado desde el estado ${fulfillment.status}`,
+    }
+  }
+
+  await db.$transaction(async tx => {
+    await tx.vendorFulfillment.update({
+      where: { id: fulfillmentId },
+      data: { status: 'SHIPPED', shippedAt: new Date() },
+    })
+
+    const siblings = await tx.vendorFulfillment.findMany({
+      where: { orderId: fulfillment.orderId },
+      select: { status: true },
+    })
+    const allShipped = siblings.every(f => f.status === 'SHIPPED')
+    await tx.order.update({
+      where: { id: fulfillment.orderId },
+      data: { status: allShipped ? 'SHIPPED' : 'PARTIALLY_SHIPPED' },
+    })
+  })
+
+  safeRevalidatePath('/vendor/pedidos')
+  return { ok: true, fulfillmentId }
+}
+
 export async function getMyFulfillments(filter?: 'active' | 'urgent' | 'shipped' | 'all') {
   const { vendor } = await requireVendor()
 

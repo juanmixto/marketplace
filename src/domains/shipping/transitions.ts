@@ -13,6 +13,8 @@ import { db } from '@/lib/db'
 import { safeRevalidatePath } from '@/lib/revalidate'
 import type { ShipmentStatusInternal } from '@/domains/shipping/domain/types'
 import { isValidTransition } from '@/domains/shipping/domain/state-machine'
+// eslint-disable-next-line no-restricted-imports -- dispatcher is intentionally server-only, excluded from notifications barrel
+import { emit as emitNotification } from '@/domains/notifications/dispatcher'
 import type {
   FulfillmentStatus,
   ShipmentStatus,
@@ -155,6 +157,15 @@ export async function applyShipmentTransition(input: ApplyTransitionInput) {
       },
     })
     await recomputeOrderStatus(shipment.fulfillment.orderId)
+
+    if (nextFulfillment === 'READY') {
+      emitNotification('order.pending', {
+        orderId: shipment.fulfillment.orderId,
+        vendorId: shipment.fulfillment.vendorId,
+        fulfillmentId: shipment.fulfillmentId,
+        reason: 'NEEDS_SHIPMENT',
+      })
+    }
   }
 
   safeRevalidatePath('/vendor/pedidos')

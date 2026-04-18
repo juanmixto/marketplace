@@ -48,11 +48,14 @@ export function orderPendingTemplate(payload: OrderPendingPayload): OutboundMess
     payload.reason === 'NEEDS_CONFIRMATION'
       ? 'Esperando confirmación.'
       : 'Pendiente de enviar.'
+  const buttons: InlineKeyboardButton[] = []
+  if (payload.reason === 'NEEDS_SHIPMENT' && payload.fulfillmentId) {
+    buttons.push({ text: '📦 Marcar enviado', callback_data: `markShipped:${payload.fulfillmentId}` })
+  }
+  buttons.push({ text: 'Ver', url: `${appUrl()}/vendor/pedidos/${payload.orderId}` })
   return {
     text: `⏳ Pedido <b>#${id}</b>\n${reasonText}`,
-    inline_keyboard: [[
-      { text: 'Ver', url: `${appUrl()}/vendor/pedidos/${payload.orderId}` },
-    ]],
+    inline_keyboard: [buttons],
   }
 }
 

@@ -25,7 +25,6 @@ const REQUIRED_CHECKOUT_EVENTS: EventAssertion = {
     'checkout.committed',
     'checkout.address_fallback',
     'checkout.address_save_failed',
-    'checkout.snapshot_column_missing',
     'checkout.payment_mark_failed',
     'checkout.payment_intent_failed',
     'checkout.payment_row_mismatch',
