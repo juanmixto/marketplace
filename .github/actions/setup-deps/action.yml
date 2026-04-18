@@ -9,14 +9,18 @@ runs:
         node-version: 22
         cache: npm
 
-    - name: Restore node_modules cache
+    - name: Restore node_modules + generated Prisma client cache
       id: cache
       uses: actions/cache@v4
       with:
-        path: node_modules
-        # Hash schema.prisma into the key so the cached node_modules
-        # already carries a matching generated client; otherwise we
-        # pay `prisma generate` (~3-5s) on every job.
+        # Prisma's generator writes to `src/generated/prisma` (see
+        # prisma/schema.prisma `generator client.output`), NOT into
+        # node_modules. Cache both paths together, keyed on
+        # package-lock + schema.prisma, so skipping the generate
+        # step on a cache hit is safe.
+        path: |
+          node_modules
+          src/generated/prisma
         key: deps-${{ runner.os }}-node22-${{ hashFiles('package-lock.json', 'prisma/schema.prisma') }}
 
     - name: Install dependencies
@@ -25,9 +29,8 @@ runs:
       run: npm ci --prefer-offline --no-audit
 
     - name: Generate Prisma client
-      # Only needed when the cache missed; otherwise node_modules
-      # already contains an up-to-date `.prisma/client` keyed on the
-      # current schema.prisma.
+      # Skip on cache hit — the cached `src/generated/prisma` is
+      # already keyed on the current schema.prisma.
       if: steps.cache.outputs.cache-hit != 'true'
       shell: bash
       run: npx prisma generate
