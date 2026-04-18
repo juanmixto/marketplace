@@ -179,6 +179,10 @@ export function CheckoutPageClient({
   }
 
   const hasTrackedCheckoutRef = useRef(false)
+  // #524: keep the server-issued attempt id stable across re-renders.
+  // Declared at the top of the component alongside other hooks — hooks
+  // cannot live below conditional returns.
+  const attemptIdRef = useRef(checkoutAttemptId)
 
   useEffect(() => {
     if (items.length === 0 || hasTrackedCheckoutRef.current) return
@@ -290,12 +294,6 @@ export function CheckoutPageClient({
       selectedAddressId: undefined,
     })
   }
-
-  // Keep the server-issued attempt id stable across re-renders. Without
-  // a ref, React state churn during the submit flow could cause us to
-  // regenerate or lose the value mid-request — which would break the
-  // backend's dedupe contract.
-  const attemptIdRef = useRef(checkoutAttemptId)
 
   async function onSubmit(data: FormData) {
     setServerError(null)
