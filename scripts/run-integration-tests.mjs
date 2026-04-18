@@ -68,7 +68,23 @@ if (shardTotal > 1) {
   )
 }
 
-execFileSync(process.execPath, ['--import', 'tsx', '--test-concurrency=1', '--test', ...files], {
+// Default `node --test` isolation mode runs every file in its own
+// subprocess, which pays a ~10s cold-start cost per file (tsx
+// transform + Prisma client init + module graph). On Node 22.8+ we
+// can opt into shared-process isolation, which keeps the module
+// cache hot across files and cuts each shard by ~60-80s. Falls back
+// transparently on older Node versions (local dev on 20).
+const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(Number)
+const supportsSharedIsolation =
+  nodeMajor > 22 || (nodeMajor === 22 && nodeMinor >= 8)
+
+const nodeArgs = ['--import', 'tsx', '--test-concurrency=1']
+if (supportsSharedIsolation) {
+  nodeArgs.push('--test-isolation=none')
+}
+nodeArgs.push('--test', ...files)
+
+execFileSync(process.execPath, nodeArgs, {
   cwd: process.cwd(),
   env,
   stdio: 'inherit',
