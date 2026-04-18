@@ -78,7 +78,7 @@ export default async function VendorPublicPage({ params }: Props) {
         rating: true,
         body: true,
         createdAt: true,
-        customer: { select: { firstName: true, lastName: true } },
+        customer: { select: { firstName: true } },
         product: { select: { name: true } },
       },
     }),

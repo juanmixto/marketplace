@@ -176,3 +176,17 @@ test('PUBLIC_API_ROUTES has no duplicates', () => {
   }
   assert.deepEqual(dupes, [], `Duplicate PUBLIC_API_ROUTES entries: ${dupes.join(', ')}`)
 })
+
+test('NextAuth login rate limit covers both signin and callback POSTs with callback identity keying', () => {
+  const routePath = path.join(process.cwd(), 'src', 'app', 'api', 'auth', '[...nextauth]', 'route.ts')
+  const content = readFileSync(routePath, 'utf-8')
+
+  assert.ok(
+    content.includes("url.pathname.includes('/signin/')") &&
+      content.includes("url.pathname.includes('/callback/')") &&
+      content.includes('formData()') &&
+      content.includes("get('email')") &&
+      content.includes('loginKey'),
+    'NextAuth login rate limiting must cover /signin/ and key /callback/ requests by callback identity'
+  )
+})
