@@ -8,7 +8,7 @@
 -- 2. Vendor.stripeAccountId had a unique index added in migration
 --    20260410130000 but schema.prisma was never updated to declare `@unique`.
 --    The schema is updated in the same PR; no DDL needed from this migration.
-
+--
 -- Defensive: clear any accidental duplicates before the index creation. In
 -- practice there is a single null column (tokens are cleared on successful
 -- reset), but the index creation would otherwise fail hard.

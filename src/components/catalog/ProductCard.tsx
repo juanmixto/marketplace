@@ -12,7 +12,7 @@ import {
   getVariantAdjustedCompareAtPrice,
   getVariantAdjustedPrice,
 } from '@/domains/catalog/variants'
-import type { BadgeVariant, ProductWithVendor } from '@/domains/catalog/types'
+import type { BadgeVariant } from '@/domains/catalog/types'
 import type { Locale } from '@/i18n/locales'
 import { getCatalogCopy, getLocalizedCertificationCopy, getLocalizedProductCopy } from '@/i18n/catalog-copy'
 import { MapPinIcon } from '@heroicons/react/24/outline'
@@ -25,8 +25,36 @@ const CERT_COLORS: Record<string, BadgeVariant> = {
   IGP: 'amber',
 }
 
+type DecimalLike = number | { toString(): string }
+
+export interface ProductCardVariant {
+  id: string
+  name: string
+  priceModifier: DecimalLike
+  stock: number
+  isActive: boolean
+}
+
+export interface ProductCardProduct {
+  id: string
+  vendorId: string
+  slug: string
+  name: string
+  images: string[]
+  basePrice: DecimalLike
+  compareAtPrice: DecimalLike | null
+  stock: number
+  trackStock: boolean
+  unit: string
+  certifications: string[]
+  originRegion: string | null
+  vendor?: { slug: string; displayName: string; location: string | null }
+  category?: { name: string; slug: string } | null
+  variants?: ProductCardVariant[]
+}
+
 interface ProductCardProps {
-  product: ProductWithVendor
+  product: ProductCardProduct
   locale?: Locale
 }
 

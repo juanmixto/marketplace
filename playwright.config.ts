@@ -29,6 +29,11 @@ import { defineConfig, devices } from '@playwright/test'
  * #380.
  */
 const useProdServer = process.env.PLAYWRIGHT_USE_PROD === '1'
+const webServerUrl = 'http://localhost:3001'
+const webServerDatabaseUrl =
+  process.env.DATABASE_URL_TEST ??
+  process.env.DATABASE_URL ??
+  'postgresql://mp_user:mp_pass@localhost:5432/marketplace_test'
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -42,7 +47,7 @@ export default defineConfig({
   expect: { timeout: 5_000 },
 
   use: {
-    baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3000',
+    baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3001',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -62,11 +67,15 @@ export default defineConfig({
         // job arranges that by depending on the `build` job and
         // downloading its `.next` artifact before Playwright runs.
         command: useProdServer ? 'npm run start' : 'npm run dev',
-        url: 'http://localhost:3000',
-        reuseExistingServer: !process.env.CI,
+        url: webServerUrl,
+        reuseExistingServer: false,
         timeout: 120_000,
         env: {
-          DATABASE_URL: process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL ?? '',
+          DATABASE_URL: webServerDatabaseUrl,
+          DATABASE_URL_TEST: webServerDatabaseUrl,
+          AUTH_URL: webServerUrl,
+          NEXT_PUBLIC_APP_URL: webServerUrl,
+          PORT: '3001',
           // `next start` refuses to run with NODE_ENV=test. Dev mode is
           // forgiving. Use production for the prod path, test for dev.
           NODE_ENV: useProdServer ? 'production' : 'test',

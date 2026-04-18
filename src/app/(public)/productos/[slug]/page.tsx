@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge'
 import { ProductPurchasePanel } from '@/components/catalog/ProductPurchasePanel'
 import { AutoTranslatedBadge } from '@/components/catalog/AutoTranslatedBadge'
 import { StarRating } from '@/components/reviews/StarRating'
-import type { ProductWithVendor } from '@/domains/catalog/types'
 import { MapPinIcon, StarIcon, CheckBadgeIcon, TruckIcon, ShieldCheckIcon } from '@heroicons/react/24/solid'
 import { ProductImageGallery } from '@/components/catalog/ProductImageGallery'
 import { FavoriteToggleButton } from '@/components/catalog/FavoriteToggleButton'
@@ -24,6 +23,7 @@ import { getServerEnv } from '@/lib/env'
 import { SubscribeToBoxButton } from '@/components/catalog/SubscribeToBoxButton'
 import { getActivePromotionsForProduct } from '@/domains/promotions/public'
 import { ProductPromotions } from '@/components/catalog/ProductPromotions'
+import { serializeProductForCard } from '@/lib/catalog-serialization'
 
 // Force dynamic rendering. This page reads cookies via `getServerLocale`,
 // a dynamic API. A prior `export const revalidate = 300` silently opted
@@ -449,7 +449,7 @@ export default async function ProductDetailPage({ params }: Props) {
           <h2 className="text-xl font-bold text-[var(--foreground)] mb-6">{copy.reviews.relatedProducts}</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {related.map(p => (
-              <ProductCard key={p.id} product={p as ProductWithVendor} locale={locale} />
+              <ProductCard key={p.id} product={serializeProductForCard(p)} locale={locale} />
             ))}
           </div>
         </section>

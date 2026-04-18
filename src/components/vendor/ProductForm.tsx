@@ -13,9 +13,10 @@ import { trackAnalyticsEvent } from '@/lib/analytics'
 import { formatExpirationDateInput } from '@/domains/catalog/availability'
 import { parseAndValidateImages } from '@/lib/image-validation'
 import { ImageUploader } from '@/components/vendor/ImageUploader'
-import type { Category, Product, ProductVariant } from '@/generated/prisma/client'
+import type { Category } from '@/generated/prisma/client'
 import { useT } from '@/i18n'
 import { detectProductDefaults } from '@/domains/catalog/product-autodetect'
+import type { VendorProductFormItem } from '@/lib/vendor-serialization'
 
 type AutoField = 'category' | 'tax' | 'unit' | 'region'
 
@@ -53,14 +54,9 @@ const productFormSchema = z.object({
 type ProductFormValues = z.infer<typeof productFormSchema>
 type ProductFormInput = z.input<typeof productFormSchema>
 
-type EditableProduct = Product & {
-  category: Category | null
-  variants: ProductVariant[]
-}
-
 interface ProductFormProps {
   categories: Category[]
-  initialData?: EditableProduct
+  initialData?: VendorProductFormItem
   vendorLocation?: string | null
 }
 
@@ -76,7 +72,7 @@ type VariantRow = {
   isActive: boolean
 }
 
-function variantRowFromDb(variant: ProductVariant): VariantRow {
+function variantRowFromDb(variant: VendorProductFormItem['variants'][number]): VariantRow {
   return {
     id: variant.id,
     key: variant.id,

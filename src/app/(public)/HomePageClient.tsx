@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { ProductCard } from '@/components/catalog/ProductCard'
-import type { ProductWithVendor, CategoryWithCount, VendorWithCount } from '@/domains/catalog/types'
+import type { CategoryWithCount } from '@/domains/catalog/types'
 import type { HomeStat } from '@/domains/catalog/home'
 import type { PublicMarketplaceSettings } from '@/lib/marketplace-settings'
 import { getPublicPortalLinks, translateCategoryLabel } from '@/lib/portals'
@@ -12,11 +12,21 @@ import { CheckBadgeIcon, TruckIcon, ShieldCheckIcon, ArrowRightIcon } from '@her
 import { useLocale, useT } from '@/i18n'
 import type { TranslationKeys } from '@/i18n'
 import { getVendorHeroImage, getVendorVisualLabelKey } from '@/domains/vendors/visuals'
+import type { ProductCardProduct } from '@/components/catalog/ProductCard'
+
+interface HomeVendorCard {
+  slug: string
+  displayName: string
+  location: string | null
+  description: string | null
+  avgRating: number | null
+  _count: { products: number }
+}
 
 interface HomePageClientProps {
-  featured: ProductWithVendor[]
+  featured: ProductCardProduct[]
   categories: CategoryWithCount[]
-  vendors: VendorWithCount[]
+  vendors: HomeVendorCard[]
   heroStats: HomeStat[]
   publicConfig: Pick<PublicMarketplaceSettings, 'MAINTENANCE_MODE' | 'HERO_BANNER_TEXT'>
 }
