@@ -1,6 +1,6 @@
 # Checkout idempotency — the `checkoutAttemptId` contract
 
-Closes the cluster #410 (backend) / #411 (UX decisions) / #412 (tests).
+Closes the cluster #410 (backend) / #411 (UX decisions) / #412 (tests) / #524 (client wiring).
 
 ## Why this exists
 
@@ -20,8 +20,12 @@ that means a real double charge.
 
 1. **Server renders checkout page** → generates a fresh
    `checkoutAttemptId` (format: `cat_<ts36>_<32hex>`, see
-   `src/domains/orders/checkout-token.ts`) and embeds it in the form.
-2. **Client submits** with the token in `options.checkoutAttemptId`.
+   `src/domains/orders/checkout-token.ts`). `src/app/(buyer)/checkout/page.tsx`
+   is `export const dynamic = 'force-dynamic'` so every render produces
+   a unique token — a cached render would reuse the same id across users.
+2. **Client (`CheckoutPageClient`)** stores the id in a `useRef` so
+   React state churn during the submit flow never regenerates it.
+   Sends it with the cart via `options.checkoutAttemptId`.
 3. **`createOrder` pre-check** — reads any existing `Order` with that
    token. If one exists and is owned by the current session:
      - Return `{ orderId, orderNumber, replayed: true, clientSecret: '' }`
