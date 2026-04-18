@@ -69,6 +69,14 @@ you the `correlationId` → grep the logs with it per scenarios below.
 | `stripe.webhook.invoice_paid_stale` | Out-of-order invoice dropped. |
 | `stripe.webhook.invoice_payment_failed_stale` | Out-of-order invoice.failed dropped. |
 | `stripe.webhook.dead_letter_record_failed` | DLQ row couldn't be written. On-call emergency. |
+| `stripe.webhook.retry` | Transient DB/network failure inside a webhook handler step — backing off and retrying (attempt N of M). Emitted from `src/domains/payments/webhook.ts`. |
+| `stripe.webhook.retry_exhausted` | All retries failed. The handler then throws → Stripe sees 500 and will redeliver. Investigate the `operation` field to know which step (`insertWebhookDelivery`, `confirmOrder`, etc.). |
+
+### Payment-provider events (from `src/domains/payments/provider.ts`)
+
+| Scope | What it means |
+|---|---|
+| `checkout.stripe_intent_create_failed` | `stripe.paymentIntents.create()` threw. Retries up to 2 times internally. Context carries `orderId`, `correlationId`, `amountCents`, `attempt`, `connectDestination`. Correlate to [`checkout.payment_intent_failed`](#checkout-events-from-createorder--createcheckoutorder) upstream — same incident, caller's view. |
 
 ## Scenario 1: buyer says "I was charged but I don't have an order"
 
