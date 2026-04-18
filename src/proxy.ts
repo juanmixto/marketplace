@@ -149,7 +149,22 @@ export async function proxy(request: NextRequest) {
     )
   }
 
-  const token = await getToken({ req: request, secret: process.env.AUTH_SECRET })
+  // Auth.js v5 sets the session cookie with a `__Secure-` prefix whenever
+  // the callback URL is HTTPS. The Edge proxy receives requests after
+  // Cloudflare Tunnel terminates TLS and forwards them as HTTP internally,
+  // so getToken's auto-detect picks the non-prefixed cookie name and fails
+  // to find the cookie — producing an infinite /vendor/dashboard → /login
+  // loop even with a valid session. Force secureCookie based on AUTH_URL
+  // so the proxy looks for the same cookie name the callback set.
+  const usingSecureCookie =
+    process.env.AUTH_URL?.startsWith('https://') ??
+    process.env.NEXTAUTH_URL?.startsWith('https://') ??
+    false
+  const token = await getToken({
+    req: request,
+    secret: process.env.AUTH_SECRET,
+    secureCookie: usingSecureCookie,
+  })
 
   if (!token) {
     return finalizeResponse(NextResponse.redirect(createLoginRedirectUrl(request)))
