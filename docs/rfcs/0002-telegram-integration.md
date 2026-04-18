@@ -1,9 +1,9 @@
 ---
 title: RFC 0002 — Telegram Integration for Vendors
-status: Implemented (EPICs 1–4, 6, 7; EPIC 5 partial — Confirmar landed, Marcar enviado deferred)
+status: Implemented (EPICs 1–7 complete)
 authors: planning-agent
 created: 2026-04-17
-last_updated: 2026-04-17
+last_updated: 2026-04-18
 related:
   - docs/conventions.md
   - docs/ai-guidelines.md
@@ -11,7 +11,7 @@ related:
   - docs/runbooks/telegram-setup.md
 ---
 
-> **Status note (2026-04-17):**
+> **Status note (2026-04-18):**
 >
 > - **PR #515** landed EPICs 1–4, 6, and 7: domain, dispatcher, webhook,
 >   linking, templates, preferences, outbound service, admin audit
@@ -22,12 +22,18 @@ related:
 >   `confirmFulfillmentByUserId(userId, fulfillmentId)` in
 >   `vendors/actions.ts` reuses the existing `VALID_TRANSITIONS` FSM;
 >   Telegram layer carries no business logic.
-> - **Still deferred (EPIC 5):** the "Marcar enviado" button, because
->   `prepareFulfillment` (CONFIRMED → PREPARING → READY) branches into
->   Sendcloud label creation and is hard to lift into a session-less
->   variant without duplicating logic. Acceptable scope hand-off per
->   §5.3 ("stop and open a separate issue to add one in the owning
->   domain — do NOT inline logic in the Telegram layer").
+> - **PR #529** landed the second EPIC-5 button — **📦 Marcar enviado**
+>   on `order.pending(NEEDS_SHIPMENT)` messages. New domain action
+>   `markShippedByUserId(userId, fulfillmentId)` in `vendors/actions.ts`
+>   performs the `READY → SHIPPED` transition with the parent-order
+>   status recompute. The event is emitted from `applyShipmentTransition`
+>   when a Sendcloud webhook flips a fulfillment to `READY` — the
+>   manual `advanceFulfillment` path stays silent since the vendor is
+>   already in the app in that case. The deferred concern about
+>   `prepareFulfillment` branching into Sendcloud was moot: the
+>   webhook-driven path is the one that needs the Telegram nudge, and
+>   `READY → SHIPPED` is a clean single-step FSM advance with no
+>   Sendcloud coupling.
 
 # RFC 0002 — Telegram Integration for Vendors
 
