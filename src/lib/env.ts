@@ -39,9 +39,18 @@ const baseEnvSchema = z.object({
 export function parseServerEnv(env: NodeJS.ProcessEnv) {
   const parsed = baseEnvSchema.parse(env)
 
-  // Production-only safety assertions. These turn silent misconfigurations
-  // into loud boot failures. See security audit issues #538, #542, #548.
-  if (env.NODE_ENV === 'production') {
+  // Production-runtime-only safety assertions. See audit issues #538,
+  // #542, #548.
+  //
+  // Gated on NEXT_PHASE === 'phase-production-server' (set by Next only
+  // when actually serving HTTP traffic) so `next build` and standalone
+  // scripts like `prisma db seed` — which run with NODE_ENV=production
+  // in CI and deploy pipelines — don't trip the checks. The assertions
+  // are about what the running app accepts from the network, not about
+  // build-time or CLI contexts.
+  const isProductionRuntime =
+    env.NODE_ENV === 'production' && env.NEXT_PHASE === 'phase-production-server'
+  if (isProductionRuntime) {
     // #548: refuse to boot in prod with the mock payment provider. The
     // Stripe webhook handler accepts unsigned events when provider=mock,
     // so leaving the default in prod is a free-money bug.
