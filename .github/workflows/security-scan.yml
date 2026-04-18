@@ -7,10 +7,11 @@ name: Security Scan
 #   - gitleaks:    committed secrets (AUTH_SECRET, sk_live_..., etc.)
 #   - semgrep:     pattern-level SAST (OWASP Top 10, Next.js, TypeScript)
 #
-# npm audit and gitleaks are blocking — both have low false-positive rates.
-# Semgrep runs advisory (continue-on-error) because Next.js / React rulesets
-# flip between releases and we don't want a semgrep rule update to block an
-# unrelated PR at 5pm on a Friday. Findings still appear in the job summary.
+# All three are blocking. Semgrep was advisory for its first week so
+# ruleset noise could be triaged without churning unrelated PRs; main
+# has been clean since the AES-GCM auth-tag fix in #559, so it's now
+# gating merges like the other two. Findings also upload as SARIF so
+# they land in the Security tab, not just the job log.
 #
 # Required-check status:
 #   - "Security scan" = the aggregate "all-blocking-steps-passed" job below.
@@ -88,19 +89,17 @@ jobs:
     name: semgrep (SAST)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Advisory for now: Next.js and React rulesets churn between
-    # releases and we don't want unrelated PRs blocked by rule drift.
-    # Flip to continue-on-error: false once the ruleset baseline is
-    # quiet (no findings on main for a week).
-    continue-on-error: true
+    # Blocking. If a ruleset upgrade introduces a false-positive wave,
+    # re-add `continue-on-error: true` here as a short-term mitigation
+    # while the offending rule is triaged (either fixed or added to a
+    # .semgrepignore).
     container:
       image: semgrep/semgrep:latest
     steps:
       - uses: actions/checkout@v5
 
       - name: Scan
-        # --error:                exit nonzero on any finding (caught by
-        #                         continue-on-error above for now)
+        # --error:                exit nonzero on any finding (blocking)
         # --sarif:                upload to GitHub Code Scanning so findings
         #                         land in the Security tab, not just logs
         # Rulesets:
@@ -135,7 +134,6 @@ jobs:
     needs:
       - dep-audit
       - gitleaks
-      # Intentionally NOT listing `semgrep` here while it's advisory:
-      # we don't want a semgrep-rule-update to take this aggregate red.
+      - semgrep
     steps:
       - run: echo "All blocking security scans passed"
