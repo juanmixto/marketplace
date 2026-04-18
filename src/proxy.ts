@@ -6,6 +6,7 @@ import { getPrimaryPortalHref, sanitizeCallbackUrl } from '@/lib/portals'
 import { isRequestOnAdminHost, hostMatchesAdmin, ADMIN_HOST_ENV_VAR } from '@/lib/admin-host'
 import { buildContentSecurityPolicy } from '@/lib/security-headers'
 import { isDevRoute } from '@/lib/dev-routes'
+import { isSecureAuthDeployment } from '@/lib/auth-env'
 export { DEV_ROUTES_ALLOWLIST } from '@/lib/dev-routes'
 
 // Exported so test/integration/proxy-protected-prefixes.test.ts can
@@ -164,21 +165,16 @@ export async function proxy(request: NextRequest) {
     )
   }
 
-  // Auth.js v5 sets the session cookie with a `__Secure-` prefix whenever
-  // the callback URL is HTTPS. The Edge proxy receives requests after
-  // Cloudflare Tunnel terminates TLS and forwards them as HTTP internally,
-  // so getToken's auto-detect picks the non-prefixed cookie name and fails
-  // to find the cookie — producing an infinite /vendor/dashboard → /login
-  // loop even with a valid session. Force secureCookie based on AUTH_URL
-  // so the proxy looks for the same cookie name the callback set.
-  const usingSecureCookie =
-    process.env.AUTH_URL?.startsWith('https://') ??
-    process.env.NEXTAUTH_URL?.startsWith('https://') ??
-    false
+  // Issue #591: resolve the cookie prefix from the public AUTH_URL,
+  // not the request protocol. Behind Cloudflare the origin sees
+  // `http://...` but the callback set `__Secure-authjs.session-token`
+  // because AUTH_URL is `https://`. Letting getToken's auto-detect
+  // run here makes it miss the cookie and silently log every user
+  // out on every protected request.
   const token = await getToken({
     req: request,
     secret: process.env.AUTH_SECRET,
-    secureCookie: usingSecureCookie,
+    secureCookie: isSecureAuthDeployment(process.env),
   })
 
   if (!token) {

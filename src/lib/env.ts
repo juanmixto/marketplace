@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { validateAuthDeploymentContract } from '@/lib/auth-env'
 
 const baseEnvSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
@@ -79,6 +80,20 @@ export function parseServerEnv(env: NodeJS.ProcessEnv) {
     // inbound Host header.
     if (!parsed.AUTH_URL) {
       throw new Error('AUTH_URL is required in production')
+    }
+
+    // #591: validate the full auth deployment contract (AUTH_URL must
+    // be HTTPS; AUTH_URL / NEXT_PUBLIC_APP_URL must share an origin;
+    // AUTH_SECRET must be set). A split-brain between these vars is
+    // how session cookies silently end up scoped to a host the app
+    // never redirects to — auth breaks for everyone, loudly here is
+    // much better than silently later.
+    const authErrors = validateAuthDeploymentContract(env)
+    if (authErrors.length > 0) {
+      throw new Error(
+        'Auth deployment contract invalid (see docs/auth-proxy-contract.md):\n' +
+          authErrors.map(e => `  - ${e}`).join('\n'),
+      )
     }
   }
 
