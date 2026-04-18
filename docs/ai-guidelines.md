@@ -1,6 +1,6 @@
 ---
 title: AI Guidelines — contract rules for agents working in parallel
-last_verified_against_main: 2026-04-17
+last_verified_against_main: 2026-04-18
 ---
 
 # AI Guidelines — contract rules for agents working in parallel
@@ -53,11 +53,11 @@ import { bar } from '@/domains/orders/_private/helpers'
 import { useCartStore } from '@/domains/orders/cart-store' // except from the same domain or explicit client boundaries — see §4
 ```
 
-> **Today's reality (2026-04-17):** all 18 domains ship an `index.ts` barrel (added in PR #480) that `export *`s only from **client-safe** modules — `'use server'` actions, pure types, schemas, constants, and utilities that don't touch `@/lib/db`. Server-only modules (queries, services, dynamic-db imports, webhooks) were trimmed out of every barrel in PR #500 (Phase 11) so a client component pulling the barrel doesn't drag Prisma into its bundle.
+> **Current rule of thumb:** domains expose a barrel at `src/domains/<name>/index.ts` and that barrel should stay client-safe. Public exports belong there; server-only queries, webhooks, and DB-tied helpers stay out of it.
 >
-> **Cross-domain enforcement is now active inside `src/domains/`** (PR #500): a file in `src/domains/X/` cannot reach `@/domains/Y/<anything>` deeply — it must use the `@/domains/Y` barrel, OR add `// eslint-disable-next-line no-restricted-imports` with a justification (the 4 documented sites are server modules consuming a deliberately-excluded server-only file like `@/domains/promotions/loader` or `@/domains/shipping/calculator`).
+> **Cross-domain enforcement is active inside `src/domains/`**: a file in `src/domains/X/` cannot deep-import `@/domains/Y/<anything>` unless the file uses an explicit `// eslint-disable-next-line no-restricted-imports -- reason` comment. Keep those exceptions rare and well justified.
 >
-> `src/app/` and `src/components/` remain free to deep-import — pages and components keep ergonomics flexibility, and the trimmed barrels mean both styles are bundle-safe.
+> `src/app/` and `src/components/` remain free to deep-import. That keeps page and component ergonomics flexible while the domain boundary stays strict where it matters.
 
 ### 1.3 Working with barrels
 
@@ -66,8 +66,8 @@ All existing domains ship a barrel. Rule of thumb for agents:
 - **New code in `src/app/` or `src/components/`:** import from the barrel (`import { foo } from '@/domains/orders'`) unless that creates an import cycle. Deep imports remain tolerated.
 - **New code in `src/domains/X/`:** importing from another domain `Y` MUST go through `@/domains/Y` (the barrel). Lint enforces this. If the symbol you need isn't in `Y`'s barrel, the symbol's source file is server-only and was deliberately excluded — see §1.5.
 - **Editing existing call sites in `src/app/` / `src/components/`:** if the file already imports deep, don't churn it just to use the barrel — leave it unless you're already modifying that import line.
-- **Creating a new domain:** add an `index.ts` barrel from the start. `export *` only from **client-safe** files (no `@/lib/db`, no dynamic db imports, no auth) plus `'use server'` actions; **never** from `*-store.ts` or private subfolders. Add the new domain folder name to `DOMAINS` in `eslint.config.mjs` so per-domain lint overrides activate.
-- **Adding to an existing barrel:** before adding `export * from './newFile'`, confirm `newFile.ts` doesn't import `@/lib/db` or `@/lib/auth` (and isn't `'use server'`). If it does, leave it out of the barrel and document with a comment in `index.ts`.
+- **Creating a new domain:** add an `index.ts` barrel from the start. `export *` only from **client-safe** files (no `@/lib/db`, no dynamic db imports, no auth) plus `'use server'` actions; **never** from `*-store.ts` or private subfolders.
+- **Adding to an existing barrel:** before adding `export * from './newFile'`, confirm `newFile.ts` does not drag server-only dependencies into the client graph. If it does, leave it out of the barrel and document why in a short comment.
 
 ### 1.5 When a server-only module needs to be deep-imported
 
@@ -148,7 +148,7 @@ Zustand is the only client state library in this repo. Rules:
 - **Stores are never imported from Server Components, Server Actions, `middleware.ts`, or any file without `'use client'`.** Doing so bundles client code into the server graph and typically surfaces as cryptic hydration errors.
 - **Stores should not call server code.** If a store needs data from the server, it receives it via props from a `'use client'` component that got it from a Server Component.
 
-Current stores (as of 2026-04-16):
+Current stores:
 
 - [`src/domains/orders/cart-store.ts`](../src/domains/orders/cart-store.ts)
 - [`src/domains/catalog/favorites-store.ts`](../src/domains/catalog/favorites-store.ts)

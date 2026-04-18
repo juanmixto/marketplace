@@ -74,7 +74,7 @@ The SW is versioned via `SW_VERSION` in `public/sw.js`. The value is **auto-gene
 | `mp-offline-v1`    | 2     | `/offline` only                            | Precache on install     |
 | `mp-static-v1`     | 3     | `/_next/static/*`, icons, favicons, OG     | Stale-while-revalidate, LRU 60 |
 | `mp-images-v1`     | 4     | `/_next/image`, `/uploads/*`, allow-listed CDN hosts (Unsplash, Cloudinary, uploadthing, Vercel Blob) | Stale-while-revalidate, LRU 200 |
-| `mp-prefetch-v1`   | Fase3 | `/api/catalog/featured?limit=12` JSON      | Replaced on periodic sync |
+| `mp-prefetch-v1`   | Phase 3 | `/api/catalog/featured?limit=12` JSON     | Replaced on periodic sync |
 
 ### Navigation preload
 

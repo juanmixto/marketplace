@@ -1,6 +1,7 @@
 import { revalidateTag, unstable_cache } from 'next/cache'
 import { db } from '@/lib/db'
 import { CACHE_TAGS } from '@/lib/cache-tags'
+import { shouldBypassAppCache } from '@/lib/cache-mode'
 import {
   MARKETPLACE_CONFIG_KEYS,
   MARKETPLACE_SETTINGS_DEFAULTS,
@@ -40,7 +41,7 @@ const loadMarketplaceSettings = unstable_cache(
 )
 
 export async function getMarketplaceConfig() {
-  if (process.env.NODE_ENV === 'test') {
+  if (shouldBypassAppCache()) {
     const rows = await db.marketplaceConfig.findMany({
       where: {
         key: {

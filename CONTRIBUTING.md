@@ -1,16 +1,23 @@
 # Contributing
 
+## Before you start
+
+- Read [`AGENTS.md`](./AGENTS.md) first.
+- Then read [`docs/conventions.md`](./docs/conventions.md) and [`docs/ai-guidelines.md`](./docs/ai-guidelines.md) if your change touches code that other areas depend on.
+- If the worktree already has uncommitted changes you did not create, stop and ask before editing that file.
+
 ## Local validation
 
-Run the checks that match the area you touched:
+Run the smallest set of checks that still covers the area you touched:
 
 - `npm run typecheck:app`
 - `npm run typecheck:test`
 - `npm run test:parallel`
 - `npm run test:db`
+- `npm run test:integration`
 - `npm run build`
 
-For a quick pass before opening a PR, this is the usual minimum:
+Usual minimum before a small UI or copy change:
 
 ```bash
 npm run typecheck:app
@@ -18,7 +25,7 @@ npm run test:parallel
 npm run build
 ```
 
-If your change touches Prisma models, server actions, checkout, stock, auth, or settlements, also run:
+If you touch Prisma models, server actions, checkout, auth, stock, subscriptions, promotions, shipping, or settlements, also run:
 
 ```bash
 npm run typecheck:test
@@ -27,15 +34,17 @@ npm run test:db
 
 ## Test split
 
-- `npm test`: fast tests without database dependencies
-- `npm run test:parallel`: same fast suite with Node test concurrency enabled
-- `npm run test:db`: database-backed tests, applies Prisma migrations first
-- `npm run test:integration`: integration tests against the test database
+- `npm run test` - fast tests without database dependencies
+- `npm run test:parallel` - the same suite with Node concurrency enabled
+- `npm run test:db` - database-backed tests; applies Prisma migrations first
+- `npm run test:integration` - integration tests against the test database
+- `npm run test:e2e:smoke` - browser smoke coverage for the critical flows
 
 ## Pull requests
 
 Before opening a PR:
 
-1. Make sure migrations are committed when the Prisma schema changes.
-2. Update docs when commands or workflows change.
-3. Fill in the PR template with the checks you actually ran.
+1. Commit migrations when the Prisma schema changes.
+2. Update docs when commands, workflows, routes, or contracts change.
+3. Mention which checks you ran in the PR description.
+4. If a contract changed, say whether it was breaking.

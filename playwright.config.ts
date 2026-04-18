@@ -42,7 +42,7 @@ export default defineConfig({
   expect: { timeout: 5_000 },
 
   use: {
-    baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3000',
+    baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3001',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -62,11 +62,19 @@ export default defineConfig({
         // job arranges that by depending on the `build` job and
         // downloading its `.next` artifact before Playwright runs.
         command: useProdServer ? 'npm run start' : 'npm run dev',
-        url: 'http://localhost:3000',
+        url: 'http://localhost:3001',
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
         env: {
-          DATABASE_URL: process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL ?? '',
+          // `next dev` always runs with a development runtime, so the app
+          // reads DATABASE_URL rather than DATABASE_URL_TEST. Point both at
+          // the seeded test database so smoke runs never fall back to the
+          // smaller local demo DB.
+          DATABASE_URL: 'postgresql://mp_user:mp_pass@localhost:5432/marketplace_test',
+          DATABASE_URL_TEST: 'postgresql://mp_user:mp_pass@localhost:5432/marketplace_test',
+          PLAYWRIGHT_E2E: '1',
+          AUTH_URL: 'http://localhost:3001',
+          NEXT_PUBLIC_APP_URL: 'http://localhost:3001',
           // `next start` refuses to run with NODE_ENV=test. Dev mode is
           // forgiving. Use production for the prod path, test for dev.
           NODE_ENV: useProdServer ? 'production' : 'test',

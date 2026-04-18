@@ -12,6 +12,9 @@ These tests need:
    npx prisma migrate deploy
    npm run db:seed
    ```
+   For Playwright smoke runs, the app is started against the seeded
+   `marketplace_test` database and `PLAYWRIGHT_E2E=1` disables cached
+   catalog/config reads so the suite always sees fresh seed data.
 2. Chromium installed by Playwright (one-time):
    ```bash
    npx playwright install chromium --with-deps
@@ -20,7 +23,9 @@ These tests need:
    ```bash
    npm run test:e2e
    ```
-   Playwright will boot `npm run dev` against `DATABASE_URL_TEST` and run the suite. Pass `E2E_BASE_URL=...` to point at an already-running server instead.
+   Playwright boots `npm run dev` on `http://localhost:3001` and points
+   both `DATABASE_URL` and `DATABASE_URL_TEST` at the seeded test DB.
+   Pass `E2E_BASE_URL=...` to point at an already-running server instead.
 
 ## Test users (seeded)
 

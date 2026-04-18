@@ -1,74 +1,56 @@
 # Security Policy
 
-## Supported Versions
+## Supported versions
 
-This project follows a trunk-based development model: there are no released
-versions, and the only branch that receives updates is `main`. Security
-fixes are applied to `main` and deployed forward — there is no backporting.
+This project uses trunk-based development. There are no released versions and `main` is the only supported branch. Security fixes land on `main` and move forward from there.
 
-| Branch | Supported          |
-| ------ | ------------------ |
-| `main` | :white_check_mark: |
-| Any other branch (forks, feature branches, prior commits) | :x: |
+| Branch | Supported |
+|---|---|
+| `main` | Yes |
+| Feature branches, forks, older commits | No |
 
-## Reporting a Vulnerability
+## Reporting a vulnerability
 
-**Please do not open public GitHub issues for security reports.** Use one of
-the private channels below so the issue can be triaged before disclosure.
+Do not open a public GitHub issue for a security report. Please use a private channel instead:
 
-1. **Preferred:** [Open a private security advisory](https://github.com/juanmixto/marketplace/security/advisories/new)
-   via GitHub. This creates a private discussion visible only to maintainers
-   and the reporter.
-2. If GitHub is not an option, contact the repository owner directly through
-   their GitHub profile and request a private channel.
+1. Preferred: open a private security advisory at [github.com/juanmixto/marketplace/security/advisories/new](https://github.com/juanmixto/marketplace/security/advisories/new).
+2. If GitHub is not available, contact the repository owner directly and ask for a private reporting channel.
 
-When reporting, please include as much of the following as you can:
+Include as much of the following as possible:
 
-- A description of the issue and its potential impact.
-- Step-by-step instructions to reproduce, or a minimal proof of concept.
-- The commit SHA or branch you tested against.
-- Any logs, screenshots, or affected URLs (please redact personal data).
+- Description of the issue and expected impact
+- Reproduction steps or a minimal proof of concept
+- Commit SHA or branch tested
+- Logs, screenshots, or affected URLs, with personal data removed
 
-### What to expect
+### Response targets
 
 | Stage | Target |
-| ----- | ------ |
-| Acknowledgement that the report was received | within **72 hours** |
-| Initial triage and severity assessment       | within **7 days**   |
-| Fix or mitigation plan communicated          | within **30 days** for high/critical issues |
-| Coordinated public disclosure                | after a fix is deployed, or by mutual agreement |
+|---|---|
+| Acknowledgement | within 72 hours |
+| Initial triage | within 7 days |
+| Fix or mitigation plan for high or critical issues | within 30 days |
+| Public disclosure | after a fix is deployed, or by mutual agreement |
 
-If a report turns out to be out of scope or a duplicate, you will receive a
-short explanation rather than silence.
+If the report is out of scope or a duplicate, you will get a short explanation rather than silence.
 
 ## Scope
 
-**In scope** — the code in this repository and the running application it
-produces, including:
+In scope:
 
-- Authentication, authorization, and session handling.
-- Payment, checkout, and webhook flows.
-- Server actions, API routes, and database access.
-- Stored data (orders, users, vendor information).
+- Authentication, authorization, and session handling
+- Payment, checkout, and webhook flows
+- Server actions, API routes, and database access
+- Stored data such as orders, users, vendors, and related records
 
-**Out of scope:**
+Out of scope:
 
-- Findings that require physical access, social engineering, or compromised
-  user devices.
-- Denial-of-service through volumetric traffic or resource exhaustion.
-- Reports generated solely by automated scanners without a working proof of
-  concept.
-- Issues in third-party dependencies that already have a public CVE — please
-  report those upstream. Dependabot security updates are enabled on this
-  repository.
-- Vulnerabilities in `localhost` development tooling that cannot be reached
-  from a production deployment.
+- Issues that require physical access, social engineering, or a compromised device
+- Denial of service through volume or resource exhaustion
+- Scanner-only findings without a working proof of concept
+- Third-party dependency issues that already have a public CVE
+- Vulnerabilities limited to localhost development tooling that cannot be reached from a production deployment
 
 ## Safe harbor
 
-Good-faith security research conducted in accordance with this policy will
-not be pursued or reported. Please do not access, modify, or destroy data
-that does not belong to you, and stop testing as soon as you have enough
-information to write a report.
-
-Thank you for helping keep this project and its users safe.
+Good-faith security research carried out under this policy will not be pursued. Please do not access, modify, or destroy data that does not belong to you, and stop testing as soon as you have enough information to file a report.

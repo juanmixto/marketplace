@@ -97,7 +97,7 @@ Checklist when adding a third locale (e.g. `ca`, `pt`):
 2. Create `src/i18n/locales/<new-locale>.ts` with **all** keys from `es.ts` (parity is enforced by `test/i18n-parity.test.ts`).
 3. Add a `<new-locale>` slot to **every** `*-copy.ts` module. TypeScript will fail the build until you do — that is intentional.
 4. Update `LOCALE_COOKIE_KEYS` consumers in `src/i18n/server.ts` and `src/i18n/index.tsx` only if the cookie format itself changes (it usually doesn't).
-5. Run `pnpm test test/i18n-parity.test.ts` and `pnpm test test/i18n-no-hardcoded-literals.test.ts`.
+5. Run `npm test -- test/i18n-parity.test.ts` and `npm test -- test/i18n-no-hardcoded-literals.test.ts`.
 
 ---
 

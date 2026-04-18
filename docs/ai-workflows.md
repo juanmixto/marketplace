@@ -1,6 +1,6 @@
 ---
 title: AI Workflows — recipes for agents
-last_verified_against_main: 2026-04-16
+last_verified_against_main: 2026-04-18
 ---
 
 # AI Workflows — recipes for agents
@@ -52,7 +52,7 @@ last_verified_against_main: 2026-04-16
      return { ok: true as const }
    }
    ```
-3. Consume it from the page (`app/(vendor)/.../page.tsx`) — same file-level import surface the rest of the repo uses.
+3. Consume it from the page (`app/(vendor)/.../page.tsx`) or the closest server entry point that owns the UX.
 4. Run the checks in the TL;DR.
 
 **Do NOT:**
@@ -68,14 +68,14 @@ last_verified_against_main: 2026-04-16
 
 1. Create [`src/domains/notifications/`](../src/domains/notifications/).
 2. Add files for the feature (`actions.ts`, `types.ts`, `queries.ts` as needed).
-3. **Create a barrel** `src/domains/notifications/index.ts` matching the style of the other 18 domains:
+3. **Create a barrel** `src/domains/notifications/index.ts` matching the style of the other domains:
    ```ts
    export * from './actions'
    export * from './types'
    // NOT exported: *-store.ts, anything under internal/ or _*/
    ```
 4. Call sites outside the domain should import from `@/domains/notifications`. (Existing domains still have a mix of barrel and deep imports — don't churn them; see [`docs/ai-guidelines.md`](./ai-guidelines.md) §1.3.)
-5. Add the domain to the directory layout block in [`docs/conventions.md`](./conventions.md).
+5. Add the domain to the directory layout block in [`docs/conventions.md`](./conventions.md) if it belongs in the documented architecture.
 
 ---
 

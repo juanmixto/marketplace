@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { PAGINATION_DEFAULTS } from '@/lib/constants'
 import { getAvailableProductWhere } from '@/domains/catalog/availability'
 import { CACHE_TAGS } from '@/lib/cache-tags'
+import { shouldBypassAppCache } from '@/lib/cache-mode'
 import { getDemoProductImages } from '@/domains/catalog/demo-product-images'
 import { expandSearchQuery } from '@/domains/catalog/search-translation'
 
@@ -145,7 +146,7 @@ const getProductsCached = unstable_cache(
 )
 
 export async function getProducts(filters: ProductFilters = {}) {
-  if (process.env.NODE_ENV === 'test') return getProductsUncached(filters)
+  if (shouldBypassAppCache()) return getProductsUncached(filters)
   return getProductsCached(JSON.stringify(normalizeProductFilters(filters)))
 }
 
@@ -214,7 +215,7 @@ const getProductBySlugCached = unstable_cache(
 )
 
 export async function getProductBySlug(slug: string) {
-  if (process.env.NODE_ENV === 'test') return getProductBySlugUncached(slug)
+  if (shouldBypassAppCache()) return getProductBySlugUncached(slug)
   return getProductBySlugCached(slug)
 }
 
@@ -256,7 +257,7 @@ const getFeaturedProductsCached = unstable_cache(
 )
 
 export async function getFeaturedProducts(limit = 8) {
-  if (process.env.NODE_ENV === 'test') return getFeaturedProductsUncached(limit)
+  if (shouldBypassAppCache()) return getFeaturedProductsUncached(limit)
   return getFeaturedProductsCached(limit)
 }
 
@@ -277,7 +278,7 @@ const getCategoriesCached = unstable_cache(
 )
 
 export async function getCategories() {
-  if (process.env.NODE_ENV === 'test') return getCategoriesUncached()
+  if (shouldBypassAppCache()) return getCategoriesUncached()
   return getCategoriesCached()
 }
 
@@ -299,7 +300,7 @@ const getVendorsCached = unstable_cache(
 )
 
 export async function getVendors(limit = 12) {
-  if (process.env.NODE_ENV === 'test') return getVendorsUncached(limit)
+  if (shouldBypassAppCache()) return getVendorsUncached(limit)
   return getVendorsCached(limit)
 }
 
@@ -339,7 +340,7 @@ const getHomeSnapshotCached = unstable_cache(
 )
 
 export async function getHomeSnapshot() {
-  if (process.env.NODE_ENV === 'test') return getHomeSnapshotUncached()
+  if (shouldBypassAppCache()) return getHomeSnapshotUncached()
   return getHomeSnapshotCached()
 }
 
@@ -389,6 +390,6 @@ const getVendorBySlugCached = unstable_cache(
 )
 
 export async function getVendorBySlug(slug: string) {
-  if (process.env.NODE_ENV === 'test') return getVendorBySlugUncached(slug)
+  if (shouldBypassAppCache()) return getVendorBySlugUncached(slug)
   return getVendorBySlugCached(slug)
 }

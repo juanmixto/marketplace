@@ -2,7 +2,7 @@
 
 > Canonical reference. Linked from `AGENTS.md` / `CLAUDE.md`. If anything here drifts from the code, fix the code OR fix this document — never let them disagree silently.
 
-Last verified against `main`: 2026-04-15.
+Last verified against `main`: 2026-04-18.
 
 ---
 
@@ -288,7 +288,7 @@ ADMIN_HOST                   # e.g. admin.your-domain.com
 ```
 
 See `.env.example` for the canonical list and `docs/admin-host.md` for the
-ADMIN_HOST setup checklist.
+`ADMIN_HOST` setup checklist.
 
 ---
 
@@ -307,6 +307,7 @@ src/
 │   └── layout/
 │       ├── Header.tsx
 │       └── Footer.tsx
+├── emails/               # Transactional email templates
 ├── domains/              # Server Actions per business domain
 │   ├── admin/               # backoffice (superadmin writes, moderation)
 │   ├── analytics/           # KPIs for admin reports dashboard

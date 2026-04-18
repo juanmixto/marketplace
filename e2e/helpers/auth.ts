@@ -5,6 +5,10 @@ export interface TestUser {
   password: string
 }
 
+export interface LoginOptions {
+  callbackUrl?: string
+}
+
 export const TEST_USERS = {
   customer: { email: 'cliente@test.com', password: 'cliente1234' },
   vendor: { email: 'productor@test.com', password: 'vendor1234' },
@@ -16,8 +20,10 @@ export const TEST_USERS = {
  * Uses the visible UI (not a request bypass) so the test exercises the
  * real auth flow including the redirect after a successful submit.
  */
-export async function loginAs(page: Page, user: TestUser) {
-  await page.goto('/login')
+export async function loginAs(page: Page, user: TestUser, options: LoginOptions = {}) {
+  const callbackUrl = options.callbackUrl ? `?callbackUrl=${encodeURIComponent(options.callbackUrl)}` : ''
+
+  await page.goto(`/login${callbackUrl}`)
   await page.getByLabel('Email').fill(user.email)
   await page.getByLabel('Contraseña').fill(user.password)
   await page.getByRole('button', { name: 'Iniciar sesión' }).click()

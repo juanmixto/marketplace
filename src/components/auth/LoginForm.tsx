@@ -89,7 +89,14 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
     if (result?.error) {
       setError('Email o contraseña incorrectos')
     } else {
-      const destination = normalizeAuthRedirectUrl(result?.url) ?? safeCallbackUrl
+      const resultUrl = result?.url
+      const destination =
+        resultUrl && (
+          resultUrl.startsWith('/') ||
+          resultUrl.startsWith(window.location.origin)
+        )
+          ? normalizeAuthRedirectUrl(resultUrl) ?? safeCallbackUrl
+          : safeCallbackUrl
       const nextUrl = destination.startsWith('/')
         ? new URL(destination, window.location.origin).toString()
         : destination
