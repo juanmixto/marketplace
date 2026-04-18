@@ -14,15 +14,21 @@ import { formatPrice } from '@/lib/utils'
 import { getServerLocale, getServerT } from '@/i18n/server'
 import type { BadgeVariant } from '@/domains/catalog/types'
 import type { TranslationKeys } from '@/i18n/locales'
-import type { getMyProduct, getMyVendorProfile } from '@/domains/vendors/actions'
 import type { PublicPromotion } from '@/domains/promotions/public'
-
-type ProductWithRelations = NonNullable<Awaited<ReturnType<typeof getMyProduct>>>
-type VendorProfile = Awaited<ReturnType<typeof getMyVendorProfile>>
+import type { VendorProductPreviewItem } from '@/lib/vendor-serialization'
 
 interface Props {
-  product: ProductWithRelations
-  vendor: VendorProfile
+  product: VendorProductPreviewItem
+  vendor: {
+    id: string
+    slug: string
+    displayName: string
+    description: string | null
+    location: string | null
+    logo: string | null
+    avgRating: number | null
+    totalReviews: number
+  }
   activePromotions?: PublicPromotion[]
 }
 

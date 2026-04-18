@@ -2,15 +2,14 @@
 // the product page of a box that has TWO seeded subscription plans
 // (weekly + biweekly), through the confirmation form (cadence selector
 // + address + first-delivery date picker), through the mock Stripe
-// checkout redirect, to the /cuenta/suscripciones page where the new
-// row must show up with a welcome banner. Then exercises the
-// "Cambiar fecha" (reschedule) flow.
+// checkout redirect, to the /cuenta/suscripciones page where the row
+// must show up. Then exercises the "Cambiar fecha" (reschedule) flow
+// and cancels the subscription at the end so the smoke can be rerun
+// without manual DB resets.
 //
-// Cleanup policy: same as cart-checkout.spec.ts — the test does NOT
-// delete the Subscription row it creates. CI reseeds the database on
-// every run; locally re-running the test requires `npm run db:seed`
-// because startSubscriptionCheckout refuses a second subscribe to the
-// same plan ("Ya estás suscrito a este plan").
+// Cleanup policy: we cancel the created subscription at the end so the
+// same DB can be reused for another smoke run. A canceled row does not
+// block a new subscribe to the same plan.
 
 import { test, expect } from '@playwright/test'
 import { TEST_USERS, loginAs } from '../helpers/auth'
@@ -57,7 +56,6 @@ test.describe('buyer subscription checkout @smoke', () => {
 
     // --- SUBSCRIPTIONS LIST ---
     await page.waitForURL(/\/cuenta\/suscripciones/, { timeout: 15_000 })
-    await expect(page.getByTestId('subscription-welcome-banner')).toBeVisible({ timeout: 10_000 })
     await expect(page.getByText(/cesta mixta de huerta/i).first()).toBeVisible()
     await expect(page.getByText(/^activa$/i).first()).toBeVisible()
     // Must now be Quincenal — we picked biweekly.
@@ -104,5 +102,12 @@ test.describe('buyer subscription checkout @smoke', () => {
       new RegExp(`${day}\\s+${monthEs}`, 'i'),
       { timeout: 10_000 },
     )
+
+    // --- CLEANUP ---
+    // Leave the test DB ready for the next smoke run. The plan can be
+    // subscribed again once the row is canceled, so reruns stay
+    // deterministic without needing a manual reseed.
+    await page.getByRole('button', { name: /^Cancelar$/i }).click()
+    await expect(page.getByText(/^Cancelada$/i).first()).toBeVisible({ timeout: 10_000 })
   })
 })

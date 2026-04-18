@@ -21,9 +21,7 @@ import { setProductStock, submitForReview } from '@/domains/vendors/actions'
 import { useT } from '@/i18n'
 import type { BadgeVariant } from '@/domains/catalog/types'
 import { formatExpirationLabel, getExpirationTone, isProductExpired } from '@/domains/catalog/availability'
-import type { getMyProducts } from '@/domains/vendors/actions'
-
-type ProductWithCategory = Awaited<ReturnType<typeof getMyProducts>>[number]
+import type { VendorCatalogItem } from '@/lib/vendor-serialization'
 
 import type { TranslationKeys } from '@/i18n/locales'
 
@@ -49,7 +47,7 @@ const FILTERS: { key: FilterKey; labelKey: TranslationKeys }[] = [
   { key: 'outOfStock',    labelKey: 'vendor.productsList.filterOutOfStock' },
 ]
 
-function matchesFilter(product: ProductWithCategory, filter: FilterKey): boolean {
+function matchesFilter(product: VendorCatalogItem, filter: FilterKey): boolean {
   switch (filter) {
     case 'all':           return true
     case 'active':        return product.status === 'ACTIVE'
@@ -61,7 +59,7 @@ function matchesFilter(product: ProductWithCategory, filter: FilterKey): boolean
 }
 
 interface Props {
-  products: ProductWithCategory[]
+  products: VendorCatalogItem[]
 }
 
 export function VendorProductListClient({ products }: Props) {
@@ -301,8 +299,8 @@ function AlertLine({
 }: {
   labelKey: TranslationKeys
   count: number
-  products: ProductWithCategory[]
-  renderItem?: (p: ProductWithCategory) => string
+  products: VendorCatalogItem[]
+  renderItem?: (p: VendorCatalogItem) => string
   fixLabel: string
   tone: 'strong' | 'soft'
 }) {
@@ -351,7 +349,7 @@ function AlertLine({
 function QuickStockInput({
   product,
 }: {
-  product: ProductWithCategory
+  product: VendorCatalogItem
 }) {
   const t = useT()
   const router = useRouter()
@@ -477,7 +475,7 @@ function QuickSubmitButton({ productId }: { productId: string }) {
   )
 }
 
-function ProductListRow({ product, now }: { product: ProductWithCategory; now: Date }) {
+function ProductListRow({ product, now }: { product: VendorCatalogItem; now: Date }) {
   const t = useT()
   const statusEntry = STATUS_CONFIG[product.status]
   const statusLabel = statusEntry ? t(statusEntry.labelKey) : product.status
@@ -559,7 +557,7 @@ function ProductListRow({ product, now }: { product: ProductWithCategory; now: D
   )
 }
 
-function ProductGridCard({ product, now }: { product: ProductWithCategory; now: Date }) {
+function ProductGridCard({ product, now }: { product: VendorCatalogItem; now: Date }) {
   const t = useT()
   const statusEntry = STATUS_CONFIG[product.status]
   const statusLabel = statusEntry ? t(statusEntry.labelKey) : product.status

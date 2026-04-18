@@ -58,6 +58,13 @@ production mode. This path catches `DYNAMIC_SERVER_USAGE` bailouts,
 minification edge cases, `revalidatePath` timing issues, and
 static/dynamic route inference mismatches that dev mode hides.
 
+Local smoke and CI smoke both point Playwright at the seeded
+`marketplace_test` database. `playwright.config.ts` also sets
+`PLAYWRIGHT_E2E=1` so catalog/config reads bypass app-level caches
+when the smoke suite is running. That keeps `public-browse`,
+`cart-checkout`, and auth flows from picking up stale demo data during
+repeat runs.
+
 Why not run prod mode on every PR? On GitHub-hosted runners a
 production `next start` boot + full smoke suite measured ~11 min
 (#383), which blew past the 3 min wall-clock budget. Running it
@@ -67,6 +74,8 @@ day of merge.
 `playwright.config.ts` reads `PLAYWRIGHT_USE_PROD` at runtime so a
 local developer can reproduce a prod-mode issue with
 `PLAYWRIGHT_USE_PROD=1 npm run build && npm run test:e2e:smoke`.
+For a local smoke run that matches CI, leave `PLAYWRIGHT_USE_PROD`
+unset and make sure the seeded `marketplace_test` database is in place.
 
 ## 3. Test pyramid — current state and target
 
@@ -75,7 +84,7 @@ local developer can reproduce a prod-mode issue with
 | Contracts (invariants) | `test/contracts/` | `node --test` via `scripts/run-node-tests.mjs` | 25 | **stay at 25**. Do not add. |
 | Features / unit | `test/features/` | same | 62 | 60–80. Grows with features. |
 | Integration (DB-backed) | `test/integration/` | `scripts/run-integration-tests.mjs` (serial) | 22 | 25–30. See §5 for gaps. |
-| E2E smoke (`@smoke`) | `e2e/` | Playwright, chromium, 2 workers | 1 file / 4 tests | **5–7 specs**. See §5. |
+| E2E smoke (`@smoke`) | `e2e/` | Playwright, chromium, 2 shards, 1 worker each | 1 file / 4 tests | **5–7 specs**. See §5. |
 | E2E full | `e2e/` | Playwright, nightly | ≈ smoke | 12–15 specs (Phase 2). |
 | Visual regression | — | — | 0 | **0.** Not justified. |
 | A11y | `test/contracts/` partial | node | partial | Add `@axe-core/playwright` to 2 smoke specs in Phase 2. |
@@ -108,8 +117,8 @@ local developer can reproduce a prod-mode issue with
 | `verify` / `build` / `integration` at job level | ✅ Parallel. Already. |
 | Typecheck (`app` + `test`) + unit tests inside `verify` | ✅ Parallel via bash `&`/`wait`. Fine for this size; do not over-engineer. |
 | Node test runner internal concurrency | ✅ `--test-concurrency=8`. Raising higher is wasted — these tests are fast. |
-| `test/integration/*` (DB-backed) | ✅ **Sharded across 3 GitHub Actions matrix runners**, each with its own postgres service, each running a disjoint round-robin slice of the sorted file list. Within a shard, tests still run with `--test-concurrency=1` because they share that shard's single DB. See `scripts/run-integration-tests.mjs` (`TEST_SHARD_INDEX` / `TEST_SHARD_TOTAL`). Local dev is unchanged: without those env vars the runner executes every file in a single process. Introduced in #380, bumped from 2 → 3 shards to push `Integration` out of the wall-clock critical. |
-| Playwright | ✅ `fullyParallel: true`, `workers: 2` in CI. Same constraint as integration — shared seeded DB. Going above 2 needs data isolation. |
+| `test/integration/*` (DB-backed) | ✅ **Sharded across 6 GitHub Actions matrix runners**, each with its own postgres service, each running a disjoint round-robin slice of the sorted file list. Within a shard, tests still run with `--test-concurrency=1` because they share that shard's single DB. See `scripts/run-integration-tests.mjs` (`TEST_SHARD_INDEX` / `TEST_SHARD_TOTAL`). Local dev is unchanged: without those env vars the runner executes every file in a single process. |
+| Playwright | ✅ `fullyParallel: true` locally, but CI smoke runs on 2 matrix shards with `--workers=1` to keep the shared seeded DB deterministic. Going above that without per-worker isolation needs careful data strategy. |
 | Playwright sharding across runners | ❌ Not worth it until we exceed ~30 specs. |
 
 ## 5. Concrete tests to add
@@ -206,7 +215,7 @@ Rough, qualitative, pre/post this redesign (cold cache):
 | Scenario | Before | After |
 |---|---|---|
 | Docs-only PR | ~10 min (full CI) | **~0 min** (skipped by `paths-ignore`) |
-| Normal PR (no E2E before) | ~10 min (longest job) | ~10 min (smoke runs in parallel, hidden inside wall-clock) |
+| Normal PR (no E2E before) | ~10 min (longest job) | ~10 min (smoke is split across 2 shards, hidden inside wall-clock) |
 | Normal PR (Playwright browsers cache warm) | — | ~10 min |
 | Nightly full suite | not run | ~25 min |
 | Confidence in merge | _low for end-to-end flows_ | _high for the 5 critical flows_ |
