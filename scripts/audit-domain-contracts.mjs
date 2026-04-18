@@ -45,26 +45,18 @@ const ANY_ALLOWLIST = new Set([
 // only with a one-line justification in the comment. Reasons that
 // qualify: (a) the schema is a private validation helper one caller
 // uses internally, (b) the schema is intentionally lenient and the
-// shape doesn't matter, (c) deprecated and being removed,
-// (d) TODO(freeze): scheduled for a follow-up freeze PR.
+// shape doesn't matter, (c) deprecated and being removed.
 const SCHEMA_FREEZE_ALLOWLIST = new Set([
   // Wrapper around orderItemSchema (which IS pinned in
   // test/contracts/domain/orders-schemas.test.ts):
   'orderItemsSchema',
 
-  // ─── Notifications domain (PR #504 / Telegram integration) ────────────────
-  // These shipped without freeze tests; the audit caught them on first run.
-  // Recommended to freeze in a follow-up. Allowlisted here so the audit
-  // mechanism itself can ship without being held by unrelated cleanup.
-  'orderCreatedPayloadSchema',     // TODO(freeze): outbound notification payload contract
-  'orderPendingPayloadSchema',     // TODO(freeze): outbound notification payload contract
-  'messageReceivedPayloadSchema',  // TODO(freeze): outbound notification payload contract
-  'setPreferenceInputSchema',      // TODO(freeze): preference write surface
-  'telegramMessageSchema',         // sub-schema of telegramUpdateSchema (already pinned via telegramUpdateSchema test)
-  'telegramCallbackQuerySchema',   // sub-schema of telegramUpdateSchema (already pinned)
-  'notificationChannelSchema',     // TODO(freeze): nativeEnum wrapper, low-risk
-  'notificationEventTypeSchema',   // TODO(freeze): nativeEnum wrapper, low-risk
-  'notificationDeliveryStatusSchema', // TODO(freeze): nativeEnum wrapper, low-risk
+  // Sub-schemas of telegramUpdateSchema. The parent schema is
+  // exercised in test/features/telegram-update-schema.test.ts; its
+  // parse covers these via composition, so a separate freeze
+  // would be redundant.
+  'telegramMessageSchema',
+  'telegramCallbackQuerySchema',
 ])
 
 const VIOLATIONS = {
