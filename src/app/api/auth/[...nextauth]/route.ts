@@ -14,7 +14,7 @@ export function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   // Check if this is a signin request (NextAuth uses query params)
   const url = new URL(req.url)
-  const isSignIn = url.pathname.includes('signin')
+  const isSignIn = url.pathname.includes('/signin/') || url.pathname.includes('/callback/')
 
   if (isSignIn) {
     const clientIP = getClientIP(req)
