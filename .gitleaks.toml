@@ -1,0 +1,36 @@
+# gitleaks config.
+#
+# Starts from the bundled default ruleset (Stripe keys, AWS keys,
+# GitHub PATs, generic BEGIN blocks) and adds the project-specific
+# allowlist needed so test fixtures and dev placeholders don't flag.
+
+title = "marketplace gitleaks"
+
+[extend]
+# Inherit the community default rules from gitleaks' bundled set.
+# Override individual rules in the [[rules]] blocks below.
+useDefault = true
+
+[allowlist]
+description = "Project-wide allowlist for known non-secrets"
+
+# Files that genuinely store secret-shaped strings that are NOT secrets:
+#   - .env.example ships placeholders like "sk_test_..." for documentation
+#   - test fixtures use dev pepper / dev JWT values
+#   - generated Prisma client may embed binary-looking blobs
+paths = [
+  '''^\.env\.example$''',
+  '''^docs/''',
+  '''^test/''',
+  '''^e2e/''',
+  '''^src/generated/''',
+]
+
+# Hard-coded dev-only fallbacks used when AUTH_SECRET is unset in unit
+# tests. Intentionally committed so tests can derive a stable hash
+# without wiring env vars. The literal string is scoped to the token
+# pepper helpers in src/domains/auth/*.
+regexes = [
+  '''dev-only-fallback-do-not-use-in-prod''',
+  '''ci-secret-please-change''',
+]
