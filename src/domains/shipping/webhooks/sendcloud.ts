@@ -1,10 +1,10 @@
 import { db } from '@/lib/db'
-import { mapSendcloudStatus } from '@/domains/shipping/providers/sendcloud/mapper'
+import { mapSendcloudStatusStrict } from '@/domains/shipping/providers/sendcloud/mapper'
 import {
   appendShipmentEvent,
   applyShipmentTransition,
 } from '@/domains/shipping/transitions'
-import type { ShipmentStatusInternal } from '@/domains/shipping/domain/types'
+import { logger } from '@/lib/logger'
 
 export { verifySendcloudSignature } from './signature'
 
@@ -38,7 +38,7 @@ export async function handleSendcloudWebhook(
     return { handled: false, reason: 'unknown_parcel' }
   }
 
-  const nextStatus: ShipmentStatusInternal = mapSendcloudStatus(parcel.status.id)
+  const nextStatus = mapSendcloudStatusStrict(parcel.status.id)
 
   const occurredAt = payload.timestamp
     ? new Date(payload.timestamp * 1000)
@@ -54,6 +54,21 @@ export async function handleSendcloudWebhook(
     payload: payload as unknown,
     occurredAt,
   })
+
+  // #568: surface provider-side contract drift. Silently coercing
+  // unknown IDs to LABEL_CREATED masked status changes — the route
+  // now records a dead-letter row so operators can replay once the
+  // mapper is updated. Crucially, we also DO NOT advance the
+  // shipment state here: a no-op is safer than an incorrect one.
+  if (nextStatus === null) {
+    logger.warn('sendcloud.webhook.unknown_status', {
+      shipmentId: shipment.id,
+      providerRef,
+      statusId: parcel.status.id,
+      statusMessage: parcel.status.message,
+    })
+    return { handled: false, reason: 'unknown_status' }
+  }
 
   await applyShipmentTransition({
     shipmentId: shipment.id,
