@@ -38,6 +38,7 @@
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.7.0",
     "@react-email/components": "^1.0.12",
+    "@sentry/nextjs": "^10.49.0",
     "@stripe/react-stripe-js": "^6.1.0",
     "@stripe/stripe-js": "^9.1.0",
     "@types/bcryptjs": "^2.4.6",

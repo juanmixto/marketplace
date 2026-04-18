@@ -13,6 +13,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **PWA (service worker, manifest, install prompts, offline fallback, cache allow-list)** — see [`docs/pwa.md`](docs/pwa.md). Required reading before touching `public/sw.js`, `src/app/manifest.ts`, or anything under `src/components/pwa/`. The SW has a strict denylist (`/api`, `/admin`, `/vendor`, `/checkout`, `/auth`) that must never be weakened.
 - **Payment incidents runbook (checkout + webhook log events, investigation recipes)** — see [`docs/runbooks/payment-incidents.md`](docs/runbooks/payment-incidents.md). Read before renaming any `checkout.*` or `stripe.webhook.*` log scope; oncall queries depend on them.
 - **Checkout idempotency (`checkoutAttemptId`, double-submit dedupe, replay UX)** — see [`docs/checkout-dedupe.md`](docs/checkout-dedupe.md). Required reading before changing `createOrder` / `createCheckoutOrder` signatures or the `Order.checkoutAttemptId` UNIQUE constraint.
+- **Sentry error tracking (DSN, scrubber, correlation)** — see [`src/lib/sentry/`](src/lib/sentry/) + [`sentry.server.config.ts`](sentry.server.config.ts). Every new pattern added to `src/lib/sentry/scrubber.ts` MUST come with a test in `test/features/sentry-scrubber.test.ts` proving the PII class is caught. PII leak via Sentry is a GDPR exposure.
 
 ## Concurrent-agent safety
 
