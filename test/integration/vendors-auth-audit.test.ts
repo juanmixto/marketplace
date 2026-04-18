@@ -32,7 +32,7 @@ afterEach(() => {
   clearTestSession()
 })
 
-async function seedReviewableOrder(customerId: string, vendorId: string, productId: string) {
+async function seedReviewableOrder(customerId: string, vendorId: string) {
   const order = await db.order.create({
     data: {
       orderNumber: `REV-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -54,7 +54,7 @@ test('respondToReview rejects vendor B responding to a review on vendor A produc
   const b = await createVendorUser()
   const productA = await createActiveProduct(a.vendor.id)
   const buyer = await createUser('CUSTOMER')
-  const order = await seedReviewableOrder(buyer.id, a.vendor.id, productA.id)
+  const order = await seedReviewableOrder(buyer.id, a.vendor.id)
 
   const review = await db.review.create({
     data: {
@@ -82,7 +82,7 @@ test('deleteReviewResponse rejects vendor B trying to wipe vendor A response', a
   const b = await createVendorUser()
   const productA = await createActiveProduct(a.vendor.id)
   const buyer = await createUser('CUSTOMER')
-  const order = await seedReviewableOrder(buyer.id, a.vendor.id, productA.id)
+  const order = await seedReviewableOrder(buyer.id, a.vendor.id)
 
   const review = await db.review.create({
     data: {
