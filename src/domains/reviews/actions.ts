@@ -1,8 +1,6 @@
 'use server'
 
 import { z } from 'zod'
-import { revalidatePath } from 'next/cache'
-import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { getActionSession } from '@/lib/action-session'
 import { isVendor } from '@/lib/roles'
@@ -17,7 +15,7 @@ const createReviewSchema = z.object({
 })
 
 export async function canLeaveReview(orderId: string, productId: string) {
-  const session = await auth()
+  const session = await getActionSession()
   if (!session) return false
 
   const [order, existingReview] = await Promise.all([
@@ -45,7 +43,7 @@ export async function createReview(
   rating: number,
   body?: string
 ) {
-  const session = await auth()
+  const session = await getActionSession()
   if (!session) throw new Error('Debes iniciar sesión para dejar una reseña')
 
   const validated = createReviewSchema.parse({ orderId, productId, rating, body })
@@ -127,9 +125,9 @@ export async function createReview(
     })
   })
 
-  revalidatePath(`/cuenta/pedidos/${validated.orderId}`)
-  if (product?.slug) revalidatePath(`/productos/${product.slug}`)
-  if (vendor?.slug) revalidatePath(`/productores/${vendor.slug}`)
+  safeRevalidatePath(`/cuenta/pedidos/${validated.orderId}`)
+  if (product?.slug) safeRevalidatePath(`/productos/${product.slug}`)
+  if (vendor?.slug) safeRevalidatePath(`/productores/${vendor.slug}`)
 }
 
 const respondSchema = z.object({
@@ -163,8 +161,8 @@ export async function respondToReview(input: z.infer<typeof respondSchema>) {
   })
 
   safeRevalidatePath('/vendor/valoraciones')
-  if (review.product?.slug) revalidatePath(`/productos/${review.product.slug}`)
-  revalidatePath(`/productores/${vendor.slug}`)
+  if (review.product?.slug) safeRevalidatePath(`/productos/${review.product.slug}`)
+  safeRevalidatePath(`/productores/${vendor.slug}`)
 }
 
 export async function deleteReviewResponse(reviewId: string) {
@@ -191,8 +189,8 @@ export async function deleteReviewResponse(reviewId: string) {
   })
 
   safeRevalidatePath('/vendor/valoraciones')
-  if (review.product?.slug) revalidatePath(`/productos/${review.product.slug}`)
-  revalidatePath(`/productores/${vendor.slug}`)
+  if (review.product?.slug) safeRevalidatePath(`/productos/${review.product.slug}`)
+  safeRevalidatePath(`/productores/${vendor.slug}`)
 }
 
 export async function getProductReviews(productId: string) {
