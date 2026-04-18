@@ -152,7 +152,7 @@ export function SubscriptionPlanForm({
         setValue('cadence', next, { shouldDirty: true, shouldValidate: true })
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: only re-evaluate when productId changes; including takenFor / cadence / setValue would re-run on every render and snap the cadence away while the user is still picking
   }, [productId])
 
   // Pre-compute the disabled-reason map for the product picker. Depends
@@ -171,7 +171,7 @@ export function SubscriptionPlanForm({
       }
     }
     return map
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- takenFor + cadenceTakenLabelKey are stable helpers (closures over takenCadencesByProduct, which IS in deps). Listing them would force a useMemo on each helper for no observable benefit
   }, [products, cadence, isEdit, takenCadencesByProduct, t])
 
   function onSubmit(values: FormValues) {

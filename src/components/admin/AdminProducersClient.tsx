@@ -410,7 +410,7 @@ function ProducerRow({
       <td className="px-4 py-3">
         <div className="flex items-start gap-3">
           {p.logo ? (
-            // eslint-disable-next-line @next/next/no-img-element
+            // eslint-disable-next-line @next/next/no-img-element -- vendor logo URLs come from arbitrary CDNs allow-listed at upload time; next/image's domain config would re-litigate that allowlist
             <img
               src={p.logo}
               alt=""
