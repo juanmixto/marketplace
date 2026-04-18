@@ -75,6 +75,21 @@ test('getClientIP honors x-forwarded-for only when proxy trust is on', () => {
   assert.equal(getClientIP(req, { trustProxy: true }), '203.0.113.1')
 })
 
+test('getClientIP prefers cf-connecting-ip over x-forwarded-for (#540)', () => {
+  // Behind Cloudflare → Traefik the leftmost XFF entry is cf-edge-ip,
+  // not the real client. cf-connecting-ip is Cloudflare-filled and the
+  // only header guaranteed to carry the actual client IP under that
+  // topology. Without this, per-IP rate limiting collapses every
+  // request into the same bucket (cf-edge-ip) and ceases to be useful.
+  const req = new Request('http://localhost', {
+    headers: {
+      'cf-connecting-ip': '203.0.113.88',
+      'x-forwarded-for': '198.51.100.0, 10.0.0.1',
+    },
+  })
+  assert.equal(getClientIP(req, { trustProxy: true }), '203.0.113.88')
+})
+
 test('getClientIP falls back to x-real-ip when proxy trust is on', () => {
   const req = new Request('http://localhost', {
     headers: { 'x-real-ip': '203.0.113.2' },
