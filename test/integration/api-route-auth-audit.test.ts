@@ -78,6 +78,14 @@ const PUBLIC_API_ROUTES: ReadonlyArray<{ path: string; why: string }> = [
     path: 'src/app/api/healthcheck/route.ts',
     why: 'Synthetic health probe. Public by design — external monitors and the marketplace-pwa-server doctor script hit it without credentials. Returns only boolean + model name + error message; no user data.',
   },
+  {
+    path: 'src/app/api/account/export/route.ts',
+    why: 'Legacy endpoint replaced by /api/account/export/request. Returns 410 Gone with a migration hint. No auth needed — it surfaces no data.',
+  },
+  {
+    path: 'src/app/api/account/export/claim/route.ts',
+    why: 'GDPR export claim (#551). Auth is the single-use token in the URL, not a session — the email-link flow must work on a device that is not logged in.',
+  },
 ]
 
 const SESSION_KEYWORDS = [

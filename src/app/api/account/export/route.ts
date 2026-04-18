@@ -1,5 +1,3 @@
-'use server'
-
 /**
  * Legacy GDPR export endpoint. Kept only to return 410 Gone so any
  * client still hitting it gets a clear signal to migrate to the
@@ -10,7 +8,7 @@
 
 import { NextResponse } from 'next/server'
 
-export function GET() {
+export async function GET() {
   return NextResponse.json(
     {
       error: 'gone',

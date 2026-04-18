@@ -1,5 +1,3 @@
-'use server'
-
 /**
  * Request a GDPR Article 15 data export via email (#551).
  *

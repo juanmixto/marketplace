@@ -1,5 +1,3 @@
-'use server'
-
 /**
  * Claim a GDPR export token and stream the JSON payload (#551).
  *
