@@ -12,6 +12,7 @@ import { THEME_COLORS } from '@/lib/theme'
 import { SITE_METADATA_BASE } from '@/lib/seo'
 import { SessionProvider } from '@/components/SessionProvider'
 import { LanguageProvider } from '@/i18n'
+import { CartHydrationProvider } from '@/components/buyer/CartHydrationProvider'
 import { getServerLocale } from '@/i18n/server'
 import PwaRegister from '@/components/pwa/PwaRegister'
 import OfflineIndicator from '@/components/pwa/OfflineIndicator'
@@ -91,6 +92,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <PostHogProvider />
               <PwaRegister />
               <OfflineIndicator />
+              <CartHydrationProvider />
               {children}
             </LanguageProvider>
           </ThemeProvider>
