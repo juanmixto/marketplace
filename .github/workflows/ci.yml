@@ -200,7 +200,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3, 4]
     # Runs in parallel with verify/build/integration against `next dev`.
     # Playwright's native --shard splits specs across runners.
     # Prod-mode coverage (`next start` + DYNAMIC_SERVER_USAGE etc.) runs
@@ -265,7 +265,7 @@ jobs:
         run: npm run db:seed
 
       - name: Run E2E smoke suite (shard ${{ matrix.shard }}/2)
-        run: npx playwright test --grep @smoke --workers=1 --shard=${{ matrix.shard }}/2
+        run: npx playwright test --grep @smoke --workers=1 --shard=${{ matrix.shard }}/4
 
       - name: Upload Playwright report on failure
         if: failure()
