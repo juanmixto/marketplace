@@ -196,6 +196,8 @@ El webhook de confirmación está en `/api/webhooks/stripe`. Para recibirlo en l
 stripe listen --forward-to localhost:3000/api/webhooks/stripe
 ```
 
+Antes de habilitar `PAYMENT_PROVIDER=stripe` en producción sigue la checklist de [`docs/production-hardening.md`](./docs/production-hardening.md) — cubre variables obligatorias, configuración del dashboard de Stripe, umbrales de alerta, plan de rollback y verificación en staging.
+
 ---
 
 ## Estado actual

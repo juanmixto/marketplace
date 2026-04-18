@@ -1010,6 +1010,10 @@ const en: Record<TranslationKeys, string> = {
   'account.exportData': 'Download My Data',
   'account.downloading': 'Downloading...',
   'account.deleteAccount': 'Delete My Account',
+  'account.deletePasswordPlaceholder': 'Current password',
+  'account.deletePasswordRequired': 'Enter your password to confirm.',
+  'account.deleteInvalidPassword': 'Incorrect password.',
+  'account.deleteError': 'Error deleting the account',
   'account.privacyPolicy': 'Read Privacy Policy',
 
   // Account – addresses
