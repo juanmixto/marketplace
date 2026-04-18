@@ -5,6 +5,7 @@ import { requireAuth } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
 import { parseOrderAddressSnapshot } from '@/types/order'
 import { getServerLocale, getServerT } from '@/i18n/server'
+import { PurchaseTracker } from '@/components/analytics/PurchaseTracker'
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT()
@@ -103,8 +104,28 @@ export default async function Confirmacion({ searchParams }: ConfirmacionPagePro
               ? t('orderConfirmation.statusCancelled')
               : ''
 
+  // #569 — emit a single `purchase` event the first time the buyer
+  // lands here for this orderNumber. Any subsequent visit (refresh,
+  // replay redirect from a double submit) is deduped on the client
+  // by sessionStorage.
+  const purchaseItems = order.lines.map(line => ({
+    productId: line.productId,
+    name: line.product.name,
+    price: Number(line.unitPrice),
+    quantity: line.quantity,
+  }))
+
   return (
     <main className="min-h-screen bg-[var(--background)] px-4 py-12 sm:px-6 lg:px-8">
+      <PurchaseTracker
+        orderId={order.id}
+        orderNumber={order.orderNumber}
+        currency="EUR"
+        revenue={Number(order.grandTotal)}
+        tax={Number(order.taxAmount)}
+        shipping={Number(order.shippingCost)}
+        items={purchaseItems}
+      />
       <div className="mx-auto max-w-2xl">
         {/* Success Header */}
         <div className="mb-8 text-center">
