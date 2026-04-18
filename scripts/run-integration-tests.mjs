@@ -12,11 +12,16 @@ const env = {
   DATABASE_URL: process.env.DATABASE_URL_TEST,
 }
 
-execFileSync('npx', ['prisma', 'migrate', 'deploy'], {
-  cwd: process.cwd(),
-  env,
-  stdio: 'inherit',
-})
+// Migrations are applied by the caller (CI step or local `test:db`
+// script) before invoking this runner. Skipping the redundant
+// `prisma migrate deploy` here saves ~2s per shard on every PR.
+if (process.env.SKIP_MIGRATE !== '1' && !process.env.CI) {
+  execFileSync('npx', ['prisma', 'migrate', 'deploy'], {
+    cwd: process.cwd(),
+    env,
+    stdio: 'inherit',
+  })
+}
 
 const integrationDir = path.join(process.cwd(), 'test', 'integration')
 const allFiles = readdirSync(integrationDir)
