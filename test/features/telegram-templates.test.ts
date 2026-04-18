@@ -4,9 +4,30 @@ import {
   orderCreatedTemplate,
   orderPendingTemplate,
   messageReceivedTemplate,
+  helpTemplate,
+  statusTemplate,
 } from '@/domains/notifications/telegram/templates'
 
 const CALLBACK_BYTE_LIMIT = 64
+
+function withAppUrl<T>(url: string | undefined, fn: () => T): T {
+  const previous = process.env.NEXT_PUBLIC_APP_URL
+  if (url === undefined) {
+    delete process.env.NEXT_PUBLIC_APP_URL
+  } else {
+    process.env.NEXT_PUBLIC_APP_URL = url
+  }
+
+  try {
+    return fn()
+  } finally {
+    if (previous === undefined) {
+      delete process.env.NEXT_PUBLIC_APP_URL
+    } else {
+      process.env.NEXT_PUBLIC_APP_URL = previous
+    }
+  }
+}
 
 test('orderCreatedTemplate escapes HTML in customer name', () => {
   const msg = orderCreatedTemplate({
@@ -161,4 +182,101 @@ test('messageReceivedTemplate truncates preview to 120 chars and escapes it', ()
   assert.ok(!msg.text.includes('<i>'), 'raw HTML in user preview is escaped')
   // preview sliced to 120 chars → no closing </i> survives
   assert.ok(!msg.text.includes('</i>'), 'preview is truncated before the closing tag')
+})
+
+test('helpTemplate exposes onboarding commands and app links', () => {
+  const msg = withAppUrl('https://app.example.com', () => helpTemplate('bot_marketplace'))
+  assert.ok(msg.text.includes('/status'), 'help mentions /status')
+  assert.ok(msg.text.includes('/disconnect'), 'help mentions /disconnect')
+
+  const buttons = (msg.inline_keyboard ?? []).flat().filter(
+    (button): button is { text: string; url: string } => 'url' in button,
+  )
+  assert.deepEqual(
+    buttons.map(button => button.text),
+    ['Abrir ajustes', 'Ver notificaciones'],
+  )
+  assert.deepEqual(
+    buttons.map(button => button.url),
+    [
+      'https://app.example.com/vendor/ajustes/telegram',
+      'https://app.example.com/vendor/ajustes/notificaciones',
+    ],
+  )
+})
+
+test('statusTemplate describes linked and unlinked states', () => {
+  const linked = withAppUrl('https://app.example.com', () =>
+    statusTemplate({
+      linked: true,
+      username: 'producer',
+      botUsername: 'bot_marketplace',
+    }),
+  )
+  assert.ok(linked.text.includes('✅ Cuenta vinculada'))
+  assert.ok(linked.text.includes('@producer'))
+
+  const linkedButtons = (linked.inline_keyboard ?? []).flat().filter(
+    (button): button is { text: string; url: string } => 'url' in button,
+  )
+  assert.deepEqual(
+    linkedButtons.map(button => button.text),
+    ['Ver notificaciones', 'Abrir Telegram'],
+  )
+
+  const unlinked = withAppUrl('https://app.example.com', () =>
+    statusTemplate({
+      linked: false,
+      username: null,
+      botUsername: 'bot_marketplace',
+    }),
+  )
+  assert.ok(unlinked.text.includes('⚠️ Cuenta no vinculada'))
+  assert.ok(unlinked.text.includes('/start <token>'))
+  const unlinkedButtons = (unlinked.inline_keyboard ?? []).flat().filter(
+    (button): button is { text: string; url: string } => 'url' in button,
+  )
+  assert.deepEqual(
+    unlinkedButtons.map(button => button.text),
+    ['Abrir ajustes', 'Ver notificaciones'],
+  )
+})
+
+test('messageReceivedTemplate omits url button when app url is missing', () => {
+  const msg = withAppUrl(undefined, () =>
+    messageReceivedTemplate({
+      conversationId: 'conv_1',
+      vendorId: 'vnd_1',
+      fromUserName: 'Alice',
+      preview: 'hola',
+    }),
+  )
+  assert.equal(msg.inline_keyboard, undefined)
+})
+
+test('order templates omit web links when app url is missing', () => {
+  const created = withAppUrl(undefined, () =>
+    orderCreatedTemplate({
+      orderId: 'ord_12345678',
+      vendorId: 'vnd_1',
+      customerName: 'Alice',
+      totalCents: 500,
+      currency: 'EUR',
+    }),
+  )
+  const pending = withAppUrl(undefined, () =>
+    orderPendingTemplate({
+      orderId: 'ord_12345678',
+      vendorId: 'vnd_1',
+      reason: 'NEEDS_SHIPMENT',
+      fulfillmentId: 'ful_1',
+    }),
+  )
+
+  const createdButtons = (created.inline_keyboard ?? []).flat()
+  const pendingButtons = (pending.inline_keyboard ?? []).flat()
+  assert.equal(createdButtons.some(button => 'url' in button), false)
+  assert.equal(pendingButtons.some(button => 'url' in button), false)
+  assert.equal(createdButtons.some(button => 'callback_data' in button), false)
+  assert.equal(pendingButtons.some(button => 'callback_data' in button), true)
 })
