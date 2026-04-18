@@ -163,6 +163,29 @@ export async function proxy(request: NextRequest) {
     )
   }
 
+  // Force TOTP enrollment for admin accounts that haven't set it up yet.
+  // The `has2fa` claim is stamped on the JWT by authorize() in
+  // src/domains/auth/credentials.ts. Once a user enrolls they must log
+  // out + back in to get a fresh claim (or the enrollment endpoint can
+  // rotate the session). The enrollment page itself and its API route
+  // are exempt so the admin can actually complete setup.
+  const has2fa = Boolean(token.has2fa)
+  const ENROLL_PATH = '/admin/security/enroll'
+  const enrollmentExempt =
+    pathname === ENROLL_PATH ||
+    pathname.startsWith(`${ENROLL_PATH}/`) ||
+    pathname.startsWith('/api/admin/2fa/')
+  if (
+    pathname.startsWith('/admin') &&
+    isAdmin(role) &&
+    !has2fa &&
+    !enrollmentExempt
+  ) {
+    return finalizeResponse(
+      NextResponse.redirect(new URL(ENROLL_PATH, request.url))
+    )
+  }
+
   if (pathname.startsWith('/vendor') && !isVendor(role)) {
     return finalizeResponse(
       NextResponse.redirect(new URL(getPrimaryPortalHref(role), request.url))
