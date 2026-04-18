@@ -101,6 +101,38 @@ test('every callback_data payload fits within the 64-byte Telegram limit', () =>
   }
 })
 
+test('orderPendingTemplate includes markShipped button only for NEEDS_SHIPMENT with fulfillmentId', () => {
+  const withFul = orderPendingTemplate({
+    orderId: 'ord_1',
+    vendorId: 'vnd_1',
+    fulfillmentId: 'ful_XYZ',
+    reason: 'NEEDS_SHIPMENT',
+  })
+  const needsConfirm = orderPendingTemplate({
+    orderId: 'ord_1',
+    vendorId: 'vnd_1',
+    fulfillmentId: 'ful_XYZ',
+    reason: 'NEEDS_CONFIRMATION',
+  })
+  const noFul = orderPendingTemplate({
+    orderId: 'ord_1',
+    vendorId: 'vnd_1',
+    reason: 'NEEDS_SHIPMENT',
+  })
+
+  const callbacksOf = (msg: { inline_keyboard?: Array<Array<unknown>> }) =>
+    (msg.inline_keyboard ?? [])
+      .flat()
+      .filter((b): b is { callback_data: string } =>
+        typeof b === 'object' && b !== null && 'callback_data' in b,
+      )
+      .map(b => b.callback_data)
+
+  assert.deepEqual(callbacksOf(withFul), ['markShipped:ful_XYZ'])
+  assert.deepEqual(callbacksOf(needsConfirm), [])
+  assert.deepEqual(callbacksOf(noFul), [])
+})
+
 test('orderPendingTemplate picks copy based on reason', () => {
   const needsConfirm = orderPendingTemplate({
     orderId: 'ord_1',
