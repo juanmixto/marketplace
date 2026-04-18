@@ -116,6 +116,21 @@ jobs:
       - name: Apply Prisma migrations
         run: npx prisma migrate deploy
 
+      - name: Check schema.prisma ↔ applied DB are in sync (#313)
+        # After migrate deploy, the CI DB is the ground truth for what the
+        # migrations directory declares. Compare that against schema.prisma.
+        # Exit 2 means schema.prisma declares something the migrations did
+        # NOT apply (field added but no migration file, or removed unique
+        # index still in schema, etc.) — the exact class of drift that
+        # surfaced the P2022 bug behind #307 and drove this gate.
+        # Works without a shadow DB because `--from-config-datasource` uses
+        # the live post-deploy DB, not the migrations folder.
+        run: |
+          npx prisma migrate diff \
+            --from-config-datasource \
+            --to-schema prisma/schema.prisma \
+            --exit-code
+
       - name: Build
         run: npm run build
 
