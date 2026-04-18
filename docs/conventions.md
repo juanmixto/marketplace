@@ -19,7 +19,9 @@ Last verified against `main`: 2026-04-15.
 
 ### Strictness — current state
 
-`tsconfig.json` enables `strict: true` plus `noFallthroughCasesInSwitch`, `noImplicitReturns`, `noUnusedLocals`, `noUnusedParameters`, and **`noUncheckedIndexedAccess: true`** (Phase 10 of the contract-hardening plan; was a 45-error fix).
+`tsconfig.json` enables `strict: true` plus `noFallthroughCasesInSwitch`, `noImplicitReturns`, `noUnusedLocals`, `noUnusedParameters`, **`noUncheckedIndexedAccess: true`** (Phase 10 of the contract-hardening plan; was a 45-error fix), and **`noImplicitOverride: true`** (one-line follow-up; one site needed the `override` modifier on `ShippingError.cause`).
+
+Two further flags surveyed and **deferred** (~120 errors each): `exactOptionalPropertyTypes` and `noPropertyAccessFromIndexSignature`. Each would be a multi-PR cleanup with low marginal safety vs the existing flags.
 
 `tsconfig.test.json` overrides `noUncheckedIndexedAccess: false` so test code can spread arrays / use bracket access without `!` everywhere — tests fail at runtime if they're wrong, so the extra static guard adds noise without value.
 

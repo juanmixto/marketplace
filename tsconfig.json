@@ -31,7 +31,8 @@
         "./src/*"
       ]
     },
-    "noUncheckedIndexedAccess": true
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true
   },
   "include": [
     "next-env.d.ts",
