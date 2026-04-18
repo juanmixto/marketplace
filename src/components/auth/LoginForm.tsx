@@ -194,14 +194,16 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
         </Button>
       </form>
 
-      <div className="mt-4 rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-raised)] p-3">
-        <p className="text-xs font-medium text-[var(--muted)] mb-1">Credenciales de prueba:</p>
-        <div className="text-xs text-[var(--foreground-soft)] space-y-0.5">
-          <p>Admin: <code>admin@marketplace.com</code> / <code>admin1234</code></p>
-          <p>Productor: <code>productor@test.com</code> / <code>vendor1234</code></p>
-          <p>Cliente: <code>cliente@test.com</code> / <code>cliente1234</code></p>
+      {process.env.NEXT_PUBLIC_SHOW_DEMO_CREDS === 'true' && (
+        <div className="mt-4 rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-raised)] p-3">
+          <p className="text-xs font-medium text-[var(--muted)] mb-1">Credenciales de prueba:</p>
+          <div className="text-xs text-[var(--foreground-soft)] space-y-0.5">
+            <p>Admin: <code>admin@marketplace.com</code> / <code>admin1234</code></p>
+            <p>Productor: <code>productor@test.com</code> / <code>vendor1234</code></p>
+            <p>Cliente: <code>cliente@test.com</code> / <code>cliente1234</code></p>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="mt-4 grid gap-2">
         {publicPortalLinks.slice(1).map(link => (

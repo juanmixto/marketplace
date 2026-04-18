@@ -26,9 +26,14 @@ const demoConfig = [
   { key: 'FLAT_SHIPPING_COST', value: 4.95, description: 'Coste fijo de envío estándar' },
   { key: 'MAINTENANCE_MODE', value: false, description: 'Modo mantenimiento del storefront' },
   {
+    // Empty by default — the banner only renders when admin sets a value.
+    // Past leak: the demo text "Demo activa: catálogo ampliado…" was being
+    // shown on every fresh deploy because seed populated it; instances that
+    // never visited /admin/configuracion to clear it were exposing internal
+    // demo language to real users.
     key: 'HERO_BANNER_TEXT',
-    value: 'Demo activa: catálogo ampliado con productos, productores y reseñas de ejemplo.',
-    description: 'Texto principal del banner de home',
+    value: '',
+    description: 'Texto promocional principal mostrado en home (vacío = oculto)',
   },
 ]
 
