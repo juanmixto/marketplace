@@ -136,7 +136,38 @@ you the `correlationId` → grep the logs with it per scenarios below.
    "DLQ operations" section below):
      npm run dlq:list
      npm run dlq:list -- --json
+6. If the local Payment row is stuck PENDING because the webhook was
+   genuinely lost (Stripe delivered succeeded but our edge dropped it),
+   sweep it explicitly:
+     npm run reconcile:payments
+   See "Payment reconciliation sweep" below.
 ```
+
+## Payment reconciliation sweep (#405)
+
+Operator-triggered sweeper. Pulls Stripe's current state for every
+PENDING `Payment` row older than the cutoff and applies the matching
+transition locally. Safe to re-run — every update is guarded by the
+current status.
+
+| Command | Purpose |
+|---|---|
+| `npm run reconcile:payments` | Default 60-min cutoff. Stripe mode only; mock exits no-op. |
+| `npm run reconcile:payments -- --older-than 120` | 2-hour cutoff (less aggressive). |
+| `npm run reconcile:payments -- --dry-run` | Query + log decisions without writing. |
+| `npm run reconcile:payments -- --limit 100` | Cap per-invocation (default 500). |
+
+Decision matrix — [`src/domains/payments/reconcile.ts`](../../src/domains/payments/reconcile.ts):
+
+| Stripe PI status | Local action |
+|---|---|
+| `succeeded` + matching amount/currency | `Payment.status = SUCCEEDED`, `Order` → `PAYMENT_CONFIRMED`, `OrderEvent: PAYMENT_CONFIRMED` with `source: "reconcile-script"`. |
+| `succeeded` + amount/currency mismatch | **Skip + log** `payments.reconcile.mismatch_amount`. Matches the webhook's `stripe.webhook.payment_mismatch` guard — operator escalates, script does not paper over tampering. |
+| `canceled` | `Payment.status = FAILED`, `Order.paymentStatus = FAILED`, `OrderEvent: PAYMENT_FAILED`. |
+| `requires_payment_method` | Same as canceled. Buyer declined; PI will not recover. |
+| `processing` / `requires_action` / `requires_confirmation` / `requires_capture` | **Skip** — log `payments.reconcile.still_pending`, leave for next sweep. |
+
+Output is JSON (`reviewed / markedSucceeded / markedFailed / skipped / errors`) so it can be piped to a dashboard. Run after a webhook delivery incident, before a Stripe-mode cutover, or weekly as part of operational health.
 
 ## DLQ operations (#419)
 
