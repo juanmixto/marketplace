@@ -85,7 +85,7 @@ const es = {
   'hero.cta1': 'Explorar productos',
   'hero.cta2': 'Conocer productores',
   'hero.quickAccess': 'Accesos rápidos',
-  'hero.loginCta': 'Ver credenciales demo →',
+  'hero.loginCta': 'Iniciar sesión →',
 
   // Home hero stats
   'home.stats.activeVendors': 'Productores activos',

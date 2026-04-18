@@ -87,7 +87,7 @@ const en: Record<TranslationKeys, string> = {
   'hero.cta1': 'Explore products',
   'hero.cta2': 'Meet producers',
   'hero.quickAccess': 'Quick access',
-  'hero.loginCta': 'View demo credentials →',
+  'hero.loginCta': 'Log in →',
 
   // Home hero stats
   'home.stats.activeVendors': 'Active producers',
