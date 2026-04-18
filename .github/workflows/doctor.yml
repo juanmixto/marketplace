@@ -113,11 +113,10 @@ jobs:
           tail -n 100 .doctor-server.log || true
           exit 1
 
-      - name: Run doctor (schema + probes + healthcheck)
-        # Migrations already applied in an earlier step, so tell doctor
-        # to skip its own prisma migrate status — it would otherwise
-        # attempt to talk to the DB via a slightly different config.
-        run: node scripts/doctor.mjs --base-url http://localhost:3000
+      - name: Run doctor (schema + probes + healthcheck + auth)
+        # --auth enables post-middleware probes (#526): catches 500s
+        # that hide behind the 307 redirect of unauthenticated probes.
+        run: node scripts/doctor.mjs --base-url http://localhost:3000 --auth
 
       - name: Stop next
         if: always()

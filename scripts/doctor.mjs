@@ -3,16 +3,21 @@
  *   - marketplace-pwa-server.sh (dev preview)
  *   - .github/workflows/doctor.yml (CI gate)
  *
- * Same three layers of defence as the bash script:
+ * Four layers of defence:
  *   1. Schema drift via `prisma migrate status`
  *   2. Unauthenticated HTTP probes of representative routes
  *   3. Deep probe via /api/healthcheck (one Prisma query per critical model)
+ *   4. Authenticated probes — real session cookies against post-auth
+ *      pages (vendor dashboard, admin dashboard, buyer account). Only
+ *      runs when --auth is passed. Catches 500s that hide past the
+ *      middleware redirect.
  *
  * Exits 0 on success, 1 on any failure. CLI output is human-readable;
  * pass --json for a machine-readable report.
  *
  * Usage:
- *   node scripts/doctor.mjs [--base-url http://localhost:3000] [--json] [--skip-migrations]
+ *   node scripts/doctor.mjs [--base-url http://localhost:3000] [--json]
+ *     [--skip-migrations] [--auth]
  */
 
 import { execSync } from 'node:child_process'
@@ -27,6 +32,22 @@ const baseUrl =
   })().replace(/\/$/, '')
 const asJson = args.has('--json')
 const skipMigrations = args.has('--skip-migrations')
+const runAuthProbes = args.has('--auth')
+
+const AUTH_PROBE_MATRIX = [
+  {
+    userKey: 'customer',
+    paths: ['/cuenta', '/cuenta/pedidos'],
+  },
+  {
+    userKey: 'vendor',
+    paths: ['/vendor/dashboard', '/vendor/pedidos'],
+  },
+  {
+    userKey: 'admin',
+    paths: ['/admin/dashboard'],
+  },
+]
 
 const PROBES = [
   { expected: 200, path: '/' },
@@ -107,6 +128,77 @@ function classifyProbe(result) {
   return 'warn'
 }
 
+/**
+ * Authenticated probes (#526). For each (userKey, paths) pair:
+ *   1. Resolve the seeded user id for the test email
+ *   2. Build a NextAuth-compatible session cookie
+ *   3. Hit every path with that cookie, expect 200 (not 307, not 5xx)
+ *
+ * Returns an array of { userKey, path, got, status, error? }.
+ * Failure on any 5xx short-circuits report.ok.
+ */
+async function runAuthenticatedProbes() {
+  try {
+    const { buildSessionCookie, resolveSeededUserId, SEEDED_PROBE_USERS } =
+      await import('./doctor-auth.mjs')
+
+    const results = []
+    for (const { userKey, paths } of AUTH_PROBE_MATRIX) {
+      const user = SEEDED_PROBE_USERS[userKey]
+      let seeded
+      try {
+        seeded = await resolveSeededUserId(user.email)
+      } catch (err) {
+        for (const path of paths) {
+          results.push({
+            userKey,
+            path,
+            got: 0,
+            status: 'fail',
+            error:
+              err instanceof Error ? err.message : String(err),
+          })
+        }
+        continue
+      }
+      const cookie = await buildSessionCookie({
+        baseUrl,
+        userId: seeded.id,
+        role: seeded.role ?? user.role,
+        email: user.email,
+      })
+
+      for (const path of paths) {
+        try {
+          const res = await fetch(`${baseUrl}${path}`, {
+            redirect: 'manual',
+            headers: { Cookie: cookie },
+          })
+          let status = 'pass'
+          if (res.status >= 500) status = 'fail'
+          else if (res.status !== 200) status = 'warn'
+          results.push({ userKey, path, got: res.status, status })
+        } catch (err) {
+          results.push({
+            userKey,
+            path,
+            got: 0,
+            status: 'fail',
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
+      }
+    }
+    return { ok: results.every((r) => r.status !== 'fail'), results }
+  } catch (err) {
+    return {
+      ok: false,
+      results: [],
+      error: err instanceof Error ? err.message : String(err),
+    }
+  }
+}
+
 async function main() {
   const report = {
     ok: true,
@@ -114,6 +206,7 @@ async function main() {
     schema: checkMigrationStatus(),
     probes: [],
     healthcheck: null,
+    authProbes: null,
   }
 
   if (!report.schema.ok) report.ok = false
@@ -127,6 +220,11 @@ async function main() {
 
   report.healthcheck = await probeHealthcheck()
   if (!report.healthcheck.ok) report.ok = false
+
+  if (runAuthProbes) {
+    report.authProbes = await runAuthenticatedProbes()
+    if (!report.authProbes.ok) report.ok = false
+  }
 
   if (asJson) {
     process.stdout.write(JSON.stringify(report, null, 2) + '\n')
@@ -174,6 +272,29 @@ function renderHuman(report) {
     for (const [model, result] of Object.entries(report.healthcheck.checks)) {
       if (!result.ok) {
         console.log(`    ${model}: ${result.error ?? 'unknown failure'}`)
+      }
+    }
+  }
+
+  if (report.authProbes) {
+    console.log('\n── doctor · authenticated probes (post-auth 5xx hunter) ───────')
+    if (report.authProbes.error) {
+      console.log(`  ✗ setup error: ${report.authProbes.error}`)
+    } else if (report.authProbes.results.length === 0) {
+      console.log('  ⚠ no probes ran (AUTH_PROBE_MATRIX empty?)')
+    } else {
+      for (const r of report.authProbes.results) {
+        const icon = r.status === 'pass' ? '✓' : r.status === 'fail' ? '✗' : '⚠'
+        const label = `${r.userKey} → ${r.path}`.padEnd(45)
+        if (r.status === 'pass') {
+          console.log(`  ${icon} ${label}${r.got}`)
+        } else if (r.status === 'fail') {
+          console.log(
+            `  ${icon} ${label}${r.got} ← ${r.error ?? '5xx, server-side crash post-auth'}`,
+          )
+        } else {
+          console.log(`  ${icon} ${label}got ${r.got} expected 200`)
+        }
       }
     }
   }
