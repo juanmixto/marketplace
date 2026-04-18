@@ -4,6 +4,7 @@ import { isAdmin, isVendor } from '@/lib/roles'
 import { type UserRole } from '@/generated/prisma/enums'
 import { getPrimaryPortalHref, sanitizeCallbackUrl } from '@/lib/portals'
 import { isRequestOnAdminHost, hostMatchesAdmin, ADMIN_HOST_ENV_VAR } from '@/lib/admin-host'
+import { buildContentSecurityPolicy } from '@/lib/security-headers'
 
 // Exported so test/integration/proxy-protected-prefixes.test.ts can
 // reflect the live list back against the actual src/app route tree
@@ -32,6 +33,33 @@ function requiresOriginCheck(pathname: string, method: string): boolean {
   if (!pathname.startsWith('/api/')) return false
   if (!MUTATING_METHODS.has(method)) return false
   return !CSRF_EXEMPT_PREFIXES.some(prefix => pathname.startsWith(prefix))
+}
+
+// Paths that don't render HTML and don't benefit from a per-request
+// nonce: API routes, webhooks, Next.js internals, static assets. The
+// CSP for these is either irrelevant (JSON responses) or handled by
+// `next.config.ts` asset headers.
+const CSP_NONCE_EXEMPT_PREFIXES = [
+  '/api/',
+  '/_next/',
+  '/favicon.ico',
+  '/manifest.webmanifest',
+  '/sw.js',
+] as const
+
+function shouldApplyNonceCsp(pathname: string): boolean {
+  return !CSP_NONCE_EXEMPT_PREFIXES.some(prefix =>
+    prefix.endsWith('/') ? pathname.startsWith(prefix) : pathname === prefix
+  )
+}
+
+function generateNonce(): string {
+  // Randomness comes from Web Crypto (Edge runtime has no node:crypto).
+  const bytes = new Uint8Array(16)
+  crypto.getRandomValues(bytes)
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary)
 }
 
 function isOriginAllowed(request: NextRequest): boolean {
@@ -94,27 +122,58 @@ export async function proxy(request: NextRequest) {
     )
   }
 
+  // Per-request CSP nonce (#537). Generated here, injected into the
+  // request headers so Next.js picks it up for framework scripts and
+  // server-component `next/script` usage, then echoed into the response
+  // `Content-Security-Policy` header.
+  const applyCspNonce = shouldApplyNonceCsp(pathname)
+  const nonce = applyCspNonce ? generateNonce() : undefined
+  const cspValue = applyCspNonce ? buildContentSecurityPolicy({ nonce }) : undefined
+
+  const forwardHeaders = nonce ? new Headers(request.headers) : undefined
+  if (forwardHeaders && nonce) {
+    forwardHeaders.set('x-nonce', nonce)
+    forwardHeaders.set('Content-Security-Policy', cspValue!)
+  }
+
+  const finalizeResponse = (response: NextResponse): NextResponse => {
+    if (cspValue) response.headers.set('Content-Security-Policy', cspValue)
+    return response
+  }
+
   if (!isProtectedPath(pathname)) {
-    return NextResponse.next()
+    return finalizeResponse(
+      forwardHeaders
+        ? NextResponse.next({ request: { headers: forwardHeaders } })
+        : NextResponse.next()
+    )
   }
 
   const token = await getToken({ req: request, secret: process.env.AUTH_SECRET })
 
   if (!token) {
-    return NextResponse.redirect(createLoginRedirectUrl(request))
+    return finalizeResponse(NextResponse.redirect(createLoginRedirectUrl(request)))
   }
 
   const role = typeof token.role === 'string' ? (token.role as UserRole) : undefined
 
   if (pathname.startsWith('/admin') && !isAdmin(role)) {
-    return NextResponse.redirect(new URL(getPrimaryPortalHref(role), request.url))
+    return finalizeResponse(
+      NextResponse.redirect(new URL(getPrimaryPortalHref(role), request.url))
+    )
   }
 
   if (pathname.startsWith('/vendor') && !isVendor(role)) {
-    return NextResponse.redirect(new URL(getPrimaryPortalHref(role), request.url))
+    return finalizeResponse(
+      NextResponse.redirect(new URL(getPrimaryPortalHref(role), request.url))
+    )
   }
 
-  return NextResponse.next()
+  return finalizeResponse(
+    forwardHeaders
+      ? NextResponse.next({ request: { headers: forwardHeaders } })
+      : NextResponse.next()
+  )
 }
 
 // Re-export to keep the existing host-check tests (ticket #348) self-contained.
