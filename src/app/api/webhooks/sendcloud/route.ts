@@ -6,6 +6,7 @@ import {
 } from '@/domains/shipping/webhooks/sendcloud'
 import { ensureShippingProvidersRegistered } from '@/domains/shipping/providers'
 import { getServerEnv } from '@/lib/env'
+import { logger } from '@/lib/logger'
 
 /**
  * Sendcloud parcel-status webhook.
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
 
   const secret = getServerEnv().sendcloudWebhookSecret
   if (!secret) {
-    console.error('[sendcloud-webhook] missing SENDCLOUD_WEBHOOK_SECRET')
+    logger.error('sendcloud.webhook.missing_secret', { reason: 'SENDCLOUD_WEBHOOK_SECRET not configured' })
     return NextResponse.json({ error: 'not_configured' }, { status: 503 })
   }
 
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
   const signature = req.headers.get('sendcloud-signature')
 
   if (!verifySendcloudSignature(rawBody, signature, secret)) {
-    console.warn('[sendcloud-webhook] invalid signature')
+    logger.warn('sendcloud.webhook.invalid_signature', {})
     return NextResponse.json({ error: 'invalid_signature' }, { status: 401 })
   }
 
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
     const result = await handleSendcloudWebhook(payload)
     return NextResponse.json({ ok: true, ...result })
   } catch (err) {
-    console.error('[sendcloud-webhook] processing error', err)
+    logger.error('sendcloud.webhook.processing_error', { err })
     // Return 200 so Sendcloud doesn't retry indefinitely; the
     // ShipmentEvent is already written if we got far enough, and
     // admin can replay manually if needed.

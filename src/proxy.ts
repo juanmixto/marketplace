@@ -15,6 +15,46 @@ function isProtectedPath(pathname: string) {
   return PROTECTED_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`))
 }
 
+// Defense-in-depth CSRF check for mutating /api/* JSON endpoints (#543).
+// NextAuth session cookies are SameSite=Lax, which blocks most cross-site
+// POSTs already, but a subdomain takeover or misconfigured CORS can bypass
+// SameSite. Rejecting requests whose Origin doesn't match the app origin
+// closes that gap without breaking first-party callers (browsers always
+// send Origin on fetch from the same origin).
+//
+// Exemptions:
+//   - webhooks (Stripe, Sendcloud, Telegram) have no browser Origin
+//   - /api/auth/* is handled by NextAuth which has its own CSRF token
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+const CSRF_EXEMPT_PREFIXES = ['/api/auth', '/api/webhooks', '/api/healthcheck'] as const
+
+function requiresOriginCheck(pathname: string, method: string): boolean {
+  if (!pathname.startsWith('/api/')) return false
+  if (!MUTATING_METHODS.has(method)) return false
+  return !CSRF_EXEMPT_PREFIXES.some(prefix => pathname.startsWith(prefix))
+}
+
+function isOriginAllowed(request: NextRequest): boolean {
+  const origin = request.headers.get('origin')
+  const referer = request.headers.get('referer')
+  // Same-origin fetches always carry Origin; missing Origin+Referer on a
+  // state-changing request is a strong signal of a curl / script client,
+  // which we treat as not a browser CSRF concern. Server-to-server
+  // integrations should hit the exempt webhook paths.
+  if (!origin && !referer) return true
+
+  const expectedOrigin = new URL(request.url).origin
+  if (origin && origin === expectedOrigin) return true
+  if (referer) {
+    try {
+      if (new URL(referer).origin === expectedOrigin) return true
+    } catch {
+      // fall through to deny
+    }
+  }
+  return false
+}
+
 export function createLoginRedirectUrl(request: NextRequest) {
   const loginUrl = new URL('/login', request.url)
   const rawCallback = `${request.nextUrl.pathname}${request.nextUrl.search}`
@@ -45,6 +85,13 @@ export async function proxy(request: NextRequest) {
     if (onAdminHost && !pathname.startsWith('/admin') && !pathname.startsWith('/login') && !pathname.startsWith('/api')) {
       return new NextResponse(null, { status: 404 })
     }
+  }
+
+  if (requiresOriginCheck(pathname, request.method) && !isOriginAllowed(request)) {
+    return NextResponse.json(
+      { error: 'forbidden_origin' },
+      { status: 403 }
+    )
   }
 
   if (!isProtectedPath(pathname)) {
