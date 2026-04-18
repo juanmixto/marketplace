@@ -250,6 +250,15 @@ export function CheckoutPageClient({
     if (!completedOrderNumber) return
 
     clearCart()
+    // #270 — if the buyer was authenticated, their cart is also
+    // persisted server-side. Wipe it so the next login on any device
+    // doesn't bring back the purchased items. Fire-and-forget: the
+    // redirect below is the user-visible success path; a transient
+    // failure just leaves a stale server cart that the next login
+    // merge will reconcile.
+    void import('@/domains/orders/cart-actions')
+      .then(mod => mod.clearMyServerCart())
+      .catch(() => {})
     router.replace(`/checkout/confirmacion?orderNumber=${encodeURIComponent(completedOrderNumber)}`)
     router.refresh()
   }, [clearCart, completedOrderNumber, router])
