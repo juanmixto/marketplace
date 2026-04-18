@@ -1,10 +1,12 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { isAdminRole } from '@/lib/roles'
+import { getServerT } from '@/i18n/server'
 import { EnrollClient } from './EnrollClient'
 
-export const metadata = {
-  title: 'Activar autenticación en dos pasos',
+export async function generateMetadata() {
+  const t = await getServerT()
+  return { title: t('admin.2fa.title') }
 }
 
 // Forced-enrollment landing for admins without 2FA. The proxy
@@ -21,16 +23,13 @@ export default async function AdminEnrollPage() {
   const has2fa = (session.user as { has2fa?: boolean }).has2fa ?? false
   if (has2fa) redirect('/admin')
 
+  const t = await getServerT()
+
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
-      <h1 className="text-2xl font-bold mb-4">
-        Activar autenticación en dos pasos
-      </h1>
+      <h1 className="text-2xl font-bold mb-4">{t('admin.2fa.title')}</h1>
       <p className="text-sm text-gray-700 dark:text-gray-300 mb-6">
-        Las cuentas de administración requieren un segundo factor TOTP
-        (Google Authenticator, 1Password, Bitwarden, etc.). Escanea el
-        código QR y confirma con un código de seis dígitos para
-        terminar. No podrás acceder al panel hasta completar este paso.
+        {t('admin.2fa.description')}
       </p>
       <EnrollClient />
     </main>

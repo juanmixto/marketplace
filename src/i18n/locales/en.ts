@@ -1014,6 +1014,20 @@ const en: Record<TranslationKeys, string> = {
   'account.deletePasswordRequired': 'Enter your password to confirm.',
   'account.deleteInvalidPassword': 'Incorrect password.',
   'account.deleteError': 'Error deleting the account',
+  // Admin 2FA enrollment (#559)
+  'admin.2fa.title': 'Enable two-factor authentication',
+  'admin.2fa.description': 'Admin accounts require a TOTP second factor (Google Authenticator, 1Password, Bitwarden, etc.). Scan the QR code and confirm a six-digit code to finish. You cannot access the panel until setup is complete.',
+  'admin.2fa.generating': 'Generating key…',
+  'admin.2fa.startFailed': 'Could not start the setup.',
+  'admin.2fa.stepScan': '1. Scan this code',
+  'admin.2fa.qrAlt': 'QR code for TOTP setup',
+  'admin.2fa.manualLabel': 'Cannot scan? Copy the link manually',
+  'admin.2fa.stepEnter': '2. Enter the code shown by your app',
+  'admin.2fa.codePlaceholder': '000000',
+  'admin.2fa.invalidCode': 'Incorrect code. Please try again.',
+  'admin.2fa.verifyError': 'Error verifying the code.',
+  'admin.2fa.verifying': 'Verifying…',
+  'admin.2fa.activate': 'Activate 2FA',
   'account.privacyPolicy': 'Read Privacy Policy',
 
   // Account – addresses
