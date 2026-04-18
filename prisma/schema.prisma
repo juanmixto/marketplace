@@ -208,6 +208,7 @@ model User {
   pushSubscriptions       PushSubscription[]
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
+  accountExportTokens     AccountExportToken[]
   telegramLink            TelegramLink?
   telegramLinkTokens      TelegramLinkToken[]
   notificationPreferences NotificationPreference[]
@@ -1044,6 +1045,23 @@ model PasswordResetToken {
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// GDPR Art 15 export link. Session cookie alone must not be enough to
+// exfiltrate PII — see #551. A request issues a short-lived token that
+// is emailed to the account-owner's verified address; claiming the
+// token (single-use) streams the export JSON.
+model AccountExportToken {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
