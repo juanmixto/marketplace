@@ -6,6 +6,7 @@ import { formatPrice } from '@/lib/utils'
 import { AddToCartButton } from '@/components/catalog/AddToCartButton'
 import { FavoriteToggleButton } from '@/components/catalog/FavoriteToggleButton'
 import { AutoTranslatedBadge } from '@/components/catalog/AutoTranslatedBadge'
+import { StarRating } from '@/components/reviews/StarRating'
 import {
   getAvailableStockForPurchase,
   getDefaultVariant,
@@ -51,6 +52,9 @@ export interface ProductCardProduct {
   vendor?: { slug: string; displayName: string; location: string | null }
   category?: { name: string; slug: string } | null
   variants?: ProductCardVariant[]
+  /** #324 — enriched by catalog query. Missing / null = no stars rendered. */
+  averageRating?: number | null
+  totalReviews?: number
 }
 
 interface ProductCardProps {
@@ -161,6 +165,21 @@ export function ProductCard({ product, locale = 'es' }: ProductCardProps) {
           <p className="line-clamp-2 text-sm font-semibold text-[var(--foreground)] leading-snug">
             {localizedProduct.name}
           </p>
+
+          {product.totalReviews !== undefined
+            && product.totalReviews > 0
+            && product.averageRating !== null
+            && product.averageRating !== undefined && (
+            <div
+              className="mt-1.5 flex items-center gap-1.5"
+              aria-label={copy.reviews.ratingAriaLabel(product.averageRating)}
+            >
+              <StarRating rating={product.averageRating} size="sm" />
+              <span className="text-xs text-[var(--muted)]">
+                {copy.reviews.reviewCount(product.totalReviews)}
+              </span>
+            </div>
+          )}
 
           <div className="mt-2">
             <AutoTranslatedBadge translation={localizedProduct.translation} />
