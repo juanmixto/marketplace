@@ -28,6 +28,15 @@ const SEEDED_ADDRESS_LINE1 = 'Calle Mayor 18'
 
 test.describe('cart and checkout @smoke', () => {
   test('buyer adds a product, checks out with the mock provider and lands on confirmation', async ({ page }) => {
+    // This spec hits 5 distinct Next.js routes (/login, /productos/[slug],
+    // /carrito, /checkout, /checkout/confirmacion) and each one cold-
+    // compiles on the shard's `next dev` server the first time it is
+    // visited. On GitHub-hosted runners the sum can legitimately exceed
+    // the 30s global `timeout` from playwright.config.ts — which is what
+    // triggered the `page.waitForURL: Test timeout of 30000ms` failures
+    // merged in #594. Widen this single test's budget to 90s; everything
+    // else stays at the default.
+    test.setTimeout(90_000)
     await loginAs(page, TEST_USERS.customer)
 
     // --- PRODUCT DETAIL → ADD TO CART ---

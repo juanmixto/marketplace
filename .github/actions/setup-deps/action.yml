@@ -6,7 +6,11 @@ runs:
   steps:
     - uses: actions/setup-node@v5
       with:
-        node-version: 22
+        # Node 24 kills the Node-20 deprecation warnings GitHub has been
+        # printing against actions/cache@v4 (forced upgrade on June 2nd)
+        # and lets the integration runner use the stable
+        # `--test-isolation=none` flag instead of the experimental alias.
+        node-version: 24
         cache: npm
 
     - name: Restore node_modules + generated Prisma client cache
@@ -17,11 +21,13 @@ runs:
         # prisma/schema.prisma `generator client.output`), NOT into
         # node_modules. Cache both paths together, keyed on
         # package-lock + schema.prisma, so skipping the generate
-        # step on a cache hit is safe.
+        # step on a cache hit is safe. Node version is part of the
+        # key because native modules (e.g. Prisma engines) are ABI-
+        # compatible per major.
         path: |
           node_modules
           src/generated/prisma
-        key: deps-${{ runner.os }}-node22-${{ hashFiles('package-lock.json', 'prisma/schema.prisma') }}
+        key: deps-${{ runner.os }}-node24-${{ hashFiles('package-lock.json', 'prisma/schema.prisma') }}
 
     - name: Install dependencies
       if: steps.cache.outputs.cache-hit != 'true'
