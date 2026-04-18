@@ -113,28 +113,23 @@ jobs:
           restore-keys: |
             nextcache-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
 
-      - name: Create shadow DB for Prisma drift check
-        run: |
-          PGPASSWORD=mp_pass psql -h localhost -U mp_user -d postgres \
-            -c "CREATE DATABASE marketplace_shadow OWNER mp_user;"
-
-      - name: Check Prisma schema ↔ migrations are in sync (#313)
-        # Fails with exit code 2 if `prisma/schema.prisma` declares anything
-        # the migrations directory doesn't already apply — i.e. a dev added
-        # a field/model but forgot to run `prisma migrate dev`. Without this
-        # gate the PR would pass CI (`migrate deploy` only replays existing
-        # migrations, it does not compare against schema) and break only on
-        # the first prod query against the missing column. Catches the class
-        # of P2022 incidents that drove #307.
-        run: |
-          npx prisma migrate diff \
-            --from-migrations prisma/migrations \
-            --to-schema-datamodel prisma/schema.prisma \
-            --shadow-database-url "postgresql://mp_user:mp_pass@localhost:5432/marketplace_shadow" \
-            --exit-code
-
       - name: Apply Prisma migrations
         run: npx prisma migrate deploy
+
+      - name: Check schema.prisma ↔ applied DB are in sync (#313)
+        # After migrate deploy, the CI DB is the ground truth for what the
+        # migrations directory declares. Compare that against schema.prisma.
+        # Exit 2 means schema.prisma declares something the migrations did
+        # NOT apply (field added but no migration file, or removed unique
+        # index still in schema, etc.) — the exact class of drift that
+        # surfaced the P2022 bug behind #307 and drove this gate.
+        # Works without a shadow DB because `--from-config-datasource` uses
+        # the live post-deploy DB, not the migrations folder.
+        run: |
+          npx prisma migrate diff \
+            --from-config-datasource \
+            --to-schema prisma/schema.prisma \
+            --exit-code
 
       - name: Build
         run: npm run build
