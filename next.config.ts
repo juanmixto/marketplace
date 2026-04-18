@@ -70,7 +70,7 @@ const nextConfig: NextConfig = {
   // requests to /_next/* dev resources, which breaks HMR and the dev overlay
   // when the page is loaded from a non-localhost host.
   // The pattern matches any host on a typical home/office private network.
-  allowedDevOrigins: ['192.168.*.*', '10.*.*.*', '*.local'],
+  allowedDevOrigins: ['192.168.*.*', '10.*.*.*', '*.local', '*.trycloudflare.com'],
   experimental: {
     staleTimes: {
       // Default is 300 s (matches revalidate = 300). That causes Link-navigation to serve

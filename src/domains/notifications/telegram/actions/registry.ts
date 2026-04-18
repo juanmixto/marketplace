@@ -13,13 +13,26 @@ export type ActionContext = {
 
 export type ActionHandler = (ctx: ActionContext) => Promise<void>
 
-const registry = new Map<string, ActionHandler>()
+// HMR in dev re-evaluates this module on every change; without a
+// globalThis-backed registry the Map would reset between the startup
+// hook that registers actions and the callback_query handler that
+// looks them up, producing "Acción no soportada" on every button tap.
+const GLOBAL_KEY = '__marketplaceTelegramActionRegistry'
+
+type GlobalWithRegistry = typeof globalThis & {
+  [GLOBAL_KEY]?: Map<string, ActionHandler>
+}
+
+function getRegistry(): Map<string, ActionHandler> {
+  const g = globalThis as GlobalWithRegistry
+  if (!g[GLOBAL_KEY]) {
+    g[GLOBAL_KEY] = new Map<string, ActionHandler>()
+  }
+  return g[GLOBAL_KEY]
+}
 
 export function registerAction(name: string, handler: ActionHandler): void {
-  if (registry.has(name)) {
-    throw new Error(`Telegram action already registered: ${name}`)
-  }
-  registry.set(name, handler)
+  getRegistry().set(name, handler)
 }
 
 const callbackDataSchema = z
@@ -46,7 +59,7 @@ export async function dispatchCallbackQuery(
   }
 
   const [name, targetId] = parsed.data.split(':') as [string, string]
-  const handler = registry.get(name)
+  const handler = getRegistry().get(name)
   if (!handler) {
     await logAction(null, chatIdStr, name, { targetId }, false, 'UNKNOWN_ACTION')
     await answerCallbackQuery(query.id, 'Acción no soportada').catch(() => undefined)
