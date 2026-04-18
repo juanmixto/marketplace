@@ -17,6 +17,19 @@ export async function POST(req: NextRequest) {
   const isSignIn = url.pathname.includes('/signin/') || url.pathname.includes('/callback/')
 
   if (isSignIn) {
+    // Escape hatch for E2E / Playwright suites. CI shares a single
+    // seeded credential across ~20 login attempts in a suite and
+    // quickly exhausts the (IP+email) bucket, turning the rate limit
+    // into a deterministic suite-killer. The flag is gated to non-
+    // production NODE_ENV so a prod deploy cannot silently bypass
+    // the limit even if the env var leaks.
+    if (
+      process.env.NODE_ENV !== 'production'
+      && process.env.DISABLE_LOGIN_RATELIMIT === '1'
+    ) {
+      return nextAuthHandlers.POST(reqWithHostHeader(req))
+    }
+
     const clientIP = getClientIP(req)
     const loginKey = await resolveLoginThrottleKey(req, clientIP, url.pathname)
     // 10 login attempts per identity/IP bucket per 15 minutes; auth surface → fail-closed.

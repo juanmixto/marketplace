@@ -97,6 +97,18 @@ type CatalogCopy = {
     relatedProducts: string
     ratingAriaLabel: (rating: number) => string
     reviewCount: (count: number) => string
+    verifiedPurchase: string
+    reportLabel: string
+    reportAria: string
+    reportDone: string
+    reportReasonTitle: string
+    reportReasons: {
+      SPAM: string
+      OFFENSIVE: string
+      OFF_TOPIC: string
+      FAKE: string
+      OTHER: string
+    }
   }
   breadcrumbs: {
     home: string
@@ -214,6 +226,18 @@ const ES_CATALOG_COPY: CatalogCopy = {
     relatedProducts: 'Productos relacionados',
     ratingAriaLabel: rating => `${rating.toFixed(1)} de 5 estrellas`,
     reviewCount: count => (count === 1 ? '1 reseña' : `${count} reseñas`),
+    verifiedPurchase: 'Compra verificada',
+    reportLabel: 'Reportar',
+    reportAria: 'Reportar esta reseña',
+    reportDone: 'Gracias, lo revisaremos.',
+    reportReasonTitle: '¿Por qué reportas esta reseña?',
+    reportReasons: {
+      SPAM: 'Publicidad o spam',
+      OFFENSIVE: 'Lenguaje ofensivo',
+      OFF_TOPIC: 'No habla del producto',
+      FAKE: 'Parece falsa',
+      OTHER: 'Otro motivo',
+    },
   },
   breadcrumbs: {
     home: 'Inicio',
@@ -356,6 +380,18 @@ const EN_CATALOG_COPY: CatalogCopy = {
     relatedProducts: 'Related products',
     ratingAriaLabel: rating => `${rating.toFixed(1)} out of 5 stars`,
     reviewCount: count => (count === 1 ? '1 review' : `${count} reviews`),
+    verifiedPurchase: 'Verified purchase',
+    reportLabel: 'Report',
+    reportAria: 'Report this review',
+    reportDone: 'Thanks, we\'ll review it.',
+    reportReasonTitle: 'Why are you reporting this review?',
+    reportReasons: {
+      SPAM: 'Spam or advertising',
+      OFFENSIVE: 'Offensive language',
+      OFF_TOPIC: 'Not about the product',
+      FAKE: 'Looks fake',
+      OTHER: 'Other reason',
+    },
   },
   breadcrumbs: {
     home: 'Home',

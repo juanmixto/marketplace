@@ -32,7 +32,13 @@ runs:
     - name: Install dependencies
       if: steps.cache.outputs.cache-hit != 'true'
       shell: bash
-      run: npm ci --prefer-offline --no-audit
+      # `--include=dev` forces dev dependencies even when a workflow
+      # sets `NODE_ENV=production` at the job level (doctor.yml does,
+      # to match real runtime). Without this flag, tsx/prisma/eslint
+      # are skipped and the seed + typecheck steps fail the moment
+      # the cache misses (e.g. on any schema.prisma change that bumps
+      # the cache key).
+      run: npm ci --include=dev --prefer-offline --no-audit
 
     - name: Generate Prisma client
       # Skip on cache hit — the cached `src/generated/prisma` is
