@@ -184,10 +184,17 @@ jobs:
       - run: echo "All integration shards passed"
 
   e2e-smoke:
-    name: E2E Smoke
+    name: E2E Smoke (shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     # Runs in parallel with verify/build/integration against `next dev`.
+    # Playwright's native --shard splits tests across runners; 4 shards
+    # (was 1 after the #554 merge dropped the sharding added in #555)
+    # brings each shard's wall-time below the integration-shard bound.
     # Prod-mode coverage (`next start` + DYNAMIC_SERVER_USAGE etc.) runs
     # in nightly.yml — a run with PLAYWRIGHT_USE_PROD=1 took ~11 min on
     # GitHub-hosted runners, which makes it unacceptable for every PR.
@@ -249,14 +256,24 @@ jobs:
       - name: Seed database
         run: npm run db:seed
 
-      - name: Run E2E smoke suite
-        run: npm run test:e2e:smoke
+      - name: Run E2E smoke suite (shard ${{ matrix.shard }}/4)
+        run: npx playwright test --grep @smoke --workers=1 --shard=${{ matrix.shard }}/4
 
       - name: Upload Playwright report on failure
         if: failure()
         uses: actions/upload-artifact@v6
         with:
-          name: playwright-report-${{ github.sha }}
+          name: playwright-report-${{ github.sha }}-shard${{ matrix.shard }}
           path: playwright-report
           retention-days: 7
           if-no-files-found: ignore
+
+  e2e-smoke-complete:
+    name: E2E Smoke
+    runs-on: ubuntu-latest
+    needs: e2e-smoke
+    # Aggregates the matrix shards into a single status check so
+    # branch protection can keep requiring the stable "E2E Smoke"
+    # name (same pattern as the integration aggregator).
+    steps:
+      - run: echo "All E2E smoke shards passed"
