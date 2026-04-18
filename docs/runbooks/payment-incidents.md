@@ -41,7 +41,6 @@ you the `correlationId` → grep the logs with it per scenarios below.
 | `checkout.committed` | Order + Payment rows created. Includes `orderId`, `orderNumber`, `providerRef`, `grandTotalCents`. |
 | `checkout.address_fallback` | Saved address not found — fell back to submitted payload. |
 | `checkout.address_save_failed` | `tx.address.create` threw. Checkout continued. |
-| `checkout.snapshot_column_missing` | Retry without `shippingAddressSnapshot` column. DB migration drift. |
 | `checkout.payment_intent_failed` | Payment provider threw. Placeholder Payment row marked FAILED. |
 | `checkout.payment_mark_failed` | FAILED-marking itself failed after provider error. Requires manual cleanup. |
 | `checkout.payment_row_mismatch` | Linked ≠ 1 unlinked PENDING rows. Defensive — investigate immediately. |
