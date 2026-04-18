@@ -16,6 +16,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Sentry error tracking (DSN, scrubber, correlation)** — see [`src/lib/sentry/`](src/lib/sentry/) + [`sentry.server.config.ts`](sentry.server.config.ts). Every new pattern added to `src/lib/sentry/scrubber.ts` MUST come with a test in `test/features/sentry-scrubber.test.ts` proving the PII class is caught. PII leak via Sentry is a GDPR exposure.
 - **Resource-level authorization (role + ownership checklist, guard helpers, cross-tenant negative-test registry)** — see [`docs/authz-audit.md`](docs/authz-audit.md). Read before adding any server action or route handler. Route-level gating is not enough; every sensitive mutation must scope its Prisma query by caller id and ship at least one cross-tenant negative test.
 - **Branch protection & required checks (canonical list, rules, audit command)** — see [`docs/branch-protection.md`](docs/branch-protection.md). Update alongside the GitHub ruleset when adding/renaming a blocking workflow job; a renamed job with no ruleset update silently disables the gate.
+- **Under-attack / WAF runbook (Cloudflare config, rate-limit rules, edge playbook)** — see [`docs/runbooks/under-attack.md`](docs/runbooks/under-attack.md). Read before touching `src/lib/ratelimit.ts` or `src/lib/audit.ts` client-IP resolution; both prefer `cf-connecting-ip` under the Cloudflare topology (#540) and getting that precedence wrong collapses per-IP buckets.
 
 ## Concurrent-agent safety
 

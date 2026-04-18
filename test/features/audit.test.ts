@@ -13,6 +13,22 @@ test('extractAuditIp prioritizes the first forwarded address', () => {
   assert.equal(ip, '203.0.113.10')
 })
 
+test('extractAuditIp prefers cf-connecting-ip over x-forwarded-for (#540)', () => {
+  // Behind Cloudflare → Traefik the XFF chain is "client, cf-edge-ip".
+  // The leftmost entry is only trustworthy when the origin can't be
+  // bypassed. cf-connecting-ip is filled by Cloudflare with the actual
+  // client IP and any client-supplied copy is stripped — authoritative.
+  const ip = extractAuditIp({
+    get(name: string) {
+      if (name === 'cf-connecting-ip') return '203.0.113.50'
+      if (name === 'x-forwarded-for') return '198.51.100.77, 10.0.0.1'
+      return null
+    },
+  })
+
+  assert.equal(ip, '203.0.113.50')
+})
+
 test('extractAuditIp falls back to x-real-ip when forwarding chain is absent', () => {
   const ip = extractAuditIp({
     get(name: string) {
