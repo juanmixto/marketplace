@@ -88,25 +88,35 @@ export const SEEDED_PROBE_USERS = {
  * We do this from the script (not hardcode the id) so the seed can
  * regenerate cuids freely — the probe finds whichever row exists.
  *
- * Uses the same Prisma client the app uses so we honour prisma.config.ts
- * adapters (pg-adapter, etc.).
+ * Uses `pg` directly (not the app's Prisma client) so this file stays
+ * runnable under plain `node` — `src/lib/db.ts` imports the generated
+ * client via the `@/generated` path alias, which only resolves inside
+ * the bundler. We'd otherwise get "Cannot find package '@/generated'"
+ * at runtime in CI.
  */
 export async function resolveSeededUserId(email) {
-  // Dynamic import so doctor.mjs can run without the DB layer loaded
-  // (e.g. the `--skip-migrations --json` branch used by the
-  // unauthenticated probe flow).
-  const { db } = await import(`${process.cwd()}/src/lib/db.js`).catch(async () => {
-    // `.ts` source — use tsx's default register path
-    return await import(`${process.cwd()}/src/lib/db.ts`)
-  })
-  const row = await db.user.findUnique({
-    where: { email },
-    select: { id: true, role: true, firstName: true, lastName: true },
-  })
-  if (!row) {
+  const { Client } = await import('pg')
+  const connectionString = process.env.DATABASE_URL
+  if (!connectionString) {
     throw new Error(
-      `resolveSeededUserId: no User with email=${email}. Seed the DB with \`npm run db:seed\` before running auth probes.`,
+      'resolveSeededUserId: DATABASE_URL is required to look up seeded users',
     )
   }
-  return row
+  const client = new Client({ connectionString })
+  await client.connect()
+  try {
+    const res = await client.query(
+      'SELECT id, role FROM "User" WHERE email = $1 LIMIT 1',
+      [email],
+    )
+    const row = res.rows[0]
+    if (!row) {
+      throw new Error(
+        `resolveSeededUserId: no User with email=${email}. Seed the DB with \`npm run db:seed\` before running auth probes.`,
+      )
+    }
+    return row
+  } finally {
+    await client.end()
+  }
 }
