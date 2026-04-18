@@ -14,6 +14,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Payment incidents runbook (checkout + webhook log events, investigation recipes)** — see [`docs/runbooks/payment-incidents.md`](docs/runbooks/payment-incidents.md). Read before renaming any `checkout.*` or `stripe.webhook.*` log scope; oncall queries depend on them.
 - **Checkout idempotency (`checkoutAttemptId`, double-submit dedupe, replay UX)** — see [`docs/checkout-dedupe.md`](docs/checkout-dedupe.md). Required reading before changing `createOrder` / `createCheckoutOrder` signatures or the `Order.checkoutAttemptId` UNIQUE constraint.
 - **Sentry error tracking (DSN, scrubber, correlation)** — see [`src/lib/sentry/`](src/lib/sentry/) + [`sentry.server.config.ts`](sentry.server.config.ts). Every new pattern added to `src/lib/sentry/scrubber.ts` MUST come with a test in `test/features/sentry-scrubber.test.ts` proving the PII class is caught. PII leak via Sentry is a GDPR exposure.
+- **Resource-level authorization (role + ownership checklist, guard helpers, cross-tenant negative-test registry)** — see [`docs/authz-audit.md`](docs/authz-audit.md). Read before adding any server action or route handler. Route-level gating is not enough; every sensitive mutation must scope its Prisma query by caller id and ship at least one cross-tenant negative test.
 
 ## Concurrent-agent safety
 
