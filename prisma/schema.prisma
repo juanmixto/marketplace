@@ -203,6 +203,7 @@ model User {
   addresses               Address[]
   incidents               Incident[]
   reviews                 Review[]
+  reviewReports           ReviewReport[]
   favorites               Favorite[]
   subscriptions           Subscription[]
   pushSubscriptions       PushSubscription[]
@@ -538,6 +539,7 @@ model Review {
   product  Product @relation(fields: [productId], references: [id])
   vendor   Vendor  @relation(fields: [vendorId], references: [id])
   customer User    @relation(fields: [customerId], references: [id])
+  reports  ReviewReport[]
 
   @@unique([orderId, productId])
   @@index([productId])
@@ -545,6 +547,40 @@ model Review {
   @@index([vendorId])
   @@index([vendorId, createdAt])
   @@index([customerId])
+}
+
+enum ReviewReportReason {
+  SPAM
+  OFFENSIVE
+  OFF_TOPIC
+  FAKE
+  OTHER
+}
+
+enum ReviewReportTarget {
+  REVIEW_BODY
+  VENDOR_RESPONSE
+}
+
+model ReviewReport {
+  id         String             @id @default(cuid())
+  reviewId   String
+  reporterId String
+  target     ReviewReportTarget @default(REVIEW_BODY)
+  reason     ReviewReportReason
+  detail     String?            @db.Text
+  resolvedAt DateTime?
+  resolvedBy String?
+  createdAt  DateTime           @default(now())
+
+  review   Review @relation(fields: [reviewId], references: [id])
+  reporter User   @relation(fields: [reporterId], references: [id])
+
+  // One report per (reviewId, reporterId, target) — prevents a buyer
+  // from spamming the moderation queue by tapping flag twice.
+  @@unique([reviewId, reporterId, target])
+  @@index([resolvedAt])
+  @@index([reviewId])
 }
 
 model VendorFulfillment {

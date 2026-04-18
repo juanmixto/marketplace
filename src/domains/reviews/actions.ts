@@ -227,3 +227,93 @@ export async function getProductReviews(productId: string) {
     totalReviews: aggregate._count._all,
   }
 }
+
+// ─── #571 — trust + abuse controls ─────────────────────────────────
+
+const reportReasonSchema = z.enum(['SPAM', 'OFFENSIVE', 'OFF_TOPIC', 'FAKE', 'OTHER'])
+const reportTargetSchema = z.enum(['REVIEW_BODY', 'VENDOR_RESPONSE'])
+
+const reportReviewSchema = z.object({
+  reviewId: z.string().min(1),
+  reason: reportReasonSchema,
+  target: reportTargetSchema.default('REVIEW_BODY'),
+  detail: z.string().trim().max(500).optional(),
+})
+
+export type ReportReviewInput = z.input<typeof reportReviewSchema>
+
+/**
+ * Flag a review (or a vendor response on it) for moderation (#571).
+ *
+ * - Any authenticated user can report. The vendor that OWNS the review
+ *   cannot report their own content — they already have delete/respond
+ *   controls.
+ * - `reportReview` is idempotent at the (review, reporter, target)
+ *   tuple: a second tap returns the existing row instead of throwing,
+ *   so accidental double-clicks never produce a UX error.
+ * - No write permissions on Review are changed. Moderators follow up
+ *   out of band via an admin list (scripts/review-reports-list.ts) and
+ *   either resolve the report or moderate the review with existing
+ *   admin tooling.
+ */
+export async function reportReview(input: ReportReviewInput): Promise<{ id: string }> {
+  const session = await getActionSession()
+  if (!session) throw new Error('Debes iniciar sesión para reportar una reseña')
+
+  const data = reportReviewSchema.parse(input)
+
+  // Ownership: the buyer who wrote the review cannot report it
+  // (useless), and a vendor cannot flag their own response.
+  const review = await db.review.findUnique({
+    where: { id: data.reviewId },
+    select: { customerId: true, vendorId: true, vendorResponse: true },
+  })
+  if (!review) throw new Error('Reseña no encontrada')
+  if (data.target === 'REVIEW_BODY' && review.customerId === session.user.id) {
+    throw new Error('No puedes reportar tu propia reseña')
+  }
+  if (data.target === 'VENDOR_RESPONSE') {
+    if (!review.vendorResponse) {
+      throw new Error('Esta reseña no tiene respuesta del productor')
+    }
+    // The vendor that owns the review cannot flag their own response.
+    const vendor = await db.vendor.findUnique({
+      where: { id: review.vendorId },
+      select: { userId: true },
+    })
+    if (vendor?.userId === session.user.id) {
+      throw new Error('No puedes reportar tu propia respuesta')
+    }
+  }
+
+  try {
+    const row = await db.reviewReport.create({
+      data: {
+        reviewId: data.reviewId,
+        reporterId: session.user.id,
+        reason: data.reason,
+        target: data.target,
+        detail: data.detail ?? null,
+      },
+      select: { id: true },
+    })
+    return { id: row.id }
+  } catch (err) {
+    // Idempotent: if the same reporter flags the same target twice,
+    // collapse into the existing row.
+    if (err instanceof Error && /P2002|Unique constraint/i.test(err.message)) {
+      const existing = await db.reviewReport.findUnique({
+        where: {
+          reviewId_reporterId_target: {
+            reviewId: data.reviewId,
+            reporterId: session.user.id,
+            target: data.target,
+          },
+        },
+        select: { id: true },
+      })
+      if (existing) return { id: existing.id }
+    }
+    throw err
+  }
+}
