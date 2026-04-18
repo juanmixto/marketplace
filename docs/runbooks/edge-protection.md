@@ -155,14 +155,19 @@ http:
 
 ## Verification checklist
 
-After the cut-over:
+After the cut-over, run the automated probe:
 
-- [ ] `dig marketplace.tld` returns Cloudflare IPs (104.x, 172.x), not the Proxmox IP.
-- [ ] `curl --resolve marketplace.tld:443:<proxmox-public-ip> https://marketplace.tld` times out or returns 444.
-- [ ] `curl -H 'Host: evil.com' https://<proxmox-public-ip>` returns 404.
-- [ ] A burst of 30 `POST /api/auth/signin` in 1 minute from a single IP returns 429 from Cloudflare (check `cf-ray` header on the response).
-- [ ] `getClientIP` in app logs shows the real client IP (requires `TRUST_PROXY_HEADERS=true` + Cloudflare IPs in Traefik's `trustedIPs`).
-- [ ] `/api/healthcheck` returns 200 through the tunnel.
+```sh
+APP_HOST=marketplace.tld ORIGIN_IP=203.0.113.42 \
+  ./scripts/verify-edge-protection.sh
+```
+
+The script exits 0 when all five checks pass (DNS, origin refuses direct IP, Host spoof returns 404, edge rate limit fires, `cf-ray` present) and non-zero with a per-check diff otherwise. It's also the quickest way to tell whether a change to Traefik or Cloudflare config landed cleanly — rerun after every edge-side edit.
+
+Manual items the script cannot verify:
+
+- [ ] `getClientIP` in app logs shows the real client IP (requires `TRUST_PROXY_HEADERS=true` + Cloudflare IPs in Traefik's `trustedIPs`). Tail `docker logs marketplace` while a curl from an external IP hits `/api/auth/signin` and confirm the log scope has the right IP, not `untrusted-client`.
+- [ ] `/api/healthcheck` returns 200 through the tunnel — external probe (UptimeRobot / BetterStack) confirms both the tunnel and the origin are healthy end-to-end.
 
 ## App-layer assumptions this runbook relies on
 
