@@ -5,6 +5,7 @@
  */
 import crypto from 'crypto'
 import { getServerEnv } from '@/lib/env'
+import { logger } from '@/lib/logger'
 
 export interface PaymentIntent {
   id: string
@@ -88,10 +89,12 @@ export async function createPaymentIntent(
       }
     } catch (error) {
       lastError = error
-      console.error('[checkout] stripe payment intent creation failed', {
+      logger.error('checkout.stripe_intent_create_failed', {
         amountCents,
         attempt,
         connectDestination: options?.connect?.vendorAccountId ?? null,
+        orderId: metadata.orderId ?? null,
+        correlationId: metadata.correlationId ?? null,
         error,
       })
     }

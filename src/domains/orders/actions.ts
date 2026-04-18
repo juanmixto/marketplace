@@ -776,7 +776,7 @@ export async function createOrder(
   try {
     payment = await createPaymentIntent(
       Math.round(grandTotal * 100), // cents
-      { userId: sessionUserId },
+      { userId: sessionUserId, orderId: order.id, correlationId },
       connectDestination ? { connect: connectDestination } : undefined
     )
   } catch (paymentError) {

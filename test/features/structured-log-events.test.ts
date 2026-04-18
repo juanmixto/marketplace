@@ -57,7 +57,22 @@ const REQUIRED_STRIPE_WEBHOOK_EVENTS: EventAssertion = {
   ],
 }
 
-for (const { file, events } of [REQUIRED_CHECKOUT_EVENTS, REQUIRED_STRIPE_WEBHOOK_EVENTS]) {
+const REQUIRED_WEBHOOK_RETRY_EVENTS: EventAssertion = {
+  file: 'src/domains/payments/webhook.ts',
+  events: ['stripe.webhook.retry', 'stripe.webhook.retry_exhausted'],
+}
+
+const REQUIRED_PAYMENT_PROVIDER_EVENTS: EventAssertion = {
+  file: 'src/domains/payments/provider.ts',
+  events: ['checkout.stripe_intent_create_failed'],
+}
+
+for (const { file, events } of [
+  REQUIRED_CHECKOUT_EVENTS,
+  REQUIRED_STRIPE_WEBHOOK_EVENTS,
+  REQUIRED_WEBHOOK_RETRY_EVENTS,
+  REQUIRED_PAYMENT_PROVIDER_EVENTS,
+]) {
   test(`${file}: all required event names still present`, () => {
     const content = readFileSync(join(process.cwd(), file), 'utf-8')
     const missing: string[] = []
@@ -92,6 +107,16 @@ test('stripe webhook route no longer uses console.* for logging', () => {
     !/console\.(warn|error|info|debug|log)\s*\(/.test(content),
     'stripe webhook route must use logger.* for all structured logging'
   )
+})
+
+test('webhook retry + payment provider no longer use console.* for logging', () => {
+  for (const file of ['src/domains/payments/webhook.ts', 'src/domains/payments/provider.ts']) {
+    const content = readFileSync(join(process.cwd(), file), 'utf-8')
+    assert.ok(
+      !/console\.(warn|error|info|debug|log)\s*\(/.test(content),
+      `${file} must use logger.* for all structured logging`,
+    )
+  }
 })
 
 test('correlation ID is threaded through checkout logs', () => {
