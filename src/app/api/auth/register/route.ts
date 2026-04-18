@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json()
     const data = schema.parse(body)
+    const normalizedEmail = data.email.trim().toLowerCase()
 
     const passwordHash = await bcrypt.hash(data.password, 12)
 
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
         data: {
           firstName: data.firstName,
           lastName: data.lastName,
-          email: data.email,
+          email: normalizedEmail,
           passwordHash,
           role: 'CUSTOMER',
           emailVerified: null, // Require email verification before access
@@ -56,7 +57,16 @@ export async function POST(req: NextRequest) {
       })
     } catch (createErr) {
       if (isUniqueConstraintViolation(createErr)) {
-        return NextResponse.json({ message: 'Este email ya está registrado' }, { status: 409 })
+        // Never disclose whether an email already exists. Return the same
+        // public shape as the success path so the endpoint cannot be used as
+        // an account-enumeration oracle.
+        return NextResponse.json(
+          {
+            success: true,
+            message: 'Te hemos enviado un email de verificación. Revisa tu bandeja antes de iniciar sesión.',
+          },
+          { status: 201 }
+        )
       }
       throw createErr
     }
@@ -94,4 +104,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: 'Error interno' }, { status: 500 })
   }
 }
-

@@ -12,9 +12,10 @@ export function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  // Check if this is a signin request (NextAuth uses query params)
+  // Credential sign-in posts to /callback/credentials in NextAuth v5.
+  // OAuth/email sign-ins use /signin/*; rate-limit both entry points.
   const url = new URL(req.url)
-  const isSignIn = url.pathname.includes('signin')
+  const isSignIn = url.pathname.includes('/signin/') || url.pathname.includes('/callback/')
 
   if (isSignIn) {
     const clientIP = getClientIP(req)

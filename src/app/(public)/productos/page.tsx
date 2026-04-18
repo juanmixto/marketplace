@@ -10,17 +10,8 @@ import { getCatalogCopy } from '@/i18n/catalog-copy'
 import { getServerLocale } from '@/i18n/server'
 import { translateCategoryLabel } from '@/lib/portals'
 import { buildPageMetadata } from '@/lib/seo'
-
-export async function generateMetadata(): Promise<Metadata> {
-  const locale = await getServerLocale()
-  const copy = getCatalogCopy(locale)
-
-  return buildPageMetadata({
-    title: copy.page.title,
-    description: copy.page.description,
-    path: '/productos',
-  })
-}
+import { JsonLd } from '@/components/seo/JsonLd'
+import { absoluteUrl } from '@/lib/seo'
 
 interface Props {
   searchParams: Promise<{
@@ -30,6 +21,26 @@ interface Props {
     orden?: string
     cursor?: string
   }>
+}
+
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  const locale = await getServerLocale()
+  const copy = getCatalogCopy(locale)
+  const params = await searchParams
+  const query = params.q?.trim() || ''
+  const hasFacetParams =
+    Boolean(query) ||
+    Boolean(params.categoria) ||
+    Boolean(params.orden) ||
+    Boolean(params.cursor) ||
+    Boolean(Array.isArray(params.cert) ? params.cert.length > 0 : params.cert)
+
+  return buildPageMetadata({
+    title: query ? copy.page.searchTitleWithQuery(query) : copy.page.title,
+    description: query ? copy.page.searchDescriptionWithQuery(query) : copy.page.description,
+    path: '/productos',
+    noindex: hasFacetParams,
+  })
 }
 
 export default async function ProductosPage({ searchParams }: Props) {
@@ -60,6 +71,19 @@ export default async function ProductosPage({ searchParams }: Props) {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <JsonLd
+        data={{
+          '@context': 'https://schema.org',
+          '@type': 'ItemList',
+          name: copy.page.title,
+          itemListElement: products.map((product, index) => ({
+            '@type': 'ListItem',
+            position: index + 1,
+            name: product.name,
+            url: absoluteUrl(`/productos/${product.slug}`),
+          })),
+        }}
+      />
       <div className="flex gap-8">
         {/* Sidebar filters */}
         <aside className="hidden w-56 shrink-0 lg:block">

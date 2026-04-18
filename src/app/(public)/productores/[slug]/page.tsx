@@ -68,34 +68,39 @@ export default async function VendorPublicPage({ params }: Props) {
   const heroImage = getVendorHeroImage(vendor)
   const visualLabel = t(getVendorVisualLabelKey(vendor))
 
-  const [reviews, aggregate] = await Promise.all([
-    db.review.findMany({
-      where: { vendorId: vendor.id },
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-      select: {
-        id: true,
-        rating: true,
-        body: true,
-        createdAt: true,
-        customer: { select: { firstName: true, lastName: true } },
-        product: { select: { name: true } },
-      },
-    }),
-    db.review.aggregate({
-      where: { vendorId: vendor.id },
-      _avg: { rating: true },
-      _count: { _all: true },
-    }),
+  const sessionPromise = auth()
+  const reviewsPromise = db.review.findMany({
+    where: { vendorId: vendor.id },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+    select: {
+      id: true,
+      rating: true,
+      body: true,
+      createdAt: true,
+      customer: { select: { firstName: true, lastName: true } },
+      product: { select: { name: true } },
+    },
+  })
+  const aggregatePromise = db.review.aggregate({
+    where: { vendorId: vendor.id },
+    _avg: { rating: true },
+    _count: { _all: true },
+  })
+
+  const session = await sessionPromise
+  const pendingForVendorPromise = session?.user?.id
+    ? getVendorPendingReviews(session.user.id, vendor.id)
+    : Promise.resolve({ total: 0, firstPendingOrderId: null })
+
+  const [reviews, aggregate, pendingForVendor] = await Promise.all([
+    reviewsPromise,
+    aggregatePromise,
+    pendingForVendorPromise,
   ])
 
   const avgRating = aggregate._avg.rating ? Number(aggregate._avg.rating) : null
   const totalReviews = aggregate._count._all
-
-  const session = await auth()
-  const pendingForVendor = session?.user?.id
-    ? await getVendorPendingReviews(session.user.id, vendor.id)
-    : { total: 0, firstPendingOrderId: null }
 
   // Collect unique certifications across all products
   const allCertifications = [

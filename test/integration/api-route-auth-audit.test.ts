@@ -172,3 +172,11 @@ test('PUBLIC_API_ROUTES has no duplicates', () => {
   }
   assert.deepEqual(dupes, [], `Duplicate PUBLIC_API_ROUTES entries: ${dupes.join(', ')}`)
 })
+
+test('NextAuth wrapper rate-limits both signin and credentials callback paths', () => {
+  const route = readFileSync(path.join(process.cwd(), 'src/app/api/auth/[...nextauth]/route.ts'), 'utf-8')
+  assert.ok(
+    route.includes("includes('/signin/')") && route.includes("includes('/callback/')"),
+    'login rate limit must cover both /signin/* and /callback/* NextAuth POST paths'
+  )
+})

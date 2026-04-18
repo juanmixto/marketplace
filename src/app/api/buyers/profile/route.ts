@@ -32,15 +32,18 @@ export async function PUT(request: Request) {
     if (!parsed.success) {
       return apiValidationFromZod(parsed.error)
     }
-    const { firstName, lastName, email } = parsed.data
+    const { firstName, lastName } = parsed.data
+    const email = parsed.data.email.trim().toLowerCase()
+    const currentEmail = session.user.email?.trim().toLowerCase()
 
-    // Email-conflict surfaces as a per-field error so the client can highlight
-    // the email input directly instead of a generic banner. (#131)
-    if (email !== session.user.email) {
+    // Email-conflict should not act as an oracle for account existence.
+    // Compare against the normalized value and return a generic error if
+    // the target email is already in use by another account.
+    if (email !== currentEmail) {
       const existing = await db.user.findUnique({ where: { email } })
-      if (existing) {
-        return apiError('Este email ya está en uso por otra cuenta', 409, 'CONFLICT', {
-          fieldErrors: { email: 'Este email ya está en uso por otra cuenta' },
+      if (existing && existing.id !== session.user.id) {
+        return apiError('No se ha podido actualizar el email', 409, 'CONFLICT', {
+          fieldErrors: { email: 'No se ha podido actualizar el email' },
         })
       }
     }

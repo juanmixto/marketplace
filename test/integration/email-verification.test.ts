@@ -15,10 +15,12 @@ import {
 } from '@/domains/auth/email-verification'
 import { authorizeCredentials } from '@/domains/auth/credentials'
 import { POST as registerUser } from '@/app/api/auth/register/route'
+import { PUT as updateBuyerProfile } from '@/app/api/buyers/profile/route'
 import { POST as requestPasswordReset } from '@/app/api/auth/forgot-password/route'
 import { POST as resetPassword } from '@/app/api/auth/reset-password/route'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
+import { clearTestSession, useTestSession } from './helpers'
 
 // Mirror the production digest derivation. The HMAC pepper falls back to a
 // fixed dev-only value when AUTH_SECRET / NEXTAUTH_SECRET aren't set, so
@@ -146,7 +148,8 @@ describe('Email Verification and Password Reset (#77)', () => {
     })
 
     it('should register users unverified and block login until email verification completes', async () => {
-      const email = `register-flow-${Date.now()}@example.com`
+      const email = `Register-Flow-${Date.now()}@Example.COM`
+      const normalizedEmail = email.toLowerCase()
       const password = 'test-password-123'
       const originalResendKey = process.env.RESEND_API_KEY
       let createdUserId: string | undefined
@@ -172,7 +175,7 @@ describe('Email Verification and Password Reset (#77)', () => {
         expect(response.status).toBe(201)
 
         const createdUser = await db.user.findUnique({
-          where: { email },
+          where: { email: normalizedEmail },
         })
 
         expect(createdUser).toBeDefined()
@@ -197,7 +200,7 @@ describe('Email Verification and Password Reset (#77)', () => {
 
         const allowedLogin = await authorizeCredentials({ email, password })
         expect(allowedLogin).toBeDefined()
-        expect(allowedLogin?.email).toBe(email)
+        expect(allowedLogin?.email).toBe(normalizedEmail)
       } finally {
         if (originalResendKey === undefined) {
           delete process.env.RESEND_API_KEY
@@ -215,9 +218,45 @@ describe('Email Verification and Password Reset (#77)', () => {
           }).catch(() => {})
         } else {
           await db.user.deleteMany({
-            where: { email },
+            where: { email: normalizedEmail },
           }).catch(() => {})
         }
+      }
+    })
+
+    it('should normalize buyer profile emails to lowercase', async () => {
+      const user = await db.user.create({
+        data: {
+          email: `profile-normalization-${Date.now()}@example.com`,
+          firstName: 'Profile',
+          lastName: 'User',
+          passwordHash: 'test-hash',
+          emailVerified: new Date(),
+        },
+      })
+
+      useTestSession({ user: { id: user.id, role: 'CUSTOMER', email: user.email } })
+
+      try {
+        const response = await updateBuyerProfile(
+          new Request('http://localhost:3000/api/buyers/profile', {
+            method: 'PUT',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              firstName: 'Profile',
+              lastName: 'User',
+              email: 'Mixed-Case.Profile@Example.COM',
+            }),
+          }) as never
+        )
+
+        expect(response.status).toBe(200)
+
+        const updated = await db.user.findUnique({ where: { id: user.id } })
+        expect(updated?.email).toBe('mixed-case.profile@example.com')
+      } finally {
+        clearTestSession()
+        await db.user.delete({ where: { id: user.id } }).catch(() => {})
       }
     })
   })

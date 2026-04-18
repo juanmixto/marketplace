@@ -6,6 +6,8 @@ import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import { buildPageMetadata } from '@/lib/seo'
 import { getVendorHeroImage, getVendorVisualLabelKey } from '@/domains/vendors/visuals'
 import { getServerT } from '@/i18n/server'
+import { JsonLd } from '@/components/seo/JsonLd'
+import { absoluteUrl } from '@/lib/seo'
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT()
@@ -22,6 +24,19 @@ export default async function ProductoresPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <JsonLd
+        data={{
+          '@context': 'https://schema.org',
+          '@type': 'ItemList',
+          name: t('producersPage.title'),
+          itemListElement: vendors.map((vendor, index) => ({
+            '@type': 'ListItem',
+            position: index + 1,
+            name: vendor.displayName,
+            url: absoluteUrl(`/productores/${vendor.slug}`),
+          })),
+        }}
+      />
       <h1 className="text-3xl font-bold text-[var(--foreground)]">{t('producersPage.title')}</h1>
       <p className="mt-2 text-[var(--muted)]">{t('producersPage.subtitle')}</p>
 

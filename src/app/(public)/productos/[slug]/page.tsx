@@ -93,16 +93,22 @@ export default async function ProductDetailPage({ params }: Props) {
   const localizedProduct = getLocalizedProductCopy(product, locale)
   const taxRate = Number(product.taxRate)
 
-  const related = await getProducts({
+  const relatedPromise = getProducts({
     categorySlug: product.category?.slug,
     limit: 4,
   }).then(r => r.products.filter(p => p.id !== product.id).slice(0, 4))
-  const reviewSummary = await getProductReviews(product.id)
-  const activePromotions = await getActivePromotionsForProduct({
+  const reviewSummaryPromise = getProductReviews(product.id)
+  const activePromotionsPromise = getActivePromotionsForProduct({
     productId: product.id,
     vendorId: product.vendor.id,
     categoryId: product.categoryId ?? null,
   })
+
+  const [related, reviewSummary, activePromotions] = await Promise.all([
+    relatedPromise,
+    reviewSummaryPromise,
+    activePromotionsPromise,
+  ])
 
   // An "auto-applied" promo is one that a buyer gets without typing a
   // code and without needing to reach a minimum subtotal — i.e. it
@@ -162,6 +168,16 @@ export default async function ProductDetailPage({ params }: Props) {
     description: localizedProduct.description ?? undefined,
     image: product.images.map(image => absoluteUrl(image)),
     sku: product.slug,
+    aggregateRating:
+      reviewSummary.totalReviews > 0 && reviewSummary.averageRating != null
+        ? {
+            '@type': 'AggregateRating',
+            ratingValue: reviewSummary.averageRating.toFixed(1),
+            reviewCount: reviewSummary.totalReviews,
+            bestRating: '5',
+            worstRating: '1',
+          }
+        : undefined,
     brand: {
       '@type': 'Organization',
       name: product.vendor.displayName,

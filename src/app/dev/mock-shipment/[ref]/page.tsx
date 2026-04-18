@@ -14,6 +14,10 @@ interface Props {
  * return absolute URLs pointing to the carrier.
  */
 export default async function MockShipmentPage({ params, searchParams }: Props) {
+  if (process.env.NODE_ENV === 'production') {
+    notFound()
+  }
+
   const { ref } = await params
   const { tab = 'label', number } = await searchParams
 
