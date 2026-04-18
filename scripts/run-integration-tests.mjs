@@ -70,17 +70,18 @@ if (shardTotal > 1) {
 
 // Default `node --test` isolation mode runs every file in its own
 // subprocess, which pays a ~10s cold-start cost per file (tsx
-// transform + Prisma client init + module graph). On Node 22.8+ we
-// can opt into shared-process isolation, which keeps the module
-// cache hot across files and cuts each shard by ~60-80s. Falls back
-// transparently on older Node versions (local dev on 20).
-const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(Number)
-const supportsSharedIsolation =
-  nodeMajor > 22 || (nodeMajor === 22 && nodeMinor >= 8)
-
+// transform + Prisma client init + module graph). Opt into
+// shared-process isolation so the module cache (including Prisma's
+// generated client) stays hot across the whole shard — cuts each
+// shard by ~60-80s. The flag is stable in Node 24 and gated behind
+// `--experimental-test-isolation` in Node 22, so prefer the stable
+// form and fall back on older majors.
+const nodeMajor = Number(process.versions.node.split('.')[0])
 const nodeArgs = ['--import', 'tsx', '--test-concurrency=1']
-if (supportsSharedIsolation) {
+if (nodeMajor >= 24) {
   nodeArgs.push('--test-isolation=none')
+} else if (nodeMajor === 22) {
+  nodeArgs.push('--experimental-test-isolation=none')
 }
 nodeArgs.push('--test', ...files)
 
