@@ -1009,6 +1009,10 @@ const es = {
   'account.exportData': 'Descargar Mis Datos',
   'account.downloading': 'Descargando...',
   'account.deleteAccount': 'Eliminar Mi Cuenta',
+  'account.deletePasswordPlaceholder': 'Contraseña actual',
+  'account.deletePasswordRequired': 'Introduce tu contraseña para confirmar.',
+  'account.deleteInvalidPassword': 'Contraseña incorrecta.',
+  'account.deleteError': 'Error al eliminar la cuenta',
   'account.privacyPolicy': 'Leer Política de Privacidad',
 
   // Account – addresses

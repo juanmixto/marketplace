@@ -39,6 +39,49 @@ const baseEnvSchema = z.object({
 export function parseServerEnv(env: NodeJS.ProcessEnv) {
   const parsed = baseEnvSchema.parse(env)
 
+  // Production-runtime-only safety assertions. See audit issues #538,
+  // #542, #548.
+  //
+  // Gated on NEXT_PHASE === 'phase-production-server' (set by Next only
+  // when actually serving HTTP traffic) so `next build` and standalone
+  // scripts like `prisma db seed` — which run with NODE_ENV=production
+  // in CI and deploy pipelines — don't trip the checks. The assertions
+  // are about what the running app accepts from the network, not about
+  // build-time or CLI contexts.
+  const isProductionRuntime =
+    env.NODE_ENV === 'production' && env.NEXT_PHASE === 'phase-production-server'
+  if (isProductionRuntime) {
+    // #548: refuse to boot in prod with the mock payment provider. The
+    // Stripe webhook handler accepts unsigned events when provider=mock,
+    // so leaving the default in prod is a free-money bug.
+    if (parsed.PAYMENT_PROVIDER !== 'stripe') {
+      throw new Error(
+        'PAYMENT_PROVIDER must be "stripe" in production (was "mock")'
+      )
+    }
+
+    // #538: require an explicit trust decision for x-forwarded-for. When
+    // neither flag is set, getClientIP() buckets every request under the
+    // "untrusted-client" sentinel, which turns per-IP rate limits into a
+    // global lockout. Vercel is always trusted; on self-hosted (Traefik),
+    // operators must set TRUST_PROXY_HEADERS=true after verifying the
+    // proxy strips client-supplied forwarding headers.
+    const onVercel = env.VERCEL === '1' || env.VERCEL === 'true'
+    if (!onVercel && env.TRUST_PROXY_HEADERS !== 'true') {
+      throw new Error(
+        'TRUST_PROXY_HEADERS=true is required in production (or deploy on Vercel). ' +
+        'Without it, rate limiting collapses to a single global bucket.'
+      )
+    }
+
+    // #542: require AUTH_URL in production so NextAuth constructs
+    // verification / reset links from a pinned origin rather than the
+    // inbound Host header.
+    if (!parsed.AUTH_URL) {
+      throw new Error('AUTH_URL is required in production')
+    }
+  }
+
   if (parsed.PAYMENT_PROVIDER === 'stripe') {
     const stripeFields = [
       'STRIPE_SECRET_KEY',
