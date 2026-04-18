@@ -43,6 +43,14 @@ interface Props {
   showDemoNotice: boolean
   userFirstName?: string
   userLastName?: string
+  /**
+   * Server-issued idempotency token (#410/#524). Generated fresh on
+   * every render of the checkout page. The client holds it in a ref
+   * across re-renders so React state churn never regenerates it mid-
+   * submit. Submitted alongside the cart; the backend uses it to
+   * dedupe double-clicks, tab refreshes, and concurrent races.
+   */
+  checkoutAttemptId: string
 }
 
 export function CheckoutPageClient({
@@ -52,6 +60,7 @@ export function CheckoutPageClient({
   showDemoNotice,
   userFirstName = '',
   userLastName = '',
+  checkoutAttemptId,
 }: Props) {
   const router = useRouter()
   const { items, subtotal, clearCart } = useCartStore()
@@ -170,6 +179,10 @@ export function CheckoutPageClient({
   }
 
   const hasTrackedCheckoutRef = useRef(false)
+  // #524: keep the server-issued attempt id stable across re-renders.
+  // Declared at the top of the component alongside other hooks — hooks
+  // cannot live below conditional returns.
+  const attemptIdRef = useRef(checkoutAttemptId)
 
   useEffect(() => {
     if (items.length === 0 || hasTrackedCheckoutRef.current) return
@@ -300,7 +313,7 @@ export function CheckoutPageClient({
           saveAddress: data.saveAddress,
           selectedAddressId: selectedAddressId ?? undefined,
         },
-        { promotionCode: appliedCode }
+        { promotionCode: appliedCode, checkoutAttemptId: attemptIdRef.current }
       )
 
       if (!result.ok) {
@@ -309,7 +322,18 @@ export function CheckoutPageClient({
         return
       }
 
-      const { orderId, orderNumber, clientSecret } = result
+      const { orderId, orderNumber, clientSecret, replayed } = result
+
+      // #524 replay path: the backend found an existing Order for this
+      // attempt id. That means a previous submit (maybe from a dropped
+      // network response, a tab refresh, or a concurrent click) already
+      // committed it. Send the buyer to the confirmation page without
+      // re-attempting payment — re-confirming would either be a no-op
+      // (idempotent by providerRef) or hit a stale Stripe session.
+      if (replayed) {
+        router.push(`/checkout/confirmacion?orderNumber=${orderNumber}&replayed=1`)
+        return
+      }
 
       if (clientSecret.startsWith('mock_')) {
         setCompletedOrderNumber(orderNumber)
