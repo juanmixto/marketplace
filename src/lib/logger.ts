@@ -159,9 +159,54 @@ export function redact(
   return out
 }
 
+/**
+ * Mirror logger.error calls to Sentry (#523) as captureMessage events so
+ * oncall sees the same signal in both places. Non-blocking: the dynamic
+ * import happens best-effort and is swallowed on failure — a Sentry
+ * outage must never break the app's own logging.
+ *
+ * Kept inline here (not in src/lib/sentry/capture.ts) so the logger
+ * stays self-contained and doesn't grow a dependency on another server
+ * module that might change signature.
+ */
+function mirrorErrorToSentry(scope: string, context: LogContext | undefined) {
+  // In tests and when no DSN is configured, this is a fast no-op.
+  if (process.env.NODE_ENV === 'test') return
+  if (!process.env.SENTRY_DSN && !process.env.NEXT_PUBLIC_SENTRY_DSN) return
+
+  import('@sentry/nextjs')
+    .then((Sentry) => {
+      Sentry.withScope((s) => {
+        s.setLevel('error')
+        s.setTag('domain.scope', scope)
+        const correlationId = context?.correlationId
+        if (typeof correlationId === 'string') s.setTag('correlationId', correlationId)
+        const userId = context?.userId
+        if (typeof userId === 'string') s.setUser({ id: userId })
+        // Capture the error object if the caller attached one; otherwise
+        // fall back to a message keyed on the scope so the Sentry issue
+        // title is stable ("logger.error:<scope>").
+        const err = context?.error
+        if (err instanceof Error) {
+          Sentry.captureException(err)
+        } else {
+          Sentry.captureMessage(`logger.error:${scope}`, 'error')
+        }
+      })
+    })
+    .catch(() => {
+      // Sentry not available — that's fine.
+    })
+}
+
 export const logger: Logger = {
   debug: (scope, message, context) => writeEntry(buildLogEntry('debug', scope, message, context)),
   info: (scope, message, context) => writeEntry(buildLogEntry('info', scope, message, context)),
   warn: (scope, message, context) => writeEntry(buildLogEntry('warn', scope, message, context)),
-  error: (scope, message, context) => writeEntry(buildLogEntry('error', scope, message, context)),
+  error: (scope, messageOrContext, context) => {
+    writeEntry(buildLogEntry('error', scope, messageOrContext, context))
+    const effectiveContext =
+      typeof messageOrContext === 'string' ? context : messageOrContext
+    mirrorErrorToSentry(scope, effectiveContext)
+  },
 }

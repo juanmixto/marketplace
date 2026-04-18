@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 
@@ -10,9 +10,24 @@ interface ErrorProps {
 }
 
 export default function Error({ error, reset }: ErrorProps) {
+  const [sentryEventId, setSentryEventId] = useState<string | null>(null)
+
   useEffect(() => {
-    // Log the error to an error reporting service
-    console.error('Global error caught:', error.message, error.digest)
+    // Fire-and-forget: send to Sentry and capture the event id so we can
+    // show it to the user. Support can search Sentry by this id to find
+    // the full stack + correlationId + user context. Safe to run even
+    // when Sentry is not configured — the import fails silently.
+    ;(async () => {
+      try {
+        const Sentry = await import('@sentry/nextjs')
+        const id = Sentry.captureException(error, {
+          tags: { 'error.digest': error.digest ?? 'unknown' },
+        })
+        if (id) setSentryEventId(id)
+      } catch {
+        // Sentry not configured — the digest is still shown below.
+      }
+    })()
   }, [error])
 
   return (
@@ -35,11 +50,14 @@ export default function Error({ error, reset }: ErrorProps) {
           de nuevo.
         </p>
 
-        {/* Error digest para debugging */}
-        {error.digest && (
-          <p className="mb-6 rounded-lg bg-gray-100 px-4 py-2 font-mono text-sm text-gray-700 dark:bg-[var(--surface-raised)] dark:text-[var(--foreground-soft)]">
-            Error ID: {error.digest}
-          </p>
+        {/* Error digest para debugging. Muestra el Sentry event id cuando
+            Sentry está configurado — así el usuario puede citarlo a
+            soporte y el equipo lo encuentra en un click. */}
+        {(error.digest || sentryEventId) && (
+          <div className="mb-6 space-y-1 rounded-lg bg-gray-100 px-4 py-2 font-mono text-xs text-gray-700 dark:bg-[var(--surface-raised)] dark:text-[var(--foreground-soft)]">
+            {error.digest && <p>Error ID: {error.digest}</p>}
+            {sentryEventId && <p>Trace: {sentryEventId}</p>}
+          </div>
         )}
 
         {/* Botones */}

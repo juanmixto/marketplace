@@ -11,9 +11,25 @@ structured-logging conventions shipped in #414 (`checkout.*`) and
 Collect from the user:
 
 - **Order number** (shown in buyer's cart/email — e.g. `MP-20260416-ABCD`)
+- **Error ID** shown on the 500 page (a digest) and/or the **Trace** field (Sentry event id)
 - **Time window** (when they tried to pay — UTC preferred but local is OK)
 - **Stripe dashboard access** if you're investigating real-Stripe mode
 - **Provider** — are they on `mock` or `stripe`? Check `PAYMENT_PROVIDER` env
+
+### Step 0 — always look at Sentry first (#523)
+
+When `SENTRY_DSN` is configured, every unhandled server or client error
+appears in the Sentry project within seconds, with:
+
+- Stack trace (mapped to source if source maps were uploaded at build)
+- `correlationId` tag → pivot to logs
+- `userId` tag (opaque id only, no email)
+- `domain.scope` tag (`checkout.*`, `stripe.webhook.*`, etc.)
+- Release (git SHA) — filter by deploy
+
+If the buyer gives you the `Trace: <id>` from the error page, paste it
+into Sentry's search to jump straight to the event. Sentry then tells
+you the `correlationId` → grep the logs with it per scenarios below.
 
 ## Log query index
 
