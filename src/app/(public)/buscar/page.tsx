@@ -5,11 +5,12 @@ import { ProductCard } from '@/components/catalog/ProductCard'
 import { ProductFiltersPanel } from '@/components/catalog/ProductFiltersPanel'
 import { TrackEventOnView } from '@/components/analytics/TrackEventOnView'
 import { SortSelect } from '@/components/catalog/SortSelect'
-import { parseProductSort, type ProductWithVendor } from '@/domains/catalog/types'
+import { parseProductSort } from '@/domains/catalog/types'
 import Link from 'next/link'
 import { getCatalogCopy } from '@/i18n/catalog-copy'
 import { getServerLocale } from '@/i18n/server'
 import { buildPageMetadata } from '@/lib/seo'
+import { serializeProductForCard } from '@/lib/catalog-serialization'
 
 interface Props {
   searchParams: Promise<{
@@ -135,7 +136,7 @@ export default async function BuscarPage({ searchParams }: Props) {
             <>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
                 {products.map(p => (
-                  <ProductCard key={p.id} product={p as ProductWithVendor} locale={locale} />
+                  <ProductCard key={p.id} product={serializeProductForCard(p)} locale={locale} />
                 ))}
               </div>
 

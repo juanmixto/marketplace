@@ -6,6 +6,7 @@ import { StripeConnectUI } from './StripeConnectUI'
 import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getServerT } from '@/i18n/server'
+import { serializeVendorProfile } from '@/lib/vendor-profile-serialization'
 
 export const metadata: Metadata = { title: 'Mi perfil' }
 
@@ -13,6 +14,7 @@ export default async function VendorPerfilPage() {
   const vendor = await getMyVendorProfile()
   if (!vendor) redirect('/login')
   const t = await getServerT()
+  const profile = serializeVendorProfile(vendor)
 
   const addressPrefill = await getVendorAddressPrefill()
 
@@ -25,7 +27,7 @@ export default async function VendorPerfilPage() {
 
       <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
         <h2 className="font-semibold text-[var(--foreground)]">{t('vendor.perfil.paymentsHeading')}</h2>
-        <StripeConnectUI onboarded={vendor.stripeOnboarded ?? false} />
+        <StripeConnectUI onboarded={profile.stripeOnboarded} />
       </section>
 
       <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
@@ -36,7 +38,7 @@ export default async function VendorPerfilPage() {
         <VendorAddressForm initial={addressPrefill} />
       </section>
 
-      <VendorProfileForm vendor={vendor} />
+      <VendorProfileForm vendor={profile} />
     </div>
   )
 }

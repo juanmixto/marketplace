@@ -25,6 +25,16 @@ npm run typecheck:test
 npm run test:db
 ```
 
+If you touched public catalog, auth, or checkout flows, also run:
+
+```bash
+npm run test:e2e:smoke
+```
+
+That smoke suite is wired to the seeded `marketplace_test` database and
+sets `PLAYWRIGHT_E2E=1` so it bypasses app caches during repeat runs.
+For a manual smoke-matching boot, use `./dev.sh --smoke`.
+
 ## Test split
 
 - `npm test`: fast tests without database dependencies

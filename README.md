@@ -147,6 +147,7 @@ npm run dev
 | `npm run test:db` | Tests con base de datos y migraciones |
 | `npm run test:db:parallel` | Tests con base de datos en paralelo |
 | `npm run test:integration` | Tests de integración |
+| `npm run test:e2e:smoke` | Smoke Playwright contra `marketplace_test` en `http://localhost:3001` |
 | `npm run db:studio` | Prisma Studio en http://localhost:5555 |
 | `npm run db:reset` | Reset de BD con seed (sin arrancar app) |
 | `npm run typecheck` | Validación completa de TypeScript |
@@ -155,6 +156,20 @@ npm run dev
 | `npm run build` | Build de producción |
 
 Más detalle del flujo de validación en [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+
+### Smoke local
+
+Si ejecutas `npm run test:e2e:smoke`, Playwright levanta `next dev`
+contra la base de datos sembrada `marketplace_test` y activa
+`PLAYWRIGHT_E2E=1` para que catálogo y configuración no usen caché
+vieja. Esa combinación evita falsos fallos cuando repites el smoke
+varias veces seguidas.
+
+Si prefieres abrir la app manualmente con ese mismo entorno, usa:
+
+```bash
+./dev.sh --smoke
+```
 
 ---
 

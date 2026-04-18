@@ -15,8 +15,8 @@ test.describe('auth @smoke', () => {
 
   test('login with wrong credentials surfaces an error', async ({ page }) => {
     await page.goto('/login')
-    await page.getByLabel('Email').fill('cliente@test.com')
-    await page.getByLabel('Contraseña').fill('definitely-wrong-password')
+    await page.locator('input[name="email"]').fill('cliente@test.com')
+    await page.locator('input[name="password"]').fill('definitely-wrong-password')
     await page.getByRole('button', { name: 'Iniciar sesión' }).click()
     // Stay on /login and show an inline error message. We don't pin the
     // exact wording — just that something user-facing surfaces.

@@ -2,9 +2,9 @@ import Link from 'next/link'
 import { ArrowRightIcon, ShoppingBagIcon, HomeIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 import { getProducts } from '@/domains/catalog/queries'
 import { ProductCard } from '@/components/catalog/ProductCard'
-import type { ProductWithVendor } from '@/domains/catalog/types'
 import { getCatalogCopy } from '@/i18n/catalog-copy'
 import { getServerLocale } from '@/i18n/server'
+import { serializeProductForCard } from '@/lib/catalog-serialization'
 
 export default async function ProductNotFound() {
   const locale = await getServerLocale()
@@ -99,7 +99,7 @@ export default async function ProductNotFound() {
             </div>
             <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
               {products.map(p => (
-                <ProductCard key={p.id} product={p as ProductWithVendor} locale={locale} />
+                <ProductCard key={p.id} product={serializeProductForCard(p)} locale={locale} />
               ))}
             </div>
           </div>

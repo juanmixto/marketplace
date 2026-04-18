@@ -21,6 +21,7 @@ These tests need:
    npm run test:e2e
    ```
    Playwright will boot `npm run dev` against `DATABASE_URL_TEST` and run the suite. Pass `E2E_BASE_URL=...` to point at an already-running server instead.
+   For a manual smoke-matching boot, use `./dev.sh --smoke`.
 
 ## Test users (seeded)
 
