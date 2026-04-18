@@ -184,6 +184,8 @@ scripts backed by `src/domains/payments/webhook-dlq-ops.ts`:
 | `npm run dlq:list -- --provider <name>` | Narrow by provider (default `stripe`). |
 | `npm run dlq:list -- --limit N` | Page size (clamped 1..500). |
 | `npm run dlq:resolve -- <rowId> --by "<email>"` | Stamp a row as resolved after you manually replayed it via Stripe dashboard. |
+| `npm run sendcloud:replay -- --id <rowId>` | Replay a `provider='sendcloud'` DLQ row end-to-end (#568). Resolves it on success; leaves it open on failure. |
+| `npm run sendcloud:replay -- --id <rowId> --dry-run` | Inspect the row without touching Sendcloud or the shipment. |
 
 ### Alert thresholds
 
