@@ -16,6 +16,8 @@ import { CartHydrationProvider } from '@/components/buyer/CartHydrationProvider'
 import { getServerLocale } from '@/i18n/server'
 import PwaRegister from '@/components/pwa/PwaRegister'
 import OfflineIndicator from '@/components/pwa/OfflineIndicator'
+import { BuildBadge } from '@/components/system/BuildBadge'
+import { UpdateAvailableBanner } from '@/components/system/UpdateAvailableBanner'
 
 const geist = Geist({
   variable: '--font-geist-sans',
@@ -98,7 +100,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <PwaRegister />
               <OfflineIndicator />
               <CartHydrationProvider />
+              <UpdateAvailableBanner />
               {children}
+              <BuildBadge />
             </LanguageProvider>
           </ThemeProvider>
         </SessionProvider>
