@@ -82,14 +82,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       className={`${geist.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <head>
+      <body className="flex min-h-full flex-col bg-[var(--background)] text-[var(--foreground)]">
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var s=localStorage.getItem('marketplace-theme');var m=window.matchMedia('(prefers-color-scheme: dark)').matches;var d=s==='dark'||((!s||s==='system')&&m);if(d)document.documentElement.classList.add('dark');document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();`,
           }}
         />
-      </head>
-      <body className="flex min-h-full flex-col bg-[var(--background)] text-[var(--foreground)]">
         <SessionProvider>
           <ThemeProvider>
             <LanguageProvider initialLocale={locale}>
