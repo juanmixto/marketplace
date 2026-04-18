@@ -1023,7 +1023,7 @@ const en: Record<TranslationKeys, string> = {
   'admin.2fa.qrAlt': 'QR code for TOTP setup',
   'admin.2fa.manualLabel': 'Cannot scan? Copy the link manually',
   'admin.2fa.stepEnter': '2. Enter the code shown by your app',
-  'admin.2fa.codePlaceholder': '000000',
+  'admin.2fa.codePlaceholder': '6-digit code',
   'admin.2fa.invalidCode': 'Incorrect code. Please try again.',
   'admin.2fa.verifyError': 'Error verifying the code.',
   'admin.2fa.verifying': 'Verifying…',

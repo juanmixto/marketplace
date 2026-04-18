@@ -83,12 +83,19 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
     setLoading(true)
 
     const data = new FormData(e.currentTarget)
-    const result = await signIn('credentials', {
+    // Only include totpCode when the admin filled it. NextAuth's
+    // Credentials provider serialises every passed key; a raw
+    // `undefined` arrives at authorize() as the literal string
+    // "undefined", which fails the zod \d{6,10} regex and rejects
+    // even password-only logins.
+    const credentials: Record<string, string> = {
       email: data.get('email') as string,
       password: data.get('password') as string,
-      // Empty string is the same as omitted for NextAuth's Credentials
-      // provider; authorize() sees it as an undefined parsed field.
-      totpCode: totpCode || undefined,
+    }
+    if (totpCode) credentials.totpCode = totpCode
+
+    const result = await signIn('credentials', {
+      ...credentials,
       redirect: false,
       callbackUrl: safeCallbackUrl,
     })

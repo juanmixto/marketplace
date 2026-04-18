@@ -1022,7 +1022,7 @@ const es = {
   'admin.2fa.qrAlt': 'Código QR para configurar TOTP',
   'admin.2fa.manualLabel': '¿No puedes escanear? Copia el enlace manualmente',
   'admin.2fa.stepEnter': '2. Introduce el código que muestra tu app',
-  'admin.2fa.codePlaceholder': '000000',
+  'admin.2fa.codePlaceholder': 'Código de 6 dígitos',
   'admin.2fa.invalidCode': 'Código incorrecto. Inténtalo de nuevo.',
   'admin.2fa.verifyError': 'Error al verificar el código.',
   'admin.2fa.verifying': 'Verificando…',
