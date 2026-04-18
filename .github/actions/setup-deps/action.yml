@@ -14,7 +14,10 @@ runs:
       uses: actions/cache@v4
       with:
         path: node_modules
-        key: deps-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
+        # Hash schema.prisma into the key so the cached node_modules
+        # already carries a matching generated client; otherwise we
+        # pay `prisma generate` (~3-5s) on every job.
+        key: deps-${{ runner.os }}-node22-${{ hashFiles('package-lock.json', 'prisma/schema.prisma') }}
 
     - name: Install dependencies
       if: steps.cache.outputs.cache-hit != 'true'
@@ -22,5 +25,9 @@ runs:
       run: npm ci --prefer-offline --no-audit
 
     - name: Generate Prisma client
+      # Only needed when the cache missed; otherwise node_modules
+      # already contains an up-to-date `.prisma/client` keyed on the
+      # current schema.prisma.
+      if: steps.cache.outputs.cache-hit != 'true'
       shell: bash
       run: npx prisma generate
