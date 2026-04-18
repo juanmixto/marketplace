@@ -12,6 +12,8 @@ import { useT } from '@/i18n'
 
 export function GDPRActions() {
   const [exporting, setExporting] = useState(false)
+  const [exportSent, setExportSent] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteInput, setDeleteInput] = useState('')
@@ -22,22 +24,20 @@ export function GDPRActions() {
 
   async function handleExport() {
     setExporting(true)
+    setExportError(null)
     try {
-      const res = await fetch('/api/account/export')
-      if (!res.ok) throw new Error('Error en descarga')
-
-      const data = await res.json()
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
-        type: 'application/json',
-      })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `mis-datos-${new Date().toISOString().split('T')[0]}.json`
-      a.click()
-      URL.revokeObjectURL(url)
-    } catch (error) {
-      alert('Error al exportar datos')
+      const res = await fetch('/api/account/export/request', { method: 'POST' })
+      if (res.status === 429) {
+        setExportError(t('account.exportRateLimited'))
+        return
+      }
+      if (!res.ok) {
+        setExportError(t('account.exportRequestError'))
+        return
+      }
+      setExportSent(true)
+    } catch {
+      setExportError(t('account.exportRequestError'))
     } finally {
       setExporting(false)
     }
@@ -142,12 +142,28 @@ export function GDPRActions() {
     <div className="space-y-3">
       <button
         onClick={handleExport}
-        disabled={exporting}
+        disabled={exporting || exportSent}
         className="w-full flex items-center justify-center gap-2 rounded-lg border border-green-300 bg-green-50 px-4 py-3 text-sm font-medium text-green-900 hover:bg-green-100 disabled:opacity-50 dark:border-green-800 dark:bg-green-950/20 dark:text-green-200 dark:hover:bg-green-950/30"
       >
         <ArrowDownTrayIcon className="h-4 w-4" />
-        {exporting ? t('account.downloading') : t('account.exportData')}
+        {exporting
+          ? t('account.exportRequesting')
+          : exportSent
+            ? t('account.exportRequested')
+            : t('account.exportData')}
       </button>
+
+      {exportSent && (
+        <p className="rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-xs text-green-900 dark:border-green-800 dark:bg-green-950/20 dark:text-green-200">
+          {t('account.exportCheckInbox')}
+        </p>
+      )}
+
+      {exportError && (
+        <p role="alert" className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-900 dark:border-red-800 dark:bg-red-950/20 dark:text-red-200">
+          {exportError}
+        </p>
+      )}
 
       <button
         onClick={() => setShowDeleteConfirm(true)}
