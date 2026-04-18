@@ -22,6 +22,7 @@
     "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
     "lint": "eslint . --max-warnings=0",
     "audit:contracts": "node ./scripts/audit-domain-contracts.mjs",
+    "audit:deps": "npm audit --omit=dev --audit-level=high",
     "prisma:generate": "prisma generate",
     "db:migrate": "node --env-file=.env --env-file-if-exists=.env.local ./node_modules/prisma/build/index.js migrate dev",
     "db:seed": "node --env-file=.env --env-file-if-exists=.env.local --import tsx prisma/seed.ts",
