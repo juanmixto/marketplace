@@ -113,6 +113,26 @@ jobs:
           restore-keys: |
             nextcache-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
 
+      - name: Create shadow DB for Prisma drift check
+        run: |
+          PGPASSWORD=mp_pass psql -h localhost -U mp_user -d postgres \
+            -c "CREATE DATABASE marketplace_shadow OWNER mp_user;"
+
+      - name: Check Prisma schema ↔ migrations are in sync (#313)
+        # Fails with exit code 2 if `prisma/schema.prisma` declares anything
+        # the migrations directory doesn't already apply — i.e. a dev added
+        # a field/model but forgot to run `prisma migrate dev`. Without this
+        # gate the PR would pass CI (`migrate deploy` only replays existing
+        # migrations, it does not compare against schema) and break only on
+        # the first prod query against the missing column. Catches the class
+        # of P2022 incidents that drove #307.
+        run: |
+          npx prisma migrate diff \
+            --from-migrations prisma/migrations \
+            --to-schema-datamodel prisma/schema.prisma \
+            --shadow-database-url "postgresql://mp_user:mp_pass@localhost:5432/marketplace_shadow" \
+            --exit-code
+
       - name: Apply Prisma migrations
         run: npx prisma migrate deploy
 
