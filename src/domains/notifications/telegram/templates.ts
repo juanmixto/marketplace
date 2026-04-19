@@ -10,6 +10,7 @@ import type {
   StockLowPayload,
   OrderStatusChangedPayload,
   FavoriteBackInStockPayload,
+  FavoritePriceDropPayload,
 } from '../events'
 import type { InlineKeyboardButton, OutboundMessage } from './service'
 
@@ -271,6 +272,35 @@ export function favoriteBackInStockTemplate(
   if (href) buttons.push({ text: '🛒 Ver producto', url: href })
   return {
     text: `🎉 <b>${product}</b>${vendor} vuelve a estar disponible.`,
+    inline_keyboard: buttons.length > 0 ? [buttons] : undefined,
+  }
+}
+
+/**
+ * Buyer-facing message when a favourited product gets a price reduction.
+ * Includes the percentage drop and both prices so the buyer can eyeball
+ * how meaningful the change is.
+ */
+export function favoritePriceDropTemplate(
+  payload: FavoritePriceDropPayload,
+): OutboundMessage {
+  const product = escapeHtml(payload.productName)
+  const vendor = payload.vendorName ? ` — ${escapeHtml(payload.vendorName)}` : ''
+  const oldPrice = formatMoney(payload.oldPriceCents, payload.currency)
+  const newPrice = formatMoney(payload.newPriceCents, payload.currency)
+  const pct = Math.round(
+    ((payload.oldPriceCents - payload.newPriceCents) / payload.oldPriceCents) * 100,
+  )
+  const base = appUrl()
+  const href = payload.productSlug && base
+    ? `${base}/productos/${payload.productSlug}`
+    : null
+  const buttons: InlineKeyboardButton[] = []
+  if (href) buttons.push({ text: '🛒 Ver producto', url: href })
+  return {
+    text:
+      `💸 <b>${product}</b>${vendor} ha bajado de precio\n` +
+      `<s>${oldPrice}</s> → <b>${newPrice}</b> (−${pct}%)`,
     inline_keyboard: buttons.length > 0 ? [buttons] : undefined,
   }
 }

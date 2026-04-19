@@ -3,6 +3,7 @@ import { getTelegramConfig } from '../config'
 import { onOrderCreated } from './on-order-created'
 import { onBuyerOrderStatus } from './on-buyer-order-status'
 import { onFavoriteBackInStock } from './on-favorite-restock'
+import { onFavoritePriceDrop } from './on-favorite-price-drop'
 import { onOrderPending } from './on-order-pending'
 import { onMessageReceived } from './on-message-received'
 import {
@@ -38,6 +39,7 @@ export function registerTelegramHandlers(): void {
   on('stock.low', onStockLow)
   on('order.status_changed', onBuyerOrderStatus)
   on('favorite.back_in_stock', onFavoriteBackInStock)
+  on('favorite.price_drop', onFavoritePriceDrop)
 
   registerAction('confirmFulfillment', confirmFulfillmentAction)
   registerAction('markShipped', markShippedAction)

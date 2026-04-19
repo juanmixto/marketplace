@@ -11,6 +11,7 @@ import {
   messageReceivedPayloadSchema,
   orderStatusChangedPayloadSchema,
   favoriteBackInStockPayloadSchema,
+  favoritePriceDropPayloadSchema,
   NOTIFICATION_EVENTS,
 } from '@/domains/notifications/events'
 import { setPreferenceInputSchema } from '@/domains/notifications/preferences-schema'
@@ -110,6 +111,7 @@ test('notificationEventTypeSchema — frozen value set', () => {
     'STOCK_LOW',
     'BUYER_ORDER_STATUS',
     'BUYER_FAVORITE_RESTOCK',
+    'BUYER_FAVORITE_PRICE_DROP',
   ])
 })
 
@@ -129,6 +131,7 @@ test('NOTIFICATION_EVENTS string keys match the enum', () => {
     Object.keys(NOTIFICATION_EVENTS).sort(),
     [
       'FAVORITE_BACK_IN_STOCK',
+      'FAVORITE_PRICE_DROP',
       'INCIDENT_OPENED',
       'LABEL_FAILED',
       'MESSAGE_RECEIVED',
@@ -145,6 +148,7 @@ test('NOTIFICATION_EVENTS string keys match the enum', () => {
     Object.values(NOTIFICATION_EVENTS).sort(),
     [
       'favorite.back_in_stock',
+      'favorite.price_drop',
       'incident.opened',
       'label.failed',
       'message.received',
@@ -260,6 +264,17 @@ test('favoriteBackInStockPayloadSchema — frozen shape', () => {
     favoriteBackInStockPayloadSchema as never,
     {
       required: ['productId', 'productName'],
+      optional: ['productSlug', 'vendorName'],
+    },
+  )
+})
+
+test('favoritePriceDropPayloadSchema — frozen shape', () => {
+  assertObjectShape(
+    'favoritePriceDropPayloadSchema',
+    favoritePriceDropPayloadSchema as never,
+    {
+      required: ['productId', 'productName', 'oldPriceCents', 'newPriceCents', 'currency'],
       optional: ['productSlug', 'vendorName'],
     },
   )

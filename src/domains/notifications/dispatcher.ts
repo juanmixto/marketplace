@@ -37,6 +37,7 @@ function getState(): { registry: Registry } {
         'stock.low': new Set(),
         'order.status_changed': new Set(),
         'favorite.back_in_stock': new Set(),
+        'favorite.price_drop': new Set(),
       },
     }
   }

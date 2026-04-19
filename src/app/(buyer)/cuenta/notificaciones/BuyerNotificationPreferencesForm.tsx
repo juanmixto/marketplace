@@ -7,6 +7,7 @@ import { setPreference, type PreferenceRow, type NotificationEventType } from '@
 const BUYER_EVENT_LABEL_KEYS: Partial<Record<NotificationEventType, TranslationKeys>> = {
   BUYER_ORDER_STATUS: 'account.notifications.event.BUYER_ORDER_STATUS',
   BUYER_FAVORITE_RESTOCK: 'account.notifications.event.BUYER_FAVORITE_RESTOCK',
+  BUYER_FAVORITE_PRICE_DROP: 'account.notifications.event.BUYER_FAVORITE_PRICE_DROP',
 }
 
 export function BuyerNotificationPreferencesForm({

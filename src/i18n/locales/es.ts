@@ -972,6 +972,7 @@ const es = {
   'account.notifications.saveError': 'No se ha podido guardar el cambio. Inténtalo de nuevo.',
   'account.notifications.event.BUYER_ORDER_STATUS': 'Estado de mis pedidos (envío, reparto, entrega)',
   'account.notifications.event.BUYER_FAVORITE_RESTOCK': 'Cuando un favorito vuelve a estar disponible',
+  'account.notifications.event.BUYER_FAVORITE_PRICE_DROP': 'Cuando un favorito baja de precio',
   'account.telegram.title': 'Telegram',
   'account.telegram.subtitle': 'Vincula tu cuenta para recibir avisos en el chat del bot.',
   'account.telegram.connect': 'Conectar Telegram',

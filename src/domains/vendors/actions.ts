@@ -81,6 +81,8 @@ export async function updateProduct(productId: string, input: Partial<ProductInp
 
   const data = productSchema.partial().parse(input)
 
+  const previousBasePriceCents = Math.round(Number(product.basePrice) * 100)
+
   const updated = await db.product.update({
     where: { id: productId },
     data: {
@@ -90,6 +92,23 @@ export async function updateProduct(productId: string, input: Partial<ProductInp
       ...(product.status === 'REJECTED' && { rejectionNote: null }),
     },
   })
+
+  // Price-drop fanout: only when the new basePrice is strictly lower
+  // than the previous one. Small drifting changes still fire, but the
+  // handler enforces a 24h per-product cooldown to keep the signal
+  // meaningful.
+  const newBasePriceCents = Math.round(Number(updated.basePrice) * 100)
+  if (newBasePriceCents > 0 && newBasePriceCents < previousBasePriceCents) {
+    emitNotification('favorite.price_drop', {
+      productId: updated.id,
+      productName: updated.name,
+      productSlug: updated.slug,
+      vendorName: vendor.displayName,
+      oldPriceCents: previousBasePriceCents,
+      newPriceCents: newBasePriceCents,
+      currency: 'EUR',
+    })
+  }
 
   safeRevalidatePath('/vendor/productos')
   safeRevalidatePath(`/productos/${product.slug}`)
@@ -133,6 +152,28 @@ export async function updateProductVariants(input: z.infer<typeof syncVariantsSc
 
   const incomingIds = new Set(variants.map(v => v.id).filter((x): x is string => Boolean(x)))
   const toDelete = product.variants.filter(v => !incomingIds.has(v.id))
+
+  // Track restock transitions *before* the transaction so we know which
+  // variants just came back from zero — buyers who favourited the parent
+  // product care about the product-level event, not per-variant.
+  const previousVariantStock = new Map(
+    product.variants.map(v => [v.id, { stock: v.stock, isActive: v.isActive }]),
+  )
+  let hadRestockTransition = false
+  for (const v of variants) {
+    if (!v.isActive || v.stock <= 0) continue
+    if (!v.id) {
+      // New active variant with stock > 0 is itself a restock signal.
+      hadRestockTransition = true
+      continue
+    }
+    const prev = previousVariantStock.get(v.id)
+    if (!prev) continue
+    const wasOutOfStock = !prev.isActive || prev.stock <= 0
+    if (wasOutOfStock) {
+      hadRestockTransition = true
+    }
+  }
 
   await db.$transaction(async tx => {
     for (const v of variants) {
@@ -180,6 +221,15 @@ export async function updateProductVariants(input: z.infer<typeof syncVariantsSc
       }
     }
   })
+
+  if (hadRestockTransition) {
+    emitNotification('favorite.back_in_stock', {
+      productId: product.id,
+      productName: product.name,
+      productSlug: product.slug,
+      vendorName: vendor.displayName,
+    })
+  }
 
   safeRevalidatePath('/vendor/productos')
   safeRevalidatePath(`/productos/${product.slug}`)

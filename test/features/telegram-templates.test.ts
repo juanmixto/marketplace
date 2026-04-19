@@ -5,6 +5,8 @@ import {
   orderPendingTemplate,
   messageReceivedTemplate,
   orderStatusChangedTemplate,
+  favoriteBackInStockTemplate,
+  favoritePriceDropTemplate,
 } from '@/domains/notifications/telegram/templates'
 
 const CALLBACK_BYTE_LIMIT = 64
@@ -192,4 +194,47 @@ test('orderStatusChangedTemplate renders per-status buyer copy', () => {
   // vendor name must be HTML-escaped in the rendered body
   assert.ok(!delivered.text.includes('<Ejemplo>'))
   assert.ok(delivered.text.includes('Finca &lt;Ejemplo&gt;'))
+})
+
+test('favoriteBackInStockTemplate renders name + vendor and skips button without slug', () => {
+  process.env.NEXT_PUBLIC_APP_URL = 'https://example.com'
+  const withSlug = favoriteBackInStockTemplate({
+    productId: 'p_1',
+    productName: 'Queso curado',
+    productSlug: 'queso-curado',
+    vendorName: 'Finca Ejemplo',
+  })
+  assert.ok(withSlug.text.includes('🎉'))
+  assert.ok(withSlug.text.includes('Queso curado'))
+  assert.ok(withSlug.text.includes('Finca Ejemplo'))
+  const buttons = (withSlug.inline_keyboard ?? []).flat()
+  assert.equal(buttons.length, 1)
+
+  const withoutSlug = favoriteBackInStockTemplate({
+    productId: 'p_1',
+    productName: 'Queso <curado>',
+  })
+  // No slug → no CTA button, and the name is HTML-escaped.
+  assert.equal(withoutSlug.inline_keyboard, undefined)
+  assert.ok(!withoutSlug.text.includes('<curado>'))
+  assert.ok(withoutSlug.text.includes('&lt;curado&gt;'))
+})
+
+test('favoritePriceDropTemplate renders both prices and percent drop', () => {
+  process.env.NEXT_PUBLIC_APP_URL = 'https://example.com'
+  const msg = favoritePriceDropTemplate({
+    productId: 'p_1',
+    productName: 'Aceite virgen extra',
+    productSlug: 'aceite-virgen-extra',
+    vendorName: 'Almazara Ejemplo',
+    oldPriceCents: 2000,
+    newPriceCents: 1500,
+    currency: 'EUR',
+  })
+  assert.ok(msg.text.includes('💸'))
+  assert.ok(msg.text.includes('20,00 EUR'), 'old price rendered')
+  assert.ok(msg.text.includes('15,00 EUR'), 'new price rendered')
+  assert.ok(msg.text.includes('−25%'), 'percentage rounded from (20-15)/20')
+  const buttons = (msg.inline_keyboard ?? []).flat()
+  assert.equal(buttons.length, 1)
 })

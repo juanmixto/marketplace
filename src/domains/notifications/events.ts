@@ -12,6 +12,7 @@ export const NOTIFICATION_EVENTS = {
   STOCK_LOW: 'stock.low',
   ORDER_STATUS_CHANGED: 'order.status_changed',
   FAVORITE_BACK_IN_STOCK: 'favorite.back_in_stock',
+  FAVORITE_PRICE_DROP: 'favorite.price_drop',
 } as const
 
 export type NotificationEventName =
@@ -115,6 +116,17 @@ export const favoriteBackInStockPayloadSchema = z.object({
 })
 export type FavoriteBackInStockPayload = z.infer<typeof favoriteBackInStockPayloadSchema>
 
+export const favoritePriceDropPayloadSchema = z.object({
+  productId: z.string().min(1),
+  productName: z.string().min(1).max(160),
+  productSlug: z.string().min(1).max(200).optional(),
+  vendorName: z.string().min(1).max(120).optional(),
+  oldPriceCents: z.number().int().positive(),
+  newPriceCents: z.number().int().positive(),
+  currency: z.string().length(3),
+})
+export type FavoritePriceDropPayload = z.infer<typeof favoritePriceDropPayloadSchema>
+
 export type NotificationEventMap = {
   'order.created': OrderCreatedPayload
   'order.pending': OrderPendingPayload
@@ -127,6 +139,7 @@ export type NotificationEventMap = {
   'stock.low': StockLowPayload
   'order.status_changed': OrderStatusChangedPayload
   'favorite.back_in_stock': FavoriteBackInStockPayload
+  'favorite.price_drop': FavoritePriceDropPayload
 }
 
 export const notificationEventPayloadSchemas = {
@@ -141,4 +154,5 @@ export const notificationEventPayloadSchemas = {
   'stock.low': stockLowPayloadSchema,
   'order.status_changed': orderStatusChangedPayloadSchema,
   'favorite.back_in_stock': favoriteBackInStockPayloadSchema,
+  'favorite.price_drop': favoritePriceDropPayloadSchema,
 } as const

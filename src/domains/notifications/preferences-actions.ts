@@ -29,6 +29,7 @@ const VENDOR_EVENT_TYPES: NotificationEventType[] = [
 const BUYER_EVENT_TYPES: NotificationEventType[] = [
   'BUYER_ORDER_STATUS',
   'BUYER_FAVORITE_RESTOCK',
+  'BUYER_FAVORITE_PRICE_DROP',
 ]
 
 async function requireSession() {
