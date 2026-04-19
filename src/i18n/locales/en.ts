@@ -474,6 +474,27 @@ const en: Record<TranslationKeys, string> = {
   'vendor.dashboard.actionManage': 'Manage catalog',
   'vendor.dashboard.actionViewStore': 'View store',
 
+  // Vendor – welcome tour (first access after becoming vendor)
+  'vendor.welcome.badge': 'Welcome aboard',
+  'vendor.welcome.intro.title': 'Hi, {name}! 👋',
+  'vendor.welcome.intro.body': 'Congrats on joining as a producer. Here is a quick tour of your panel so you know where everything is.',
+  'vendor.welcome.step1.title': 'Your panel',
+  'vendor.welcome.step1.body': 'This is your activity summary: pending setup, urgent orders and quick stats.',
+  'vendor.welcome.step2.title': 'Products',
+  'vendor.welcome.step2.body': 'Create, edit and manage your catalog. Add photos, prices and stock to start selling.',
+  'vendor.welcome.step3.title': 'Orders',
+  'vendor.welcome.step3.body': 'Your customers\' purchases arrive here. Confirm them, prepare them and mark when they are ready to ship.',
+  'vendor.welcome.step4.title': 'Your profile',
+  'vendor.welcome.step4.body': 'Complete your description, location and details so buyers can get to know you.',
+  'vendor.welcome.step5.title': 'Payouts',
+  'vendor.welcome.step5.body': 'Set up your bank details and check your settlements to get paid.',
+  'vendor.welcome.step6.title': 'Reviews',
+  'vendor.welcome.step6.body': 'See what your customers think. Start by completing your profile to build trust!',
+  'vendor.welcome.next': 'Next',
+  'vendor.welcome.back': 'Back',
+  'vendor.welcome.skip': 'Skip',
+  'vendor.welcome.finish': 'Complete profile',
+
   // Vendor – products list extras
   'vendor.productsList.productsOne': '1 product',
   'vendor.productsList.productsOther': '{count} products',
