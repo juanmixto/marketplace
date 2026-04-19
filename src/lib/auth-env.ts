@@ -25,7 +25,7 @@
  * imported by the contract test without pulling the Prisma client.
  */
 
-export function resolveAuthUrl(env: NodeJS.ProcessEnv): string | null {
+export function resolveAuthUrl(env: Partial<NodeJS.ProcessEnv>): string | null {
   // Fall through on undefined AND empty string — a deployment that
   // sets AUTH_URL="" should be treated as unset so NEXTAUTH_URL can
   // cover it, not as a pin to an empty origin.
@@ -36,7 +36,7 @@ export function resolveAuthUrl(env: NodeJS.ProcessEnv): string | null {
   return null
 }
 
-export function isSecureAuthDeployment(env: NodeJS.ProcessEnv): boolean {
+export function isSecureAuthDeployment(env: Partial<NodeJS.ProcessEnv>): boolean {
   const url = resolveAuthUrl(env)
   if (!url) return false
   return url.startsWith('https://')
@@ -50,7 +50,7 @@ export function isSecureAuthDeployment(env: NodeJS.ProcessEnv): boolean {
  * NEXT_PUBLIC_APP_URL is a common root cause of auth redirects that
  * land on the wrong origin and drop the session cookie.
  */
-export function validateAuthDeploymentContract(env: NodeJS.ProcessEnv): string[] {
+export function validateAuthDeploymentContract(env: Partial<NodeJS.ProcessEnv>): string[] {
   const errors: string[] = []
   const authUrl = env.AUTH_URL ?? env.NEXTAUTH_URL
   const appUrl = env.NEXT_PUBLIC_APP_URL
