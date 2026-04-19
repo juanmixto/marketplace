@@ -8,6 +8,7 @@ import { getActionSession } from '@/lib/action-session'
 import { logger } from '@/lib/logger'
 import { UserRole } from '@/generated/prisma/enums'
 import { hasRole } from '@/lib/roles'
+import { safeRevalidatePath } from '@/lib/revalidate'
 import {
   IMPERSONATION_COOKIE,
   IMPERSONATION_TTL_SECONDS,
@@ -82,6 +83,13 @@ export async function startImpersonation(input: unknown): Promise<void> {
     maxAge: IMPERSONATION_TTL_SECONDS,
   })
 
+  // The impersonating admin is about to see the vendor surface as a different
+  // identity. Any RSC payload cached from the admin's own session must not be
+  // served for these paths — bust it before the redirect lands.
+  safeRevalidatePath('/vendor/dashboard')
+  safeRevalidatePath('/vendor/pedidos')
+  safeRevalidatePath('/vendor/productos')
+
   redirect('/vendor/dashboard')
 }
 
@@ -104,5 +112,9 @@ export async function endImpersonation(): Promise<void> {
   }
 
   cookieStore.delete(IMPERSONATION_COOKIE)
+
+  safeRevalidatePath('/admin/dashboard')
+  safeRevalidatePath('/vendor/dashboard')
+
   redirect('/admin/dashboard')
 }

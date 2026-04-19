@@ -212,7 +212,7 @@ export function CheckoutPageClient({
         setLoadingAddresses(true)
         setAddressLoadError(null)
 
-        const response = await fetch('/api/direcciones')
+        const response = await fetch('/api/direcciones', { cache: 'no-store' })
         if (!response.ok) {
           throw new Error('No se pudieron cargar las direcciones')
         }

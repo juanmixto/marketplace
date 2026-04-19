@@ -70,7 +70,7 @@ export function DireccionesClient({
   useEffect(() => {
     const loadAddresses = async () => {
       try {
-        const res = await fetch('/api/direcciones')
+        const res = await fetch('/api/direcciones', { cache: 'no-store' })
         if (!res.ok) throw new Error('Error al cargar direcciones')
         const data = await res.json()
         setAddresses(data)
