@@ -6,13 +6,14 @@ import { formatPrice } from '@/lib/utils'
 import { AddToCartButton } from '@/components/catalog/AddToCartButton'
 import { FavoriteToggleButton } from '@/components/catalog/FavoriteToggleButton'
 import { AutoTranslatedBadge } from '@/components/catalog/AutoTranslatedBadge'
+import { StarRating } from '@/components/reviews/StarRating'
 import {
   getAvailableStockForPurchase,
   getDefaultVariant,
   getVariantAdjustedCompareAtPrice,
   getVariantAdjustedPrice,
 } from '@/domains/catalog/variants'
-import type { BadgeVariant, ProductWithVendor } from '@/domains/catalog/types'
+import type { BadgeVariant } from '@/domains/catalog/types'
 import type { Locale } from '@/i18n/locales'
 import { getCatalogCopy, getLocalizedCertificationCopy, getLocalizedProductCopy } from '@/i18n/catalog-copy'
 import { MapPinIcon } from '@heroicons/react/24/outline'
@@ -25,8 +26,39 @@ const CERT_COLORS: Record<string, BadgeVariant> = {
   IGP: 'amber',
 }
 
+type DecimalLike = number | { toString(): string }
+
+export interface ProductCardVariant {
+  id: string
+  name: string
+  priceModifier: DecimalLike
+  stock: number
+  isActive: boolean
+}
+
+export interface ProductCardProduct {
+  id: string
+  vendorId: string
+  slug: string
+  name: string
+  images: string[]
+  basePrice: DecimalLike
+  compareAtPrice: DecimalLike | null
+  stock: number
+  trackStock: boolean
+  unit: string
+  certifications: string[]
+  originRegion: string | null
+  vendor?: { slug: string; displayName: string; location: string | null }
+  category?: { name: string; slug: string } | null
+  variants?: ProductCardVariant[]
+  /** #324 — enriched by catalog query. Missing / null = no stars rendered. */
+  averageRating?: number | null
+  totalReviews?: number
+}
+
 interface ProductCardProps {
-  product: ProductWithVendor
+  product: ProductCardProduct
   locale?: Locale
 }
 
@@ -133,6 +165,21 @@ export function ProductCard({ product, locale = 'es' }: ProductCardProps) {
           <p className="line-clamp-2 text-sm font-semibold text-[var(--foreground)] leading-snug">
             {localizedProduct.name}
           </p>
+
+          {product.totalReviews !== undefined
+            && product.totalReviews > 0
+            && product.averageRating !== null
+            && product.averageRating !== undefined && (
+            <div
+              className="mt-1.5 flex items-center gap-1.5"
+              aria-label={copy.reviews.ratingAriaLabel(product.averageRating)}
+            >
+              <StarRating rating={product.averageRating} size="sm" />
+              <span className="text-xs text-[var(--muted)]">
+                {copy.reviews.reviewCount(product.totalReviews)}
+              </span>
+            </div>
+          )}
 
           <div className="mt-2">
             <AutoTranslatedBadge translation={localizedProduct.translation} />

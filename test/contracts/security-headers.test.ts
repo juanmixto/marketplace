@@ -15,13 +15,14 @@ test('getSecurityHeaders exposes the core browser hardening headers', () => {
   const headers = getSecurityHeaders()
   const keys = headers.map(header => header.key)
 
+  // CSP intentionally omitted from static headers — it's emitted per-request
+  // by src/proxy.ts so it can carry a fresh nonce (#537).
   assert.deepEqual(keys, [
     'X-Content-Type-Options',
     'X-Frame-Options',
     'X-XSS-Protection',
     'Referrer-Policy',
     'Permissions-Policy',
-    'Content-Security-Policy',
   ])
 
   process.env.NEXT_PUBLIC_APP_URL = previousAppUrl
@@ -41,16 +42,39 @@ test('getSecurityHeaders adds HSTS when the app is configured behind HTTPS', () 
   process.env.NEXT_PUBLIC_APP_URL = previousAppUrl
 })
 
-test('buildContentSecurityPolicy allows Stripe while denying framing by other origins', () => {
+test('buildContentSecurityPolicy with nonce enforces strict script-src (#537)', () => {
+  const previousAppUrl = process.env.NEXT_PUBLIC_APP_URL
+  delete process.env.NEXT_PUBLIC_APP_URL
+
+  const csp = buildContentSecurityPolicy({ nonce: 'testnonce123', isDevelopment: false })
+
+  // The audit-critical assertion: no 'unsafe-inline' in script-src.
+  assert.doesNotMatch(
+    csp,
+    /script-src[^;]*'unsafe-inline'/,
+    "script-src must NOT include 'unsafe-inline' when a nonce is present"
+  )
+  assert.match(csp, /script-src [^;]*'nonce-testnonce123'/)
+  assert.match(csp, /script-src [^;]*'strict-dynamic'/)
+  assert.match(csp, /script-src [^;]*https:\/\/js\.stripe\.com/)
+  assert.match(csp, /frame-ancestors 'none'/)
+  assert.match(csp, /img-src 'self' data: blob: https:/)
+  assert.match(csp, /connect-src 'self' https:\/\/api\.stripe\.com https:\/\/js\.stripe\.com/)
+
+  process.env.NEXT_PUBLIC_APP_URL = previousAppUrl
+})
+
+test('buildContentSecurityPolicy without nonce falls back to permissive script-src (test/legacy path)', () => {
   const previousAppUrl = process.env.NEXT_PUBLIC_APP_URL
   delete process.env.NEXT_PUBLIC_APP_URL
 
   const csp = buildContentSecurityPolicy()
 
-  assert.match(csp, /frame-ancestors 'none'/)
+  // Without a nonce we keep the old behaviour so callers that haven't
+  // been migrated still get a working (but weaker) CSP rather than a
+  // broken app. Proxy generates a nonce on every real request.
   assert.match(csp, /script-src 'self' 'unsafe-inline' https:\/\/js\.stripe\.com/)
-  assert.match(csp, /img-src 'self' data: blob: https:/)
-  assert.match(csp, /connect-src 'self' https:\/\/api\.stripe\.com https:\/\/js\.stripe\.com/)
+  assert.match(csp, /frame-ancestors 'none'/)
   assert.doesNotMatch(csp, /upgrade-insecure-requests/)
 
   process.env.NEXT_PUBLIC_APP_URL = previousAppUrl
@@ -68,10 +92,28 @@ test('buildContentSecurityPolicy upgrades insecure requests only for HTTPS deplo
 })
 
 test('buildContentSecurityPolicy allows React development tooling requirements in dev mode', () => {
-  const csp = buildContentSecurityPolicy(true)
+  const csp = buildContentSecurityPolicy({ nonce: 'devnonce', isDevelopment: true })
 
-  assert.match(csp, /script-src 'self' 'unsafe-inline' 'unsafe-eval' https:\/\/js\.stripe\.com/)
+  // Dev mode intentionally drops strict-dynamic and adds 'unsafe-inline' on
+  // script-src. next-themes (and a few other libs) inject early-load inline
+  // scripts without a nonce; with strict-dynamic active they get blocked,
+  // hydration fails, login forms fall back to native submit, etc.
+  // Production keeps the strict nonce + strict-dynamic policy — see the
+  // production assertion test for that contract.
+  assert.match(csp, /script-src [^;]*'nonce-devnonce'/)
+  assert.match(csp, /script-src [^;]*'unsafe-inline'/)
+  assert.match(csp, /script-src [^;]*'unsafe-eval'/)
+  assert.doesNotMatch(csp, /script-src [^;]*'strict-dynamic'/)
   assert.match(csp, /connect-src 'self' ws: wss: https:\/\/api\.stripe\.com https:\/\/js\.stripe\.com/)
+})
+
+test('buildContentSecurityPolicy keeps strict-dynamic and drops unsafe-inline in production', () => {
+  const csp = buildContentSecurityPolicy({ nonce: 'prodnonce', isDevelopment: false })
+
+  assert.match(csp, /script-src [^;]*'nonce-prodnonce'/)
+  assert.match(csp, /script-src [^;]*'strict-dynamic'/)
+  assert.doesNotMatch(csp, /script-src [^;]*'unsafe-inline'/)
+  assert.doesNotMatch(csp, /script-src [^;]*'unsafe-eval'/)
 })
 
 test('buildHeaderRules skips Next asset cache overrides during development', () => {

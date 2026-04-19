@@ -50,7 +50,10 @@ export async function sendEmail({
       throw new Error(`Email send failed: ${result.error.message}`)
     }
 
-    console.log(`[Email] Sent to ${to}: ${subject}`)
+    // info-level: a successful send is operationally interesting
+    // but not an error. console.info is consistent with the
+    // structured-log scope used elsewhere ([Email] prefix).
+    console.info(`[Email] Sent to ${to}: ${subject}`)
     return result
   } catch (error) {
     console.error(`[Email] Error sending to ${to}:`, error)

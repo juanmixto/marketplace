@@ -3,6 +3,9 @@ import { getTelegramConfig } from '../config'
 import { onOrderCreated } from './on-order-created'
 import { onOrderPending } from './on-order-pending'
 import { onMessageReceived } from './on-message-received'
+import { registerAction } from '../actions/registry'
+import { confirmFulfillmentAction } from '../actions/confirm-fulfillment'
+import { markShippedAction } from '../actions/mark-shipped'
 
 const GLOBAL_KEY = '__marketplaceTelegramHandlersRegistered'
 
@@ -16,5 +19,9 @@ export function registerTelegramHandlers(): void {
   on('order.created', onOrderCreated)
   on('order.pending', onOrderPending)
   on('message.received', onMessageReceived)
+
+  registerAction('confirmFulfillment', confirmFulfillmentAction)
+  registerAction('markShipped', markShippedAction)
+
   g[GLOBAL_KEY] = true
 }

@@ -279,6 +279,15 @@ export function getClientIP(request: Request, options: ResolveClientIpOptions = 
     return UNTRUSTED_CLIENT_KEY
   }
 
+  // Cloudflare always sends cf-connecting-ip with the originating client IP
+  // and strips any client-supplied copy of the header (#540). Preferred over
+  // x-forwarded-for because behind Cloudflare → Traefik the XFF chain is
+  // ["client", "cf-edge-ip"] and the leftmost entry can be spoofed if
+  // Cloudflare is bypassed via the origin IP. Keep x-forwarded-for only for
+  // non-Cloudflare deployments (Vercel, local Docker behind nginx).
+  const cfConnectingIp = request.headers.get('cf-connecting-ip')
+  if (cfConnectingIp) return cfConnectingIp.trim()
+
   const forwarded = request.headers.get('x-forwarded-for')
   if (forwarded) {
     return forwarded.split(',')[0]!.trim()

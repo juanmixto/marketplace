@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { getMyProduct, getMyVendorProfile } from '@/domains/vendors/actions'
 import { getActivePromotionsForProduct } from '@/domains/promotions/public'
 import { VendorProductPreview } from '@/components/vendor/VendorProductPreview'
+import { serializeVendorProductPreview } from '@/lib/vendor-serialization'
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -27,8 +28,17 @@ export default async function VendorProductPreviewPage({ params }: Props) {
 
   return (
     <VendorProductPreview
-      product={product}
-      vendor={vendor}
+      product={serializeVendorProductPreview(product)}
+      vendor={{
+        id: vendor.id,
+        slug: vendor.slug,
+        displayName: vendor.displayName,
+        description: vendor.description,
+        location: vendor.location,
+        logo: vendor.logo,
+        avgRating: vendor.avgRating == null ? null : Number(vendor.avgRating),
+        totalReviews: vendor.totalReviews,
+      }}
       activePromotions={activePromotions}
     />
   )

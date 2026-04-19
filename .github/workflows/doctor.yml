@@ -1,0 +1,135 @@
+name: Doctor
+
+on:
+  pull_request:
+    paths:
+      # Schema and any code that can drift between schema.prisma and DB
+      - 'prisma/**'
+      # Any API route can 500 — broad filter keeps us safe
+      - 'src/app/api/**'
+      # Page routes with their own server-side render path
+      - 'src/app/(buyer)/**'
+      - 'src/app/(vendor)/**'
+      - 'src/app/(admin)/**'
+      # DB client, env loader, session helpers
+      - 'src/lib/db.ts'
+      - 'src/lib/env.ts'
+      - 'src/lib/action-session.ts'
+      - 'src/lib/auth-config.ts'
+      # The doctor script and its workflow themselves
+      - 'scripts/doctor.mjs'
+      - 'marketplace-pwa-server.sh'
+      - '.github/workflows/doctor.yml'
+  push:
+    branches:
+      - main
+    # Post-merge tripwire so a schema drift that slipped through
+    # individual PRs (e.g. merged without running doctor, or with an
+    # unrelated migration on the branch) still fails loudly on main.
+    paths:
+      - 'prisma/**'
+      - 'src/app/api/**'
+      - 'src/lib/db.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: doctor-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
+  DATABASE_URL_TEST: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
+  AUTH_SECRET: ci-secret-please-change
+  NEXT_PUBLIC_APP_URL: http://localhost:3000
+  PAYMENT_PROVIDER: mock
+  NODE_ENV: production
+
+jobs:
+  doctor:
+    name: Doctor (schema + routes + healthcheck)
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: marketplace_test
+          POSTGRES_USER: mp_user
+          POSTGRES_PASSWORD: mp_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mp_user -d marketplace_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 15
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-deps
+
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+
+      - name: Create .env for seed script
+        run: |
+          {
+            echo "DATABASE_URL=$DATABASE_URL_TEST"
+            echo "AUTH_SECRET=$AUTH_SECRET"
+            echo "NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL"
+            echo "PAYMENT_PROVIDER=$PAYMENT_PROVIDER"
+          } > .env
+
+      - name: Seed database
+        # Healthcheck probes do `findFirst` on every model. Without seed
+        # data they still pass (findFirst returns null) but a seeded DB
+        # exercises the columns we care about with real rows — catches
+        # more subtle drift (e.g. a JSON column returning invalid shape).
+        run: npm run db:seed
+
+      - name: Build (production)
+        run: npm run build
+
+      - name: Start next (background)
+        run: |
+          nohup npx next start -p 3000 > .doctor-server.log 2>&1 &
+          echo $! > .doctor-server.pid
+
+      - name: Wait for server ready
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS -o /dev/null http://localhost:3000/; then
+              echo "Server ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server did not become ready in 60s"
+          tail -n 100 .doctor-server.log || true
+          exit 1
+
+      - name: Run doctor (schema + probes + healthcheck + auth)
+        # --auth enables post-middleware probes (#526): catches 500s
+        # that hide behind the 307 redirect of unauthenticated probes.
+        run: node scripts/doctor.mjs --base-url http://localhost:3000 --auth
+
+      - name: Stop next
+        if: always()
+        run: |
+          if [ -f .doctor-server.pid ]; then
+            kill "$(cat .doctor-server.pid)" || true
+          fi
+
+      - name: Upload server log on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: doctor-server-log-${{ github.sha }}
+          path: .doctor-server.log
+          retention-days: 7
+          if-no-files-found: ignore

@@ -80,11 +80,6 @@ function roundCurrency2(value: number): number {
   return Math.round(value * 100) / 100
 }
 
-function isMissingShippingAddressSnapshotColumnError(error: unknown) {
-  return error instanceof Error
-    && /P2022|column .*does not exist|shippingAddressSnapshot/i.test(error.message)
-}
-
 /**
  * Detects Prisma's P2002 unique-constraint error on
  * `Order.checkoutAttemptId`. Used by `createOrder` to collapse a
@@ -116,10 +111,6 @@ function getCheckoutErrorMessage(error: unknown) {
 
     if (/direcci[óo]n guardada|no encontrada/i.test(message)) {
       return 'Tu dirección guardada ya no estaba disponible. Hemos mantenido los datos del formulario para que puedas completar la compra igualmente.'
-    }
-
-    if (isMissingShippingAddressSnapshotColumnError(error)) {
-      return 'Estamos terminando una actualización interna del checkout. Recarga la página y vuelve a intentarlo.'
     }
 
     if (/payment intent|payment_intent|stripe|temporarily unavailable|timeout|timed out|deadlock|closed the connection|ECONN|network/i.test(message)) {
@@ -515,7 +506,7 @@ export async function createOrder(
   // "try again" message.
   const env = getServerEnv()
 
-  async function createOrderRecord(includeShippingAddressSnapshot: boolean) {
+  async function createOrderRecord() {
     return db.$transaction(async tx => {
       let addressId: string | null = null
       let shouldSaveNewAddress = Boolean(validated.saveAddress)
@@ -677,7 +668,7 @@ export async function createOrder(
           customerId: sessionUserId,
           addressId: addressId ?? null,
           ...(checkoutAttemptId ? { checkoutAttemptId } : {}),
-          ...(includeShippingAddressSnapshot ? { shippingAddressSnapshot } : {}),
+          shippingAddressSnapshot,
           subtotal,
           discountTotal,
           shippingCost,
@@ -718,7 +709,7 @@ export async function createOrder(
 
   let order
   try {
-    order = await createOrderRecord(true)
+    order = await createOrderRecord()
   } catch (error) {
     // Concurrent double-submit with the same checkoutAttemptId: the
     // UNIQUE constraint on Order.checkoutAttemptId tripped. Re-read
@@ -755,17 +746,13 @@ export async function createOrder(
       throw error
     }
 
-    if (!isMissingShippingAddressSnapshotColumnError(error)) {
-      throw error
-    }
-
-    logger.error('checkout.snapshot_column_missing', {
-      correlationId,
-      userId: sessionUserId,
-      error,
-    })
-
-    order = await createOrderRecord(false)
+    // Anything else — schema drift, stock conflict, provider outage —
+    // must fail loud. The prior tolerance for a missing
+    // `shippingAddressSnapshot` column was removed in #307: the doctor
+    // workflow + /api/healthcheck already catch incompatible DB state
+    // in CI and preview before traffic hits it, so runtime fallback is
+    // no longer justified.
+    throw error
   }
 
   // Post-commit: the order + a placeholder Payment row exist. Now we
@@ -776,7 +763,7 @@ export async function createOrder(
   try {
     payment = await createPaymentIntent(
       Math.round(grandTotal * 100), // cents
-      { userId: sessionUserId },
+      { userId: sessionUserId, orderId: order.id, correlationId },
       connectDestination ? { connect: connectDestination } : undefined
     )
   } catch (paymentError) {
@@ -863,6 +850,13 @@ export async function createOrder(
   })
 
   const customerName = session.user.name?.trim() || 'Cliente'
+  const createdFulfillments = await db.vendorFulfillment.findMany({
+    where: { orderId: order.id },
+    select: { id: true, vendorId: true },
+  })
+  const fulfillmentByVendor = new Map(
+    createdFulfillments.map(f => [f.vendorId, f.id]),
+  )
   for (const vendorId of vendorIds) {
     const vendorTotalCents = Math.round(
       lines
@@ -872,6 +866,7 @@ export async function createOrder(
     emitNotification('order.created', {
       orderId: order.id,
       vendorId,
+      fulfillmentId: fulfillmentByVendor.get(vendorId),
       customerName,
       totalCents: vendorTotalCents,
       currency: 'EUR',

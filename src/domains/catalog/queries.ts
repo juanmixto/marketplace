@@ -6,6 +6,12 @@ import { CACHE_TAGS } from '@/lib/cache-tags'
 import { getDemoProductImages } from '@/domains/catalog/demo-product-images'
 import { expandSearchQuery } from '@/domains/catalog/search-translation'
 
+// Issue #590: explicit DTOs for public reads. Selects live in the
+// dependency-free `public-selects` module so the audit test can pin
+// the allow-list without pulling Prisma.
+export { PUBLIC_VENDOR_SELECT, PUBLIC_VARIANT_SELECT } from '@/domains/catalog/public-selects'
+import { PUBLIC_VENDOR_SELECT, PUBLIC_VARIANT_SELECT } from '@/domains/catalog/public-selects'
+
 export interface ProductFilters {
   categorySlug?: string
   certifications?: string[]
@@ -13,7 +19,7 @@ export interface ProductFilters {
   maxPrice?: number
   vendorSlug?: string
   q?: string
-  sort?: 'price_asc' | 'price_desc' | 'newest' | 'popular'
+  sort?: 'price_asc' | 'price_desc' | 'newest' | 'popular' | 'top_rated'
   /** Cursor-based pagination: ID of the last product on the previous page */
   cursor?: string
   limit?: number
@@ -86,51 +92,136 @@ async function getProductsUncached(filters: ProductFilters = {}) {
     })()),
   }
 
-  // Stable compound sort: primary sort field + id tiebreaker ensures
-  // cursor pagination is consistent even for products with identical prices/dates.
-  const orderBy = {
-    price_asc:  [{ basePrice: 'asc' as const },  { id: 'asc' as const }],
-    price_desc: [{ basePrice: 'desc' as const }, { id: 'asc' as const }],
-    newest:     [{ createdAt: 'desc' as const }, { id: 'desc' as const }],
-    popular:    [{ createdAt: 'desc' as const }, { id: 'desc' as const }],
-  }[sort]
-
-  // Fetch one extra item to determine if a next page exists
-  const products = await db.product.findMany({
-    where,
-    orderBy,
-    take: limit + 1,
-    ...(cursor && { cursor: { id: cursor }, skip: 1 }),
-    select: {
-      id: true,
-      vendorId: true,
-      slug: true,
-      name: true,
-      images: true,
-      basePrice: true,
-      compareAtPrice: true,
-      stock: true,
-      trackStock: true,
-      unit: true,
-      certifications: true,
-      originRegion: true,
-      createdAt: true,
-      vendor: { select: { slug: true, displayName: true, location: true } },
-      category: { select: { name: true, slug: true } },
-      variants: {
-        where: { isActive: true },
-        select: { id: true, name: true, priceModifier: true, stock: true, isActive: true },
-      },
+  const productSelect = {
+    id: true,
+    vendorId: true,
+    slug: true,
+    name: true,
+    images: true,
+    basePrice: true,
+    compareAtPrice: true,
+    stock: true,
+    trackStock: true,
+    unit: true,
+    certifications: true,
+    originRegion: true,
+    createdAt: true,
+    vendor: { select: { slug: true, displayName: true, location: true } },
+    category: { select: { name: true, slug: true } },
+    variants: {
+      where: { isActive: true },
+      select: { id: true, name: true, priceModifier: true, stock: true, isActive: true },
     },
-  })
+  }
 
-  const hasNextPage = products.length > limit
-  if (hasNextPage) products.pop()
+  let products: Array<Awaited<ReturnType<typeof db.product.findMany<{ select: typeof productSelect }>>>[number]>
+  let hasNextPage: boolean
+
+  if (sort === 'top_rated') {
+    // Review-driven sort (#324). Prisma can't orderBy an aggregate on
+    // the parent table, so: query Review.groupBy with the same where
+    // constraint applied via a Product filter, get productIds ordered
+    // by (avgRating desc, totalReviews desc), then hydrate the cards
+    // preserving that order. Products with zero reviews fall back to
+    // createdAt-desc so the grid still fills out — users asking for
+    // "mejor valorados" see highly-rated first and newest fill the
+    // rest, not an empty page.
+    const ratedAggregates = await db.review.groupBy({
+      by: ['productId'],
+      where: { product: where },
+      _avg: { rating: true },
+      _count: { _all: true },
+      orderBy: [
+        { _avg: { rating: 'desc' } },
+        { _count: { rating: 'desc' } },
+      ],
+      take: limit + 1,
+      ...(cursor && { skip: 1 }),
+    })
+
+    const ratedIds = ratedAggregates.map(a => a.productId)
+    const ratedProducts = ratedIds.length > 0
+      ? await db.product.findMany({
+          where: { id: { in: ratedIds } },
+          select: productSelect,
+        })
+      : []
+    const byId = new Map(ratedProducts.map(p => [p.id, p]))
+    const ordered = ratedIds.map(id => byId.get(id)).filter((p): p is NonNullable<typeof p> => !!p)
+
+    // If we still have room on the page, fill with unrated products by
+    // recency. Without this the "top rated" page is tiny on a young
+    // catalog and looks broken.
+    const deficit = (limit + 1) - ordered.length
+    if (deficit > 0) {
+      const unrated = await db.product.findMany({
+        where: { ...where, id: { notIn: ratedIds.length > 0 ? ratedIds : [''] } },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: deficit,
+        select: productSelect,
+      })
+      ordered.push(...unrated)
+    }
+
+    hasNextPage = ordered.length > limit
+    if (hasNextPage) ordered.pop()
+    products = ordered
+  } else {
+    // Stable compound sort: primary sort field + id tiebreaker ensures
+    // cursor pagination is consistent even for products with identical
+    // prices/dates.
+    const orderBy = {
+      price_asc:  [{ basePrice: 'asc' as const },  { id: 'asc' as const }],
+      price_desc: [{ basePrice: 'desc' as const }, { id: 'asc' as const }],
+      newest:     [{ createdAt: 'desc' as const }, { id: 'desc' as const }],
+      popular:    [{ createdAt: 'desc' as const }, { id: 'desc' as const }],
+    }[sort as Exclude<typeof sort, 'top_rated'>]
+
+    const rows = await db.product.findMany({
+      where,
+      orderBy,
+      take: limit + 1,
+      ...(cursor && { cursor: { id: cursor }, skip: 1 }),
+      select: productSelect,
+    })
+
+    hasNextPage = rows.length > limit
+    if (hasNextPage) rows.pop()
+    products = rows
+  }
 
   const nextCursor = hasNextPage ? products[products.length - 1]?.id ?? null : null
 
+  // Enrich every card with review aggregates in a single groupBy call.
+  // Products with zero reviews get `{averageRating: null, totalReviews: 0}`
+  // so the card component can decide whether to render the stars.
+  const aggregates = products.length > 0
+    ? await db.review.groupBy({
+        by: ['productId'],
+        where: { productId: { in: products.map(p => p.id) } },
+        _avg: { rating: true },
+        _count: { _all: true },
+      })
+    : []
+  const aggByProduct = new Map(
+    aggregates.map(a => [
+      a.productId,
+      {
+        averageRating: a._avg.rating !== null ? Number(a._avg.rating) : null,
+        totalReviews: a._count._all,
+      },
+    ]),
+  )
+
   return {
-    products: products.map(withDemoProductImages),
+    products: products.map(p => {
+      const agg = aggByProduct.get(p.id) ?? { averageRating: null, totalReviews: 0 }
+      return {
+        ...withDemoProductImages(p),
+        averageRating: agg.averageRating,
+        totalReviews: agg.totalReviews,
+      }
+    }),
     nextCursor,
     hasNext: hasNextPage,
     hasPrev: !!cursor,
@@ -168,21 +259,10 @@ async function getProductBySlugUncached(slug: string) {
       certifications: true,
       originRegion: true,
       createdAt: true,
-      vendor: {
-        select: {
-          id: true,
-          slug: true,
-          displayName: true,
-          description: true,
-          location: true,
-          logo: true,
-          avgRating: true,
-          totalReviews: true,
-        },
-      },
+      vendor: { select: PUBLIC_VENDOR_SELECT },
       categoryId: true,
       category: { select: { id: true, name: true, slug: true } },
-      variants: { where: { isActive: true } },
+      variants: { where: { isActive: true }, select: PUBLIC_VARIANT_SELECT },
       // Phase 4b-β: surface all active subscription plans for this
       // product (multi-cadence — one per WEEKLY/BIWEEKLY/MONTHLY). The
       // product detail page shows a single CTA that navigates to the
@@ -286,7 +366,8 @@ async function getVendorsUncached(limit = 12) {
     where: { status: 'ACTIVE' },
     orderBy: { avgRating: 'desc' },
     take: limit,
-    include: {
+    select: {
+      ...PUBLIC_VENDOR_SELECT,
       _count: { select: { products: { where: getAvailableProductWhere() } } },
     },
   })
@@ -346,7 +427,8 @@ export async function getHomeSnapshot() {
 async function getVendorBySlugUncached(slug: string) {
   const vendor = await db.vendor.findUnique({
     where: { slug, status: 'ACTIVE' },
-    include: {
+    select: {
+      ...PUBLIC_VENDOR_SELECT,
       products: {
         where: getAvailableProductWhere(),
         orderBy: { createdAt: 'desc' },
@@ -365,10 +447,7 @@ async function getVendorBySlugUncached(slug: string) {
           originRegion: true,
           createdAt: true,
           category: { select: { name: true, slug: true } },
-          variants: {
-            where: { isActive: true },
-            select: { id: true, name: true, priceModifier: true, stock: true, isActive: true },
-          },
+          variants: { where: { isActive: true }, select: PUBLIC_VARIANT_SELECT },
         },
       },
     },

@@ -203,11 +203,13 @@ model User {
   addresses               Address[]
   incidents               Incident[]
   reviews                 Review[]
+  reviewReports           ReviewReport[]
   favorites               Favorite[]
   subscriptions           Subscription[]
   pushSubscriptions       PushSubscription[]
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
+  twoFactor               UserTwoFactor?
   telegramLink            TelegramLink?
   telegramLinkTokens      TelegramLinkToken[]
   notificationPreferences NotificationPreference[]
@@ -273,7 +275,7 @@ model Vendor {
   preparationDays Int?            @default(2)
   iban            String?
   bankAccountName String?
-  stripeAccountId String?
+  stripeAccountId String?         @unique
   stripeOnboarded Boolean         @default(false)
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
@@ -537,6 +539,7 @@ model Review {
   product  Product @relation(fields: [productId], references: [id])
   vendor   Vendor  @relation(fields: [vendorId], references: [id])
   customer User    @relation(fields: [customerId], references: [id])
+  reports  ReviewReport[]
 
   @@unique([orderId, productId])
   @@index([productId])
@@ -544,6 +547,40 @@ model Review {
   @@index([vendorId])
   @@index([vendorId, createdAt])
   @@index([customerId])
+}
+
+enum ReviewReportReason {
+  SPAM
+  OFFENSIVE
+  OFF_TOPIC
+  FAKE
+  OTHER
+}
+
+enum ReviewReportTarget {
+  REVIEW_BODY
+  VENDOR_RESPONSE
+}
+
+model ReviewReport {
+  id         String             @id @default(cuid())
+  reviewId   String
+  reporterId String
+  target     ReviewReportTarget @default(REVIEW_BODY)
+  reason     ReviewReportReason
+  detail     String?            @db.Text
+  resolvedAt DateTime?
+  resolvedBy String?
+  createdAt  DateTime           @default(now())
+
+  review   Review @relation(fields: [reviewId], references: [id])
+  reporter User   @relation(fields: [reporterId], references: [id])
+
+  // One report per (reviewId, reporterId, target) — prevents a buyer
+  // from spamming the moderation queue by tapping flag twice.
+  @@unique([reviewId, reporterId, target])
+  @@index([resolvedAt])
+  @@index([reviewId])
 }
 
 model VendorFulfillment {
@@ -1048,6 +1085,26 @@ model PasswordResetToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// TOTP second factor for admin accounts. One-to-one with User; only
+// admins are required to enroll (enforced by the login gate) but the
+// model is role-agnostic so a future buyer-2FA opt-in needs no
+// migration. `secretEncrypted` stores the base32 TOTP secret AES-256
+// encrypted with a key derived from AUTH_SECRET so a DB/backup leak
+// alone is not enough to bypass the second factor.
+model UserTwoFactor {
+  userId          String    @id
+  secretEncrypted String    @db.Text
+  enabledAt       DateTime?
+  // Monotonically increasing step counter of the LAST accepted code.
+  // Rejects replay of the same 30 s TOTP inside its window even if an
+  // attacker grabs the code off a screenshot. Updated on every verify.
+  lastUsedStep    BigInt?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // ─── Push Notifications ──────────────────────────────────────────────────────

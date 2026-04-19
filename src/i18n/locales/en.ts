@@ -87,7 +87,7 @@ const en: Record<TranslationKeys, string> = {
   'hero.cta1': 'Explore products',
   'hero.cta2': 'Meet producers',
   'hero.quickAccess': 'Quick access',
-  'hero.loginCta': 'View demo credentials →',
+  'hero.loginCta': 'Log in →',
 
   // Home hero stats
   'home.stats.activeVendors': 'Active producers',
@@ -687,6 +687,7 @@ const en: Record<TranslationKeys, string> = {
   'vendor.orders.statusShipped': 'Shipped',
   'vendor.orders.statusDelivered': 'Delivered',
   'vendor.orders.statusCancelled': 'Cancelled',
+  'vendor.orders.statusIncident': 'Incident',
 
   // Vendor – fulfillment actions
   'vendor.fulfillment.confirm': 'Confirm order',
@@ -698,12 +699,18 @@ const en: Record<TranslationKeys, string> = {
   'vendor.fulfillment.trackingLabel': 'Tracking number',
   'vendor.fulfillment.carrierLabel': 'Carrier',
   'vendor.fulfillment.updateError': 'Failed to update the order',
-  'vendor.fulfillment.prepare': 'Prepare order',
+  'vendor.fulfillment.prepare': 'Generate shipping label',
   'vendor.fulfillment.preparing': 'Generating label…',
+  'vendor.fulfillment.hintPrepare': 'Once generated, the order is ready to ship.',
+  'vendor.fulfillment.hintLabelRequested': 'Generating the label — this can take a few seconds.',
+  'vendor.fulfillment.hintLabelFailed': 'Label generation failed. Retry or report an incident.',
+  'vendor.fulfillment.hintReady': 'Print the label and hand the parcel to the carrier.',
   'vendor.fulfillment.printLabel': 'Print label',
   'vendor.fulfillment.viewTracking': 'View tracking',
   'vendor.fulfillment.retryLabel': 'Retry label',
   'vendor.fulfillment.markIncident': 'Report incident',
+  'vendor.fulfillment.resolveIncident': 'Resolve incident',
+  'vendor.fulfillment.hintIncident': 'This order is flagged as an incident. Resolve it once the issue is fixed to move it back to its previous state.',
   'vendor.fulfillment.labelFailed': 'Could not generate the label',
   'vendor.fulfillment.addressMissing': 'Set up your origin address before preparing orders',
 
@@ -1005,6 +1012,24 @@ const en: Record<TranslationKeys, string> = {
   'account.exportData': 'Download My Data',
   'account.downloading': 'Downloading...',
   'account.deleteAccount': 'Delete My Account',
+  'account.deletePasswordPlaceholder': 'Current password',
+  'account.deletePasswordRequired': 'Enter your password to confirm.',
+  'account.deleteInvalidPassword': 'Incorrect password.',
+  'account.deleteError': 'Error deleting the account',
+  // Admin 2FA enrollment (#559)
+  'admin.2fa.title': 'Enable two-factor authentication',
+  'admin.2fa.description': 'Admin accounts require a TOTP second factor (Google Authenticator, 1Password, Bitwarden, etc.). Scan the QR code and confirm a six-digit code to finish. You cannot access the panel until setup is complete.',
+  'admin.2fa.generating': 'Generating key…',
+  'admin.2fa.startFailed': 'Could not start the setup.',
+  'admin.2fa.stepScan': '1. Scan this code',
+  'admin.2fa.qrAlt': 'QR code for TOTP setup',
+  'admin.2fa.manualLabel': 'Cannot scan? Copy the link manually',
+  'admin.2fa.stepEnter': '2. Enter the code shown by your app',
+  'admin.2fa.codePlaceholder': '6-digit code',
+  'admin.2fa.invalidCode': 'Incorrect code. Please try again.',
+  'admin.2fa.verifyError': 'Error verifying the code.',
+  'admin.2fa.verifying': 'Verifying…',
+  'admin.2fa.activate': 'Activate 2FA',
   'account.privacyPolicy': 'Read Privacy Policy',
 
   // Account – addresses

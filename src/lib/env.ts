@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { validateAuthDeploymentContract } from '@/lib/auth-env'
 
 const baseEnvSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
@@ -38,6 +39,63 @@ const baseEnvSchema = z.object({
 
 export function parseServerEnv(env: NodeJS.ProcessEnv) {
   const parsed = baseEnvSchema.parse(env)
+
+  // Production-runtime-only safety assertions. See audit issues #538,
+  // #542, #548.
+  //
+  // Gated on NEXT_PHASE === 'phase-production-server' (set by Next only
+  // when actually serving HTTP traffic) so `next build` and standalone
+  // scripts like `prisma db seed` — which run with NODE_ENV=production
+  // in CI and deploy pipelines — don't trip the checks. The assertions
+  // are about what the running app accepts from the network, not about
+  // build-time or CLI contexts.
+  const isProductionRuntime =
+    env.NODE_ENV === 'production' && env.NEXT_PHASE === 'phase-production-server'
+  if (isProductionRuntime) {
+    // #548: refuse to boot in prod with the mock payment provider. The
+    // Stripe webhook handler accepts unsigned events when provider=mock,
+    // so leaving the default in prod is a free-money bug.
+    if (parsed.PAYMENT_PROVIDER !== 'stripe') {
+      throw new Error(
+        'PAYMENT_PROVIDER must be "stripe" in production (was "mock")'
+      )
+    }
+
+    // #538: require an explicit trust decision for x-forwarded-for. When
+    // neither flag is set, getClientIP() buckets every request under the
+    // "untrusted-client" sentinel, which turns per-IP rate limits into a
+    // global lockout. Vercel is always trusted; on self-hosted (Traefik),
+    // operators must set TRUST_PROXY_HEADERS=true after verifying the
+    // proxy strips client-supplied forwarding headers.
+    const onVercel = env.VERCEL === '1' || env.VERCEL === 'true'
+    if (!onVercel && env.TRUST_PROXY_HEADERS !== 'true') {
+      throw new Error(
+        'TRUST_PROXY_HEADERS=true is required in production (or deploy on Vercel). ' +
+        'Without it, rate limiting collapses to a single global bucket.'
+      )
+    }
+
+    // #542: require AUTH_URL in production so NextAuth constructs
+    // verification / reset links from a pinned origin rather than the
+    // inbound Host header.
+    if (!parsed.AUTH_URL) {
+      throw new Error('AUTH_URL is required in production')
+    }
+
+    // #591: validate the full auth deployment contract (AUTH_URL must
+    // be HTTPS; AUTH_URL / NEXT_PUBLIC_APP_URL must share an origin;
+    // AUTH_SECRET must be set). A split-brain between these vars is
+    // how session cookies silently end up scoped to a host the app
+    // never redirects to — auth breaks for everyone, loudly here is
+    // much better than silently later.
+    const authErrors = validateAuthDeploymentContract(env)
+    if (authErrors.length > 0) {
+      throw new Error(
+        'Auth deployment contract invalid (see docs/auth-proxy-contract.md):\n' +
+          authErrors.map(e => `  - ${e}`).join('\n'),
+      )
+    }
+  }
 
   if (parsed.PAYMENT_PROVIDER === 'stripe') {
     const stripeFields = [

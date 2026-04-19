@@ -357,7 +357,138 @@ export async function advanceFulfillment(
     }
   })
 
+  // #570 — notify the buyer that a parcel is on the way. First live
+  // push event in the app. Fire-and-forget so a broken push provider
+  // never blocks the vendor's UI. sendPushToUser is already a no-op
+  // when VAPID is unconfigured or the buyer has no subscription.
+  if (nextStatus === 'SHIPPED') {
+    void notifyBuyerFulfillmentShipped(fulfillment.orderId, {
+      trackingNumber: trackingNumber ?? null,
+    }).catch(() => {
+      /* logged inside the helper — ignore here so the outer UI is unaffected */
+    })
+  }
+
   safeRevalidatePath('/vendor/pedidos')
+}
+
+async function notifyBuyerFulfillmentShipped(
+  orderId: string,
+  extras: { trackingNumber: string | null },
+) {
+  try {
+    const order = await db.order.findUnique({
+      where: { id: orderId },
+      select: { customerId: true, orderNumber: true },
+    })
+    if (!order) return
+    const { sendPushToUser } = await import('@/lib/pwa/push-send')
+    await sendPushToUser(order.customerId, {
+      title: '📦 Tu pedido va en camino',
+      body: extras.trackingNumber
+        ? `Pedido ${order.orderNumber} · tracking ${extras.trackingNumber}`
+        : `Pedido ${order.orderNumber} enviado. Toca para ver el seguimiento.`,
+      url: `/cuenta/pedidos/${orderId}`,
+      tag: `order-shipped-${orderId}`,
+    })
+  } catch (err) {
+    const { logger } = await import('@/lib/logger')
+    logger.warn('push.notify.fulfillment_shipped.failed', { orderId, err })
+  }
+}
+
+/**
+ * Confirm a PENDING fulfillment on behalf of the vendor identified by userId
+ * rather than a browser session. Used by out-of-band entrypoints (Telegram
+ * webhook callbacks) where the caller has authenticated the vendor through
+ * a different mechanism (a TelegramLink whose chatId mapped to this userId).
+ *
+ * Ownership is enforced by scoping the lookup to (id, vendor.userId). The
+ * transition is PENDING → CONFIRMED; any other state is rejected so
+ * double-taps on a stale Telegram message cannot advance further than the
+ * FSM intended.
+ */
+export async function confirmFulfillmentByUserId(
+  userId: string,
+  fulfillmentId: string,
+): Promise<
+  | { ok: true; fulfillmentId: string }
+  | { ok: false; code: 'NOT_FOUND' | 'INVALID_STATE'; message: string }
+> {
+  const fulfillment = await db.vendorFulfillment.findFirst({
+    where: { id: fulfillmentId, vendor: { userId } },
+    select: { id: true, status: true },
+  })
+  if (!fulfillment) {
+    return { ok: false, code: 'NOT_FOUND', message: 'Fulfillment no encontrado' }
+  }
+  if (fulfillment.status !== 'PENDING') {
+    return {
+      ok: false,
+      code: 'INVALID_STATE',
+      message: `No se puede confirmar desde el estado ${fulfillment.status}`,
+    }
+  }
+
+  await db.vendorFulfillment.update({
+    where: { id: fulfillmentId },
+    data: { status: 'CONFIRMED' },
+  })
+  safeRevalidatePath('/vendor/pedidos')
+  return { ok: true, fulfillmentId }
+}
+
+/**
+ * Mark a READY fulfillment as SHIPPED on behalf of the vendor identified by
+ * userId rather than a browser session. Mirrors confirmFulfillmentByUserId
+ * for out-of-band entrypoints (Telegram webhook callbacks).
+ *
+ * Only READY → SHIPPED is allowed — any other state is rejected so stale
+ * Telegram buttons cannot move the FSM backwards or skip states. The
+ * parent order status is recomputed in the same transaction as
+ * advanceFulfillment does.
+ */
+export async function markShippedByUserId(
+  userId: string,
+  fulfillmentId: string,
+): Promise<
+  | { ok: true; fulfillmentId: string }
+  | { ok: false; code: 'NOT_FOUND' | 'INVALID_STATE'; message: string }
+> {
+  const fulfillment = await db.vendorFulfillment.findFirst({
+    where: { id: fulfillmentId, vendor: { userId } },
+    select: { id: true, status: true, orderId: true },
+  })
+  if (!fulfillment) {
+    return { ok: false, code: 'NOT_FOUND', message: 'Fulfillment no encontrado' }
+  }
+  if (fulfillment.status !== 'READY') {
+    return {
+      ok: false,
+      code: 'INVALID_STATE',
+      message: `No se puede marcar como enviado desde el estado ${fulfillment.status}`,
+    }
+  }
+
+  await db.$transaction(async tx => {
+    await tx.vendorFulfillment.update({
+      where: { id: fulfillmentId },
+      data: { status: 'SHIPPED', shippedAt: new Date() },
+    })
+
+    const siblings = await tx.vendorFulfillment.findMany({
+      where: { orderId: fulfillment.orderId },
+      select: { status: true },
+    })
+    const allShipped = siblings.every(f => f.status === 'SHIPPED')
+    await tx.order.update({
+      where: { id: fulfillment.orderId },
+      data: { status: allShipped ? 'SHIPPED' : 'PARTIALLY_SHIPPED' },
+    })
+  })
+
+  safeRevalidatePath('/vendor/pedidos')
+  return { ok: true, fulfillmentId }
 }
 
 export async function getMyFulfillments(filter?: 'active' | 'urgent' | 'shipped' | 'all') {

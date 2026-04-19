@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { withFavoritesGuard } from '@/domains/catalog/favorites'
 import { getServerT } from '@/i18n/server'
 import { FavoritosClient } from './FavoritosClient'
+import { serializeFavoriteProduct } from '@/lib/favorites-serialization'
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT()
@@ -60,7 +61,7 @@ export default async function Favoritos() {
       )}
 
       <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
-        <FavoritosClient initialFavorites={favorites} />
+        <FavoritosClient initialFavorites={favorites.map(serializeFavoriteProduct)} />
       </div>
     </main>
   )

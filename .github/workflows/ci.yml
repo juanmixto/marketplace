@@ -116,6 +116,21 @@ jobs:
       - name: Apply Prisma migrations
         run: npx prisma migrate deploy
 
+      - name: Check schema.prisma ↔ applied DB are in sync (#313)
+        # After migrate deploy, the CI DB is the ground truth for what the
+        # migrations directory declares. Compare that against schema.prisma.
+        # Exit 2 means schema.prisma declares something the migrations did
+        # NOT apply (field added but no migration file, or removed unique
+        # index still in schema, etc.) — the exact class of drift that
+        # surfaced the P2022 bug behind #307 and drove this gate.
+        # Works without a shadow DB because `--from-config-datasource` uses
+        # the live post-deploy DB, not the migrations folder.
+        run: |
+          npx prisma migrate diff \
+            --from-config-datasource \
+            --to-schema prisma/schema.prisma \
+            --exit-code
+
       - name: Build
         run: npm run build
 
@@ -127,7 +142,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2]
+        shard: [0, 1, 2, 3, 4, 5]
 
     services:
       postgres:
@@ -148,7 +163,7 @@ jobs:
       DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
       DATABASE_URL_TEST: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
       TEST_SHARD_INDEX: ${{ matrix.shard }}
-      TEST_SHARD_TOTAL: "3"
+      TEST_SHARD_TOTAL: "6"
 
     steps:
       - uses: actions/checkout@v5
@@ -156,19 +171,14 @@ jobs:
       - uses: ./.github/actions/setup-deps
 
       - name: Apply migrations to test DB
-        run: npm run test:db:parallel
+        run: npx prisma migrate deploy
 
-      - name: Create .env for seed script
-        run: |
-          echo "DATABASE_URL=$DATABASE_URL" > .env
-          echo "AUTH_SECRET=$AUTH_SECRET" >> .env
-          echo "NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL" >> .env
-          echo "PAYMENT_PROVIDER=$PAYMENT_PROVIDER" >> .env
+      # NOTE: no seed step. Integration tests truncate the DB in a
+      # top-level `beforeEach` (see test/integration/helpers.ts) so
+      # any global seed data would be wiped before the first test
+      # ever runs. Skipping saves ~5-8s per shard.
 
-      - name: Seed database
-        run: npm run db:seed
-
-      - name: Integration tests (shard ${{ matrix.shard }} of 3)
+      - name: Integration tests (shard ${{ matrix.shard }} of 6)
         run: npm run test:integration
         timeout-minutes: 10
 
@@ -184,10 +194,15 @@ jobs:
       - run: echo "All integration shards passed"
 
   e2e-smoke:
-    name: E2E Smoke
+    name: E2E Smoke (shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     # Runs in parallel with verify/build/integration against `next dev`.
+    # Playwright's native --shard splits specs across runners.
     # Prod-mode coverage (`next start` + DYNAMIC_SERVER_USAGE etc.) runs
     # in nightly.yml — a run with PLAYWRIGHT_USE_PROD=1 took ~11 min on
     # GitHub-hosted runners, which makes it unacceptable for every PR.
@@ -249,14 +264,31 @@ jobs:
       - name: Seed database
         run: npm run db:seed
 
-      - name: Run E2E smoke suite
-        run: npm run test:e2e:smoke
+      - name: Run E2E smoke suite (shard ${{ matrix.shard }}/2)
+        # DISABLE_LOGIN_RATELIMIT=1 exempts the suite from the
+        # (IP+email) login throttle from #592. CI shares a single
+        # seeded credential and easily exhausts the bucket within a
+        # run; the route guard only honours the flag when
+        # NODE_ENV !== 'production', so a prod deploy cannot bypass
+        # the limit even if this env leaks into another workflow.
+        run: npx playwright test --grep @smoke --workers=1 --shard=${{ matrix.shard }}/2
+        env:
+          DISABLE_LOGIN_RATELIMIT: '1'
 
       - name: Upload Playwright report on failure
         if: failure()
         uses: actions/upload-artifact@v6
         with:
-          name: playwright-report-${{ github.sha }}
+          name: playwright-report-${{ github.sha }}-shard${{ matrix.shard }}
           path: playwright-report
           retention-days: 7
           if-no-files-found: ignore
+
+  e2e-smoke-complete:
+    name: E2E Smoke
+    runs-on: ubuntu-latest
+    needs: e2e-smoke
+    # Aggregates the matrix shards into a single status check that
+    # branch protection can require by its stable name.
+    steps:
+      - run: echo "All E2E smoke shards passed"

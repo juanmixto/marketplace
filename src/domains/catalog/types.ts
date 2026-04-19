@@ -25,6 +25,9 @@ export type ProductWithVendor = ProductCardFields & {
   vendor: Pick<Vendor, 'slug' | 'displayName' | 'location'>
   category: Pick<Category, 'name' | 'slug'> | null
   variants?: ProductCardVariantFields[]
+  /** #324 — enriched by catalog query via a single Review.groupBy call. */
+  averageRating?: number | null
+  totalReviews?: number
 }
 
 export type ProductDetail = Product & {
@@ -33,7 +36,27 @@ export type ProductDetail = Product & {
   variants: ProductVariant[]
 }
 
-export type VendorWithCount = Vendor & {
+// Public-vendor shape (#590). Must stay in sync with
+// PUBLIC_VENDOR_SELECT in src/domains/catalog/queries.ts — that
+// constant defines which fields are safe to expose on public reads.
+export type PublicVendor = Pick<
+  Vendor,
+  | 'id'
+  | 'slug'
+  | 'displayName'
+  | 'description'
+  | 'logo'
+  | 'coverImage'
+  | 'location'
+  | 'category'
+  | 'avgRating'
+  | 'totalReviews'
+  | 'orderCutoffTime'
+  | 'preparationDays'
+  | 'createdAt'
+>
+
+export type VendorWithCount = PublicVendor & {
   _count: { products: number }
 }
 
@@ -41,7 +64,7 @@ export type CategoryWithCount = Category & {
   _count: { products: number }
 }
 
-export type ProductSort = 'price_asc' | 'price_desc' | 'newest' | 'popular'
+export type ProductSort = 'price_asc' | 'price_desc' | 'newest' | 'popular' | 'top_rated'
 
 export type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>['variant']>
 
@@ -50,6 +73,7 @@ export function parseProductSort(value?: string): ProductSort {
     case 'price_asc':
     case 'price_desc':
     case 'popular':
+    case 'top_rated':
       return value
     default:
       return 'newest'

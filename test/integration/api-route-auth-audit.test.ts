@@ -74,6 +74,14 @@ const PUBLIC_API_ROUTES: ReadonlyArray<{ path: string; why: string }> = [
     path: 'src/app/api/incidents/[id]/messages/route.ts',
     why: 'Thin wrapper — delegates to postIncidentMessage() which enforces ownership via getActionSession.',
   },
+  {
+    path: 'src/app/api/healthcheck/route.ts',
+    why: 'Synthetic health probe. Public by design — external monitors and the marketplace-pwa-server doctor script hit it without credentials. Returns only boolean + model name + error message; no user data.',
+  },
+  {
+    path: 'src/app/api/version/route.ts',
+    why: 'Public build identity (commit SHA + build time + branch) for the floating BuildBadge and the UpdateAvailableBanner polling client. Same surface area as the visible badge — no secrets, no PII.',
+  },
 ]
 
 const SESSION_KEYWORDS = [
@@ -171,4 +179,18 @@ test('PUBLIC_API_ROUTES has no duplicates', () => {
     seen.add(entry.path)
   }
   assert.deepEqual(dupes, [], `Duplicate PUBLIC_API_ROUTES entries: ${dupes.join(', ')}`)
+})
+
+test('NextAuth login rate limit covers both signin and callback POSTs with callback identity keying', () => {
+  const routePath = path.join(process.cwd(), 'src', 'app', 'api', 'auth', '[...nextauth]', 'route.ts')
+  const content = readFileSync(routePath, 'utf-8')
+
+  assert.ok(
+    content.includes("url.pathname.includes('/signin/')") &&
+      content.includes("url.pathname.includes('/callback/')") &&
+      content.includes('formData()') &&
+      content.includes("get('email')") &&
+      content.includes('loginKey'),
+    'NextAuth login rate limiting must cover /signin/ and key /callback/ requests by callback identity'
+  )
 })

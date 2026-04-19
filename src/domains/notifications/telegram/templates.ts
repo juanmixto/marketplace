@@ -3,7 +3,7 @@ import type {
   OrderPendingPayload,
   MessageReceivedPayload,
 } from '../events'
-import type { OutboundMessage } from './service'
+import type { InlineKeyboardButton, OutboundMessage } from './service'
 
 function escapeHtml(input: string): string {
   return input
@@ -31,11 +31,14 @@ export function orderCreatedTemplate(payload: OrderCreatedPayload): OutboundMess
   const id = shortId(payload.orderId)
   const customer = escapeHtml(payload.customerName)
   const total = formatMoney(payload.totalCents, payload.currency)
+  const buttons: InlineKeyboardButton[] = []
+  if (payload.fulfillmentId) {
+    buttons.push({ text: '✅ Confirmar', callback_data: `confirmFulfillment:${payload.fulfillmentId}` })
+  }
+  buttons.push({ text: 'Ver', url: `${appUrl()}/vendor/pedidos/${payload.orderId}` })
   return {
     text: `📦 Nuevo pedido <b>#${id}</b>\n${customer} — ${total}`,
-    inline_keyboard: [[
-      { text: 'Ver', url: `${appUrl()}/vendor/pedidos/${payload.orderId}` },
-    ]],
+    inline_keyboard: [buttons],
   }
 }
 
@@ -45,11 +48,14 @@ export function orderPendingTemplate(payload: OrderPendingPayload): OutboundMess
     payload.reason === 'NEEDS_CONFIRMATION'
       ? 'Esperando confirmación.'
       : 'Pendiente de enviar.'
+  const buttons: InlineKeyboardButton[] = []
+  if (payload.reason === 'NEEDS_SHIPMENT' && payload.fulfillmentId) {
+    buttons.push({ text: '📦 Marcar enviado', callback_data: `markShipped:${payload.fulfillmentId}` })
+  }
+  buttons.push({ text: 'Ver', url: `${appUrl()}/vendor/pedidos/${payload.orderId}` })
   return {
     text: `⏳ Pedido <b>#${id}</b>\n${reasonText}`,
-    inline_keyboard: [[
-      { text: 'Ver', url: `${appUrl()}/vendor/pedidos/${payload.orderId}` },
-    ]],
+    inline_keyboard: [buttons],
   }
 }
 

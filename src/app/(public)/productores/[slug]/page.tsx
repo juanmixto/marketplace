@@ -3,7 +3,6 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { getVendorBySlug } from '@/domains/catalog/queries'
 import { ProductCard } from '@/components/catalog/ProductCard'
-import type { ProductWithVendor } from '@/domains/catalog/types'
 import {
   MapPinIcon,
   CalendarDaysIcon,
@@ -27,6 +26,7 @@ import { StarRating } from '@/components/reviews/StarRating'
 import { auth } from '@/lib/auth'
 import { getVendorPendingReviews } from '@/domains/reviews/pending'
 import { VendorReviewPromptCta } from './VendorReviewPromptCta'
+import { serializeProductForCard } from '@/lib/catalog-serialization'
 
 interface Props { params: Promise<{ slug: string }> }
 
@@ -78,7 +78,7 @@ export default async function VendorPublicPage({ params }: Props) {
         rating: true,
         body: true,
         createdAt: true,
-        customer: { select: { firstName: true, lastName: true } },
+        customer: { select: { firstName: true } },
         product: { select: { name: true } },
       },
     }),
@@ -274,14 +274,14 @@ export default async function VendorPublicPage({ params }: Props) {
               <ProductCard
                 key={p.id}
                 locale={locale}
-                product={{
+                product={serializeProductForCard({
                   ...p,
                   vendor: {
                     slug: vendor.slug,
                     displayName: vendor.displayName,
                     location: vendor.location,
                   },
-                } as ProductWithVendor}
+                })}
               />
             ))}
           </div>

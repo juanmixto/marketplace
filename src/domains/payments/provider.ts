@@ -5,6 +5,7 @@
  */
 import crypto from 'crypto'
 import { getServerEnv } from '@/lib/env'
+import { logger } from '@/lib/logger'
 
 export interface PaymentIntent {
   id: string
@@ -88,10 +89,12 @@ export async function createPaymentIntent(
       }
     } catch (error) {
       lastError = error
-      console.error('[checkout] stripe payment intent creation failed', {
+      logger.error('checkout.stripe_intent_create_failed', {
         amountCents,
         attempt,
         connectDestination: options?.connect?.vendorAccountId ?? null,
+        orderId: metadata.orderId ?? null,
+        correlationId: metadata.correlationId ?? null,
         error,
       })
     }
@@ -105,4 +108,65 @@ export async function confirmMockPayment(paymentIntentId: string): Promise<void>
   if (!paymentIntentId.startsWith('mock_')) {
     throw new Error('confirmMockPayment called with non-mock intent')
   }
+}
+
+declare global {
+  var __testRefundPaymentIntentOverride:
+    | ((providerRef: string, amountCents: number) => Promise<{ id: string }>)
+    | undefined
+}
+
+export function setTestRefundPaymentIntentOverride(
+  fn: ((providerRef: string, amountCents: number) => Promise<{ id: string }>) | undefined,
+): void {
+  globalThis.__testRefundPaymentIntentOverride = fn
+}
+
+/**
+ * Issues a refund against a previously-confirmed Payment Intent.
+ * Returns the provider's refund id so the caller can persist it on
+ * the local `Refund` row.
+ *
+ * Mock mode: produces a synthetic id, no external call — mirrors the
+ * createPaymentIntent mock contract so admin flows work end-to-end in
+ * dev + integration tests.
+ *
+ * Stripe mode: calls `stripe.refunds.create` with the integer cents
+ * amount. The caller is responsible for rolling back the local
+ * Incident / Refund rows if this throws.
+ */
+export async function refundPaymentIntent(
+  providerRef: string,
+  amountCents: number,
+  metadata: Record<string, string> = {},
+): Promise<{ id: string }> {
+  if (process.env.NODE_ENV === 'test' && globalThis.__testRefundPaymentIntentOverride) {
+    return globalThis.__testRefundPaymentIntentOverride(providerRef, amountCents)
+  }
+
+  const env = getServerEnv()
+
+  if (env.paymentProvider === 'mock') {
+    const id = `mock_re_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`
+    return { id }
+  }
+
+  if (!providerRef || providerRef.startsWith('mock_')) {
+    // Safety net: production mode should never receive a mock
+    // providerRef. If it does, the Incident payload is corrupt —
+    // throw loudly so the admin sees an error rather than silently
+    // creating a fake refund row.
+    throw new Error(
+      `refundPaymentIntent: refusing to call Stripe with mock-style providerRef=${providerRef}`,
+    )
+  }
+
+  const Stripe = (await import('stripe')).default
+  const stripe = new Stripe(env.stripeSecretKey!)
+  const refund = await stripe.refunds.create({
+    payment_intent: providerRef,
+    amount: amountCents,
+    metadata,
+  })
+  return { id: refund.id }
 }

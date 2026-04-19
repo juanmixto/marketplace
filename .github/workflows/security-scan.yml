@@ -1,0 +1,139 @@
+name: Security Scan
+
+# Three complementary scanners that catch classes this repo's manual
+# audit doesn't cover:
+#   - npm audit:   known-vuln dependencies (runtime only; devDeps are noisier
+#                  and don't ship to users)
+#   - gitleaks:    committed secrets (AUTH_SECRET, sk_live_..., etc.)
+#   - semgrep:     pattern-level SAST (OWASP Top 10, Next.js, TypeScript)
+#
+# All three are blocking. Semgrep was advisory for its first week so
+# ruleset noise could be triaged without churning unrelated PRs; main
+# has been clean since the AES-GCM auth-tag fix in #559, so it's now
+# gating merges like the other two. Findings also upload as SARIF so
+# they land in the Security tab, not just the job log.
+#
+# Required-check status:
+#   - "Security scan" = the aggregate "all-blocking-steps-passed" job below.
+#   - Add it to branch protection once the first run is green to keep
+#     secrets and known-vuln deps out of main.
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.vscode/**'
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.vscode/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dep-audit:
+    name: npm audit (runtime deps)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-deps
+
+      - name: Fail on high/critical vulnerabilities in runtime deps
+        run: |
+          # --omit=dev: devDeps don't ship to users. Typical offenders
+          #   there are build tooling CVEs that can't exploit a prod
+          #   deploy. If we want to gate devDeps too, a separate
+          #   advisory-only step is the right shape.
+          # --audit-level=high: surface lows/moderates in the log but
+          #   only fail the job when something is actually shippable
+          #   and serious.
+          npm audit --omit=dev --audit-level=high
+
+  gitleaks:
+    name: gitleaks (committed secrets)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Full history needed so gitleaks can scan the whole diff on
+          # pushes to main and not miss secrets that slipped in via a
+          # squash-merge of a long-lived branch.
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use the repo's gitleaks config if present, otherwise gitleaks'
+          # built-in ruleset. The built-in catches Stripe keys, AWS keys,
+          # GitHub tokens, and generic "private key" BEGIN blocks.
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  semgrep:
+    name: semgrep (SAST)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Blocking. If a ruleset upgrade introduces a false-positive wave,
+    # re-add `continue-on-error: true` here as a short-term mitigation
+    # while the offending rule is triaged (either fixed or added to a
+    # .semgrepignore).
+    container:
+      image: semgrep/semgrep:latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Scan
+        # --error:                exit nonzero on any finding (blocking)
+        # --sarif:                upload to GitHub Code Scanning so findings
+        #                         land in the Security tab, not just logs
+        # Rulesets:
+        #   p/owasp-top-ten       classic injection / authz / crypto issues
+        #   p/javascript          eval / document.write / dangerouslySet...
+        #   p/typescript          type-assertion footguns
+        #   p/nextjs              SSR-specific patterns
+        #   p/react               hooks / effect-dep XSS shapes
+        #   p/secrets             defence-in-depth with gitleaks
+        run: |
+          semgrep --error --sarif --output=semgrep.sarif \
+            --config=p/owasp-top-ten \
+            --config=p/javascript \
+            --config=p/typescript \
+            --config=p/nextjs \
+            --config=p/react \
+            --config=p/secrets
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+
+  security-scan:
+    name: Security scan
+    # Aggregate status check — the single name to require in branch
+    # protection so the individual scanner jobs can be renamed /
+    # reshuffled without touching the protection rules.
+    runs-on: ubuntu-latest
+    needs:
+      - dep-audit
+      - gitleaks
+      - semgrep
+    steps:
+      - run: echo "All blocking security scans passed"

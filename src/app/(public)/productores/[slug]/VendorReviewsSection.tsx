@@ -12,7 +12,6 @@ interface Review {
   createdAt: Date
   customer: {
     firstName: string
-    lastName: string
   }
   product: {
     name: string
@@ -92,7 +91,7 @@ export function VendorReviewsSection({
               <div className="mb-2 flex items-start justify-between gap-4">
                 <div>
                   <p className="font-semibold text-[var(--foreground)]">
-                    {review.customer.firstName} {review.customer.lastName}
+                    {review.customer.firstName}
                   </p>
                   <p className="text-xs text-[var(--muted)]">
                     {review.product.name} · {t('reviews.ago').replace('{time}', timeAgo)}

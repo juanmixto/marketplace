@@ -127,7 +127,7 @@ export function VendorHeroUpload({
         >
           {hasCover ? (
             <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {/* eslint-disable-next-line @next/next/no-img-element -- vendor cover URL is from arbitrary storage (Vercel Blob, local uploads); routing it through next/image would force domain allow-list updates on every new tenant */}
               <img src={coverValue} alt="" className="h-full w-full object-cover" />
               <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 text-sm font-medium text-white opacity-0 transition group-hover:bg-black/40 group-hover:opacity-100 group-focus-visible:bg-black/40 group-focus-visible:opacity-100">
                 <span className="inline-flex items-center gap-1.5">
@@ -174,7 +174,7 @@ export function VendorHeroUpload({
           >
             {hasLogo ? (
               <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {/* eslint-disable-next-line @next/next/no-img-element -- vendor logo URL is from arbitrary storage; same reason as the cover above */}
                 <img src={logoValue} alt="" className="h-full w-full object-cover" />
                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/45 group-hover:opacity-100 group-focus-visible:bg-black/45 group-focus-visible:opacity-100">
                   <CameraIcon className="h-5 w-5 text-white" />

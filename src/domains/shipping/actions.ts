@@ -17,10 +17,12 @@ import type {
 } from '@/domains/shipping/domain/types'
 import {
   SHIPMENT_TO_PRISMA,
+  PRISMA_TO_SHIPMENT,
   fulfillmentStatusForShipment,
   appendShipmentEvent,
   applyShipmentTransition,
 } from '@/domains/shipping/transitions'
+import type { FulfillmentStatus } from '@/generated/prisma/enums'
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 
@@ -151,7 +153,7 @@ export async function prepareFulfillment(
     return { ok: false, code: 'NOT_FOUND', message: 'Fulfillment no encontrado', retryable: false }
   }
 
-  if (!['CONFIRMED', 'PREPARING', 'LABEL_FAILED'].includes(fulfillment.status)) {
+  if (!['PENDING', 'CONFIRMED', 'PREPARING', 'LABEL_FAILED'].includes(fulfillment.status)) {
     return {
       ok: false,
       code: 'INVALID_STATE',
@@ -432,7 +434,37 @@ export async function markFulfillmentIncident(fulfillmentId: string) {
   return { ok: true as const }
 }
 
+/**
+ * Vendor action. Clears an incident flag and restores the fulfillment to
+ * the state it should be in based on its shipment. Lets a vendor recover
+ * without admin intervention when they mark an incident by mistake or
+ * resolve the underlying issue on their own.
+ */
+export async function resolveFulfillmentIncident(fulfillmentId: string) {
+  const { vendor } = await requireVendorSession()
+  const fulfillment = await db.vendorFulfillment.findFirst({
+    where: { id: fulfillmentId, vendorId: vendor.id },
+    include: { shipment: true },
+  })
+  if (!fulfillment) return { ok: false as const, message: 'No encontrado' }
+  if (fulfillment.status !== 'INCIDENT') {
+    return { ok: false as const, message: 'El pedido no está en incidencia' }
+  }
+
+  const nextStatus: FulfillmentStatus = fulfillment.shipment
+    ? (fulfillmentStatusForShipment(
+        PRISMA_TO_SHIPMENT[fulfillment.shipment.status],
+      ) ?? 'READY')
+    : 'PENDING'
+
+  await db.vendorFulfillment.update({
+    where: { id: fulfillmentId },
+    data: { status: nextStatus },
+  })
+  safeRevalidatePath('/vendor/pedidos')
+  return { ok: true as const }
+}
+
 // Internal transition helpers (applyShipmentTransition, appendShipmentEvent,
 // status maps) live in `transitions.ts` to keep them off the server-action
 // RPC surface. They are re-imported above for use by the actions in this file.
-

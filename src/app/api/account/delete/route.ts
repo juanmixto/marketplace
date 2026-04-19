@@ -5,12 +5,13 @@
  * Anonimizes user account (legal: orders retained 5 years for tax compliance)
  */
 
+import bcrypt from 'bcryptjs'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { checkRateLimit } from '@/lib/ratelimit'
 
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
   const session = await auth()
 
   if (!session?.user?.id) {
@@ -18,6 +19,38 @@ export async function DELETE() {
   }
 
   const userId = session.user.id
+
+  // #544: require current-password re-authentication before executing an
+  // irreversible anonymization. A stolen/left-open session must not be
+  // enough. OAuth-only accounts (passwordHash null) skip this check —
+  // those accounts should be migrated to a re-auth flow separately.
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { passwordHash: true },
+  })
+
+  if (user?.passwordHash) {
+    let body: { password?: unknown } = {}
+    try {
+      body = (await request.json()) as { password?: unknown }
+    } catch {
+      // empty body is also invalid below
+    }
+    const candidate = typeof body.password === 'string' ? body.password : ''
+    if (!candidate) {
+      return NextResponse.json(
+        { error: 'password_required', code: 'password_required' },
+        { status: 400 }
+      )
+    }
+    const valid = await bcrypt.compare(candidate, user.passwordHash)
+    if (!valid) {
+      return NextResponse.json(
+        { error: 'invalid_password', code: 'invalid_password' },
+        { status: 401 }
+      )
+    }
+  }
 
   const rateLimitResult = await checkRateLimit('account-delete', userId, 3, 3600)
   if (!rateLimitResult.success) {

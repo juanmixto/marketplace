@@ -3,6 +3,8 @@ import { getHomeSnapshot } from '@/domains/catalog/queries'
 import { buildHomeStats } from '@/domains/catalog/home'
 import { getPublicMarketplaceConfig } from '@/lib/config'
 import { HomePageClient } from './HomePageClient'
+import { serializeProductForCard } from '@/lib/catalog-serialization'
+import type { VendorWithCount } from '@/domains/catalog/types'
 import { SITE_DESCRIPTION, SITE_NAME } from '@/lib/constants'
 import { SITE_METADATA_BASE, absoluteUrl } from '@/lib/seo'
 import { JsonLd } from '@/components/seo/JsonLd'
@@ -28,6 +30,17 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     images: ['/twitter-image'],
   },
+}
+
+function serializeVendor(vendor: VendorWithCount) {
+  return {
+    slug: vendor.slug,
+    displayName: vendor.displayName,
+    location: vendor.location,
+    description: vendor.description,
+    avgRating: vendor.avgRating == null ? null : Number(vendor.avgRating),
+    _count: { products: vendor._count.products },
+  }
 }
 
 export default async function HomePage() {
@@ -59,9 +72,9 @@ export default async function HomePage() {
     <>
       <JsonLd data={structuredData} />
       <HomePageClient
-        featured={featured}
+        featured={featured.map(serializeProductForCard)}
         categories={categories}
-        vendors={vendors}
+        vendors={vendors.map(serializeVendor)}
         heroStats={heroStats}
         publicConfig={publicConfig}
       />

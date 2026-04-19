@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { ProductPurchasePanel } from '@/components/catalog/ProductPurchasePanel'
 import { AutoTranslatedBadge } from '@/components/catalog/AutoTranslatedBadge'
 import { StarRating } from '@/components/reviews/StarRating'
-import type { ProductWithVendor } from '@/domains/catalog/types'
+import { ReportReviewButton } from '@/components/reviews/ReportReviewButton'
 import { MapPinIcon, StarIcon, CheckBadgeIcon, TruckIcon, ShieldCheckIcon } from '@heroicons/react/24/solid'
 import { ProductImageGallery } from '@/components/catalog/ProductImageGallery'
 import { FavoriteToggleButton } from '@/components/catalog/FavoriteToggleButton'
@@ -24,6 +24,7 @@ import { getServerEnv } from '@/lib/env'
 import { SubscribeToBoxButton } from '@/components/catalog/SubscribeToBoxButton'
 import { getActivePromotionsForProduct } from '@/domains/promotions/public'
 import { ProductPromotions } from '@/components/catalog/ProductPromotions'
+import { serializeProductForCard } from '@/lib/catalog-serialization'
 
 // Force dynamic rendering. This page reads cookies via `getServerLocale`,
 // a dynamic API. A prior `export const revalidate = 300` silently opted
@@ -415,25 +416,35 @@ export default async function ProductDetailPage({ params }: Props) {
               <article key={review.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-5 shadow-sm">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <p className="font-medium text-[var(--foreground)]">
                         {review.customer.firstName} {review.customer.lastName.slice(0, 1)}.
                       </p>
                       <StarRating rating={review.rating} size="sm" />
+                      {/* #571 — every Review has a required `orderId` per the
+                          schema, so every review IS a verified purchase. Badge
+                          is a visual confirmation, not a gate. */}
+                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                        ✓ {copy.reviews.verifiedPurchase}
+                      </span>
                     </div>
                     <p className="mt-1 text-xs text-[var(--muted-light)]">
                       {new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'es-ES', { dateStyle: 'medium' }).format(review.createdAt)}
                     </p>
                   </div>
+                  <ReportReviewButton reviewId={review.id} target="REVIEW_BODY" />
                 </div>
                 {review.body && (
                   <p className="mt-3 text-sm leading-relaxed text-[var(--foreground-soft)]">{review.body}</p>
                 )}
                 {review.vendorResponse && (
                   <div className="mt-4 rounded-xl border-l-2 border-emerald-500 bg-emerald-50/60 p-3 dark:border-emerald-400 dark:bg-emerald-950/30">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                      {product.vendor.displayName}
-                    </p>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                        {product.vendor.displayName}
+                      </p>
+                      <ReportReviewButton reviewId={review.id} target="VENDOR_RESPONSE" />
+                    </div>
                     <p className="mt-1 text-sm leading-relaxed text-[var(--foreground-soft)]">{review.vendorResponse}</p>
                   </div>
                 )}
@@ -449,7 +460,7 @@ export default async function ProductDetailPage({ params }: Props) {
           <h2 className="text-xl font-bold text-[var(--foreground)] mb-6">{copy.reviews.relatedProducts}</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {related.map(p => (
-              <ProductCard key={p.id} product={p as ProductWithVendor} locale={locale} />
+              <ProductCard key={p.id} product={serializeProductForCard(p)} locale={locale} />
             ))}
           </div>
         </section>

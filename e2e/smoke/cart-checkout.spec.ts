@@ -28,6 +28,15 @@ const SEEDED_ADDRESS_LINE1 = 'Calle Mayor 18'
 
 test.describe('cart and checkout @smoke', () => {
   test('buyer adds a product, checks out with the mock provider and lands on confirmation', async ({ page }) => {
+    // This spec hits 5 distinct Next.js routes (/login, /productos/[slug],
+    // /carrito, /checkout, /checkout/confirmacion) and each one cold-
+    // compiles on the shard's `next dev` server the first time it is
+    // visited. On GitHub-hosted runners the sum can legitimately exceed
+    // the 30s global `timeout` from playwright.config.ts — which is what
+    // triggered the `page.waitForURL: Test timeout of 30000ms` failures
+    // merged in #594. Widen this single test's budget to 90s; everything
+    // else stays at the default.
+    test.setTimeout(90_000)
     await loginAs(page, TEST_USERS.customer)
 
     // --- PRODUCT DETAIL → ADD TO CART ---
@@ -46,8 +55,18 @@ test.describe('cart and checkout @smoke', () => {
     await expect(page.getByText(/tomates cherry/i).first()).toBeVisible({ timeout: 5_000 })
 
     const toCheckout = page.getByRole('link', { name: /ir al checkout/i }).first()
-    await toCheckout.click()
-    await expect(page).toHaveURL(/\/checkout(?:\/|$|\?)/, { timeout: 10_000 })
+    // The shard's `next dev` server has to cold-compile `/checkout` the
+    // first time a test visits it (webpack + React server components),
+    // which on GitHub-hosted runners has been observed to exceed the old
+    // 10s timeout — triggering the full Playwright retry cycle
+    // (27s + 16s + 9s instead of a single ~10s run). Arm the navigation
+    // waiter BEFORE the click to avoid the race where the URL changes
+    // between click dispatch and the assertion being installed, and
+    // bump the ceiling to 25s to absorb dev-mode compile spikes.
+    await Promise.all([
+      page.waitForURL(/\/checkout(?:\/|$|\?)/, { timeout: 25_000 }),
+      toCheckout.click(),
+    ])
 
     // --- CHECKOUT ---
     // The seeded customer has a default address (`Calle Mayor 18`, Madrid).

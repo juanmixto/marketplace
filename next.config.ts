@@ -1,10 +1,30 @@
 import type { NextConfig } from 'next'
+import { execSync } from 'node:child_process'
 import { getSecurityHeaders } from '@/lib/security-headers'
 
 type HeaderRule = {
   source: string
   headers: Array<{ key: string; value: string }>
 }
+
+// Build identity stamped into client + server bundles. Surfaces via
+// process.env.NEXT_PUBLIC_COMMIT_SHA / NEXT_PUBLIC_BUILD_TIME /
+// NEXT_PUBLIC_GIT_BRANCH for the floating <BuildBadge /> and the
+// <UpdateAvailableBanner /> polling client. Falls back to 'unknown'
+// outside a git checkout (Docker COPY-only builds, etc.); override
+// with the matching env var to pin a value in CI.
+function readGitOutput(cmd: string, fallback: string): string {
+  try {
+    return execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() || fallback
+  } catch {
+    return fallback
+  }
+}
+const BUILD_SHA =
+  process.env.NEXT_PUBLIC_COMMIT_SHA ?? readGitOutput('git rev-parse --short HEAD', 'unknown')
+const BUILD_BRANCH =
+  process.env.NEXT_PUBLIC_GIT_BRANCH ?? readGitOutput('git rev-parse --abbrev-ref HEAD', 'unknown')
+const BUILD_TIME = process.env.NEXT_PUBLIC_BUILD_TIME ?? new Date().toISOString()
 
 const NO_STORE_CACHE_HEADER = {
   key: 'Cache-Control',
@@ -65,12 +85,19 @@ export function buildHeaderRules(isDevelopment = process.env.NODE_ENV === 'devel
 }
 
 const nextConfig: NextConfig = {
+  // Build identity baked into both server and client bundles. See the
+  // helpers above for fallback behaviour outside git checkouts.
+  env: {
+    NEXT_PUBLIC_COMMIT_SHA: BUILD_SHA,
+    NEXT_PUBLIC_BUILD_TIME: BUILD_TIME,
+    NEXT_PUBLIC_GIT_BRANCH: BUILD_BRANCH,
+  },
   // Allow LAN access to the dev server (e.g. testing on a phone via
   // http://192.168.x.y:3000). Without this, Next.js 16 blocks cross-origin
   // requests to /_next/* dev resources, which breaks HMR and the dev overlay
   // when the page is loaded from a non-localhost host.
   // The pattern matches any host on a typical home/office private network.
-  allowedDevOrigins: ['192.168.*.*', '10.*.*.*', '*.local'],
+  allowedDevOrigins: ['192.168.*.*', '10.*.*.*', '*.local', '*.trycloudflare.com'],
   experimental: {
     staleTimes: {
       // Default is 300 s (matches revalidate = 300). That causes Link-navigation to serve

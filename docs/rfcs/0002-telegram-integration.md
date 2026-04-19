@@ -1,9 +1,9 @@
 ---
 title: RFC 0002 — Telegram Integration for Vendors
-status: Implemented (EPICs 1–4, 7; EPIC 5 infra only)
+status: Implemented (EPICs 1–7 complete)
 authors: planning-agent
 created: 2026-04-17
-last_updated: 2026-04-17
+last_updated: 2026-04-18
 related:
   - docs/conventions.md
   - docs/ai-guidelines.md
@@ -11,14 +11,29 @@ related:
   - docs/runbooks/telegram-setup.md
 ---
 
-> **Status note (2026-04-17):** PR #515 landed EPICs 1–4 and 7. EPIC 5
-> shipped the callback-query dispatcher infrastructure but deferred the
-> real button handlers (`confirmOrder`, `markAsShipped`) because the
-> vendor domains don't yet expose single-call entrypoints for those
-> transitions — per §5.3, inlining would have duplicated domain logic
-> in the Telegram layer. Follow-up issues should add
-> `confirmFulfillment` / `markShipped` actions in the owning domain
-> first, then wire the Telegram buttons.
+> **Status note (2026-04-18):**
+>
+> - **PR #515** landed EPICs 1–4, 6, and 7: domain, dispatcher, webhook,
+>   linking, templates, preferences, outbound service, admin audit
+>   dashboard, rate limits (outbound + inbound), structured logs,
+>   22 unit tests.
+> - **PR #518** landed the first EPIC-5 button — **✅ Confirmar** on
+>   `order.created` messages. New domain action
+>   `confirmFulfillmentByUserId(userId, fulfillmentId)` in
+>   `vendors/actions.ts` reuses the existing `VALID_TRANSITIONS` FSM;
+>   Telegram layer carries no business logic.
+> - **PR #529** landed the second EPIC-5 button — **📦 Marcar enviado**
+>   on `order.pending(NEEDS_SHIPMENT)` messages. New domain action
+>   `markShippedByUserId(userId, fulfillmentId)` in `vendors/actions.ts`
+>   performs the `READY → SHIPPED` transition with the parent-order
+>   status recompute. The event is emitted from `applyShipmentTransition`
+>   when a Sendcloud webhook flips a fulfillment to `READY` — the
+>   manual `advanceFulfillment` path stays silent since the vendor is
+>   already in the app in that case. The deferred concern about
+>   `prepareFulfillment` branching into Sendcloud was moot: the
+>   webhook-driven path is the one that needs the Telegram nudge, and
+>   `READY → SHIPPED` is a clean single-step FSM advance with no
+>   Sendcloud coupling.
 
 # RFC 0002 — Telegram Integration for Vendors
 

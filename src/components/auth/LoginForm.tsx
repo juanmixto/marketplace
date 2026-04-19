@@ -33,6 +33,12 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showPass, setShowPass] = useState(false)
+  // The TOTP field is only shown for the admin portal. Buyers and
+  // vendors currently have no 2FA pathway, so rendering it globally
+  // would only confuse them. Admins always see it; if their account
+  // hasn't enrolled yet they leave it blank and hit the forced-
+  // enrollment redirect after login.
+  const [totpCode, setTotpCode] = useState('')
   const t = useT()
 
   const portalContent = {
@@ -77,9 +83,19 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
     setLoading(true)
 
     const data = new FormData(e.currentTarget)
-    const result = await signIn('credentials', {
+    // Only include totpCode when the admin filled it. NextAuth's
+    // Credentials provider serialises every passed key; a raw
+    // `undefined` arrives at authorize() as the literal string
+    // "undefined", which fails the zod \d{6,10} regex and rejects
+    // even password-only logins.
+    const credentials: Record<string, string> = {
       email: data.get('email') as string,
       password: data.get('password') as string,
+    }
+    if (totpCode) credentials.totpCode = totpCode
+
+    const result = await signIn('credentials', {
+      ...credentials,
       redirect: false,
       callbackUrl: safeCallbackUrl,
     })
@@ -143,6 +159,21 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
           </button>
         </div>
 
+        {portalMode === 'admin' && (
+          <Input
+            name="totpCode"
+            type="text"
+            inputMode="numeric"
+            label="Código 2FA"
+            placeholder="000000"
+            autoComplete="one-time-code"
+            pattern="\d{6,10}"
+            value={totpCode}
+            onChange={e => setTotpCode(e.target.value.replace(/\D/g, ''))}
+            hint="Déjalo en blanco si aún no has configurado 2FA."
+          />
+        )}
+
         {error && (
           <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/35 dark:text-red-300">
             {error}
@@ -163,14 +194,16 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
         </Button>
       </form>
 
-      <div className="mt-4 rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-raised)] p-3">
-        <p className="text-xs font-medium text-[var(--muted)] mb-1">Credenciales de prueba:</p>
-        <div className="text-xs text-[var(--foreground-soft)] space-y-0.5">
-          <p>Admin: <code>admin@marketplace.com</code> / <code>admin1234</code></p>
-          <p>Productor: <code>productor@test.com</code> / <code>vendor1234</code></p>
-          <p>Cliente: <code>cliente@test.com</code> / <code>cliente1234</code></p>
+      {process.env.NEXT_PUBLIC_SHOW_DEMO_CREDS === 'true' && (
+        <div className="mt-4 rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-raised)] p-3">
+          <p className="text-xs font-medium text-[var(--muted)] mb-1">Credenciales de prueba:</p>
+          <div className="text-xs text-[var(--foreground-soft)] space-y-0.5">
+            <p>Admin: <code>admin@marketplace.com</code> / <code>admin1234</code></p>
+            <p>Productor: <code>productor@test.com</code> / <code>vendor1234</code></p>
+            <p>Cliente: <code>cliente@test.com</code> / <code>cliente1234</code></p>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="mt-4 grid gap-2">
         {publicPortalLinks.slice(1).map(link => (

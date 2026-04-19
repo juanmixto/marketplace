@@ -8,30 +8,14 @@ import { ShoppingCartIcon } from '@heroicons/react/24/outline'
 import { useT } from '@/i18n'
 import { useCartStore } from '@/domains/orders/cart-store'
 import { useFavoritesStore } from '@/domains/catalog/favorites-store'
+import type { FavoriteProductItem } from '@/lib/favorites-serialization'
+import { formatPrice } from '@/lib/utils'
 
-interface FavoriteProduct {
-  id: string
-  product: {
-    id: string
-    name: string
-    slug: string
-    images: string[]
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma Decimal serializes as object|string|number depending on transport
-    basePrice: any
-    stock: number
-    vendor: {
-      displayName: string
-      slug: string
-    }
-  }
-  createdAt: string | Date
-}
-
-export function FavoritosClient({ initialFavorites }: { initialFavorites: FavoriteProduct[] }) {
+export function FavoritosClient({ initialFavorites }: { initialFavorites: FavoriteProductItem[] }) {
   const t = useT()
   const addItem = useCartStore(s => s.addItem)
   const storeFavRemove = useFavoritesStore(s => s.remove)
-  const [favorites, setFavorites] = useState<FavoriteProduct[]>(initialFavorites)
+  const [favorites, setFavorites] = useState<FavoriteProductItem[]>(initialFavorites)
   const [removing, setRemoving] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -55,18 +39,13 @@ export function FavoritosClient({ initialFavorites }: { initialFavorites: Favori
     }
   }
 
-  const handleAddToCart = (fav: FavoriteProduct) => {
-    const price = typeof fav.product.basePrice === 'object' && fav.product.basePrice !== null
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma Decimal $numberDecimal access
-      ? Number(String((fav.product.basePrice as any).$numberDecimal || fav.product.basePrice))
-      : Number(fav.product.basePrice || 0)
-
+  const handleAddToCart = (fav: FavoriteProductItem) => {
     addItem({
       productId: fav.product.id,
       name: fav.product.name,
       slug: fav.product.slug,
       image: fav.product.images?.[0],
-      price,
+      price: fav.product.basePrice,
       unit: 'ud',
       vendorId: '',
       vendorName: fav.product.vendor.displayName,
@@ -104,11 +83,6 @@ export function FavoritosClient({ initialFavorites }: { initialFavorites: Favori
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {favorites.map(fav => {
           const imageUrl = fav.product.images?.[0] || ''
-          const priceValue = fav.product.basePrice
-          const priceString = typeof priceValue === 'object' && priceValue !== null
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma Decimal $numberDecimal access
-            ? String((priceValue as any).$numberDecimal || priceValue)
-            : String(priceValue || '0.00')
 
           return (
             <div
@@ -159,7 +133,7 @@ export function FavoritosClient({ initialFavorites }: { initialFavorites: Favori
 
                 <div className="mb-3 flex items-baseline gap-2">
                   <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-                    {priceString} &euro;
+                    {formatPrice(fav.product.basePrice)}
                   </span>
                   {fav.product.stock > 0 ? (
                     <span className="text-xs text-[var(--muted)]">

@@ -13,6 +13,10 @@
  *      middleware, route handlers without `'use client'`).
  *   3. `any` usage inside src/domains/ outside the allowlist.
  *   4. Circular dependencies between domains (A imports B, B imports A transitively).
+ *   5. Exported Zod schemas in src/shared/types/ or src/domains/ that have
+ *      no corresponding freeze test in test/contracts/. Catches schemas
+ *      added without the matching shape-pin test (the freeze pattern
+ *      established by PR #502 and continued in #509/#511/#513).
  *
  * Exit codes:
  *   0 — no violations
@@ -37,11 +41,30 @@ const ANY_ALLOWLIST = new Set([
   'src/domains/orders/actions.ts',
 ])
 
+// Schemas that legitimately don't need a freeze test. Add a name here
+// only with a one-line justification in the comment. Reasons that
+// qualify: (a) the schema is a private validation helper one caller
+// uses internally, (b) the schema is intentionally lenient and the
+// shape doesn't matter, (c) deprecated and being removed.
+const SCHEMA_FREEZE_ALLOWLIST = new Set([
+  // Wrapper around orderItemSchema (which IS pinned in
+  // test/contracts/domain/orders-schemas.test.ts):
+  'orderItemsSchema',
+
+  // Sub-schemas of telegramUpdateSchema. The parent schema is
+  // exercised in test/features/telegram-update-schema.test.ts; its
+  // parse covers these via composition, so a separate freeze
+  // would be redundant.
+  'telegramMessageSchema',
+  'telegramCallbackQuerySchema',
+])
+
 const VIOLATIONS = {
   privateDeepImport: [],
   storeInServerGraph: [],
   anyInDomain: [],
   cycles: [],
+  unfrozenSchema: [],
 }
 
 /** Recursively list .ts/.tsx files under a directory. */
@@ -181,16 +204,110 @@ function detectCycles(files) {
   }
 }
 
+/**
+ * Detect Zod schemas exported from `src/shared/types/` or `src/domains/`
+ * that have no matching freeze test in `test/contracts/`.
+ *
+ * Heuristic: a schema is "frozen" if its exported name appears as a
+ * named import inside any file under `test/contracts/`. False
+ * positives are possible (a schema imported but not actually
+ * shape-asserted), but the freeze pattern uses
+ * `assertShape('name', schema, …)` which always names the schema
+ * as a value — so a real reference is a strong signal. False
+ * negatives only happen for schemas referenced only via wildcard
+ * imports, which the freeze tests don't use.
+ *
+ * The allowlist (`SCHEMA_FREEZE_ALLOWLIST`) is for schemas that are
+ * intentionally not contract surfaces.
+ */
+const SCHEMA_EXPORT_RE = /^\s*export\s+const\s+(\w+[Ss]chema)\s*=\s*z\./gm
+
+function detectUnfrozenSchemas() {
+  // 1. Find all exported schemas in src/shared and src/domains.
+  const declared = new Map() // name -> file
+  const scanRoots = [join(SRC, 'shared'), DOMAINS]
+  for (const root of scanRoots) {
+    let files
+    try {
+      files = walk(root)
+    } catch {
+      continue
+    }
+    for (const abs of files) {
+      const rel = relative(ROOT, abs)
+      if (rel.includes(`generated${sep}`)) continue
+      const src = readFileSync(abs, 'utf8')
+      SCHEMA_EXPORT_RE.lastIndex = 0
+      let m
+      while ((m = SCHEMA_EXPORT_RE.exec(src)) !== null) {
+        const name = m[1]
+        if (!declared.has(name)) declared.set(name, rel)
+      }
+    }
+  }
+
+  // 2. Find all schema names referenced from test/contracts/ or
+  //    test/features/. The freeze pattern lives under
+  //    test/contracts/domain/ (PRs #502/#509/#511/#513), but some
+  //    domains' schemas are pinned through the existing
+  //    test/features/ behavioral tests (e.g. the telegram update
+  //    schema is exercised by test/features/telegram-update-schema.test.ts).
+  //    Either kind of named-import counts as "frozen" — the schema
+  //    name is mentioned somewhere CI runs.
+  const referenced = new Set()
+  const testRoots = [
+    join(ROOT, 'test', 'contracts'),
+    join(ROOT, 'test', 'features'),
+  ]
+  let testFiles = []
+  for (const root of testRoots) {
+    try {
+      testFiles = testFiles.concat(walk(root))
+    } catch {
+      // directory missing → skip
+    }
+  }
+  // Match named imports like:
+  //   import { fooSchema, barSchema } from '@/...'
+  //   import { fooSchema as alias, barSchema } from '@/...'
+  // We don't need the `from` clause; just scan `{ ... }` blocks for
+  // identifiers ending in Schema/schema.
+  const NAMED_IMPORT_RE = /import\s*(?:type\s+)?\{([^}]+)\}\s*from/g
+  const NAME_RE = /(\w+[Ss]chema)\b/g
+  for (const abs of testFiles) {
+    const src = readFileSync(abs, 'utf8')
+    NAMED_IMPORT_RE.lastIndex = 0
+    let m
+    while ((m = NAMED_IMPORT_RE.exec(src)) !== null) {
+      const block = m[1]
+      NAME_RE.lastIndex = 0
+      let nm
+      while ((nm = NAME_RE.exec(block)) !== null) {
+        referenced.add(nm[1])
+      }
+    }
+  }
+
+  // 3. Diff.
+  for (const [name, file] of declared) {
+    if (SCHEMA_FREEZE_ALLOWLIST.has(name)) continue
+    if (referenced.has(name)) continue
+    VIOLATIONS.unfrozenSchema.push({ file, name })
+  }
+}
+
 function main() {
   const files = walk(SRC)
   for (const f of files) checkFile(f)
   detectCycles(files)
+  detectUnfrozenSchemas()
 
   const total =
     VIOLATIONS.privateDeepImport.length +
     VIOLATIONS.storeInServerGraph.length +
     VIOLATIONS.anyInDomain.length +
-    VIOLATIONS.cycles.length
+    VIOLATIONS.cycles.length +
+    VIOLATIONS.unfrozenSchema.length
 
   if (JSON_OUT) {
     process.stdout.write(JSON.stringify({ total, ...VIOLATIONS }, null, 2) + '\n')
@@ -222,6 +339,11 @@ function main() {
   section('*-store.ts imported from non-`use client` files', VIOLATIONS.storeInServerGraph, RED)
   section('`any` in src/domains/ outside allowlist', VIOLATIONS.anyInDomain, YEL)
   section('Domain-level dependency cycles', VIOLATIONS.cycles, RED)
+  section(
+    'Exported Zod schemas without a freeze test in test/contracts/',
+    VIOLATIONS.unfrozenSchema.map(v => `${v.file}  ${DIM}← exports ${v.name}${RST}`),
+    YEL,
+  )
 
   if (total === 0) {
     console.log(`${GRN}✓ No contract violations.${RST}`)

@@ -3,11 +3,18 @@ import { auth } from '@/lib/auth'
 import { isAdminRole, isVendor } from '@/lib/roles'
 import { db } from '@/lib/db'
 import { getBlobUploader } from '@/lib/blob-storage'
+import { checkRateLimit } from '@/lib/ratelimit'
 import {
   MAX_UPLOAD_BYTES,
   UploadValidationError,
   validateImageUpload,
 } from '@/lib/upload-validation'
+
+// Per-user upload throttle (#539). 50 uploads per 10-minute window is
+// generous for a human editor but cuts off a compromised vendor token
+// that loops uploads to drain blob-storage quota or fill local disk.
+const UPLOAD_LIMIT = 50
+const UPLOAD_WINDOW_SECONDS = 600
 
 /**
  * POST /api/upload  — vendor / admin image upload (#31).
@@ -38,6 +45,28 @@ export async function POST(request: NextRequest) {
   const role = session.user.role
   if (!isVendor(role) && !isAdminRole(role)) {
     return NextResponse.json({ error: 'No autorizado', code: 'forbidden' }, { status: 403 })
+  }
+
+  const rateLimit = await checkRateLimit(
+    'upload',
+    session.user.id,
+    UPLOAD_LIMIT,
+    UPLOAD_WINDOW_SECONDS,
+    { failClosed: true }
+  )
+  if (!rateLimit.success) {
+    return NextResponse.json(
+      { error: rateLimit.message, code: 'rate-limited' },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': Math.ceil((rateLimit.resetAt - Date.now()) / 1000).toString(),
+          'X-RateLimit-Limit': String(UPLOAD_LIMIT),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': rateLimit.resetAt.toString(),
+        },
+      }
+    )
   }
 
   let formData: FormData

@@ -57,6 +57,14 @@ export async function mutateWithAudit<T>(
 }
 
 export function extractAuditIp(headerStore: Pick<Headers, 'get'>) {
+  // Cloudflare is authoritative when present (#540). It strips any
+  // client-supplied copy and fills this header with the actual client IP.
+  // Under the CF → Traefik topology, x-forwarded-for's leftmost entry is
+  // only reliable if the origin IP isn't bypassable — which is exactly
+  // what we can't assume yet.
+  const cfConnectingIp = headerStore.get('cf-connecting-ip')
+  if (cfConnectingIp) return cfConnectingIp.trim()
+
   const forwardedFor = headerStore.get('x-forwarded-for')
   if (forwardedFor) {
     const firstIp = forwardedFor.split(',')[0]?.trim()
@@ -65,7 +73,6 @@ export function extractAuditIp(headerStore: Pick<Headers, 'get'>) {
 
   return (
     headerStore.get('x-real-ip')
-    ?? headerStore.get('cf-connecting-ip')
     ?? headerStore.get('x-vercel-forwarded-for')
     ?? null
   )

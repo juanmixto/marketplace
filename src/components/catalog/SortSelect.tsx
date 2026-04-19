@@ -19,6 +19,7 @@ export function SortSelect({ current }: Props) {
     { value: 'price_asc', label: copy.sort.priceAsc },
     { value: 'price_desc', label: copy.sort.priceDesc },
     { value: 'popular', label: copy.sort.popular },
+    { value: 'top_rated', label: copy.sort.topRated },
   ]
 
   const updateSort = (value: string) => {

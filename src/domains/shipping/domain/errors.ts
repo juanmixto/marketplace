@@ -1,7 +1,10 @@
 export class ShippingError extends Error {
   readonly code: string
   readonly retryable: boolean
-  readonly cause?: unknown
+  // ES2022 added `cause` to the built-in Error class. We override
+  // explicitly so noImplicitOverride catches future shadowing of
+  // base-Error fields without a marker.
+  override readonly cause?: unknown
 
   constructor(message: string, code: string, retryable: boolean, cause?: unknown) {
     super(message)

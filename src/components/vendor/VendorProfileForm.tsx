@@ -15,7 +15,7 @@ import { updateVendorProfile } from '@/domains/vendors/actions'
 import { trackAnalyticsEvent } from '@/lib/analytics'
 import { isAllowedImageUrl } from '@/lib/image-validation'
 import { VendorHeroUpload } from './VendorHeroUpload'
-import type { Vendor } from '@/generated/prisma/client'
+import type { VendorProfileItem } from '@/lib/vendor-profile-serialization'
 import { useT } from '@/i18n'
 import { useMemo } from 'react'
 
@@ -71,7 +71,7 @@ type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 const AUTOSAVE_DEBOUNCE_MS = 900
 
 interface Props {
-  vendor: Vendor
+  vendor: VendorProfileItem
 }
 
 export function VendorProfileForm({ vendor }: Props) {

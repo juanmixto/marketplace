@@ -1,4 +1,5 @@
 import type { OrderStatus, PaymentStatus } from '@/generated/prisma/enums'
+import { logger } from '@/lib/logger'
 
 interface PaymentSnapshot {
   paymentStatus: PaymentStatus
@@ -155,7 +156,7 @@ export async function retryWebhookOperation<T>(
     } catch (error) {
       if (!isRetryableWebhookError(error) || attempt === maxAttempts) {
         if (attempt === maxAttempts) {
-          console.error('[stripe-webhook][retry-exhausted]', {
+          logger.error('stripe.webhook.retry_exhausted', {
             operation: operationName,
             attempts: maxAttempts,
             error,
@@ -165,7 +166,7 @@ export async function retryWebhookOperation<T>(
       }
 
       const delayMs = baseDelayMs * 2 ** (attempt - 1)
-      console.warn('[stripe-webhook][retry]', {
+      logger.warn('stripe.webhook.retry', {
         operation: operationName,
         attempt,
         nextAttempt: attempt + 1,

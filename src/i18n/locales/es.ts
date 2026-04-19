@@ -85,7 +85,7 @@ const es = {
   'hero.cta1': 'Explorar productos',
   'hero.cta2': 'Conocer productores',
   'hero.quickAccess': 'Accesos rápidos',
-  'hero.loginCta': 'Ver credenciales demo →',
+  'hero.loginCta': 'Iniciar sesión →',
 
   // Home hero stats
   'home.stats.activeVendors': 'Productores activos',
@@ -686,6 +686,7 @@ const es = {
   'vendor.orders.statusShipped': 'Enviado',
   'vendor.orders.statusDelivered': 'Entregado',
   'vendor.orders.statusCancelled': 'Cancelado',
+  'vendor.orders.statusIncident': 'Incidencia',
 
   // Vendor – fulfillment actions
   'vendor.fulfillment.confirm': 'Confirmar pedido',
@@ -697,12 +698,18 @@ const es = {
   'vendor.fulfillment.trackingLabel': 'Número de seguimiento',
   'vendor.fulfillment.carrierLabel': 'Transportista',
   'vendor.fulfillment.updateError': 'Error al actualizar el pedido',
-  'vendor.fulfillment.prepare': 'Preparar pedido',
+  'vendor.fulfillment.prepare': 'Generar etiqueta de envío',
   'vendor.fulfillment.preparing': 'Generando etiqueta…',
+  'vendor.fulfillment.hintPrepare': 'Al generarla, el pedido queda listo para enviar.',
+  'vendor.fulfillment.hintLabelRequested': 'Estamos generando la etiqueta, esto puede tardar unos segundos.',
+  'vendor.fulfillment.hintLabelFailed': 'La generación falló. Reintenta o marca una incidencia.',
+  'vendor.fulfillment.hintReady': 'Imprime la etiqueta y entrega el paquete al transportista.',
   'vendor.fulfillment.printLabel': 'Imprimir etiqueta',
   'vendor.fulfillment.viewTracking': 'Ver seguimiento',
   'vendor.fulfillment.retryLabel': 'Reintentar etiqueta',
   'vendor.fulfillment.markIncident': 'Marcar incidencia',
+  'vendor.fulfillment.resolveIncident': 'Resolver incidencia',
+  'vendor.fulfillment.hintIncident': 'El pedido está en incidencia. Resuélvela cuando el problema esté solucionado para volver a su estado anterior.',
   'vendor.fulfillment.labelFailed': 'No se pudo generar la etiqueta',
   'vendor.fulfillment.addressMissing': 'Configura tu dirección de origen antes de preparar pedidos',
 
@@ -1004,6 +1011,24 @@ const es = {
   'account.exportData': 'Descargar Mis Datos',
   'account.downloading': 'Descargando...',
   'account.deleteAccount': 'Eliminar Mi Cuenta',
+  'account.deletePasswordPlaceholder': 'Contraseña actual',
+  'account.deletePasswordRequired': 'Introduce tu contraseña para confirmar.',
+  'account.deleteInvalidPassword': 'Contraseña incorrecta.',
+  'account.deleteError': 'Error al eliminar la cuenta',
+  // Admin 2FA enrollment (#559)
+  'admin.2fa.title': 'Activar autenticación en dos pasos',
+  'admin.2fa.description': 'Las cuentas de administración requieren un segundo factor TOTP (Google Authenticator, 1Password, Bitwarden, etc.). Escanea el código QR y confirma con un código de seis dígitos para terminar. No podrás acceder al panel hasta completar este paso.',
+  'admin.2fa.generating': 'Generando clave…',
+  'admin.2fa.startFailed': 'No se pudo iniciar la configuración.',
+  'admin.2fa.stepScan': '1. Escanea este código',
+  'admin.2fa.qrAlt': 'Código QR para configurar TOTP',
+  'admin.2fa.manualLabel': '¿No puedes escanear? Copia el enlace manualmente',
+  'admin.2fa.stepEnter': '2. Introduce el código que muestra tu app',
+  'admin.2fa.codePlaceholder': 'Código de 6 dígitos',
+  'admin.2fa.invalidCode': 'Código incorrecto. Inténtalo de nuevo.',
+  'admin.2fa.verifyError': 'Error al verificar el código.',
+  'admin.2fa.verifying': 'Verificando…',
+  'admin.2fa.activate': 'Activar 2FA',
   'account.privacyPolicy': 'Leer Política de Privacidad',
 
   // Account – addresses

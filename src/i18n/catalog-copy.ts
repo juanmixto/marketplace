@@ -59,6 +59,7 @@ type CatalogCopy = {
     priceAsc: string
     priceDesc: string
     popular: string
+    topRated: string
   }
   actions: {
     viewDetail: string
@@ -94,6 +95,20 @@ type CatalogCopy = {
     count: (count: number) => string
     empty: string
     relatedProducts: string
+    ratingAriaLabel: (rating: number) => string
+    reviewCount: (count: number) => string
+    verifiedPurchase: string
+    reportLabel: string
+    reportAria: string
+    reportDone: string
+    reportReasonTitle: string
+    reportReasons: {
+      SPAM: string
+      OFFENSIVE: string
+      OFF_TOPIC: string
+      FAKE: string
+      OTHER: string
+    }
   }
   breadcrumbs: {
     home: string
@@ -173,6 +188,7 @@ const ES_CATALOG_COPY: CatalogCopy = {
     priceAsc: 'Precio: menor a mayor',
     priceDesc: 'Precio: mayor a menor',
     popular: 'Más populares',
+    topRated: 'Mejor valorados',
   },
   actions: {
     viewDetail: 'Ver detalle',
@@ -208,6 +224,20 @@ const ES_CATALOG_COPY: CatalogCopy = {
     count: count => `${count} reseña${count === 1 ? '' : 's'}`,
     empty: 'Aún no hay reseñas para este producto.',
     relatedProducts: 'Productos relacionados',
+    ratingAriaLabel: rating => `${rating.toFixed(1)} de 5 estrellas`,
+    reviewCount: count => (count === 1 ? '1 reseña' : `${count} reseñas`),
+    verifiedPurchase: 'Compra verificada',
+    reportLabel: 'Reportar',
+    reportAria: 'Reportar esta reseña',
+    reportDone: 'Gracias, lo revisaremos.',
+    reportReasonTitle: '¿Por qué reportas esta reseña?',
+    reportReasons: {
+      SPAM: 'Publicidad o spam',
+      OFFENSIVE: 'Lenguaje ofensivo',
+      OFF_TOPIC: 'No habla del producto',
+      FAKE: 'Parece falsa',
+      OTHER: 'Otro motivo',
+    },
   },
   breadcrumbs: {
     home: 'Inicio',
@@ -312,6 +342,7 @@ const EN_CATALOG_COPY: CatalogCopy = {
     priceAsc: 'Price: low to high',
     priceDesc: 'Price: high to low',
     popular: 'Most popular',
+    topRated: 'Top rated',
   },
   actions: {
     viewDetail: 'View details',
@@ -347,6 +378,20 @@ const EN_CATALOG_COPY: CatalogCopy = {
     count: count => `${count} review${count === 1 ? '' : 's'}`,
     empty: 'There are no reviews for this product yet.',
     relatedProducts: 'Related products',
+    ratingAriaLabel: rating => `${rating.toFixed(1)} out of 5 stars`,
+    reviewCount: count => (count === 1 ? '1 review' : `${count} reviews`),
+    verifiedPurchase: 'Verified purchase',
+    reportLabel: 'Report',
+    reportAria: 'Report this review',
+    reportDone: 'Thanks, we\'ll review it.',
+    reportReasonTitle: 'Why are you reporting this review?',
+    reportReasons: {
+      SPAM: 'Spam or advertising',
+      OFFENSIVE: 'Offensive language',
+      OFF_TOPIC: 'Not about the product',
+      FAKE: 'Looks fake',
+      OTHER: 'Other reason',
+    },
   },
   breadcrumbs: {
     home: 'Home',

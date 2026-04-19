@@ -11,9 +11,25 @@ structured-logging conventions shipped in #414 (`checkout.*`) and
 Collect from the user:
 
 - **Order number** (shown in buyer's cart/email — e.g. `MP-20260416-ABCD`)
+- **Error ID** shown on the 500 page (a digest) and/or the **Trace** field (Sentry event id)
 - **Time window** (when they tried to pay — UTC preferred but local is OK)
 - **Stripe dashboard access** if you're investigating real-Stripe mode
 - **Provider** — are they on `mock` or `stripe`? Check `PAYMENT_PROVIDER` env
+
+### Step 0 — always look at Sentry first (#523)
+
+When `SENTRY_DSN` is configured, every unhandled server or client error
+appears in the Sentry project within seconds, with:
+
+- Stack trace (mapped to source if source maps were uploaded at build)
+- `correlationId` tag → pivot to logs
+- `userId` tag (opaque id only, no email)
+- `domain.scope` tag (`checkout.*`, `stripe.webhook.*`, etc.)
+- Release (git SHA) — filter by deploy
+
+If the buyer gives you the `Trace: <id>` from the error page, paste it
+into Sentry's search to jump straight to the event. Sentry then tells
+you the `correlationId` → grep the logs with it per scenarios below.
 
 ## Log query index
 
@@ -25,7 +41,6 @@ Collect from the user:
 | `checkout.committed` | Order + Payment rows created. Includes `orderId`, `orderNumber`, `providerRef`, `grandTotalCents`. |
 | `checkout.address_fallback` | Saved address not found — fell back to submitted payload. |
 | `checkout.address_save_failed` | `tx.address.create` threw. Checkout continued. |
-| `checkout.snapshot_column_missing` | Retry without `shippingAddressSnapshot` column. DB migration drift. |
 | `checkout.payment_intent_failed` | Payment provider threw. Placeholder Payment row marked FAILED. |
 | `checkout.payment_mark_failed` | FAILED-marking itself failed after provider error. Requires manual cleanup. |
 | `checkout.payment_row_mismatch` | Linked ≠ 1 unlinked PENDING rows. Defensive — investigate immediately. |
@@ -53,6 +68,14 @@ Collect from the user:
 | `stripe.webhook.invoice_paid_stale` | Out-of-order invoice dropped. |
 | `stripe.webhook.invoice_payment_failed_stale` | Out-of-order invoice.failed dropped. |
 | `stripe.webhook.dead_letter_record_failed` | DLQ row couldn't be written. On-call emergency. |
+| `stripe.webhook.retry` | Transient DB/network failure inside a webhook handler step — backing off and retrying (attempt N of M). Emitted from `src/domains/payments/webhook.ts`. |
+| `stripe.webhook.retry_exhausted` | All retries failed. The handler then throws → Stripe sees 500 and will redeliver. Investigate the `operation` field to know which step (`insertWebhookDelivery`, `confirmOrder`, etc.). |
+
+### Payment-provider events (from `src/domains/payments/provider.ts`)
+
+| Scope | What it means |
+|---|---|
+| `checkout.stripe_intent_create_failed` | `stripe.paymentIntents.create()` threw. Retries up to 2 times internally. Context carries `orderId`, `correlationId`, `amountCents`, `attempt`, `connectDestination`. Correlate to [`checkout.payment_intent_failed`](#checkout-events-from-createorder--createcheckoutorder) upstream — same incident, caller's view. |
 
 ## Scenario 1: buyer says "I was charged but I don't have an order"
 
@@ -113,7 +136,38 @@ Collect from the user:
    "DLQ operations" section below):
      npm run dlq:list
      npm run dlq:list -- --json
+6. If the local Payment row is stuck PENDING because the webhook was
+   genuinely lost (Stripe delivered succeeded but our edge dropped it),
+   sweep it explicitly:
+     npm run reconcile:payments
+   See "Payment reconciliation sweep" below.
 ```
+
+## Payment reconciliation sweep (#405)
+
+Operator-triggered sweeper. Pulls Stripe's current state for every
+PENDING `Payment` row older than the cutoff and applies the matching
+transition locally. Safe to re-run — every update is guarded by the
+current status.
+
+| Command | Purpose |
+|---|---|
+| `npm run reconcile:payments` | Default 60-min cutoff. Stripe mode only; mock exits no-op. |
+| `npm run reconcile:payments -- --older-than 120` | 2-hour cutoff (less aggressive). |
+| `npm run reconcile:payments -- --dry-run` | Query + log decisions without writing. |
+| `npm run reconcile:payments -- --limit 100` | Cap per-invocation (default 500). |
+
+Decision matrix — [`src/domains/payments/reconcile.ts`](../../src/domains/payments/reconcile.ts):
+
+| Stripe PI status | Local action |
+|---|---|
+| `succeeded` + matching amount/currency | `Payment.status = SUCCEEDED`, `Order` → `PAYMENT_CONFIRMED`, `OrderEvent: PAYMENT_CONFIRMED` with `source: "reconcile-script"`. |
+| `succeeded` + amount/currency mismatch | **Skip + log** `payments.reconcile.mismatch_amount`. Matches the webhook's `stripe.webhook.payment_mismatch` guard — operator escalates, script does not paper over tampering. |
+| `canceled` | `Payment.status = FAILED`, `Order.paymentStatus = FAILED`, `OrderEvent: PAYMENT_FAILED`. |
+| `requires_payment_method` | Same as canceled. Buyer declined; PI will not recover. |
+| `processing` / `requires_action` / `requires_confirmation` / `requires_capture` | **Skip** — log `payments.reconcile.still_pending`, leave for next sweep. |
+
+Output is JSON (`reviewed / markedSucceeded / markedFailed / skipped / errors`) so it can be piped to a dashboard. Run after a webhook delivery incident, before a Stripe-mode cutover, or weekly as part of operational health.
 
 ## DLQ operations (#419)
 
@@ -130,6 +184,8 @@ scripts backed by `src/domains/payments/webhook-dlq-ops.ts`:
 | `npm run dlq:list -- --provider <name>` | Narrow by provider (default `stripe`). |
 | `npm run dlq:list -- --limit N` | Page size (clamped 1..500). |
 | `npm run dlq:resolve -- <rowId> --by "<email>"` | Stamp a row as resolved after you manually replayed it via Stripe dashboard. |
+| `npm run sendcloud:replay -- --id <rowId>` | Replay a `provider='sendcloud'` DLQ row end-to-end (#568). Resolves it on success; leaves it open on failure. |
+| `npm run sendcloud:replay -- --id <rowId> --dry-run` | Inspect the row without touching Sendcloud or the shipment. |
 
 ### Alert thresholds
 

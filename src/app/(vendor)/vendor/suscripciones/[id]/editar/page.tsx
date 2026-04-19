@@ -54,7 +54,7 @@ export default async function EditSubscriptionPlanPage({
           productId: plan.productId,
           productName: product?.name ?? plan.product.name,
           productUnit: product?.unit ?? 'ud',
-          priceSnapshot: plan.priceSnapshot,
+          priceSnapshot: Number(plan.priceSnapshot),
           cadence: plan.cadence,
           cutoffDayOfWeek: plan.cutoffDayOfWeek,
         }}

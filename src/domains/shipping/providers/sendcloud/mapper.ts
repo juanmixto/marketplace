@@ -59,6 +59,20 @@ export function mapSendcloudStatus(id: number): ShipmentStatusInternal {
   return STATUS_MAP[id] ?? 'LABEL_CREATED'
 }
 
+/**
+ * Strict variant of `mapSendcloudStatus` used by the webhook path
+ * (#568). Returns `null` when the provider sends an ID we don't know
+ * about, so the caller can:
+ *   - log `sendcloud.webhook.unknown_status` (visibility)
+ *   - persist a `WebhookDeadLetter` row for operator triage
+ *   - decline to mutate the shipment — silently coercing to
+ *     LABEL_CREATED (the previous behaviour) hid provider contract
+ *     drift that #568 explicitly wants surfaced.
+ */
+export function mapSendcloudStatusStrict(id: number): ShipmentStatusInternal | null {
+  return STATUS_MAP[id] ?? null
+}
+
 export function sendcloudToRecord(
   response: SendcloudParcelResponse,
 ): ShipmentRecord {
