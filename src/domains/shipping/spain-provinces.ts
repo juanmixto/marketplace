@@ -114,3 +114,20 @@ export function isValidPhone(value: string): boolean {
   const digits = value.replace(/\D/g, '')
   return digits.length >= MIN_PHONE_DIGITS && digits.length <= MAX_PHONE_DIGITS
 }
+
+const LENIENT_MIN_PHONE_DIGITS = 7
+
+export function isPlausiblePhone(value: string): boolean {
+  if (!value) return false
+  if (!PHONE_ALLOWED_CHARS.test(value)) return false
+  const digits = value.replace(/\D/g, '')
+  return digits.length >= LENIENT_MIN_PHONE_DIGITS && digits.length <= MAX_PHONE_DIGITS
+}
+
+export function normalizePhone(value: string): string {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  const hasPlus = trimmed.startsWith('+')
+  const digits = trimmed.replace(/\D/g, '')
+  return hasPlus ? `+${digits}` : digits
+}

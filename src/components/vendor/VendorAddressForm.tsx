@@ -7,9 +7,11 @@ import { upsertDefaultVendorAddress } from '@/domains/shipping/vendor-address-ac
 import {
   SPAIN_PROVINCES,
   getPrefixForProvince,
-  isValidPhone,
+  isPlausiblePhone,
   postalCodeMatchesProvince,
 } from '@/domains/shipping/spain-provinces'
+import { LocationAutocomplete } from '@/components/ui/LocationAutocomplete'
+import type { Municipality } from '@/domains/shipping/municipalities'
 import { useT } from '@/i18n'
 
 interface Props {
@@ -58,12 +60,33 @@ export function VendorAddressForm({ initial }: Props) {
     setErrors(prev => ({ ...prev, [key]: undefined, form: undefined }))
   }
 
+  function onProvinceChange(value: string) {
+    const prefix = getPrefixForProvince(value)
+    setForm(prev => {
+      const digits = prev.postalCode.replace(/\D/g, '').slice(0, 5)
+      const postalCode = prefix ? (prefix + digits.slice(2)).slice(0, 5) : prev.postalCode
+      return { ...prev, province: value, postalCode }
+    })
+    setSaved(false)
+    setErrors(prev => ({ ...prev, province: undefined, postalCode: undefined, form: undefined }))
+  }
+
+  function onMunicipalityPicked(m: Municipality) {
+    setForm(prev => ({
+      ...prev,
+      city: m.name,
+      postalCode: m.postalCodes[0] ?? prev.postalCode,
+    }))
+    setSaved(false)
+    setErrors(prev => ({ ...prev, city: undefined, postalCode: undefined, form: undefined }))
+  }
+
   function validateClient(): FieldErrors {
     const next: FieldErrors = {}
     if (form.contactName.trim().length < 2) next.contactName = t('vendor.shippingAddress.errorContactName')
-    if (!isValidPhone(form.phone.trim())) next.phone = t('vendor.shippingAddress.errorPhone')
-    if (form.line1.trim().length < 3) next.line1 = t('vendor.shippingAddress.errorLine1')
-    if (form.city.trim().length < 2) next.city = t('vendor.shippingAddress.errorCity')
+    if (!isPlausiblePhone(form.phone.trim())) next.phone = t('vendor.shippingAddress.errorPhone')
+    if (!form.line1.trim()) next.line1 = t('vendor.shippingAddress.errorLine1')
+    if (!form.city.trim()) next.city = t('vendor.shippingAddress.errorCity')
     if (!form.province) next.province = t('vendor.shippingAddress.errorProvince')
     if (!/^\d{5}$/.test(form.postalCode)) {
       next.postalCode = t('vendor.shippingAddress.errorPostalCodeFormat')
@@ -152,7 +175,7 @@ export function VendorAddressForm({ initial }: Props) {
           <select
             className={selectCls}
             value={form.province}
-            onChange={e => onChange('province', e.target.value)}
+            onChange={e => onProvinceChange(e.target.value)}
             required
           >
             <option value="" disabled>
@@ -178,10 +201,12 @@ export function VendorAddressForm({ initial }: Props) {
           error={errors.postalCode}
           required
         />
-        <Input
+        <LocationAutocomplete
           label={t('vendor.shippingAddress.city')}
           value={form.city}
-          onChange={e => onChange('city', e.target.value)}
+          province={form.province}
+          onChangeText={value => onChange('city', value)}
+          onSelect={onMunicipalityPicked}
           error={errors.city}
           required
         />

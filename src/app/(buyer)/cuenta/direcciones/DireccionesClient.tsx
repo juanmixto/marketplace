@@ -3,38 +3,20 @@
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { TrashIcon, PencilIcon, CheckIcon } from '@heroicons/react/24/outline'
 import { useT } from '@/i18n'
+import { buyerAddressSchema, type BuyerAddressInput } from '@/domains/auth/buyer-address-schema'
+import { SPAIN_PROVINCES, getPrefixForProvince } from '@/domains/shipping/spain-provinces'
+import { LocationAutocomplete } from '@/components/ui/LocationAutocomplete'
+import type { Municipality } from '@/domains/shipping/municipalities'
 
-const addressSchema = z.object({
-  label: z.string().max(50).optional(),
-  firstName: z.string().min(1).max(50),
-  lastName: z.string().min(1).max(50),
-  line1: z.string().min(1).max(200),
-  line2: z.string().max(100).optional(),
-  city: z.string().min(1).max(100),
-  province: z.string().min(1).max(100),
-  postalCode: z.string().regex(/^\d{5}$/, 'Código postal español: 5 dígitos'),
-  isDefault: z.boolean(),
-})
-
-type AddressForm = z.infer<typeof addressSchema>
+type AddressForm = BuyerAddressInput
 
 interface Address extends AddressForm {
   id: string
   createdAt: string
   updatedAt: string
 }
-
-const SPANISH_PROVINCES = [
-  'Álava', 'Albacete', 'Alicante', 'Almería', 'Ávila', 'Badajoz', 'Baleares', 'Barcelona',
-  'Burgos', 'Cáceres', 'Cádiz', 'Cantabria', 'Castellón', 'Ciudad Real', 'Córdoba', 'Coruña',
-  'Cuenca', 'Guipúzcoa', 'Girona', 'Granada', 'Guadalajara', 'Huelva', 'Huesca', 'Jaén',
-  'León', 'Lleida', 'Lugo', 'Madrid', 'Málaga', 'Murcia', 'Navarra', 'Ourense', 'Palencia',
-  'Palmas', 'Pontevedra', 'Rioja', 'Salamanca', 'Segovia', 'Sevilla', 'Soria', 'Tarragona',
-  'Teruel', 'Toledo', 'Valencia', 'Valladolid', 'Vizcaya', 'Zamora', 'Zaragoza', 'Ceuta', 'Melilla',
-]
 
 interface DireccionesClientProps {
   userFirstName?: string
@@ -59,12 +41,37 @@ export function DireccionesClient({
     formState: { errors },
     reset,
     setValue,
+    getValues,
+    watch,
   } = useForm<AddressForm>({
-    resolver: zodResolver(addressSchema),
+    resolver: zodResolver(buyerAddressSchema),
+    mode: 'onSubmit',
+    reValidateMode: 'onBlur',
     defaultValues: {
       isDefault: false,
     },
   })
+
+  const currentProvince = watch('province') ?? ''
+  const currentCity = watch('city') ?? ''
+
+  const handleProvinceChange = (value: string) => {
+    setValue('province', value, { shouldValidate: true, shouldDirty: true })
+    const prefix = getPrefixForProvince(value)
+    if (!prefix) return
+    const digits = (getValues('postalCode') ?? '').replace(/\D/g, '').slice(0, 5)
+    setValue('postalCode', (prefix + digits.slice(2)).slice(0, 5), {
+      shouldValidate: true,
+      shouldDirty: true,
+    })
+  }
+
+  const handleMunicipalityPicked = (m: Municipality) => {
+    setValue('city', m.name, { shouldValidate: true, shouldDirty: true })
+    if (m.postalCodes[0]) {
+      setValue('postalCode', m.postalCodes[0], { shouldValidate: true, shouldDirty: true })
+    }
+  }
 
   // Load addresses on mount
   useEffect(() => {
@@ -287,32 +294,34 @@ export function DireccionesClient({
                 {errors.line2 && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.line2.message}</p>}
               </div>
 
-              {/* City */}
-              <div>
-                <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.city')}</label>
-                <input
-                  {...register('city')}
-                  autoComplete="address-level2"
-                  placeholder={t('account.cityPlaceholder')}
-                  className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                />
-                {errors.city && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.city.message}</p>}
-              </div>
-
               {/* Province */}
               <div>
                 <label className="block text-sm font-medium text-[var(--foreground)]">{t('account.province')}</label>
                 <select
-                  {...register('province')}
+                  value={currentProvince}
+                  onChange={e => handleProvinceChange(e.target.value)}
                   autoComplete="address-level1"
                   className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 >
                   <option value="">{t('account.selectProvince')}</option>
-                  {SPANISH_PROVINCES.map(p => (
-                    <option key={p} value={p}>{p}</option>
+                  {SPAIN_PROVINCES.map(p => (
+                    <option key={p.prefix} value={p.name}>{p.name}</option>
                   ))}
                 </select>
                 {errors.province && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.province.message}</p>}
+              </div>
+
+              {/* City — autocomplete */}
+              <div>
+                <LocationAutocomplete
+                  label={t('account.city')}
+                  value={currentCity}
+                  province={currentProvince}
+                  onChangeText={value => setValue('city', value, { shouldDirty: true })}
+                  onSelect={handleMunicipalityPicked}
+                  error={errors.city?.message}
+                  placeholder={t('account.cityPlaceholder')}
+                />
               </div>
 
               {/* PostalCode */}

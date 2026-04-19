@@ -4,7 +4,9 @@ import {
   SPAIN_PROVINCES,
   SPAIN_PROVINCE_BY_PREFIX,
   getPrefixForProvince,
+  isPlausiblePhone,
   isValidPhone,
+  normalizePhone,
   normalizeProvinceName,
   postalCodeMatchesProvince,
 } from '@/domains/shipping/spain-provinces'
@@ -83,4 +85,22 @@ test('isValidPhone rejects too few or too many digits', () => {
 
 test('isValidPhone rejects empty string', () => {
   assert.equal(isValidPhone(''), false)
+})
+
+test('isPlausiblePhone accepts 7+ digits with loose formatting', () => {
+  assert.equal(isPlausiblePhone('600 000'), false)
+  assert.equal(isPlausiblePhone('6000000'), true)
+  assert.equal(isPlausiblePhone('+34 600 000 000'), true)
+  assert.equal(isPlausiblePhone('(600) 000-0000'), true)
+})
+
+test('isPlausiblePhone rejects letters and overflow', () => {
+  assert.equal(isPlausiblePhone('call-me'), false)
+  assert.equal(isPlausiblePhone('1'.repeat(16)), false)
+})
+
+test('normalizePhone strips punctuation, keeps leading plus', () => {
+  assert.equal(normalizePhone('+34 600-000 000'), '+34600000000')
+  assert.equal(normalizePhone(' 600 000 000 '), '600000000')
+  assert.equal(normalizePhone(''), '')
 })

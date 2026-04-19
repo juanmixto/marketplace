@@ -2,7 +2,7 @@ import { z } from 'zod'
 import {
   SPAIN_PROVINCE_BY_PREFIX,
   getPrefixForProvince,
-  isValidPhone,
+  isPlausiblePhone,
   postalCodeMatchesProvince,
 } from '@/domains/shipping'
 
@@ -32,7 +32,7 @@ export const addressSchema = z
   .object({
     firstName: z.string().trim().min(1),
     lastName: z.string().trim().min(1),
-    line1: z.string().trim().min(5),
+    line1: z.string().trim().min(1),
     line2: z.string().optional(),
     city: z.string().trim().min(1),
     province: z
@@ -47,7 +47,7 @@ export const addressSchema = z
       .string()
       .trim()
       .optional()
-      .refine(v => !v || isValidPhone(v), 'Teléfono inválido'),
+      .refine(v => !v || isPlausiblePhone(v), 'Teléfono inválido'),
   })
   .superRefine(postalProvinceRefiner)
 
@@ -69,7 +69,7 @@ export const checkoutFormSchema = z
   .object({
     firstName: z.string().trim().min(1, 'Requerido'),
     lastName: z.string().trim().min(1, 'Requerido'),
-    line1: z.string().trim().min(5, 'Dirección demasiado corta'),
+    line1: z.string().trim().min(1, 'Escribe la dirección'),
     line2: z.string().optional(),
     city: z.string().trim().min(1, 'Requerido'),
     province: z
@@ -84,8 +84,8 @@ export const checkoutFormSchema = z
       .trim()
       .optional()
       .refine(
-        v => !v || isValidPhone(v),
-        'Teléfono inválido (solo dígitos, 9-15 cifras)',
+        v => !v || isPlausiblePhone(v),
+        'Escribe un teléfono de contacto válido',
       ),
     saveAddress: z.boolean().optional(),
     selectedAddressId: z.string().optional(),

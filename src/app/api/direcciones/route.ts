@@ -3,18 +3,7 @@ import { z } from 'zod'
 import { getActionSession } from '@/lib/action-session'
 import { db } from '@/lib/db'
 import { clearOtherDefaults, enforceSingleDefault } from '@/domains/auth/address-defaults'
-
-const addressSchema = z.object({
-  label: z.string().max(50).optional(),
-  firstName: z.string().min(1).max(50),
-  lastName: z.string().min(1).max(50),
-  line1: z.string().min(1).max(200),
-  line2: z.string().max(100).optional(),
-  city: z.string().min(1).max(100),
-  province: z.string().min(1).max(100),
-  postalCode: z.string().regex(/^\d{5}$/, 'Código postal español: 5 dígitos'),
-  isDefault: z.boolean().default(false),
-})
+import { buyerAddressSchema } from '@/domains/auth/buyer-address-schema'
 
 export async function GET(_req: NextRequest) {
   try {
@@ -59,7 +48,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const validated = addressSchema.parse(body)
+    const validated = buyerAddressSchema.parse(body)
 
     const address = await db.$transaction(async (tx) => {
       if (validated.isDefault) {
