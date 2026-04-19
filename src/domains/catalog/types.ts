@@ -36,7 +36,27 @@ export type ProductDetail = Product & {
   variants: ProductVariant[]
 }
 
-export type VendorWithCount = Vendor & {
+// Public-vendor shape (#590). Must stay in sync with
+// PUBLIC_VENDOR_SELECT in src/domains/catalog/queries.ts — that
+// constant defines which fields are safe to expose on public reads.
+export type PublicVendor = Pick<
+  Vendor,
+  | 'id'
+  | 'slug'
+  | 'displayName'
+  | 'description'
+  | 'logo'
+  | 'coverImage'
+  | 'location'
+  | 'category'
+  | 'avgRating'
+  | 'totalReviews'
+  | 'orderCutoffTime'
+  | 'preparationDays'
+  | 'createdAt'
+>
+
+export type VendorWithCount = PublicVendor & {
   _count: { products: number }
 }
 

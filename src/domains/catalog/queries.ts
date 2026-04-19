@@ -6,6 +6,12 @@ import { CACHE_TAGS } from '@/lib/cache-tags'
 import { getDemoProductImages } from '@/domains/catalog/demo-product-images'
 import { expandSearchQuery } from '@/domains/catalog/search-translation'
 
+// Issue #590: explicit DTOs for public reads. Selects live in the
+// dependency-free `public-selects` module so the audit test can pin
+// the allow-list without pulling Prisma.
+export { PUBLIC_VENDOR_SELECT, PUBLIC_VARIANT_SELECT } from '@/domains/catalog/public-selects'
+import { PUBLIC_VENDOR_SELECT, PUBLIC_VARIANT_SELECT } from '@/domains/catalog/public-selects'
+
 export interface ProductFilters {
   categorySlug?: string
   certifications?: string[]
@@ -253,21 +259,10 @@ async function getProductBySlugUncached(slug: string) {
       certifications: true,
       originRegion: true,
       createdAt: true,
-      vendor: {
-        select: {
-          id: true,
-          slug: true,
-          displayName: true,
-          description: true,
-          location: true,
-          logo: true,
-          avgRating: true,
-          totalReviews: true,
-        },
-      },
+      vendor: { select: PUBLIC_VENDOR_SELECT },
       categoryId: true,
       category: { select: { id: true, name: true, slug: true } },
-      variants: { where: { isActive: true } },
+      variants: { where: { isActive: true }, select: PUBLIC_VARIANT_SELECT },
       // Phase 4b-β: surface all active subscription plans for this
       // product (multi-cadence — one per WEEKLY/BIWEEKLY/MONTHLY). The
       // product detail page shows a single CTA that navigates to the
@@ -371,7 +366,8 @@ async function getVendorsUncached(limit = 12) {
     where: { status: 'ACTIVE' },
     orderBy: { avgRating: 'desc' },
     take: limit,
-    include: {
+    select: {
+      ...PUBLIC_VENDOR_SELECT,
       _count: { select: { products: { where: getAvailableProductWhere() } } },
     },
   })
@@ -431,7 +427,8 @@ export async function getHomeSnapshot() {
 async function getVendorBySlugUncached(slug: string) {
   const vendor = await db.vendor.findUnique({
     where: { slug, status: 'ACTIVE' },
-    include: {
+    select: {
+      ...PUBLIC_VENDOR_SELECT,
       products: {
         where: getAvailableProductWhere(),
         orderBy: { createdAt: 'desc' },
@@ -450,10 +447,7 @@ async function getVendorBySlugUncached(slug: string) {
           originRegion: true,
           createdAt: true,
           category: { select: { name: true, slug: true } },
-          variants: {
-            where: { isActive: true },
-            select: { id: true, name: true, priceModifier: true, stock: true, isActive: true },
-          },
+          variants: { where: { isActive: true }, select: PUBLIC_VARIANT_SELECT },
         },
       },
     },
