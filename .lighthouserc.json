@@ -3,7 +3,9 @@
     "collect": {
       "url": [
         "http://localhost:3000/",
-        "http://localhost:3000/offline"
+        "http://localhost:3000/offline",
+        "http://localhost:3000/productos",
+        "http://localhost:3000/productores"
       ],
       "numberOfRuns": 1,
       "settings": {
