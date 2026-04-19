@@ -7,7 +7,7 @@ import { upsertDefaultVendorAddress } from '@/domains/shipping/vendor-address-ac
 import {
   SPAIN_PROVINCES,
   getPrefixForProvince,
-  isValidPhone,
+  isPlausiblePhone,
   postalCodeMatchesProvince,
 } from '@/domains/shipping/spain-provinces'
 import { useT } from '@/i18n'
@@ -61,9 +61,9 @@ export function VendorAddressForm({ initial }: Props) {
   function validateClient(): FieldErrors {
     const next: FieldErrors = {}
     if (form.contactName.trim().length < 2) next.contactName = t('vendor.shippingAddress.errorContactName')
-    if (!isValidPhone(form.phone.trim())) next.phone = t('vendor.shippingAddress.errorPhone')
-    if (form.line1.trim().length < 3) next.line1 = t('vendor.shippingAddress.errorLine1')
-    if (form.city.trim().length < 2) next.city = t('vendor.shippingAddress.errorCity')
+    if (!isPlausiblePhone(form.phone.trim())) next.phone = t('vendor.shippingAddress.errorPhone')
+    if (!form.line1.trim()) next.line1 = t('vendor.shippingAddress.errorLine1')
+    if (!form.city.trim()) next.city = t('vendor.shippingAddress.errorCity')
     if (!form.province) next.province = t('vendor.shippingAddress.errorProvince')
     if (!/^\d{5}$/.test(form.postalCode)) {
       next.postalCode = t('vendor.shippingAddress.errorPostalCodeFormat')

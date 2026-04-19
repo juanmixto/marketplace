@@ -114,3 +114,31 @@ export function isValidPhone(value: string): boolean {
   const digits = value.replace(/\D/g, '')
   return digits.length >= MIN_PHONE_DIGITS && digits.length <= MAX_PHONE_DIGITS
 }
+
+/**
+ * Lenient phone check for forms where we don't want to gate submission
+ * on micro-formatting. Accepts anything with at least 7 digits and not
+ * more than 15, regardless of spacing/punctuation. Letters still bounce.
+ */
+const LENIENT_MIN_PHONE_DIGITS = 7
+
+export function isPlausiblePhone(value: string): boolean {
+  if (!value) return false
+  if (!PHONE_ALLOWED_CHARS.test(value)) return false
+  const digits = value.replace(/\D/g, '')
+  return digits.length >= LENIENT_MIN_PHONE_DIGITS && digits.length <= MAX_PHONE_DIGITS
+}
+
+/**
+ * Collapses a user-typed phone into a canonical form for storage:
+ * strips any character that isn't a digit or leading '+', then
+ * collapses runs of whitespace. Preserves the plus so international
+ * prefixes survive ("+34 600-000-000" → "+34600000000").
+ */
+export function normalizePhone(value: string): string {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  const hasPlus = trimmed.startsWith('+')
+  const digits = trimmed.replace(/\D/g, '')
+  return hasPlus ? `+${digits}` : digits
+}

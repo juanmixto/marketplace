@@ -61,6 +61,8 @@ export function DireccionesClient({
     setValue,
   } = useForm<AddressForm>({
     resolver: zodResolver(addressSchema),
+    mode: 'onSubmit',
+    reValidateMode: 'onBlur',
     defaultValues: {
       isDefault: false,
     },

@@ -10,7 +10,8 @@ import type { VendorAddressInput } from '@/domains/shipping/action-types'
 import {
   SPAIN_PROVINCE_BY_PREFIX,
   getPrefixForProvince,
-  isValidPhone,
+  isPlausiblePhone,
+  normalizePhone,
   postalCodeMatchesProvince,
 } from '@/domains/shipping/spain-provinces'
 
@@ -31,10 +32,11 @@ const vendorAddressSchema = z
     phone: z
       .string()
       .trim()
-      .refine(isValidPhone, 'Teléfono inválido (solo dígitos, 9-15 cifras)'),
-    line1: z.string().trim().min(3, 'Dirección demasiado corta').max(150),
+      .refine(isPlausiblePhone, 'Escribe un teléfono de contacto válido')
+      .transform(normalizePhone),
+    line1: z.string().trim().min(1, 'Escribe la dirección').max(150),
     line2: z.string().max(150).optional().nullable(),
-    city: z.string().trim().min(2, 'Escribe la localidad').max(80),
+    city: z.string().trim().min(1, 'Escribe la localidad').max(80),
     province: z
       .string()
       .trim()

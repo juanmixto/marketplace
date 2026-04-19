@@ -58,6 +58,12 @@ export interface OrderPushView {
   items?: string[]
   vendorFirstName?: string
   buyerFirstName?: string
+  /**
+   * Full recipient name from the shipping address snapshot — the human
+   * the parcel is going to. Preferred over `payload.customerName` (the
+   * account holder's display name) whenever available.
+   */
+  buyerName?: string
 }
 
 function orderIdLabel(payload: { orderId: string }, view?: OrderPushView): string {
@@ -71,9 +77,10 @@ export function orderCreatedPush(
   const total = formatMoney(payload.totalCents, payload.currency)
   const id = orderIdLabel(payload, view)
   const greet = firstWord(view?.vendorFirstName)
+  const buyer = view?.buyerName ?? payload.customerName
   const title = greet
-    ? `📦 ${greet}, nuevo pedido de ${payload.customerName}`
-    : `📦 Nuevo pedido de ${payload.customerName}`
+    ? `📦 ${greet}, nuevo pedido de ${buyer}`
+    : `📦 Nuevo pedido de ${buyer}`
   const itemsLine = joinItems(view?.items)
   const parts = [`${id} — ${total}`]
   if (view?.city) parts.push(view.city)
