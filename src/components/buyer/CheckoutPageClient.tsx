@@ -51,6 +51,14 @@ interface Props {
    * dedupe double-clicks, tab refreshes, and concurrent races.
    */
   checkoutAttemptId: string
+  /**
+   * Addresses pre-fetched by the server component. When provided, the
+   * client skips the mount-time `fetch('/api/direcciones')` — which on
+   * the critical checkout path used to add 100–300 ms of "Loading…"
+   * before the buyer could pick an address. Optional so existing call
+   * sites fall back to the legacy client-fetch path.
+   */
+  initialAddresses?: SavedCheckoutAddress[]
 }
 
 export function CheckoutPageClient({
@@ -61,14 +69,22 @@ export function CheckoutPageClient({
   userFirstName = '',
   userLastName = '',
   checkoutAttemptId,
+  initialAddresses,
 }: Props) {
   const router = useRouter()
   const { items, subtotal, clearCart } = useCartStore()
   const [step, setStep] = useState<'address' | 'payment' | 'processing'>('address')
   const [serverError, setServerError] = useState<string | null>(null)
-  const [savedAddresses, setSavedAddresses] = useState<SavedCheckoutAddress[]>([])
-  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null)
-  const [loadingAddresses, setLoadingAddresses] = useState(true)
+  const hasInitialAddresses = initialAddresses !== undefined
+  const [savedAddresses, setSavedAddresses] = useState<SavedCheckoutAddress[]>(
+    initialAddresses ?? [],
+  )
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(() => {
+    if (!hasInitialAddresses) return null
+    return getPreferredCheckoutAddress(initialAddresses!)?.id ?? null
+  })
+  // If the server supplied addresses there is nothing to load.
+  const [loadingAddresses, setLoadingAddresses] = useState(!hasInitialAddresses)
   const [addressLoadError, setAddressLoadError] = useState<string | null>(null)
   const [showNewAddressForm, setShowNewAddressForm] = useState(false)
   const [completedOrderNumber, setCompletedOrderNumber] = useState<string | null>(null)
@@ -207,6 +223,20 @@ export function CheckoutPageClient({
   useEffect(() => {
     let cancelled = false
 
+    // Fast path: the server already handed us the address list, so we
+    // just seed the form from the preferred address and skip the
+    // network round-trip. The slow path keeps the previous behaviour
+    // intact for callers that don't pre-fetch.
+    if (hasInitialAddresses) {
+      const preferredAddress = getPreferredCheckoutAddress(initialAddresses!)
+      if (preferredAddress) {
+        reset(toCheckoutFormAddress(preferredAddress))
+      } else {
+        setShowNewAddressForm(true)
+      }
+      return
+    }
+
     async function loadSavedAddresses() {
       try {
         setLoadingAddresses(true)
@@ -244,7 +274,7 @@ export function CheckoutPageClient({
     return () => {
       cancelled = true
     }
-  }, [reset])
+  }, [reset, hasInitialAddresses, initialAddresses])
 
   useEffect(() => {
     if (!completedOrderNumber) return
