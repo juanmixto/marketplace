@@ -28,6 +28,8 @@ import { getActionSession } from '@/lib/action-session'
 import { redirect } from 'next/navigation'
 import { isAdminRole } from '@/lib/roles'
 import { IncidentStatus, IncidentType } from '@/generated/prisma/enums'
+// eslint-disable-next-line no-restricted-imports -- dispatcher is intentionally server-only, excluded from notifications barrel
+import { emit as emitNotification } from '@/domains/notifications/dispatcher'
 import {
   INCIDENT_SLA_HOURS,
   IncidentAuthError,
@@ -103,6 +105,22 @@ export async function openIncident(
     },
     select: { id: true },
   })
+
+  // Notify every vendor that shipped a line on this order so whoever is
+  // responsible sees it fast. SLA clock starts now; latency here matters.
+  const vendorLines = await db.orderLine.findMany({
+    where: { orderId: order.id },
+    select: { vendorId: true },
+    distinct: ['vendorId'],
+  })
+  for (const { vendorId } of vendorLines) {
+    emitNotification('incident.opened', {
+      incidentId: incident.id,
+      orderId: order.id,
+      vendorId,
+      type: parsed.type,
+    })
+  }
 
   return { incidentId: incident.id }
 }

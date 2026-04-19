@@ -1,4 +1,4 @@
-import { ArrowPathIcon, HeartIcon, MapPinIcon, ShoppingBagIcon, UserCircleIcon } from '@heroicons/react/24/outline'
+import { ArrowPathIcon, BellIcon, HeartIcon, MapPinIcon, ShoppingBagIcon, UserCircleIcon } from '@heroicons/react/24/outline'
 import type { TranslationKeys } from '@/i18n/locales'
 
 export interface AppNavItem {
@@ -22,7 +22,6 @@ export const vendorNavItems: LocalizedNavItem[] = [
   { href: '/vendor/valoraciones',    labelKey: 'vendor.nav.reviews',       available: true },
   { href: '/vendor/liquidaciones',   labelKey: 'vendor.nav.settlements',   available: true },
   { href: '/vendor/perfil',          labelKey: 'vendor.nav.profile',       available: true },
-  { href: '/vendor/ajustes/telegram', labelKey: 'vendor.nav.telegram',      available: true },
   { href: '/vendor/ajustes/notificaciones', labelKey: 'vendor.nav.notifications', available: true },
 ]
 
@@ -50,6 +49,7 @@ export const buyerAccountItems: AppNavItem[] = [
   { href: '/cuenta/direcciones', label: 'Mis direcciones', available: true },
   { href: '/cuenta/favoritos', label: 'Mis favoritos', available: true },
   { href: '/cuenta/perfil', label: 'Datos personales', available: true },
+  { href: '/cuenta/notificaciones', label: 'Notificaciones', available: true },
 ]
 
 export const buyerAccountMeta = {
@@ -77,6 +77,11 @@ export const buyerAccountMeta = {
     icon: UserCircleIcon,
     labelKey: 'account.nav.profile.label',
     descKey:  'account.nav.profile.desc',
+  },
+  '/cuenta/notificaciones': {
+    icon: BellIcon,
+    labelKey: 'account.nav.notifications.label',
+    descKey:  'account.nav.notifications.desc',
   },
 } as const
 

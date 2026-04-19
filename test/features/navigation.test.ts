@@ -10,7 +10,7 @@ import {
 } from '@/lib/navigation'
 
 test('navigation helpers split available and upcoming sections correctly', () => {
-  assert.equal(getAvailableNavItems(vendorNavItems).length, 10)
+  assert.equal(getAvailableNavItems(vendorNavItems).length, 9)
   assert.equal(getUpcomingNavItems(vendorNavItems).length, 0)
   assert.equal(getAvailableNavItems(adminNavItems).length, 15)
   assert.equal(getUpcomingNavItems(adminNavItems).length, 0)
@@ -28,6 +28,7 @@ test('buyer account only exposes implemented links as available', () => {
       '/cuenta/direcciones',
       '/cuenta/favoritos',
       '/cuenta/perfil',
+      '/cuenta/notificaciones',
     ]
   )
   assert.deepEqual(upcoming.map(item => item.href), [])

@@ -93,6 +93,18 @@ The script only **reports** by default — it never deletes anything without exp
 ./scripts/git-hygiene.sh
 ```
 
+### Closing the loop
+
+When a task is done, prefer this order:
+
+1. Merge or archive the useful commits.
+2. Align the active branch with the remote branch or `main`.
+3. Remove temporary worktrees.
+4. Delete temporary backup branches once the useful work is preserved.
+5. Remove generated test artefacts such as `test-results/.last-run.json` if they are not part of the task.
+
+If you are unsure whether a branch or worktree still contains unique work, stop and inspect the diff first. Do not assume a `[gone]` ref or a dirty worktree is safe to delete.
+
 ---
 
 ## Examples
