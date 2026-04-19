@@ -69,6 +69,13 @@ export interface OrderMessageView {
   vendorFirstName?: string
   /** Buyer first name (used when we want to name-drop the customer). */
   buyerFirstName?: string
+  /**
+   * Full recipient name from the shipping address snapshot — i.e. the
+   * human the producer is actually sending the parcel to. Preferred over
+   * `payload.customerName` (which is the account holder's display name)
+   * whenever available.
+   */
+  buyerName?: string
 }
 
 /**
@@ -102,7 +109,7 @@ export function orderCreatedTemplate(
   view?: OrderMessageView,
 ): OutboundMessage {
   const id = orderIdentifierLink(payload, view)
-  const customer = escapeHtml(payload.customerName)
+  const customer = escapeHtml(view?.buyerName ?? payload.customerName)
   const total = formatMoney(payload.totalCents, payload.currency)
   const locationLine = view?.city ? ` desde ${escapeHtml(view.city)}` : ''
   const itemsBlock = renderItemsBlock(view)
