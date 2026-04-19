@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import {
   prepareFulfillment,
@@ -18,6 +19,7 @@ interface Props {
 
 export function FulfillmentActions({ fulfillmentId, status, labelUrl, trackingUrl }: Props) {
   const t = useT()
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -32,6 +34,8 @@ export function FulfillmentActions({ fulfillmentId, status, labelUrl, trackingUr
         } else {
           setError(result.message || t('vendor.fulfillment.labelFailed'))
         }
+      } else {
+        router.refresh()
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('vendor.fulfillment.labelFailed'))
@@ -45,6 +49,7 @@ export function FulfillmentActions({ fulfillmentId, status, labelUrl, trackingUr
     setError(null)
     try {
       await markFulfillmentIncident(fulfillmentId)
+      router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : t('vendor.fulfillment.updateError'))
     } finally {
@@ -59,6 +64,8 @@ export function FulfillmentActions({ fulfillmentId, status, labelUrl, trackingUr
       const result = await resolveFulfillmentIncident(fulfillmentId)
       if (!result.ok) {
         setError(result.message || t('vendor.fulfillment.updateError'))
+      } else {
+        router.refresh()
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('vendor.fulfillment.updateError'))

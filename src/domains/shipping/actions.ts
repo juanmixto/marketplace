@@ -23,6 +23,7 @@ import {
   applyShipmentTransition,
 } from '@/domains/shipping/transitions'
 import type { FulfillmentStatus } from '@/generated/prisma/enums'
+import { emit as emitNotification } from '@/domains/notifications/dispatcher'
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 
@@ -133,15 +134,38 @@ export async function prepareFulfillment(
   fulfillmentId: string,
 ): Promise<PrepareFulfillmentResult | PrepareFulfillmentError> {
   const { vendor } = await requireVendorSession()
+  return prepareFulfillmentForVendorId(vendor.id, fulfillmentId)
+}
 
+/**
+ * Session-less variant used by out-of-band entrypoints (Telegram callback
+ * handlers). The caller is responsible for proving the userId owns the
+ * fulfillment; we scope the Prisma lookup by (id, vendor.userId) so a
+ * foreign fulfillmentId returns NOT_FOUND instead of acting on it.
+ */
+export async function prepareFulfillmentByUserId(
+  userId: string,
+  fulfillmentId: string,
+): Promise<PrepareFulfillmentResult | PrepareFulfillmentError> {
+  const vendor = await db.vendor.findUnique({ where: { userId }, select: { id: true } })
+  if (!vendor) {
+    return { ok: false, code: 'NOT_FOUND', message: 'Fulfillment no encontrado', retryable: false }
+  }
+  return prepareFulfillmentForVendorId(vendor.id, fulfillmentId)
+}
+
+async function prepareFulfillmentForVendorId(
+  vendorId: string,
+  fulfillmentId: string,
+): Promise<PrepareFulfillmentResult | PrepareFulfillmentError> {
   const fulfillment = await db.vendorFulfillment.findFirst({
-    where: { id: fulfillmentId, vendorId: vendor.id },
+    where: { id: fulfillmentId, vendorId },
     include: {
       shipment: true,
       order: {
         include: {
           lines: {
-            where: { vendorId: vendor.id },
+            where: { vendorId },
             include: { product: { select: { name: true, weightGrams: true } } },
           },
         },
@@ -169,6 +193,25 @@ export async function prepareFulfillment(
       fulfillment.shipment.status,
     )
   ) {
+    // Reconcile VendorFulfillment if it drifted behind the Shipment (e.g. a
+    // prior run crashed between provider success and the fulfillment update,
+    // or seeded data is inconsistent). Without this the vendor UI would keep
+    // offering "Generar etiqueta" forever on a fulfillment that already has
+    // a label, and the click would silently short-circuit here.
+    const reconciledStatus = fulfillmentStatusForShipment(
+      PRISMA_TO_SHIPMENT[fulfillment.shipment.status],
+    )
+    if (reconciledStatus && reconciledStatus !== fulfillment.status) {
+      await db.vendorFulfillment.update({
+        where: { id: fulfillment.id },
+        data: {
+          status: reconciledStatus,
+          trackingNumber: fulfillment.shipment.trackingNumber ?? fulfillment.trackingNumber,
+          carrier: fulfillment.shipment.carrierName ?? fulfillment.carrier,
+        },
+      })
+      safeRevalidatePath('/vendor/pedidos')
+    }
     return {
       ok: true,
       fulfillmentId: fulfillment.id,
@@ -180,7 +223,7 @@ export async function prepareFulfillment(
     }
   }
 
-  const vendorAddress = await getDefaultVendorAddress(vendor.id)
+  const vendorAddress = await getDefaultVendorAddress(vendorId)
   if (!vendorAddress) {
     return {
       ok: false,
@@ -228,7 +271,7 @@ export async function prepareFulfillment(
   const idempotencyKey = buildIdempotencyKey(fulfillmentId)
   const draft: ShipmentDraft = {
     idempotencyKey,
-    reference: buildReference(fulfillment.orderId, vendor.id),
+    reference: buildReference(fulfillment.orderId, vendorId),
     from,
     to,
     weightGrams,
@@ -268,7 +311,7 @@ export async function prepareFulfillment(
     source: 'MANUAL_VENDOR',
     type: 'label.requested',
     status: 'LABEL_REQUESTED',
-    message: `Vendor ${vendor.id} requested label`,
+    message: `Vendor ${vendorId} requested label`,
   })
 
   let record: ShipmentRecord
@@ -296,6 +339,12 @@ export async function prepareFulfillment(
       type: 'label.failed',
       status: 'FAILED',
       message,
+    })
+    emitNotification('label.failed', {
+      orderId: fulfillment.orderId,
+      vendorId,
+      fulfillmentId,
+      errorMessage: message,
     })
     safeRevalidatePath('/vendor/pedidos')
     return {
@@ -339,6 +388,20 @@ export async function prepareFulfillment(
     status: SHIPMENT_TO_PRISMA[record.status],
     message: `Provider ${record.providerCode} ref=${record.providerRef}`,
   })
+
+  // Nudge the vendor to mark the parcel as shipped. `applyShipmentTransition`
+  // already emits this when Sendcloud drives the move to READY via webhook,
+  // but the manual/mock path lands here without going through that helper,
+  // so we emit too. De-duplication would require a delivery-log lookup; for
+  // now rely on the notification preference to silence if noisy.
+  if (fulfillmentStatusForShipment(record.status) === 'READY') {
+    emitNotification('order.pending', {
+      orderId: fulfillment.orderId,
+      vendorId,
+      fulfillmentId,
+      reason: 'NEEDS_SHIPMENT',
+    })
+  }
 
   safeRevalidatePath('/vendor/pedidos')
 

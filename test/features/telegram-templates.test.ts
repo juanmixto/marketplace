@@ -4,6 +4,7 @@ import {
   orderCreatedTemplate,
   orderPendingTemplate,
   messageReceivedTemplate,
+  orderStatusChangedTemplate,
 } from '@/domains/notifications/telegram/templates'
 
 const CALLBACK_BYTE_LIMIT = 64
@@ -161,4 +162,34 @@ test('messageReceivedTemplate truncates preview to 120 chars and escapes it', ()
   assert.ok(!msg.text.includes('<i>'), 'raw HTML in user preview is escaped')
   // preview sliced to 120 chars → no closing </i> survives
   assert.ok(!msg.text.includes('</i>'), 'preview is truncated before the closing tag')
+})
+
+test('orderStatusChangedTemplate renders per-status buyer copy', () => {
+  const shipped = orderStatusChangedTemplate({
+    orderId: 'ord_1',
+    customerUserId: 'usr_1',
+    status: 'SHIPPED',
+    orderNumber: 'MP-2026-000001',
+  })
+  assert.ok(shipped.text.includes('📦'))
+  assert.ok(shipped.text.includes('en camino'))
+  assert.ok(shipped.text.includes('MP-2026-000001'))
+
+  const out = orderStatusChangedTemplate({
+    orderId: 'ord_1',
+    customerUserId: 'usr_1',
+    status: 'OUT_FOR_DELIVERY',
+  })
+  assert.ok(out.text.includes('🚚'))
+
+  const delivered = orderStatusChangedTemplate({
+    orderId: 'ord_1',
+    customerUserId: 'usr_1',
+    status: 'DELIVERED',
+    vendorName: 'Finca <Ejemplo>',
+  })
+  assert.ok(delivered.text.includes('✅'))
+  // vendor name must be HTML-escaped in the rendered body
+  assert.ok(!delivered.text.includes('<Ejemplo>'))
+  assert.ok(delivered.text.includes('Finca &lt;Ejemplo&gt;'))
 })

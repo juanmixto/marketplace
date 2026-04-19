@@ -10,6 +10,7 @@ import { getActionSession } from '@/lib/action-session'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { isVendor } from '@/lib/roles'
 import { isAllowedImageUrl } from '@/lib/image-validation'
+import { emit as emitNotification } from '@/domains/notifications/dispatcher'
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 
@@ -209,11 +210,24 @@ export async function setProductStock(input: z.infer<typeof stockSetSchema>) {
     throw new Error('Productos con variantes: edita el stock por variante')
   }
 
+  const previousStock = product.stock
   const updated = await db.product.update({
     where: { id: productId },
     data: { stock },
-    select: { id: true, stock: true, slug: true },
+    select: { id: true, stock: true, slug: true, name: true },
   })
+
+  // Fire the back-in-stock fanout exactly on the 0 → positive transition.
+  // Any other change (top-up while already in stock, drop to zero) is a
+  // non-event from the buyer's point of view.
+  if (previousStock <= 0 && stock > 0) {
+    emitNotification('favorite.back_in_stock', {
+      productId: updated.id,
+      productName: updated.name,
+      productSlug: updated.slug,
+      vendorName: vendor.displayName,
+    })
+  }
 
   safeRevalidatePath('/vendor/productos')
   safeRevalidatePath(`/productos/${product.slug}`)
@@ -417,7 +431,7 @@ export async function confirmFulfillmentByUserId(
 > {
   const fulfillment = await db.vendorFulfillment.findFirst({
     where: { id: fulfillmentId, vendor: { userId } },
-    select: { id: true, status: true },
+    select: { id: true, status: true, orderId: true, vendorId: true },
   })
   if (!fulfillment) {
     return { ok: false, code: 'NOT_FOUND', message: 'Fulfillment no encontrado' }
@@ -433,6 +447,14 @@ export async function confirmFulfillmentByUserId(
   await db.vendorFulfillment.update({
     where: { id: fulfillmentId },
     data: { status: 'CONFIRMED' },
+  })
+  // Out-of-band (Telegram) confirm leaves the vendor outside the app, so
+  // nudge them with the next action — generate the shipping label.
+  emitNotification('order.pending', {
+    orderId: fulfillment.orderId,
+    vendorId: fulfillment.vendorId,
+    fulfillmentId: fulfillment.id,
+    reason: 'NEEDS_LABEL',
   })
   safeRevalidatePath('/vendor/pedidos')
   return { ok: true, fulfillmentId }
@@ -524,7 +546,40 @@ export async function getMyFulfillments(filter?: 'active' | 'urgent' | 'shipped'
         include: {
           lines: {
             where: { vendorId: vendor.id },
-            include: { product: { select: { name: true, images: true, unit: true } } },
+            include: { product: { select: { name: true, images: true, unit: true, slug: true } } },
+          },
+          customer: { select: { firstName: true, lastName: true } },
+          address: true,
+        },
+      },
+    },
+  })
+}
+
+export async function getMyFulfillmentByOrderId(orderId: string) {
+  const { vendor } = await requireVendor()
+
+  return db.vendorFulfillment.findFirst({
+    where: {
+      vendorId: vendor.id,
+      orderId,
+    },
+    include: {
+      shipment: {
+        select: {
+          id: true,
+          status: true,
+          labelUrl: true,
+          trackingUrl: true,
+          trackingNumber: true,
+          carrierName: true,
+        },
+      },
+      order: {
+        include: {
+          lines: {
+            where: { vendorId: vendor.id },
+            include: { product: { select: { name: true, images: true, unit: true, slug: true } } },
           },
           customer: { select: { firstName: true, lastName: true } },
           address: true,

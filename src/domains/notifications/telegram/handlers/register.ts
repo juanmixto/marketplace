@@ -1,11 +1,22 @@
 import { on } from '../../dispatcher'
 import { getTelegramConfig } from '../config'
 import { onOrderCreated } from './on-order-created'
+import { onBuyerOrderStatus } from './on-buyer-order-status'
+import { onFavoriteBackInStock } from './on-favorite-restock'
 import { onOrderPending } from './on-order-pending'
 import { onMessageReceived } from './on-message-received'
+import {
+  onOrderDelivered,
+  onLabelFailed,
+  onIncidentOpened,
+  onReviewReceived,
+  onPayoutPaid,
+  onStockLow,
+} from './on-vendor-alerts'
 import { registerAction } from '../actions/registry'
 import { confirmFulfillmentAction } from '../actions/confirm-fulfillment'
 import { markShippedAction } from '../actions/mark-shipped'
+import { prepareFulfillmentAction } from '../actions/prepare-fulfillment'
 
 const GLOBAL_KEY = '__marketplaceTelegramHandlersRegistered'
 
@@ -19,9 +30,18 @@ export function registerTelegramHandlers(): void {
   on('order.created', onOrderCreated)
   on('order.pending', onOrderPending)
   on('message.received', onMessageReceived)
+  on('order.delivered', onOrderDelivered)
+  on('label.failed', onLabelFailed)
+  on('incident.opened', onIncidentOpened)
+  on('review.received', onReviewReceived)
+  on('payout.paid', onPayoutPaid)
+  on('stock.low', onStockLow)
+  on('order.status_changed', onBuyerOrderStatus)
+  on('favorite.back_in_stock', onFavoriteBackInStock)
 
   registerAction('confirmFulfillment', confirmFulfillmentAction)
   registerAction('markShipped', markShippedAction)
+  registerAction('prepareFulfillment', prepareFulfillmentAction)
 
   g[GLOBAL_KEY] = true
 }

@@ -506,6 +506,18 @@ export async function createOrder(
   // "try again" message.
   const env = getServerEnv()
 
+  // Collected outside the transaction so we can emit stock-low alerts
+  // once the order has committed. Emitting inside the tx is a bad idea —
+  // if the tx rolls back, the vendor would see phantom "out of stock"
+  // pings for orders that never happened.
+  const LOW_STOCK_THRESHOLD = 5
+  const stockLowCandidates: Array<{
+    productId: string
+    vendorId: string
+    productName: string
+    remainingStock: number
+  }> = []
+
   async function createOrderRecord() {
     return db.$transaction(async tx => {
       let addressId: string | null = null
@@ -567,10 +579,22 @@ export async function createOrder(
             throw new Error(`Stock insuficiente para "${product.name}"`)
           }
 
-          await tx.product.update({
+          const updated = await tx.product.update({
             where: { id: line.productId },
             data: { stock: { decrement: line.quantity } },
+            select: { stock: true, name: true, vendorId: true },
           })
+          const crossed =
+            lockedProduct.stock > LOW_STOCK_THRESHOLD &&
+            updated.stock <= LOW_STOCK_THRESHOLD
+          if (crossed || updated.stock === 0) {
+            stockLowCandidates.push({
+              productId: line.productId,
+              vendorId: updated.vendorId,
+              productName: updated.name,
+              remainingStock: updated.stock,
+            })
+          }
         }
       }
 
@@ -871,6 +895,10 @@ export async function createOrder(
       totalCents: vendorTotalCents,
       currency: 'EUR',
     })
+  }
+
+  for (const item of stockLowCandidates) {
+    emitNotification('stock.low', item)
   }
 
   return {

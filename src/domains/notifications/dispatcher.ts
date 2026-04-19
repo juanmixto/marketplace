@@ -29,6 +29,14 @@ function getState(): { registry: Registry } {
         'order.created': new Set(),
         'order.pending': new Set(),
         'message.received': new Set(),
+        'order.delivered': new Set(),
+        'label.failed': new Set(),
+        'incident.opened': new Set(),
+        'review.received': new Set(),
+        'payout.paid': new Set(),
+        'stock.low': new Set(),
+        'order.status_changed': new Set(),
+        'favorite.back_in_stock': new Set(),
       },
     }
   }

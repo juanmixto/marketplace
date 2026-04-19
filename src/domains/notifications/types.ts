@@ -7,6 +7,14 @@ export const notificationEventTypeSchema = z.enum([
   'ORDER_CREATED',
   'ORDER_PENDING',
   'MESSAGE_RECEIVED',
+  'ORDER_DELIVERED',
+  'LABEL_FAILED',
+  'INCIDENT_OPENED',
+  'REVIEW_RECEIVED',
+  'PAYOUT_PAID',
+  'STOCK_LOW',
+  'BUYER_ORDER_STATUS',
+  'BUYER_FAVORITE_RESTOCK',
 ])
 export type NotificationEventType = z.infer<typeof notificationEventTypeSchema>
 

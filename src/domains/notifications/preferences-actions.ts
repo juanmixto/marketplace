@@ -13,29 +13,48 @@ import {
 import type { NotificationEventType, NotificationChannel } from './types'
 
 const ALL_CHANNELS: NotificationChannel[] = ['TELEGRAM']
-const ALL_EVENT_TYPES: NotificationEventType[] = [
+
+const VENDOR_EVENT_TYPES: NotificationEventType[] = [
   'ORDER_CREATED',
   'ORDER_PENDING',
+  'ORDER_DELIVERED',
+  'LABEL_FAILED',
+  'INCIDENT_OPENED',
   'MESSAGE_RECEIVED',
+  'REVIEW_RECEIVED',
+  'PAYOUT_PAID',
+  'STOCK_LOW',
 ]
 
-async function requireVendorSession() {
+const BUYER_EVENT_TYPES: NotificationEventType[] = [
+  'BUYER_ORDER_STATUS',
+  'BUYER_FAVORITE_RESTOCK',
+]
+
+async function requireSession() {
   const session = await getActionSession()
-  if (!session || !isVendor(session.user.role)) redirect('/login')
+  if (!session) redirect('/login')
   return session
 }
 
-export async function getMyPreferences(): Promise<PreferenceRow[]> {
-  const session = await requireVendorSession()
+async function requireVendorSession() {
+  const session = await requireSession()
+  if (!isVendor(session.user.role)) redirect('/login')
+  return session
+}
 
+async function buildPreferenceRows(
+  userId: string,
+  eventTypes: NotificationEventType[],
+): Promise<PreferenceRow[]> {
   const link = await db.telegramLink.findUnique({
-    where: { userId: session.user.id },
+    where: { userId },
     select: { isActive: true },
   })
   const channelLinked = link?.isActive ?? false
 
   const stored = await db.notificationPreference.findMany({
-    where: { userId: session.user.id },
+    where: { userId },
     select: { channel: true, eventType: true, enabled: true },
   })
   const storedMap = new Map(
@@ -44,7 +63,7 @@ export async function getMyPreferences(): Promise<PreferenceRow[]> {
 
   const rows: PreferenceRow[] = []
   for (const channel of ALL_CHANNELS) {
-    for (const eventType of ALL_EVENT_TYPES) {
+    for (const eventType of eventTypes) {
       const key = `${channel}:${eventType}`
       const stored = storedMap.get(key)
       const enabled = stored ?? channelLinked
@@ -54,9 +73,25 @@ export async function getMyPreferences(): Promise<PreferenceRow[]> {
   return rows
 }
 
-export async function setPreference(input: SetPreferenceInput): Promise<void> {
+export async function getMyPreferences(): Promise<PreferenceRow[]> {
   const session = await requireVendorSession()
+  return buildPreferenceRows(session.user.id, VENDOR_EVENT_TYPES)
+}
+
+export async function getMyBuyerPreferences(): Promise<PreferenceRow[]> {
+  const session = await requireSession()
+  return buildPreferenceRows(session.user.id, BUYER_EVENT_TYPES)
+}
+
+export async function setPreference(input: SetPreferenceInput): Promise<void> {
+  const session = await requireSession()
   const data = setPreferenceInputSchema.parse(input)
+
+  // Ensure the caller is only touching events they are entitled to manage.
+  const isBuyerEvent = BUYER_EVENT_TYPES.includes(data.eventType)
+  const isVendorEvent = VENDOR_EVENT_TYPES.includes(data.eventType)
+  if (isVendorEvent && !isVendor(session.user.role)) redirect('/login')
+  if (!isBuyerEvent && !isVendorEvent) redirect('/login')
 
   await db.notificationPreference.upsert({
     where: {
@@ -75,4 +110,5 @@ export async function setPreference(input: SetPreferenceInput): Promise<void> {
     update: { enabled: data.enabled },
   })
   safeRevalidatePath('/vendor/ajustes/notificaciones')
+  safeRevalidatePath('/cuenta/notificaciones')
 }

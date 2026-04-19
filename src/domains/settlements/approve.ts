@@ -6,6 +6,7 @@
 
 import { db } from '@/lib/db'
 import { getActionSession } from '@/lib/action-session'
+import { emit as emitNotification } from '@/domains/notifications/dispatcher'
 
 /**
  * Approve a settlement for payment
@@ -75,13 +76,24 @@ export async function markAsPayd(settlementId: string) {
     throw new Error('Solo se pueden marcar como pagadas las liquidaciones aprobadas')
   }
 
-  return db.settlement.update({
+  const updated = await db.settlement.update({
     where: { id: settlementId },
     data: {
       status: 'PAID',
       paidAt: new Date(),
     },
   })
+
+  const periodLabel = `${updated.periodFrom.toISOString().slice(0, 10)} — ${updated.periodTo.toISOString().slice(0, 10)}`
+  emitNotification('payout.paid', {
+    settlementId: updated.id,
+    vendorId: updated.vendorId,
+    netPayableCents: Math.round(Number(updated.netPayable) * 100),
+    currency: 'EUR',
+    periodLabel,
+  })
+
+  return updated
 }
 
 /**
