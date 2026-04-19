@@ -43,15 +43,28 @@ export function buildContentSecurityPolicy(
   //     which covers Next.js's RSC bootstrap and dynamically-imported bundles.
   //   - without nonce (fallback, test-only): keep the old permissive policy.
   const scriptSrc = nonce
-    ? [
-        "'self'",
-        `'nonce-${nonce}'`,
-        "'strict-dynamic'",
-        // Modern browsers honour `strict-dynamic` and ignore the host-list;
-        // older browsers fall back to the host-list so Stripe still loads.
-        'https://js.stripe.com',
-        ...(isDevelopment ? ["'unsafe-eval'"] : []),
-      ]
+    ? isDevelopment
+      ? // Dev mode: drop strict-dynamic + add 'unsafe-inline'/'unsafe-eval'
+        // because next-themes (and a few other libs) inject inline early-load
+        // scripts without a nonce. With strict-dynamic active they get
+        // blocked, hydration fails, forms fall back to native submit
+        // (passwords end up in the URL, login appears broken).
+        // Production keeps the strict nonce + strict-dynamic policy below.
+        [
+          "'self'",
+          `'nonce-${nonce}'`,
+          "'unsafe-inline'",
+          "'unsafe-eval'",
+          'https://js.stripe.com',
+        ]
+      : [
+          "'self'",
+          `'nonce-${nonce}'`,
+          "'strict-dynamic'",
+          // Modern browsers honour `strict-dynamic` and ignore the host-list;
+          // older browsers fall back to the host-list so Stripe still loads.
+          'https://js.stripe.com',
+        ]
     : [
         "'self'",
         "'unsafe-inline'",

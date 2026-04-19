@@ -94,10 +94,26 @@ test('buildContentSecurityPolicy upgrades insecure requests only for HTTPS deplo
 test('buildContentSecurityPolicy allows React development tooling requirements in dev mode', () => {
   const csp = buildContentSecurityPolicy({ nonce: 'devnonce', isDevelopment: true })
 
+  // Dev mode intentionally drops strict-dynamic and adds 'unsafe-inline' on
+  // script-src. next-themes (and a few other libs) inject early-load inline
+  // scripts without a nonce; with strict-dynamic active they get blocked,
+  // hydration fails, login forms fall back to native submit, etc.
+  // Production keeps the strict nonce + strict-dynamic policy — see the
+  // production assertion test for that contract.
   assert.match(csp, /script-src [^;]*'nonce-devnonce'/)
-  assert.match(csp, /script-src [^;]*'strict-dynamic'/)
+  assert.match(csp, /script-src [^;]*'unsafe-inline'/)
   assert.match(csp, /script-src [^;]*'unsafe-eval'/)
+  assert.doesNotMatch(csp, /script-src [^;]*'strict-dynamic'/)
   assert.match(csp, /connect-src 'self' ws: wss: https:\/\/api\.stripe\.com https:\/\/js\.stripe\.com/)
+})
+
+test('buildContentSecurityPolicy keeps strict-dynamic and drops unsafe-inline in production', () => {
+  const csp = buildContentSecurityPolicy({ nonce: 'prodnonce', isDevelopment: false })
+
+  assert.match(csp, /script-src [^;]*'nonce-prodnonce'/)
+  assert.match(csp, /script-src [^;]*'strict-dynamic'/)
+  assert.doesNotMatch(csp, /script-src [^;]*'unsafe-inline'/)
+  assert.doesNotMatch(csp, /script-src [^;]*'unsafe-eval'/)
 })
 
 test('buildHeaderRules skips Next asset cache overrides during development', () => {
