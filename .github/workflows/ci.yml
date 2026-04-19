@@ -6,14 +6,11 @@ on:
       - main
     paths-ignore:
       - '**/*.md'
-      - 'docs/**'
       - '.vscode/**'
       - 'LICENSE'
       - '.gitignore'
   pull_request:
     paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
       - '.vscode/**'
       - 'LICENSE'
       - '.gitignore'
