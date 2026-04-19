@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,15 +23,18 @@ export function FulfillmentActions({ fulfillmentId, status, labelUrl, trackingUr
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [addressMissing, setAddressMissing] = useState(false)
 
   async function handlePrepare() {
     setLoading(true)
     setError(null)
+    setAddressMissing(false)
     try {
       const result = await prepareFulfillment(fulfillmentId)
       if (!result.ok) {
         if (result.code === 'VENDOR_ADDRESS_MISSING') {
           setError(t('vendor.fulfillment.addressMissing'))
+          setAddressMissing(true)
         } else {
           setError(result.message || t('vendor.fulfillment.labelFailed'))
         }
@@ -42,6 +46,21 @@ export function FulfillmentActions({ fulfillmentId, status, labelUrl, trackingUr
     } finally {
       setLoading(false)
     }
+  }
+
+  function renderError() {
+    if (!error) return null
+    if (addressMissing) {
+      return (
+        <Link
+          href="/vendor/perfil#shipping-address"
+          className="text-right text-xs font-medium text-red-600 underline underline-offset-2 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+        >
+          {error} →
+        </Link>
+      )
+    }
+    return <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
   }
 
   async function handleIncident() {
@@ -79,7 +98,7 @@ export function FulfillmentActions({ fulfillmentId, status, labelUrl, trackingUr
   if (['PENDING', 'CONFIRMED', 'PREPARING'].includes(status)) {
     return (
       <div className="flex flex-col items-end gap-1">
-        {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
+        {renderError()}
         <Button size="sm" isLoading={loading} onClick={handlePrepare}>
           {loading ? t('vendor.fulfillment.preparing') : t('vendor.fulfillment.prepare')}
         </Button>
@@ -104,7 +123,7 @@ export function FulfillmentActions({ fulfillmentId, status, labelUrl, trackingUr
   if (status === 'LABEL_FAILED') {
     return (
       <div className="flex flex-col items-end gap-1">
-        {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
+        {renderError()}
         <Button size="sm" variant="secondary" isLoading={loading} onClick={handlePrepare}>
           {t('vendor.fulfillment.retryLabel')}
         </Button>
@@ -119,7 +138,7 @@ export function FulfillmentActions({ fulfillmentId, status, labelUrl, trackingUr
   if (['READY', 'SHIPPED', 'DELIVERED'].includes(status)) {
     return (
       <div className="flex flex-col items-end gap-1">
-        {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
+        {renderError()}
         <div className="flex flex-wrap justify-end gap-2">
           {labelUrl && (
             <a
@@ -159,7 +178,7 @@ export function FulfillmentActions({ fulfillmentId, status, labelUrl, trackingUr
   if (status === 'INCIDENT') {
     return (
       <div className="flex flex-col items-end gap-1">
-        {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
+        {renderError()}
         <div className="flex flex-wrap justify-end gap-2">
           {labelUrl && (
             <a
