@@ -42,6 +42,11 @@ export async function resolveOrderPushView(
 
   const shippingAddress = parseOrderAddressSnapshot(order.shippingAddressSnapshot)
   const city = shippingAddress?.city ?? order.address?.city ?? undefined
+  const buyerFirstName =
+    shippingAddress?.firstName ?? order.customer?.firstName ?? undefined
+  const buyerName = shippingAddress
+    ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim()
+    : undefined
 
   const items = order.lines.map(line => {
     const name =
@@ -57,7 +62,8 @@ export async function resolveOrderPushView(
     city,
     items: items.length > 0 ? items : undefined,
     vendorFirstName: vendor?.user?.firstName ?? vendor?.displayName ?? undefined,
-    buyerFirstName: order.customer?.firstName ?? undefined,
+    buyerFirstName,
+    buyerName,
   }
 }
 
