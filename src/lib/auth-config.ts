@@ -14,7 +14,7 @@ import { coerceUserRole, isAdmin, isVendor } from '@/lib/roles'
 // Forcing useSecureCookies based on AUTH_URL matches the proxy fix in
 // #597 and keeps dev (http) working when AUTH_URL is unset.
 export function resolveUseSecureCookies(
-  env: { AUTH_URL?: string; NEXTAUTH_URL?: string } = process.env
+  env: Record<string, string | undefined> = process.env
 ): boolean {
   const authUrl = env.AUTH_URL ?? env.NEXTAUTH_URL
   return authUrl?.startsWith('https://') ?? false
