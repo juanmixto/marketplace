@@ -6,6 +6,7 @@
 
 import { db } from '@/lib/db'
 import { getActionSession } from '@/lib/action-session'
+// eslint-disable-next-line no-restricted-imports -- dispatcher is intentionally server-only, excluded from notifications barrel
 import { emit as emitNotification } from '@/domains/notifications/dispatcher'
 
 /**

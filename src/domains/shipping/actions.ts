@@ -23,6 +23,7 @@ import {
   applyShipmentTransition,
 } from '@/domains/shipping/transitions'
 import type { FulfillmentStatus } from '@/generated/prisma/enums'
+// eslint-disable-next-line no-restricted-imports -- dispatcher is intentionally server-only, excluded from notifications barrel
 import { emit as emitNotification } from '@/domains/notifications/dispatcher'
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────

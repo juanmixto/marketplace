@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-restricted-imports -- action module needs the session-less variant directly; the barrel intentionally excludes server-action entrypoints
 import { prepareFulfillmentByUserId } from '@/domains/shipping/actions'
 import type { ActionContext } from './registry'
 import {

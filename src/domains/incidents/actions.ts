@@ -28,6 +28,7 @@ import { getActionSession } from '@/lib/action-session'
 import { redirect } from 'next/navigation'
 import { isAdminRole } from '@/lib/roles'
 import { IncidentStatus, IncidentType } from '@/generated/prisma/enums'
+// eslint-disable-next-line no-restricted-imports -- dispatcher is intentionally server-only, excluded from notifications barrel
 import { emit as emitNotification } from '@/domains/notifications/dispatcher'
 import {
   INCIDENT_SLA_HOURS,

@@ -6,6 +6,7 @@ import { getActionSession } from '@/lib/action-session'
 import { isVendor } from '@/lib/roles'
 import { redirect } from 'next/navigation'
 import { safeRevalidatePath } from '@/lib/revalidate'
+// eslint-disable-next-line no-restricted-imports -- dispatcher is intentionally server-only, excluded from notifications barrel
 import { emit as emitNotification } from '@/domains/notifications/dispatcher'
 
 const createReviewSchema = z.object({
