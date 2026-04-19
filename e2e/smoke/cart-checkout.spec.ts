@@ -51,8 +51,15 @@ test.describe('cart and checkout @smoke', () => {
     await expect(page.getByRole('button', { name: /añadido/i }).first()).toBeVisible({ timeout: 5_000 })
 
     // --- CART ---
+    // /carrito is subject to the same cold-compile hit as /checkout on the
+    // first visit of a shard (next dev webpack + RSC bundle + Zustand
+    // rehydration). The 5s timeout here was the single most common flake
+    // on shard 2 (line 55 `Expect toBeVisible ... tomates cherry ...`),
+    // triggering the 3×-retry cycle that pushed the shard from ~1m30s
+    // to 3m+. Widen to match the cold-compile budget used below for
+    // /checkout (25s). The test's overall budget is still 90s.
     await page.goto('/carrito')
-    await expect(page.getByText(/tomates cherry/i).first()).toBeVisible({ timeout: 5_000 })
+    await expect(page.getByText(/tomates cherry/i).first()).toBeVisible({ timeout: 20_000 })
 
     const toCheckout = page.getByRole('link', { name: /ir al checkout/i }).first()
     // The shard's `next dev` server has to cold-compile `/checkout` the
