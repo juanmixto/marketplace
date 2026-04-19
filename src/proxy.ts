@@ -5,6 +5,9 @@ import { type UserRole } from '@/generated/prisma/enums'
 import { getPrimaryPortalHref, sanitizeCallbackUrl } from '@/lib/portals'
 import { isRequestOnAdminHost, hostMatchesAdmin, ADMIN_HOST_ENV_VAR } from '@/lib/admin-host'
 import { buildContentSecurityPolicy } from '@/lib/security-headers'
+import { isDevRoute } from '@/lib/dev-routes'
+import { isSecureAuthDeployment } from '@/lib/auth-env'
+export { DEV_ROUTES_ALLOWLIST } from '@/lib/dev-routes'
 
 // Exported so test/integration/proxy-protected-prefixes.test.ts can
 // reflect the live list back against the actual src/app route tree
@@ -15,6 +18,10 @@ export const PROTECTED_PREFIXES = ['/admin', '/vendor', '/carrito', '/checkout',
 function isProtectedPath(pathname: string) {
   return PROTECTED_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`))
 }
+
+// Issue #589: DEV_ROUTES_ALLOWLIST + isDevRoute live in
+// `src/lib/dev-routes.ts` so the structural audit test can import
+// them without pulling the Edge runtime / Prisma through this file.
 
 // Defense-in-depth CSRF check for mutating /api/* JSON endpoints (#543).
 // NextAuth session cookies are SameSite=Lax, which blocks most cross-site
@@ -101,6 +108,15 @@ export async function proxy(request: NextRequest) {
   // addition to the role check below, so a stolen non-admin cookie on
   // the public host cannot pivot into the admin panel.
   // ------------------------------------------------------------------
+  // Issue #589: hard 404 any /dev/** path in production as defense-in-
+  // depth. Individual dev pages already self-gate on NODE_ENV, but a
+  // newly added one that forgets the check would be exposed. This
+  // block is independent of that and runs before any auth or admin
+  // host logic so nothing else can accidentally let it through.
+  if (process.env.NODE_ENV === 'production' && isDevRoute(pathname)) {
+    return new NextResponse(null, { status: 404 })
+  }
+
   const adminHost = process.env[ADMIN_HOST_ENV_VAR]
   if (adminHost) {
     const onAdminHost = isRequestOnAdminHost(request)
@@ -149,21 +165,16 @@ export async function proxy(request: NextRequest) {
     )
   }
 
-  // Auth.js v5 sets the session cookie with a `__Secure-` prefix whenever
-  // the callback URL is HTTPS. The Edge proxy receives requests after
-  // Cloudflare Tunnel terminates TLS and forwards them as HTTP internally,
-  // so getToken's auto-detect picks the non-prefixed cookie name and fails
-  // to find the cookie — producing an infinite /vendor/dashboard → /login
-  // loop even with a valid session. Force secureCookie based on AUTH_URL
-  // so the proxy looks for the same cookie name the callback set.
-  const usingSecureCookie =
-    process.env.AUTH_URL?.startsWith('https://') ??
-    process.env.NEXTAUTH_URL?.startsWith('https://') ??
-    false
+  // Issue #591: resolve the cookie prefix from the public AUTH_URL,
+  // not the request protocol. Behind Cloudflare the origin sees
+  // `http://...` but the callback set `__Secure-authjs.session-token`
+  // because AUTH_URL is `https://`. Letting getToken's auto-detect
+  // run here makes it miss the cookie and silently log every user
+  // out on every protected request.
   const token = await getToken({
     req: request,
     secret: process.env.AUTH_SECRET,
-    secureCookie: usingSecureCookie,
+    secureCookie: isSecureAuthDeployment(process.env),
   })
 
   if (!token) {
