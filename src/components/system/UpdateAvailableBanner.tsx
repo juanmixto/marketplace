@@ -55,6 +55,24 @@ export function UpdateAvailableBanner() {
 
   if (!updateAvailable) return null
 
+  // window.location.reload() can serve HTML/JS from HTTP cache in some
+  // browsers (observed in Brave/Chromium via the dev tunnel), leaving the
+  // old SHA baked in and the banner reappearing. Update any controlling SW
+  // and navigate to a cache-busted URL to force a fresh document.
+  async function handleReload() {
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations()
+        await Promise.all(regs.map((r) => r.update()))
+      }
+    } catch {
+      // best-effort; fall through to the reload anyway
+    }
+    const url = new URL(window.location.href)
+    url.searchParams.set('_v', Date.now().toString(36))
+    window.location.replace(url.toString())
+  }
+
   return (
     <div
       role="status"
@@ -67,7 +85,7 @@ export function UpdateAvailableBanner() {
       <div className="flex shrink-0 items-center gap-2">
         <button
           type="button"
-          onClick={() => window.location.reload()}
+          onClick={() => void handleReload()}
           className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-emerald-700"
         >
           Recargar
