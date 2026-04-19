@@ -406,7 +406,8 @@ export function stockLowTemplate(
   return {
     text: `${emoji} ${greeting}stock bajo en <b>${product}</b>.\n${remaining} ${cta}`,
     inline_keyboard: [[
-      { text: 'Ver producto', url: `${appUrl()}/vendor/productos` },
+      { text: '➕10 stock', callback_data: `addStock:${payload.productId}` },
+      { text: 'Editar producto', url: `${appUrl()}/vendor/productos/${payload.productId}` },
     ]],
   }
 }
