@@ -79,7 +79,10 @@ test.describe('cart and checkout @smoke', () => {
     // shard 2 flake. Soft nav preserves `hasHydratedRef` so the provider
     // doesn't re-fire. /carrito still cold-compiles on first visit, so
     // keep a 20s budget on the item assertion.
-    await page.getByRole('link', { name: /carrito|cart/i }).first().click()
+    // Header's cart link — href match avoids false positives from
+    // "Añadir al carrito" buttons on the same page and other carrito
+    // text in copy.
+    await page.locator('a[href="/carrito"]').first().click()
     await page.waitForURL(/\/carrito(?:\/|$|\?)/, { timeout: 15_000 })
     await expect(page.getByText(/tomates cherry/i).first()).toBeVisible({ timeout: 20_000 })
 
