@@ -42,7 +42,7 @@ export default async function VendorLayout({ children }: { children: React.React
     <SidebarProvider>
       <div className="flex h-screen bg-[var(--background)]">
         <VendorSidebar vendor={vendor} />
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           {impersonation && (
             <ImpersonationBanner
               adminEmail={impersonatingAdminEmail}
@@ -53,7 +53,7 @@ export default async function VendorLayout({ children }: { children: React.React
           )}
           <VendorHeader user={session.user} vendor={vendor} portals={portals} />
           <AppBadgeSync count={pendingFulfillments} />
-          <main className="flex-1 overflow-y-auto p-6">{children}</main>
+          <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">{children}</main>
         </div>
       </div>
     </SidebarProvider>

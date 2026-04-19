@@ -354,6 +354,8 @@ const es = {
   'vendor.upload.subtitle': 'O haz clic para seleccionar archivos. JPG, PNG o WEBP, máximo 5 MB.',
   'vendor.upload.slotsLeft': 'huecos disponibles',
   'vendor.upload.remove': 'Eliminar imagen',
+  'vendor.upload.takePhoto': 'Tomar foto',
+  'vendor.upload.takePhotoHint': 'Se abrirá la cámara del móvil o la galería del dispositivo.',
   'vendor.upload.unsupported': 'tipo de archivo no soportado',
   'vendor.upload.tooLarge': 'archivo demasiado grande (máximo 5 MB)',
   'vendor.upload.error': 'No se pudo subir la imagen',

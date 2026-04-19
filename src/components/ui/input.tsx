@@ -11,7 +11,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ className, label, error, hint, id, ...props }, ref) => {
     const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
     return (
-      <div className="space-y-1.5">
+      <div className="space-y-1.5 min-w-0">
         {label && (
           <label
             htmlFor={inputId}
