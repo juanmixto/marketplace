@@ -3,7 +3,14 @@
 import { useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useCartStore, type CartItem } from '@/domains/orders/cart-store'
-import { loadServerCart, mergeLocalIntoServerCart } from '@/domains/orders/cart-actions'
+import {
+  loadServerCart,
+  mergeLocalIntoServerCart,
+} from '@/domains/orders/cart-actions'
+import {
+  getCartHydrationAction,
+} from './cart-hydration-plan'
+import { CART_MERGED_FLAG_KEY } from './cart-session'
 
 /**
  * On login, merges the anonymous local-storage cart into the buyer's
@@ -11,42 +18,56 @@ import { loadServerCart, mergeLocalIntoServerCart } from '@/domains/orders/cart-
  *
  * Strategy:
  *   1. Wait for NextAuth session to become `authenticated`.
- *   2. Snapshot whatever is in local storage (items the buyer added
- *      while anonymous).
- *   3. Call `mergeLocalIntoServerCart(local)` — the helper sums
- *      quantities on overlapping (productId, variantId) and returns
- *      the combined server state.
- *   4. Hydrate the Zustand store from the server response so all
- *      tabs / devices converge on the same cart. No-op if the merge
- *      fails — keep the local cart untouched to avoid losing items.
- *
- * Runs exactly once per session. Logouts are handled by Zustand's
- * persist middleware (keeps local storage intact) and the next login
- * replays the merge from whatever state the user accumulated.
+ *   2. If the device has not yet merged for this user, snapshot the
+ *      anonymous cart and call `mergeLocalIntoServerCart(local)`.
+ *   3. Otherwise just `loadServerCart()`. The merged-user flag keeps
+ *      repeated reloads from replaying the same synchronized cart and
+ *      doubling server quantities.
+ *   4. Sign-out handlers clear the local cart and merge flag so the
+ *      next anonymous shopping session starts cleanly.
  */
 export function CartHydrationProvider() {
   const { data, status } = useSession()
   const hasHydratedRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (status !== 'authenticated') return
+    if (status !== 'authenticated') {
+      hasHydratedRef.current = null
+      return
+    }
     const userId = data?.user?.id
     if (!userId) return
     if (hasHydratedRef.current === userId) return
     hasHydratedRef.current = userId
 
-    const state = useCartStore.getState()
-    const localItems = state.items.map(item => ({
-      productId: item.productId,
-      variantId: item.variantId ?? undefined,
-      quantity: item.quantity,
-    }))
-
     void (async () => {
       try {
-        const merged = localItems.length > 0
-          ? await mergeLocalIntoServerCart(localItems)
-          : await loadServerCart()
+        const state = useCartStore.getState()
+        const alreadyMerged =
+          typeof window !== 'undefined' &&
+          window.localStorage.getItem(CART_MERGED_FLAG_KEY) === userId
+
+        const action = getCartHydrationAction({
+          status,
+          userId,
+          alreadyMergedForUser: alreadyMerged,
+          localItemCount: state.items.length,
+        })
+
+        const merged =
+          action === 'merge'
+            ? await mergeLocalIntoServerCart(
+                state.items.map(item => ({
+                  productId: item.productId,
+                  variantId: item.variantId ?? undefined,
+                  quantity: item.quantity,
+                })),
+              )
+            : await loadServerCart()
+
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(CART_MERGED_FLAG_KEY, userId)
+        }
 
         const hydrated: CartItem[] = merged.map(line => ({
           productId: line.productId,
