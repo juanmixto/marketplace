@@ -12,6 +12,12 @@ import {
   orderStatusChangedPayloadSchema,
   favoriteBackInStockPayloadSchema,
   favoritePriceDropPayloadSchema,
+  orderDeliveredPayloadSchema,
+  labelFailedPayloadSchema,
+  incidentOpenedPayloadSchema,
+  reviewReceivedPayloadSchema,
+  payoutPaidPayloadSchema,
+  stockLowPayloadSchema,
   NOTIFICATION_EVENTS,
 } from '@/domains/notifications/events'
 import { setPreferenceInputSchema } from '@/domains/notifications/preferences-schema'
@@ -278,6 +284,57 @@ test('favoritePriceDropPayloadSchema — frozen shape', () => {
       optional: ['productSlug', 'vendorName'],
     },
   )
+})
+
+test('orderDeliveredPayloadSchema — frozen shape', () => {
+  assertObjectShape('orderDeliveredPayloadSchema', orderDeliveredPayloadSchema as never, {
+    required: ['orderId', 'vendorId', 'fulfillmentId'],
+    optional: [],
+  })
+})
+
+test('labelFailedPayloadSchema — frozen shape', () => {
+  assertObjectShape('labelFailedPayloadSchema', labelFailedPayloadSchema as never, {
+    required: ['orderId', 'vendorId', 'fulfillmentId', 'errorMessage'],
+    optional: [],
+  })
+})
+
+test('incidentOpenedPayloadSchema — frozen shape', () => {
+  assertObjectShape('incidentOpenedPayloadSchema', incidentOpenedPayloadSchema as never, {
+    required: ['incidentId', 'orderId', 'vendorId', 'type'],
+    optional: [],
+  })
+})
+
+test('reviewReceivedPayloadSchema — frozen shape', () => {
+  assertObjectShape('reviewReceivedPayloadSchema', reviewReceivedPayloadSchema as never, {
+    required: ['reviewId', 'vendorId', 'productId', 'productName', 'rating'],
+    optional: [],
+  })
+})
+
+test('reviewReceivedPayloadSchema — rating bounded 1..5', () => {
+  for (const rating of [0, 6, 3.5]) {
+    const parsed = reviewReceivedPayloadSchema.safeParse({
+      reviewId: 'r', vendorId: 'v', productId: 'p', productName: 'P', rating,
+    })
+    assert.equal(parsed.success, false, `rating ${rating} must be rejected`)
+  }
+})
+
+test('payoutPaidPayloadSchema — frozen shape', () => {
+  assertObjectShape('payoutPaidPayloadSchema', payoutPaidPayloadSchema as never, {
+    required: ['settlementId', 'vendorId', 'netPayableCents', 'currency', 'periodLabel'],
+    optional: [],
+  })
+})
+
+test('stockLowPayloadSchema — frozen shape', () => {
+  assertObjectShape('stockLowPayloadSchema', stockLowPayloadSchema as never, {
+    required: ['productId', 'vendorId', 'productName', 'remainingStock'],
+    optional: [],
+  })
 })
 
 // ─── Preferences write surface ────────────────────────────────────────────────

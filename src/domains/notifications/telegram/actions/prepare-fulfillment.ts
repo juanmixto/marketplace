@@ -1,12 +1,15 @@
-// eslint-disable-next-line no-restricted-imports -- action module needs the session-less variant directly; the barrel intentionally excludes server-action entrypoints
-import { prepareFulfillmentByUserId } from '@/domains/shipping/actions'
 import type { ActionContext } from './registry'
 import {
   answerCallbackQuery,
   editMessageRemoveKeyboard,
 } from '../service'
 
+// Deferred import — shipping imports notifications for transition events,
+// and this callback only fires on user interaction, so the lazy import
+// keeps the static domain graph acyclic without a runtime penalty.
 export async function prepareFulfillmentAction(ctx: ActionContext): Promise<void> {
+  // eslint-disable-next-line no-restricted-imports -- action module needs the session-less variant directly; the barrel intentionally excludes server-action entrypoints
+  const { prepareFulfillmentByUserId } = await import('@/domains/shipping/actions')
   const result = await prepareFulfillmentByUserId(ctx.userId, ctx.targetId)
 
   if (!result.ok) {

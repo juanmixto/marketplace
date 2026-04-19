@@ -10,8 +10,22 @@ import { getActionSession } from '@/lib/action-session'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { isVendor } from '@/lib/roles'
 import { isAllowedImageUrl } from '@/lib/image-validation'
-// eslint-disable-next-line no-restricted-imports -- dispatcher is intentionally server-only, excluded from notifications barrel
-import { emit as emitNotification } from '@/domains/notifications/dispatcher'
+
+/**
+ * Dynamic dispatcher loader. The static import would close a
+ * `vendors → notifications → vendors` domain cycle (notifications/
+ * telegram/actions/*.ts calls back into this module), so we defer
+ * the import. Call as `void emitNotification(...)` — handlers are
+ * fire-and-forget, queueMicrotask'd by the dispatcher itself.
+ */
+async function emitNotification<E extends string>(
+  event: E,
+  payload: unknown,
+): Promise<void> {
+  // eslint-disable-next-line no-restricted-imports -- deferred server-only dispatcher; see comment above
+  const mod = await import('@/domains/notifications/dispatcher')
+  ;(mod.emit as (e: E, p: unknown) => void)(event, payload)
+}
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 
