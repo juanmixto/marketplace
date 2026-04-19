@@ -69,6 +69,33 @@ function generateNonce(): string {
   return btoa(binary)
 }
 
+function getExpectedHosts(request: NextRequest): Set<string> {
+  // Build the set of hosts a same-origin browser request can legitimately
+  // arrive with. Behind TLS-terminating reverse proxies / tunnels (e.g.
+  // Cloudflare Tunnel → dev.feldescloud.com forwards plain http to
+  // localhost:3001), `request.url` resolves to `http://localhost:3001/...`
+  // whose host won't match the browser-sent Origin. The forwarded
+  // `Host` / `X-Forwarded-Host` headers preserve the public host, and
+  // `AUTH_URL` / `NEXT_PUBLIC_APP_URL` declare the canonical public origin
+  // where forwarded headers can't be relied on. Host — not protocol — is
+  // the CSRF-relevant field: a cross-site POST from evil.com still fails.
+  const hosts = new Set<string>()
+  try { hosts.add(new URL(request.url).host) } catch { /* ignore */ }
+  const hostHeader = request.headers.get('host')
+  if (hostHeader) hosts.add(hostHeader)
+  const fwdHost = request.headers.get('x-forwarded-host')
+  if (fwdHost) hosts.add(fwdHost)
+  const authUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL
+  if (authUrl) {
+    try { hosts.add(new URL(authUrl).host) } catch { /* ignore */ }
+  }
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+  if (appUrl) {
+    try { hosts.add(new URL(appUrl).host) } catch { /* ignore */ }
+  }
+  return hosts
+}
+
 function isOriginAllowed(request: NextRequest): boolean {
   const origin = request.headers.get('origin')
   const referer = request.headers.get('referer')
@@ -78,15 +105,13 @@ function isOriginAllowed(request: NextRequest): boolean {
   // integrations should hit the exempt webhook paths.
   if (!origin && !referer) return true
 
-  const expectedOrigin = new URL(request.url).origin
-  if (origin && origin === expectedOrigin) return true
-  if (referer) {
-    try {
-      if (new URL(referer).origin === expectedOrigin) return true
-    } catch {
-      // fall through to deny
-    }
+  const expectedHosts = getExpectedHosts(request)
+  const hostMatches = (value: string | null) => {
+    if (!value) return false
+    try { return expectedHosts.has(new URL(value).host) } catch { return false }
   }
+  if (hostMatches(origin)) return true
+  if (hostMatches(referer)) return true
   return false
 }
 
