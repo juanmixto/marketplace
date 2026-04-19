@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { getActionSession } from '@/lib/action-session'
 import { isPushEnabled } from '@/lib/pwa/push-config'
+import { safeRevalidatePath } from '@/lib/revalidate'
 
 const subscribeSchema = z.object({
   endpoint: z.string().url(),
@@ -44,6 +45,9 @@ export async function subscribeToPush(input: PushSubscriptionInput) {
       userAgent: data.userAgent,
     },
   })
+
+  safeRevalidatePath('/cuenta/notificaciones')
+  safeRevalidatePath('/vendor/ajustes/notificaciones')
 }
 
 /**
@@ -60,4 +64,7 @@ export async function unsubscribeFromPush(endpoint: string) {
       userId: session.user.id, // ensure users can only delete their own
     },
   })
+
+  safeRevalidatePath('/cuenta/notificaciones')
+  safeRevalidatePath('/vendor/ajustes/notificaciones')
 }
