@@ -321,6 +321,7 @@ export function DireccionesClient({
                   onSelect={handleMunicipalityPicked}
                   error={errors.city?.message}
                   placeholder={t('account.cityPlaceholder')}
+                  autoComplete="address-level2"
                 />
               </div>
 

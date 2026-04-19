@@ -21,6 +21,8 @@ interface Props {
   hint?: string
   placeholder?: string
   required?: boolean
+  /** Forwarded to the underlying input (e.g. "address-level2"). */
+  autoComplete?: string
   /** Delay before firing the search, in ms. Default 250. */
   debounceMs?: number
   /** Max suggestions rendered. Default 8. */
@@ -39,6 +41,7 @@ export function LocationAutocomplete({
   hint,
   placeholder,
   required,
+  autoComplete = 'off',
   debounceMs = DEFAULT_DEBOUNCE_MS,
   limit = 8,
 }: Props) {
@@ -158,7 +161,7 @@ export function LocationAutocomplete({
           aria-controls={listboxId}
           aria-autocomplete="list"
           aria-activedescendant={activeId}
-          autoComplete="off"
+          autoComplete={autoComplete}
           required={required}
           value={value}
           placeholder={placeholder}
