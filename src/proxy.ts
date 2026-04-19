@@ -5,6 +5,8 @@ import { type UserRole } from '@/generated/prisma/enums'
 import { getPrimaryPortalHref, sanitizeCallbackUrl } from '@/lib/portals'
 import { isRequestOnAdminHost, hostMatchesAdmin, ADMIN_HOST_ENV_VAR } from '@/lib/admin-host'
 import { buildContentSecurityPolicy } from '@/lib/security-headers'
+import { isDevRoute } from '@/lib/dev-routes'
+export { DEV_ROUTES_ALLOWLIST } from '@/lib/dev-routes'
 
 // Exported so test/integration/proxy-protected-prefixes.test.ts can
 // reflect the live list back against the actual src/app route tree
@@ -15,6 +17,10 @@ export const PROTECTED_PREFIXES = ['/admin', '/vendor', '/carrito', '/checkout',
 function isProtectedPath(pathname: string) {
   return PROTECTED_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`))
 }
+
+// Issue #589: DEV_ROUTES_ALLOWLIST + isDevRoute live in
+// `src/lib/dev-routes.ts` so the structural audit test can import
+// them without pulling the Edge runtime / Prisma through this file.
 
 // Defense-in-depth CSRF check for mutating /api/* JSON endpoints (#543).
 // NextAuth session cookies are SameSite=Lax, which blocks most cross-site
@@ -101,6 +107,15 @@ export async function proxy(request: NextRequest) {
   // addition to the role check below, so a stolen non-admin cookie on
   // the public host cannot pivot into the admin panel.
   // ------------------------------------------------------------------
+  // Issue #589: hard 404 any /dev/** path in production as defense-in-
+  // depth. Individual dev pages already self-gate on NODE_ENV, but a
+  // newly added one that forgets the check would be exposed. This
+  // block is independent of that and runs before any auth or admin
+  // host logic so nothing else can accidentally let it through.
+  if (process.env.NODE_ENV === 'production' && isDevRoute(pathname)) {
+    return new NextResponse(null, { status: 404 })
+  }
+
   const adminHost = process.env[ADMIN_HOST_ENV_VAR]
   if (adminHost) {
     const onAdminHost = isRequestOnAdminHost(request)
