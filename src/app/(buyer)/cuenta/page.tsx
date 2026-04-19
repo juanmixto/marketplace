@@ -14,7 +14,6 @@ import { isPushEnabled } from '@/lib/pwa/push-config'
 import { getServerT } from '@/i18n/server'
 import type { TranslationKeys } from '@/i18n/locales'
 import { getPendingReviewsCount } from '@/domains/reviews/pending'
-import { EmailAddress } from '@/components/system/EmailAddress'
 
 export const metadata: Metadata = { title: 'Mi cuenta' }
 
@@ -40,9 +39,7 @@ export default async function CuentaPage() {
         </div>
         <div>
           <p className="text-xl font-bold text-[var(--foreground)]">{session.user.name}</p>
-          <p className="text-sm text-[var(--muted)]">
-            <EmailAddress email={session.user.email ?? ''} placeholder="Correo registrado" />
-          </p>
+          <p className="text-sm text-[var(--muted)]">{session.user.email}</p>
         </div>
       </div>
 
