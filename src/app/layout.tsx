@@ -16,6 +16,8 @@ import { CartHydrationProvider } from '@/components/buyer/CartHydrationProvider'
 import { getServerLocale } from '@/i18n/server'
 import PwaRegister from '@/components/pwa/PwaRegister'
 import OfflineIndicator from '@/components/pwa/OfflineIndicator'
+import { BuildBadge } from '@/components/system/BuildBadge'
+import { UpdateAvailableBanner } from '@/components/system/UpdateAvailableBanner'
 
 const geist = Geist({
   variable: '--font-geist-sans',
@@ -83,6 +85,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col bg-[var(--background)] text-[var(--foreground)]">
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var s=localStorage.getItem('marketplace-theme');var m=window.matchMedia('(prefers-color-scheme: dark)').matches;var d=s==='dark'||((!s||s==='system')&&m);if(d)document.documentElement.classList.add('dark');document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();`,
+          }}
+        />
         <SessionProvider>
           <ThemeProvider>
             <LanguageProvider initialLocale={locale}>
@@ -93,7 +100,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <PwaRegister />
               <OfflineIndicator />
               <CartHydrationProvider />
+              <UpdateAvailableBanner />
               {children}
+              <BuildBadge />
             </LanguageProvider>
           </ThemeProvider>
         </SessionProvider>

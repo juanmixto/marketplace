@@ -78,6 +78,10 @@ const PUBLIC_API_ROUTES: ReadonlyArray<{ path: string; why: string }> = [
     path: 'src/app/api/healthcheck/route.ts',
     why: 'Synthetic health probe. Public by design — external monitors and the marketplace-pwa-server doctor script hit it without credentials. Returns only boolean + model name + error message; no user data.',
   },
+  {
+    path: 'src/app/api/version/route.ts',
+    why: 'Public build identity (commit SHA + build time + branch) for the floating BuildBadge and the UpdateAvailableBanner polling client. Same surface area as the visible badge — no secrets, no PII.',
+  },
 ]
 
 const SESSION_KEYWORDS = [

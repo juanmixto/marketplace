@@ -84,6 +84,11 @@ export default defineConfig({
           // the subscriptions smoke can exercise the full mock checkout
           // flow. No-op if the running server already has it set.
           SUBSCRIPTIONS_BUYER_BETA: 'true',
+          // Inherit from the parent process (CI workflow step sets
+          // DISABLE_LOGIN_RATELIMIT=1). Playwright's `env` overrides
+          // the whole env map, so we forward it explicitly.
+          // The route handler ignores the flag in NODE_ENV=production.
+          DISABLE_LOGIN_RATELIMIT: process.env.DISABLE_LOGIN_RATELIMIT ?? '',
         },
       },
 })

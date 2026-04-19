@@ -265,7 +265,15 @@ jobs:
         run: npm run db:seed
 
       - name: Run E2E smoke suite (shard ${{ matrix.shard }}/2)
+        # DISABLE_LOGIN_RATELIMIT=1 exempts the suite from the
+        # (IP+email) login throttle from #592. CI shares a single
+        # seeded credential and easily exhausts the bucket within a
+        # run; the route guard only honours the flag when
+        # NODE_ENV !== 'production', so a prod deploy cannot bypass
+        # the limit even if this env leaks into another workflow.
         run: npx playwright test --grep @smoke --workers=1 --shard=${{ matrix.shard }}/2
+        env:
+          DISABLE_LOGIN_RATELIMIT: '1'
 
       - name: Upload Playwright report on failure
         if: failure()

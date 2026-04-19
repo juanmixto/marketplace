@@ -32,7 +32,8 @@
     "dlq:list": "node --env-file=.env --env-file-if-exists=.env.local --import tsx scripts/dlq-list.ts",
     "dlq:resolve": "node --env-file=.env --env-file-if-exists=.env.local --import tsx scripts/dlq-mark-resolved.ts",
     "reconcile:payments": "node --env-file=.env --env-file-if-exists=.env.local --import tsx scripts/reconcile-payments.ts",
-    "sendcloud:replay": "node --env-file=.env --env-file-if-exists=.env.local --import tsx scripts/sendcloud-replay.ts"
+    "sendcloud:replay": "node --env-file=.env --env-file-if-exists=.env.local --import tsx scripts/sendcloud-replay.ts",
+    "reports:reviews": "node --env-file=.env --env-file-if-exists=.env.local --import tsx scripts/review-reports-list.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
