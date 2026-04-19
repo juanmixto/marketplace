@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { readdirSync, readFileSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 
 if (!process.env.DATABASE_URL_TEST) {
@@ -49,11 +49,30 @@ if (shardIndex < 0 || shardIndex >= shardTotal || Number.isNaN(shardIndex)) {
   throw new Error(`TEST_SHARD_INDEX (${process.env.TEST_SHARD_INDEX}) must satisfy 0 <= index < TEST_SHARD_TOTAL (${shardTotal})`)
 }
 
-// Round-robin distribution so file-name ordering does not bias one
-// shard. Test files tend to be named by domain (order-*, stripe-*,
-// vendor-*) — a contiguous chunk-split would put all stripe tests on
-// one shard and starve the other.
-const files = allFiles.filter((_, idx) => idx % shardTotal === shardIndex)
+// LPT (Longest Processing Time) greedy bin-packing, using file size
+// as a runtime proxy. Sort files by size desc, then assign each file
+// to the currently-lightest shard. This bounds the slowest shard to
+// roughly (total / N) + max(file), which is much tighter than the
+// previous modulo round-robin — the old split left one shard ~65%
+// longer than its peers because the two slowest files happened to
+// land on the same modulo class.
+const weighted = allFiles
+  .map(file => ({ file, size: statSync(file).size }))
+  .sort((a, b) => b.size - a.size)
+
+const bins = Array.from({ length: shardTotal }, () => ({ files: [], total: 0 }))
+for (const { file, size } of weighted) {
+  let minIdx = 0
+  for (let i = 1; i < bins.length; i += 1) {
+    if (bins[i].total < bins[minIdx].total) minIdx = i
+  }
+  bins[minIdx].files.push(file)
+  bins[minIdx].total += size
+}
+
+// Re-sort each bin alphabetically so run order is stable across
+// shards and matches historical logs.
+const files = bins[shardIndex].files.sort()
 
 if (files.length === 0) {
   console.error(
