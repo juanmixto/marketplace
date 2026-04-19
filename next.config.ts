@@ -94,10 +94,12 @@ const nextConfig: NextConfig = {
   },
   // Allow LAN access to the dev server (e.g. testing on a phone via
   // http://192.168.x.y:3000). Without this, Next.js 16 blocks cross-origin
-  // requests to /_next/* dev resources, which breaks HMR and the dev overlay
+  // requests to /_next/* dev resources, which breaks HMR AND client hydration
+  // (dropdowns, theme toggle, cart, sidebar collapse all stop responding)
   // when the page is loaded from a non-localhost host.
-  // The pattern matches any host on a typical home/office private network.
-  allowedDevOrigins: ['192.168.*.*', '10.*.*.*', '*.local', '*.trycloudflare.com'],
+  // `*.feldescloud.com` covers the Cloudflare Tunnel (dev.feldescloud.com →
+  // localhost:3001, see docs/runbooks/dev-tunnel.md) and any future subdomain.
+  allowedDevOrigins: ['192.168.*.*', '10.*.*.*', '*.local', '*.trycloudflare.com', '*.feldescloud.com'],
   experimental: {
     staleTimes: {
       // Default is 300 s (matches revalidate = 300). That causes Link-navigation to serve
