@@ -421,7 +421,7 @@ export function HomePageClient({ featured, categories, vendors, heroStats, publi
           </p>
           <div className="mt-7 flex flex-wrap justify-center gap-4">
             <Link
-              href="/register?rol=productor"
+              href="/cuenta/hazte-vendedor"
               className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 font-semibold text-emerald-950 shadow-md transition-all hover:-translate-y-0.5 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-900"
             >
               {t('sections.ctaBtn')}
