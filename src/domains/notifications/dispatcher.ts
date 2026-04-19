@@ -38,6 +38,8 @@ function getState(): { registry: Registry } {
         'order.status_changed': new Set(),
         'favorite.back_in_stock': new Set(),
         'favorite.price_drop': new Set(),
+        'vendor.application.approved': new Set(),
+        'vendor.application.rejected': new Set(),
       },
     }
   }

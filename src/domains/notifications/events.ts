@@ -13,6 +13,8 @@ export const NOTIFICATION_EVENTS = {
   ORDER_STATUS_CHANGED: 'order.status_changed',
   FAVORITE_BACK_IN_STOCK: 'favorite.back_in_stock',
   FAVORITE_PRICE_DROP: 'favorite.price_drop',
+  VENDOR_APPLICATION_APPROVED: 'vendor.application.approved',
+  VENDOR_APPLICATION_REJECTED: 'vendor.application.rejected',
 } as const
 
 export type NotificationEventName =
@@ -127,6 +129,21 @@ export const favoritePriceDropPayloadSchema = z.object({
 })
 export type FavoritePriceDropPayload = z.infer<typeof favoritePriceDropPayloadSchema>
 
+export const vendorApplicationApprovedPayloadSchema = z.object({
+  userId: z.string().min(1),
+  vendorId: z.string().min(1),
+  displayName: z.string().min(1).max(160),
+  vendorSlug: z.string().min(1).max(200),
+})
+export type VendorApplicationApprovedPayload = z.infer<typeof vendorApplicationApprovedPayloadSchema>
+
+export const vendorApplicationRejectedPayloadSchema = z.object({
+  userId: z.string().min(1),
+  vendorId: z.string().min(1),
+  displayName: z.string().min(1).max(160),
+})
+export type VendorApplicationRejectedPayload = z.infer<typeof vendorApplicationRejectedPayloadSchema>
+
 export type NotificationEventMap = {
   'order.created': OrderCreatedPayload
   'order.pending': OrderPendingPayload
@@ -140,6 +157,8 @@ export type NotificationEventMap = {
   'order.status_changed': OrderStatusChangedPayload
   'favorite.back_in_stock': FavoriteBackInStockPayload
   'favorite.price_drop': FavoritePriceDropPayload
+  'vendor.application.approved': VendorApplicationApprovedPayload
+  'vendor.application.rejected': VendorApplicationRejectedPayload
 }
 
 export const notificationEventPayloadSchemas = {
@@ -155,4 +174,6 @@ export const notificationEventPayloadSchemas = {
   'order.status_changed': orderStatusChangedPayloadSchema,
   'favorite.back_in_stock': favoriteBackInStockPayloadSchema,
   'favorite.price_drop': favoritePriceDropPayloadSchema,
+  'vendor.application.approved': vendorApplicationApprovedPayloadSchema,
+  'vendor.application.rejected': vendorApplicationRejectedPayloadSchema,
 } as const

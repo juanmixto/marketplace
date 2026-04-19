@@ -6,9 +6,18 @@ import { z } from 'zod'
 import { setMarketplaceConfig } from '@/lib/config'
 import { createAuditLog, getAuditRequestIp, mutateWithAudit, type AuditValue } from '@/lib/audit'
 import { requireAdmin, requireFinanceAdmin, requireOpsAdmin } from '@/lib/auth-guard'
-import { hasRole } from '@/lib/roles'
+import { hasRole, ADMIN_ROLES as ADMIN_ROLE_LIST } from '@/lib/roles'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { assertVendorOnboarded } from '@/domains/vendors'
+
+/**
+ * Dynamic import to avoid closing a notifications → admin cycle at module
+ * load. Handlers are fire-and-forget via the dispatcher's queueMicrotask.
+ */
+async function emitNotification<E extends string>(event: E, payload: unknown): Promise<void> {
+  const mod = await import('@/domains/notifications/dispatcher')
+  ;(mod.emit as (e: E, p: unknown) => void)(event, payload)
+}
 
 function getVendorAuditSnapshot(vendor: {
   id: string
@@ -86,7 +95,10 @@ function getSettlementAuditSnapshot(settlement: {
 export async function approveVendor(vendorId: string) {
   const session = await requireAdmin()
 
-  const vendor = await db.vendor.findUnique({ where: { id: vendorId } })
+  const vendor = await db.vendor.findUnique({
+    where: { id: vendorId },
+    include: { user: { select: { id: true, role: true } } },
+  })
   if (!vendor) throw new Error('Productor no encontrado')
   if (!['APPLYING', 'PENDING_DOCS'].includes(vendor.status)) {
     throw new Error('El productor ya está activo o suspendido')
@@ -94,12 +106,24 @@ export async function approveVendor(vendorId: string) {
 
   const before = getVendorAuditSnapshot(vendor)
   const ip = await getAuditRequestIp()
+  const userNeedsRoleBump =
+    !hasRole(vendor.user.role, [UserRole.VENDOR, ...(ADMIN_ROLE_LIST as UserRole[])])
 
   await mutateWithAudit(async tx => {
     const updatedVendor = await tx.vendor.update({
       where: { id: vendorId },
       data: { status: 'ACTIVE' },
     })
+    // Self-service application flow: the User row was created as CUSTOMER.
+    // At approval, grant VENDOR role so route guards + session JWT see the
+    // upgrade on next sign-in. Skip if already VENDOR or admin (don't
+    // downgrade admins).
+    if (userNeedsRoleBump) {
+      await tx.user.update({
+        where: { id: vendor.user.id },
+        data: { role: UserRole.VENDOR },
+      })
+    }
     return {
       result: updatedVendor,
       audit: {
@@ -107,7 +131,10 @@ export async function approveVendor(vendorId: string) {
         entityType: 'Vendor',
         entityId: vendorId,
         before,
-        after: getVendorAuditSnapshot(updatedVendor),
+        after: {
+          ...getVendorAuditSnapshot(updatedVendor),
+          userRoleBumped: userNeedsRoleBump,
+        },
         actorId: session.user.id,
         actorRole: session.user.role,
         ip,
@@ -117,6 +144,13 @@ export async function approveVendor(vendorId: string) {
 
   safeRevalidatePath('/admin/productores')
   safeRevalidatePath('/admin/auditoria')
+
+  void emitNotification('vendor.application.approved', {
+    userId: vendor.user.id,
+    vendorId: vendor.id,
+    displayName: vendor.displayName,
+    vendorSlug: vendor.slug,
+  })
 }
 
 /**
@@ -125,7 +159,10 @@ export async function approveVendor(vendorId: string) {
 export async function rejectVendor(vendorId: string) {
   const session = await requireAdmin()
 
-  const vendor = await db.vendor.findUnique({ where: { id: vendorId } })
+  const vendor = await db.vendor.findUnique({
+    where: { id: vendorId },
+    include: { user: { select: { id: true } } },
+  })
   if (!vendor) throw new Error('Productor no encontrado')
   const before = getVendorAuditSnapshot(vendor)
   const ip = await getAuditRequestIp()
@@ -152,6 +189,12 @@ export async function rejectVendor(vendorId: string) {
 
   safeRevalidatePath('/admin/productores')
   safeRevalidatePath('/admin/auditoria')
+
+  void emitNotification('vendor.application.rejected', {
+    userId: vendor.user.id,
+    vendorId: vendor.id,
+    displayName: vendor.displayName,
+  })
 }
 
 /**
