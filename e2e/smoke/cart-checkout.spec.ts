@@ -69,10 +69,18 @@ test.describe('cart and checkout @smoke', () => {
     await expect(page.getByRole('button', { name: /añadido/i }).first()).toBeVisible({ timeout: 5_000 })
 
     // --- CART ---
-    // /carrito cold-compiles on shard 2's first visit (next dev webpack +
-    // RSC bundle), so budget 20s on the item assertion — still well inside
-    // the test's 90s ceiling.
-    await page.goto('/carrito')
+    // Use soft navigation (Link click) instead of page.goto to stay in the
+    // same React tree. A full browser nav would remount
+    // CartHydrationProvider (app/layout.tsx), which on a logged-in user
+    // with `cart-merged-user` already set runs `loadServerCart()` and
+    // `setState({ items: hydrated })` — wiping the item we just added,
+    // because add-to-cart is client-only (Zustand) and is NOT synced to
+    // the server cart until checkout. This was the actual cause of the
+    // shard 2 flake. Soft nav preserves `hasHydratedRef` so the provider
+    // doesn't re-fire. /carrito still cold-compiles on first visit, so
+    // keep a 20s budget on the item assertion.
+    await page.getByRole('link', { name: /carrito|cart/i }).first().click()
+    await page.waitForURL(/\/carrito(?:\/|$|\?)/, { timeout: 15_000 })
     await expect(page.getByText(/tomates cherry/i).first()).toBeVisible({ timeout: 20_000 })
 
     const toCheckout = page.getByRole('link', { name: /ir al checkout/i }).first()
