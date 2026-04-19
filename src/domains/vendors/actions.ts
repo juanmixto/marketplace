@@ -12,6 +12,8 @@ import { isVendor } from '@/lib/roles'
 import { isAllowedImageUrl } from '@/lib/image-validation'
 // eslint-disable-next-line no-restricted-imports -- Telegram bootstrap is server-only and intentionally excluded from the notifications barrel
 import { ensureTelegramHandlersRegistered } from '@/domains/notifications/telegram/ensure-registered'
+// eslint-disable-next-line no-restricted-imports -- Web-push bootstrap mirrors the Telegram one; same reason
+import { ensureWebPushHandlersRegistered } from '@/domains/notifications/web-push/ensure-registered'
 
 /**
  * Dynamic dispatcher loader. The static import would close a
@@ -49,6 +51,7 @@ async function requireVendor() {
 import { productSchema, type ProductInput } from '@/shared/types/products'
 
 ensureTelegramHandlersRegistered()
+ensureWebPushHandlersRegistered()
 
 // ─── CRUD productos ───────────────────────────────────────────────────────────
 
