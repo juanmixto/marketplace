@@ -139,7 +139,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
 
     services:
       postgres:
@@ -160,7 +160,7 @@ jobs:
       DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
       DATABASE_URL_TEST: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
       TEST_SHARD_INDEX: ${{ matrix.shard }}
-      TEST_SHARD_TOTAL: "6"
+      TEST_SHARD_TOTAL: "8"
 
     steps:
       - uses: actions/checkout@v5
@@ -175,7 +175,7 @@ jobs:
       # any global seed data would be wiped before the first test
       # ever runs. Skipping saves ~5-8s per shard.
 
-      - name: Integration tests (shard ${{ matrix.shard }} of 6)
+      - name: Integration tests (shard ${{ matrix.shard }} of 8)
         run: npm run test:integration
         timeout-minutes: 10
 
@@ -268,7 +268,7 @@ jobs:
         # run; the route guard only honours the flag when
         # NODE_ENV !== 'production', so a prod deploy cannot bypass
         # the limit even if this env leaks into another workflow.
-        run: npx playwright test --grep @smoke --workers=1 --shard=${{ matrix.shard }}/2
+        run: npx playwright test --grep @smoke --workers=2 --shard=${{ matrix.shard }}/2
         env:
           DISABLE_LOGIN_RATELIMIT: '1'
 
