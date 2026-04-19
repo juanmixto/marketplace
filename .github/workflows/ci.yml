@@ -197,7 +197,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3, 4]
     # Runs in parallel with verify/build/integration against `next dev`.
     # Playwright's native --shard splits specs across runners.
     # Prod-mode coverage (`next start` + DYNAMIC_SERVER_USAGE etc.) runs
@@ -261,14 +261,14 @@ jobs:
       - name: Seed database
         run: npm run db:seed
 
-      - name: Run E2E smoke suite (shard ${{ matrix.shard }}/2)
+      - name: Run E2E smoke suite (shard ${{ matrix.shard }}/4)
         # DISABLE_LOGIN_RATELIMIT=1 exempts the suite from the
         # (IP+email) login throttle from #592. CI shares a single
         # seeded credential and easily exhausts the bucket within a
         # run; the route guard only honours the flag when
         # NODE_ENV !== 'production', so a prod deploy cannot bypass
         # the limit even if this env leaks into another workflow.
-        run: npx playwright test --grep @smoke --workers=2 --shard=${{ matrix.shard }}/2
+        run: npx playwright test --grep @smoke --workers=1 --shard=${{ matrix.shard }}/4
         env:
           DISABLE_LOGIN_RATELIMIT: '1'
 
