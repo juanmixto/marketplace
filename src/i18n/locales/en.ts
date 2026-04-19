@@ -158,6 +158,16 @@ const en: Record<TranslationKeys, string> = {
   'login.portal.admin.badge': 'Admin panel',
   'login.portal.admin.title': 'Sign in as administrator',
   'login.portal.admin.desc': 'Oversee the marketplace, reviews and internal operations.',
+  'login.continue': 'Continue',
+  'login.back': 'Back',
+  'login.error.invalidCredentials': 'Invalid email or password',
+  'login.error.tooManyAttempts': 'Too many attempts. Try again in a few minutes.',
+  'login.error.generic': 'We could not process the request. Please try again.',
+  'login.totp.label': '2FA code',
+  'login.totp.description': 'Enter the 6-digit code shown by your authenticator app.',
+  'login.totp.rememberDevice': 'Trust this device for 30 days',
+  'login.totp.rememberDeviceHint': 'We will not ask for the code on this browser until it expires or you change your password.',
+  'login.totp.submit': 'Verify and sign in',
 
   // Auth – register
   'register.title': 'Create account',
