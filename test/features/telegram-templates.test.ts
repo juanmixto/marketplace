@@ -7,6 +7,12 @@ import {
   orderStatusChangedTemplate,
   favoriteBackInStockTemplate,
   favoritePriceDropTemplate,
+  orderDeliveredTemplate,
+  labelFailedTemplate,
+  incidentOpenedTemplate,
+  reviewReceivedTemplate,
+  payoutPaidTemplate,
+  stockLowTemplate,
 } from '@/domains/notifications/telegram/templates'
 
 const CALLBACK_BYTE_LIMIT = 64
@@ -218,6 +224,193 @@ test('favoriteBackInStockTemplate renders name + vendor and skips button without
   assert.equal(withoutSlug.inline_keyboard, undefined)
   assert.ok(!withoutSlug.text.includes('<curado>'))
   assert.ok(withoutSlug.text.includes('&lt;curado&gt;'))
+})
+
+test('orderCreatedTemplate greets vendor by first name when view is provided', () => {
+  const msg = orderCreatedTemplate(
+    {
+      orderId: 'ord_1',
+      vendorId: 'vnd_1',
+      customerName: 'Alice',
+      totalCents: 4500,
+      currency: 'EUR',
+    },
+    { vendorFirstName: 'Pedro García', buyerFirstName: 'Alice', city: 'Sevilla' },
+  )
+  assert.ok(msg.text.includes('¡Hola Pedro!'), 'greets vendor by first word only')
+  assert.ok(msg.text.includes('Alice'), 'includes buyer name')
+  assert.ok(msg.text.includes('Sevilla'), 'includes city')
+})
+
+test('orderCreatedTemplate escapes a hostile vendor name in the greeting', () => {
+  const msg = orderCreatedTemplate(
+    {
+      orderId: 'ord_1',
+      vendorId: 'vnd_1',
+      customerName: 'Alice',
+      totalCents: 100,
+      currency: 'EUR',
+    },
+    { vendorFirstName: '<script>' },
+  )
+  assert.ok(!msg.text.includes('<script>'), 'raw <script> must not appear')
+  assert.ok(msg.text.includes('&lt;script&gt;'))
+})
+
+test('reviewReceivedTemplate includes reviewer name and comment preview', () => {
+  const msg = reviewReceivedTemplate(
+    {
+      reviewId: 'rev_1',
+      vendorId: 'vnd_1',
+      productId: 'p_1',
+      productName: 'Aceite',
+      rating: 5,
+    },
+    {
+      vendorFirstName: 'Pedro',
+      reviewerFirstName: 'Ana',
+      commentPreview: 'Me ha encantado la calidad del producto.',
+    },
+  )
+  assert.ok(msg.text.includes('Pedro'))
+  assert.ok(msg.text.includes('Ana'))
+  assert.ok(msg.text.includes('Me ha encantado'))
+  assert.ok(msg.text.includes('🎉'), '5-star reviews close on a celebratory note')
+})
+
+test('reviewReceivedTemplate nudges vendor to check low-rating reviews', () => {
+  const msg = reviewReceivedTemplate(
+    {
+      reviewId: 'rev_1',
+      vendorId: 'vnd_1',
+      productId: 'p_1',
+      productName: 'Aceite',
+      rating: 2,
+    },
+    { vendorFirstName: 'Pedro' },
+  )
+  assert.ok(msg.text.includes('Échale un ojo'))
+})
+
+test('incidentOpenedTemplate names the buyer and shows the description snippet', () => {
+  const msg = incidentOpenedTemplate(
+    {
+      incidentId: 'inc_1',
+      orderId: 'ord_1',
+      vendorId: 'vnd_1',
+      type: 'NOT_RECEIVED',
+    },
+    {
+      vendorFirstName: 'Pedro',
+      buyerFirstName: 'Ana',
+      descriptionPreview: 'No ha llegado tras 5 días.',
+    },
+  )
+  assert.ok(msg.text.includes('Ana'))
+  assert.ok(msg.text.includes('No ha llegado'))
+})
+
+test('payoutPaidTemplate shows the order count in the period', () => {
+  const msg = payoutPaidTemplate(
+    {
+      settlementId: 'set_1',
+      vendorId: 'vnd_1',
+      netPayableCents: 12345,
+      currency: 'EUR',
+      periodLabel: '2026-03-01 — 2026-03-31',
+    },
+    { vendorFirstName: 'Pedro', orderCount: 7 },
+  )
+  assert.ok(msg.text.includes('Pedro'))
+  assert.ok(msg.text.includes('7 pedidos liquidados'))
+})
+
+test('orderStatusChangedTemplate greets the buyer and lists items', () => {
+  const msg = orderStatusChangedTemplate(
+    {
+      orderId: 'ord_1',
+      customerUserId: 'usr_1',
+      status: 'SHIPPED',
+      orderNumber: 'MP-2026-000001',
+    },
+    { buyerFirstName: 'Ana López', items: ['2× kg Tomates', '1× bote Aceite'] },
+  )
+  assert.ok(msg.text.includes('¡Hola Ana!'), 'greets buyer by first word')
+  assert.ok(msg.text.includes('• 2× kg Tomates'), 'lists ordered items')
+})
+
+test('favoriteBackInStockTemplate surfaces scarcity when stock is low', () => {
+  process.env.NEXT_PUBLIC_APP_URL = 'https://example.com'
+  const scarce = favoriteBackInStockTemplate(
+    {
+      productId: 'p_1',
+      productName: 'Queso curado',
+      productSlug: 'queso-curado',
+      vendorName: 'Finca Ejemplo',
+    },
+    { buyerFirstName: 'Ana', remainingStock: 3 },
+  )
+  assert.ok(scarce.text.includes('Ana'))
+  assert.ok(scarce.text.includes('Solo quedan <b>3</b>'))
+
+  const plenty = favoriteBackInStockTemplate(
+    {
+      productId: 'p_1',
+      productName: 'Queso curado',
+      productSlug: 'queso-curado',
+    },
+    { remainingStock: 50 },
+  )
+  assert.ok(!plenty.text.includes('Solo quedan'), 'scarcity copy skipped when stock is comfortable')
+})
+
+test('stockLowTemplate differs between sold-out and low-stock cases', () => {
+  const sold = stockLowTemplate(
+    { productId: 'p_1', vendorId: 'vnd_1', productName: 'Tomate', remainingStock: 0 },
+    { vendorFirstName: 'Pedro' },
+  )
+  assert.ok(sold.text.includes('agotado'))
+  assert.ok(sold.text.includes('Reponlo'))
+
+  const low = stockLowTemplate(
+    { productId: 'p_1', vendorId: 'vnd_1', productName: 'Tomate', remainingStock: 3 },
+  )
+  assert.ok(low.text.includes('Quedan <b>3</b>'))
+})
+
+test('orderDeliveredTemplate personalises the closer with the buyer name', () => {
+  const msg = orderDeliveredTemplate(
+    { orderId: 'ord_1', vendorId: 'vnd_1', fulfillmentId: 'ful_1' },
+    { vendorFirstName: 'Pedro', buyerFirstName: 'Ana', city: 'Sevilla' },
+  )
+  assert.ok(msg.text.includes('Ana'))
+  assert.ok(msg.text.includes('Sevilla'))
+  assert.ok(msg.text.includes('¡Buen trabajo!'))
+})
+
+test('labelFailedTemplate still exposes retry callback and names the buyer', () => {
+  const msg = labelFailedTemplate(
+    {
+      orderId: 'ord_1',
+      vendorId: 'vnd_1',
+      fulfillmentId: 'ful_1',
+      errorMessage: 'API down',
+    },
+    { vendorFirstName: 'Pedro', buyerFirstName: 'Ana' },
+  )
+  assert.ok(msg.text.includes('Ana'))
+  const buttons = (msg.inline_keyboard ?? []).flat()
+  const retry = buttons.find(b => 'callback_data' in b)
+  assert.ok(retry)
+})
+
+test('messageReceivedTemplate greets vendor when view is provided', () => {
+  const msg = messageReceivedTemplate(
+    { conversationId: 'c_1', vendorId: 'v_1', fromUserName: 'Ana', preview: 'Hola' },
+    { vendorFirstName: 'Pedro', orderNumber: 'MP-2026-001' },
+  )
+  assert.ok(msg.text.includes('Pedro'))
+  assert.ok(msg.text.includes('MP-2026-001'))
 })
 
 test('favoritePriceDropTemplate renders both prices and percent drop', () => {

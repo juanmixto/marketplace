@@ -34,14 +34,23 @@ export async function onFavoritePriceDrop(
     return
   }
 
-  const favourites = await db.favorite.findMany({
-    where: { productId: payload.productId },
-    select: { userId: true },
-  })
+  const [favourites, product] = await Promise.all([
+    db.favorite.findMany({
+      where: { productId: payload.productId },
+      select: { userId: true, user: { select: { firstName: true } } },
+    }),
+    db.product.findUnique({
+      where: { id: payload.productId },
+      select: { stock: true },
+    }),
+  ])
   if (favourites.length === 0) return
 
-  const message = favoritePriceDropTemplate(payload)
   for (const fav of favourites) {
+    const message = favoritePriceDropTemplate(payload, {
+      buyerFirstName: fav.user?.firstName ?? undefined,
+      remainingStock: product?.stock ?? undefined,
+    })
     await sendToUser(fav.userId, 'BUYER_FAVORITE_PRICE_DROP', message, { payloadRef })
   }
 }

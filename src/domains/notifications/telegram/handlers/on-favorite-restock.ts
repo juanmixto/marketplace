@@ -13,16 +13,25 @@ import { favoriteBackInStockTemplate } from '../templates'
 export async function onFavoriteBackInStock(
   payload: FavoriteBackInStockPayload,
 ): Promise<void> {
-  const favourites = await db.favorite.findMany({
-    where: { productId: payload.productId },
-    select: { userId: true },
-  })
+  const [favourites, product] = await Promise.all([
+    db.favorite.findMany({
+      where: { productId: payload.productId },
+      select: { userId: true, user: { select: { firstName: true } } },
+    }),
+    db.product.findUnique({
+      where: { id: payload.productId },
+      select: { stock: true },
+    }),
+  ])
   if (favourites.length === 0) return
 
-  const message = favoriteBackInStockTemplate(payload)
   const payloadRef = `product:${payload.productId}:restock`
 
   for (const fav of favourites) {
+    const message = favoriteBackInStockTemplate(payload, {
+      buyerFirstName: fav.user?.firstName ?? undefined,
+      remainingStock: product?.stock ?? undefined,
+    })
     await sendToUser(fav.userId, 'BUYER_FAVORITE_RESTOCK', message, { payloadRef })
   }
 }

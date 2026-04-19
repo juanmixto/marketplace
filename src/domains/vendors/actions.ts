@@ -10,6 +10,8 @@ import { getActionSession } from '@/lib/action-session'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { isVendor } from '@/lib/roles'
 import { isAllowedImageUrl } from '@/lib/image-validation'
+// eslint-disable-next-line no-restricted-imports -- Telegram bootstrap is server-only and intentionally excluded from the notifications barrel
+import { ensureTelegramHandlersRegistered } from '@/domains/notifications/telegram/ensure-registered'
 
 /**
  * Dynamic dispatcher loader. The static import would close a
@@ -45,6 +47,8 @@ async function requireVendor() {
 // ─── Product schemas ──────────────────────────────────────────────────────────
 
 import { productSchema, type ProductInput } from '@/shared/types/products'
+
+ensureTelegramHandlersRegistered()
 
 // ─── CRUD productos ───────────────────────────────────────────────────────────
 
@@ -543,7 +547,7 @@ export async function markShippedByUserId(
 > {
   const fulfillment = await db.vendorFulfillment.findFirst({
     where: { id: fulfillmentId, vendor: { userId } },
-    select: { id: true, status: true, orderId: true },
+    select: { id: true, status: true, orderId: true, vendorId: true },
   })
   if (!fulfillment) {
     return { ok: false, code: 'NOT_FOUND', message: 'Fulfillment no encontrado' }
@@ -572,6 +576,33 @@ export async function markShippedByUserId(
       data: { status: allShipped ? 'SHIPPED' : 'PARTIALLY_SHIPPED' },
     })
   })
+
+  // Notify the buyer that their order is on its way. The alternative
+  // emission site — `shipping/transitions.ts` — fires when the Shipment
+  // entity reaches IN_TRANSIT, but the vendor "Marcar enviado" flow
+  // (both the portal button and the Telegram callback) transitions the
+  // VendorFulfillment without advancing the Shipment, so without this
+  // emission the buyer never gets the "📦 ya está en camino" ping.
+  const [order, vendor] = await Promise.all([
+    db.order.findUnique({
+      where: { id: fulfillment.orderId },
+      select: { customerId: true, orderNumber: true },
+    }),
+    db.vendor.findUnique({
+      where: { id: fulfillment.vendorId },
+      select: { displayName: true },
+    }),
+  ])
+  if (order) {
+    void emitNotification('order.status_changed', {
+      orderId: fulfillment.orderId,
+      customerUserId: order.customerId,
+      fulfillmentId,
+      status: 'SHIPPED',
+      orderNumber: order.orderNumber,
+      vendorName: vendor?.displayName ?? undefined,
+    })
+  }
 
   safeRevalidatePath('/vendor/pedidos')
   return { ok: true, fulfillmentId }
