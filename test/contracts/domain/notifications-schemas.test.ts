@@ -18,6 +18,8 @@ import {
   reviewReceivedPayloadSchema,
   payoutPaidPayloadSchema,
   stockLowPayloadSchema,
+  vendorApplicationApprovedPayloadSchema,
+  vendorApplicationRejectedPayloadSchema,
   NOTIFICATION_EVENTS,
 } from '@/domains/notifications/events'
 import { setPreferenceInputSchema } from '@/domains/notifications/preferences-schema'
@@ -151,6 +153,8 @@ test('NOTIFICATION_EVENTS string keys match the enum', () => {
       'PAYOUT_PAID',
       'REVIEW_RECEIVED',
       'STOCK_LOW',
+      'VENDOR_APPLICATION_APPROVED',
+      'VENDOR_APPLICATION_REJECTED',
     ],
   )
   assert.deepEqual(
@@ -168,6 +172,8 @@ test('NOTIFICATION_EVENTS string keys match the enum', () => {
       'payout.paid',
       'review.received',
       'stock.low',
+      'vendor.application.approved',
+      'vendor.application.rejected',
     ],
   )
 })
@@ -338,6 +344,28 @@ test('stockLowPayloadSchema — frozen shape', () => {
     required: ['productId', 'vendorId', 'productName', 'remainingStock'],
     optional: [],
   })
+})
+
+test('vendorApplicationApprovedPayloadSchema — frozen shape', () => {
+  assertObjectShape(
+    'vendorApplicationApprovedPayloadSchema',
+    vendorApplicationApprovedPayloadSchema as never,
+    {
+      required: ['userId', 'vendorId', 'displayName', 'vendorSlug'],
+      optional: [],
+    },
+  )
+})
+
+test('vendorApplicationRejectedPayloadSchema — frozen shape', () => {
+  assertObjectShape(
+    'vendorApplicationRejectedPayloadSchema',
+    vendorApplicationRejectedPayloadSchema as never,
+    {
+      required: ['userId', 'vendorId', 'displayName'],
+      optional: [],
+    },
+  )
 })
 
 // ─── Preferences write surface ────────────────────────────────────────────────
