@@ -1,27 +1,12 @@
 'use server'
 
-import { z } from 'zod'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { getActionSession } from '@/lib/action-session'
 import { slugify } from '@/lib/utils'
 import { safeRevalidatePath } from '@/lib/revalidate'
 import { createAuditLog, getAuditRequestIp } from '@/lib/audit'
-
-export const vendorApplicationSchema = z.object({
-  displayName: z.string().trim().min(2, 'Nombre demasiado corto').max(80),
-  description: z.string().trim().max(1000).optional().or(z.literal('')),
-  location: z.string().trim().max(120).optional().or(z.literal('')),
-  category: z
-    .enum(['BAKERY', 'CHEESE', 'WINERY', 'ORCHARD', 'OLIVE_OIL', 'FARM', 'DRYLAND', 'LOCAL_PRODUCER'])
-    .optional(),
-})
-
-export type VendorApplicationInput = z.infer<typeof vendorApplicationSchema>
-
-export type VendorApplicationResult =
-  | { ok: true; vendorId: string }
-  | { ok: false; error: 'unauthenticated' | 'already_applied' | 'validation'; issues?: string[] }
+import { vendorApplicationSchema, type VendorApplicationResult } from './apply-schema'
 
 async function generateUniqueSlug(base: string): Promise<string> {
   const root = slugify(base) || 'productor'
