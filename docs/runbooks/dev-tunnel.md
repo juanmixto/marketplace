@@ -77,3 +77,27 @@ If `dev.feldescloud.com` 502s:
 
 None of this is fixable by editing code in the repo. The repo has no
 deployment pipeline for `dev.feldescloud.com`.
+
+## "The page loads but nothing is interactive"
+
+Different failure mode from 502 — the HTML renders, but the cart button, theme
+toggle, language switcher, and vendor-sidebar collapse all silently do nothing.
+
+**Cause:** Next.js 16 blocks cross-origin requests to `/_next/*` dev resources
+by default. When the page is reached via `dev.feldescloud.com` (not
+`localhost`), the client JS chunks and HMR socket are refused, hydration dies,
+and every interactive control becomes a no-op.
+
+**Symptom in the dev-server log:**
+
+```
+⚠ Blocked cross-origin request to Next.js dev resource /_next/webpack-hmr from "dev.feldescloud.com".
+```
+
+**Fix:** the tunnel host must be in `allowedDevOrigins` in
+[`next.config.ts`](../../next.config.ts). `*.feldescloud.com` is already listed
+there — do not remove it. If you add a new tunnel host, add it to that list
+and restart `next dev`.
+
+After fixing, a **hard refresh** in the browser (Ctrl+Shift+R) is required to
+drop the stale service worker and broken JS chunks.

@@ -22,7 +22,6 @@ async function emitNotification<E extends string>(
   event: E,
   payload: unknown,
 ): Promise<void> {
-  // eslint-disable-next-line no-restricted-imports -- deferred server-only dispatcher; see comment above
   const mod = await import('@/domains/notifications/dispatcher')
   ;(mod.emit as (e: E, p: unknown) => void)(event, payload)
 }
