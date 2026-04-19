@@ -7,12 +7,15 @@ import {
   UserGroupIcon,
   ShieldCheckIcon,
   ClockIcon,
+  BellAlertIcon,
+  DevicePhoneMobileIcon,
 } from '@heroicons/react/24/outline'
 import { buildPageMetadata } from '@/lib/seo'
 import { getPublicPageCopy } from '@/i18n/public-page-copy'
 import { getServerLocale } from '@/i18n/server'
 
 const benefitIcons = [BanknotesIcon, SparklesIcon, ClockIcon, UserGroupIcon, ShieldCheckIcon, CheckCircleIcon] as const
+const toolIcons = [BellAlertIcon, DevicePhoneMobileIcon] as const
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getServerLocale()
@@ -65,6 +68,37 @@ export default async function ComoVender() {
                   <Icon className="mb-4 h-8 w-8 text-accent" />
                   <h3 className="mb-2 font-semibold text-foreground">{benefit.title}</h3>
                   <p className="text-sm text-foreground-soft">{benefit.description}</p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-accent-soft px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-5xl">
+          <h2 className="mb-4 text-center text-3xl font-bold text-foreground">{copy.toolsTitle}</h2>
+          <p className="mb-12 text-center text-lg text-foreground-soft">{copy.toolsBody}</p>
+
+          <div className="grid gap-8 md:grid-cols-2">
+            {copy.tools.map((tool, idx) => {
+              const Icon = toolIcons[idx] ?? toolIcons[0]
+              return (
+                <div
+                  key={`${tool.title}-${idx}`}
+                  className="rounded-lg border-2 border-accent bg-surface p-8"
+                >
+                  <Icon className="mb-4 h-10 w-10 text-accent" />
+                  <h3 className="mb-2 text-xl font-semibold text-foreground">{tool.title}</h3>
+                  <p className="mb-4 text-foreground-soft">{tool.description}</p>
+                  <ul className="space-y-2">
+                    {tool.bullets.map(bullet => (
+                      <li key={bullet} className="flex gap-2 text-sm text-foreground-soft">
+                        <CheckCircleIcon className="h-5 w-5 flex-shrink-0 text-accent" />
+                        <span>{bullet}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )
             })}
