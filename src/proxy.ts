@@ -96,7 +96,7 @@ function getExpectedHosts(request: NextRequest): Set<string> {
   return hosts
 }
 
-function isOriginAllowed(request: NextRequest): boolean {
+export function isOriginAllowed(request: NextRequest): boolean {
   const origin = request.headers.get('origin')
   const referer = request.headers.get('referer')
   // Same-origin fetches always carry Origin; missing Origin+Referer on a
