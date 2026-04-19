@@ -2,16 +2,25 @@ name: Lighthouse PWA
 
 on:
   pull_request:
+    # Widened (Phase C) to also trigger on changes that can affect the
+    # public catalog / producer listings — the two new Lighthouse URLs
+    # (/productos, /productores) exercise those surfaces alongside the
+    # PWA shell. Without these path globs a regression that ships only
+    # JS changes under src/components/catalog/** would slip past this
+    # audit.
     paths:
       - 'src/app/manifest.ts'
       - 'public/sw.template.js'
       - 'scripts/build-sw.mjs'
       - 'next.config.ts'
       - 'src/components/pwa/**'
+      - 'src/components/catalog/**'
+      - 'src/components/layout/**'
       - 'src/app/icons/**'
       - 'src/app/screenshots/**'
       - 'src/app/offline/**'
       - 'src/app/layout.tsx'
+      - 'src/app/(public)/**'
       - 'src/lib/pwa/**'
       - '.lighthouserc.json'
       - '.github/workflows/lighthouse.yml'

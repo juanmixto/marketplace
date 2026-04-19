@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import {
   ShoppingCartIcon,
@@ -19,7 +18,7 @@ import type { UserRole } from '@/generated/prisma/enums'
 import { SignOutButton } from '@/components/auth/SignOutButton'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { LanguageToggle } from '@/components/LanguageToggle'
-import InstallButton from '@/components/pwa/InstallButton'
+import { InstallCtaGate, LoginLink } from '@/components/layout/HeaderPathnameParts'
 import { useLocale, useT } from '@/i18n'
 import { useSession } from 'next-auth/react'
 
@@ -102,7 +101,12 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
-  const pathname = usePathname()
+  // Note: `usePathname()` used to live here. Reading it at the top level
+  // made the whole Header re-render on every `<Link>` navigation even
+  // though only two sub-branches actually depend on the path (install CTA
+  // gate and the /login link highlight). Those have been extracted to
+  // `HeaderPathnameParts.tsx` so the rest of the header can stay stable
+  // across navigations.
   const { locale } = useLocale()
   const t = useT()
   const liveCartCount = useCartStore(state => state.items.reduce((sum, item) => sum + item.quantity, 0))
@@ -115,12 +119,6 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
   const portalHref = getPrimaryPortalHref(currentUser?.role)
   const portalLabel = getPortalLabel(currentUser?.role, locale)
   const isBuyerPortal = portalHref === '/cuenta'
-  // Hide the install CTA in work surfaces (admin, vendor, checkout) so we
-  // never interrupt a buy flow or an operator's task with an install prompt.
-  const canShowInstallCta =
-    !pathname.startsWith('/admin') &&
-    !pathname.startsWith('/vendor') &&
-    !pathname.startsWith('/checkout')
   const cartAriaLabel = cartHasItems
     ? `${t('cart')}, ${cartCountLabel}`
     : t('cart')
@@ -212,7 +210,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
 
           {/* Right actions */}
           <div className="ml-auto flex items-center gap-1">
-            {canShowInstallCta && <InstallButton />}
+            <InstallCtaGate />
             <LanguageToggle />
             <ThemeToggle />
 
@@ -277,15 +275,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
               </>
             ) : (
               <>
-                <Link
-                  href="/login"
-                  className={cn(
-                    'hidden rounded-xl px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] lg:block',
-                    pathname === '/login' && 'bg-[var(--surface-raised)]'
-                  )}
-                >
-                  {t('signIn')}
-                </Link>
+                <LoginLink label={t('signIn')} />
                 <Link
                   href="/register"
                   className="hidden rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] lg:block"
