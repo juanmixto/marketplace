@@ -616,6 +616,70 @@ export async function markShippedByUserId(
   return { ok: true, fulfillmentId }
 }
 
+/**
+ * Bumps a product's stock by a fixed amount on behalf of the vendor
+ * identified by userId (Telegram callback entrypoint). Mirrors the
+ * ownership/shape rules of setProductStock: rejects products with
+ * active variants and products that don't track stock. Fires the
+ * back_in_stock fanout on the 0 → positive transition, same as the
+ * portal action.
+ */
+export async function increaseProductStockByUserId(
+  userId: string,
+  productId: string,
+  amount: number,
+): Promise<
+  | { ok: true; stock: number }
+  | { ok: false; code: 'NOT_FOUND' | 'HAS_VARIANTS' | 'NOT_TRACKED'; message: string }
+> {
+  if (!Number.isInteger(amount) || amount <= 0 || amount > 1_000) {
+    return { ok: false, code: 'NOT_TRACKED', message: 'Cantidad inválida' }
+  }
+  const product = await db.product.findFirst({
+    where: { vendor: { userId }, id: productId, deletedAt: null },
+    include: {
+      vendor: { select: { id: true, slug: true, displayName: true } },
+      variants: { where: { isActive: true }, select: { id: true } },
+    },
+  })
+  if (!product) {
+    return { ok: false, code: 'NOT_FOUND', message: 'Producto no encontrado' }
+  }
+  if (!product.trackStock) {
+    return { ok: false, code: 'NOT_TRACKED', message: 'Este producto no trackea stock' }
+  }
+  if (product.variants.length > 0) {
+    return {
+      ok: false,
+      code: 'HAS_VARIANTS',
+      message: 'Producto con variantes — edítalo en la web',
+    }
+  }
+
+  const previousStock = product.stock
+  const updated = await db.product.update({
+    where: { id: productId },
+    data: { stock: { increment: amount } },
+    select: { id: true, stock: true, slug: true, name: true },
+  })
+  if (previousStock <= 0 && updated.stock > 0) {
+    void emitNotification('favorite.back_in_stock', {
+      productId: updated.id,
+      productName: updated.name,
+      productSlug: updated.slug,
+      vendorName: product.vendor.displayName,
+    })
+  }
+
+  safeRevalidatePath('/vendor/productos')
+  safeRevalidatePath(`/productos/${updated.slug}`)
+  revalidateCatalogExperience({
+    productSlug: updated.slug,
+    vendorSlug: product.vendor.slug,
+  })
+  return { ok: true, stock: updated.stock }
+}
+
 export async function getMyFulfillments(filter?: 'active' | 'urgent' | 'shipped' | 'all') {
   const { vendor } = await requireVendor()
 
