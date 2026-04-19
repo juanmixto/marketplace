@@ -52,40 +52,37 @@ export function LocationAutocomplete({
   const [loading, setLoading] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const containerRef = useRef<HTMLDivElement>(null)
-  const queryRef = useRef(value)
 
-  queryRef.current = value
-
-  // Debounced search whenever value or province changes.
+  // Debounced search whenever value or province changes. The cleanup
+  // flips `cancelled` so both the pending setTimeout and the in-flight
+  // search promise short-circuit if the user keeps typing — keeps us
+  // from painting stale results without needing a render-time ref.
   useEffect(() => {
     if (!open) return
     const query = value.trim()
-    // At least 2 chars before we bother — keeps initial focus quiet.
     if (query.length < 2) {
       setSuggestions([])
       setLoading(false)
       return
     }
     setLoading(true)
+    let cancelled = false
     const handle = window.setTimeout(() => {
-      let cancelled = false
+      if (cancelled) return
       searchMunicipalities({ query, province, limit })
         .then(results => {
           if (cancelled) return
-          // Only apply if the query hasn't moved on.
-          if (queryRef.current.trim() === query) {
-            setSuggestions(results)
-            setActiveIndex(results.length > 0 ? 0 : -1)
-          }
+          setSuggestions(results)
+          setActiveIndex(results.length > 0 ? 0 : -1)
         })
         .finally(() => {
           if (!cancelled) setLoading(false)
         })
-      return () => {
-        cancelled = true
-      }
     }, debounceMs)
-    return () => window.clearTimeout(handle)
+    return () => {
+      cancelled = true
+      window.clearTimeout(handle)
+    }
   }, [value, province, open, debounceMs, limit])
 
   // Close on outside click.
