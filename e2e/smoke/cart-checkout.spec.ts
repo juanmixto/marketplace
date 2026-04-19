@@ -47,17 +47,36 @@ test.describe('cart and checkout @smoke', () => {
     await expect(addToCart).toBeEnabled({ timeout: 5_000 })
     await addToCart.click()
     // The button text flips to "Añadido" for ~2s after a successful add —
-    // a reliable signal the Zustand store received the item.
+    // a reliable signal the Zustand store received the item in memory.
     await expect(page.getByRole('button', { name: /añadido/i }).first()).toBeVisible({ timeout: 5_000 })
+    // But in-memory != persisted. Because we follow this with a full
+    // `page.goto('/carrito')` (not a client-side <Link> click), the new
+    // page reboots the Zustand store from localStorage — and if the
+    // persist middleware's write hasn't flushed yet, the cart renders
+    // empty and the assertion below flakes (observed on shard 2 as the
+    // dominant retry loop, 3m+ wall time). Block on the localStorage
+    // write explicitly so the navigation only happens after persistence
+    // is durable. Key `cart-storage` matches cart-store.ts `persist({ name })`.
+    await page.waitForFunction(
+      () => {
+        const raw = window.localStorage.getItem('cart-storage')
+        if (!raw) return false
+        try {
+          const parsed = JSON.parse(raw) as { state?: { items?: unknown[] } }
+          return Array.isArray(parsed.state?.items) && parsed.state.items.length > 0
+        } catch {
+          return false
+        }
+      },
+      null,
+      { timeout: 5_000 },
+    )
 
     // --- CART ---
-    // /carrito is subject to the same cold-compile hit as /checkout on the
-    // first visit of a shard (next dev webpack + RSC bundle + Zustand
-    // rehydration). The 5s timeout here was the single most common flake
-    // on shard 2 (line 55 `Expect toBeVisible ... tomates cherry ...`),
-    // triggering the 3×-retry cycle that pushed the shard from ~1m30s
-    // to 3m+. Widen to match the cold-compile budget used below for
-    // /checkout (25s). The test's overall budget is still 90s.
+    // /carrito cold-compiles on shard 2's first visit (next dev webpack +
+    // RSC bundle). Budget 20s (matching the /checkout waiter below at 25s)
+    // so the assertion doesn't starve the compile. Still well inside the
+    // test's 90s ceiling.
     await page.goto('/carrito')
     await expect(page.getByText(/tomates cherry/i).first()).toBeVisible({ timeout: 20_000 })
 
