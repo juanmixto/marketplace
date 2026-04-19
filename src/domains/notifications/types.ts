@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const notificationChannelSchema = z.enum(['TELEGRAM'])
+export const notificationChannelSchema = z.enum(['TELEGRAM', 'WEB_PUSH'])
 export type NotificationChannel = z.infer<typeof notificationChannelSchema>
 
 export const notificationEventTypeSchema = z.enum([

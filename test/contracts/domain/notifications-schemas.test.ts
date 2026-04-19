@@ -101,7 +101,10 @@ test('notificationChannelSchema — frozen value set', () => {
   // Adding a transport (e.g. WHATSAPP, EMAIL) is a deliberate
   // architectural change — every dispatcher that switches on
   // channel needs a new case.
-  assertEnumValues('notificationChannelSchema', notificationChannelSchema as never, ['TELEGRAM'])
+  assertEnumValues('notificationChannelSchema', notificationChannelSchema as never, [
+    'TELEGRAM',
+    'WEB_PUSH',
+  ])
 })
 
 test('notificationEventTypeSchema — frozen value set', () => {
