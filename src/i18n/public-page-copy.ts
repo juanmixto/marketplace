@@ -111,6 +111,9 @@ type PublicPageCopy = {
     whyTitle: string
     whyBody: string
     benefits: Array<{ title: string; description: string }>
+    toolsTitle: string
+    toolsBody: string
+    tools: Array<{ title: string; description: string; bullets: string[] }>
     pricingTitle: string
     pricingBody: string
     pricingLabel: string
@@ -282,6 +285,14 @@ const publicPageCopy: Record<Locale, PublicPageCopy> = {
             {
               q: '¿Cómo empiezo a vender?',
               a: `Regístrate en nuestro portal de productores, completa la ${BRAND_CLAIMS.verificationProcess.text.toLowerCase()}, vincula tu cuenta bancaria y comienza a subir productos.`,
+            },
+            {
+              q: '¿Me avisáis de los nuevos pedidos por Telegram?',
+              a: 'Sí. Desde tus preferencias de notificaciones puedes vincular tu cuenta de Telegram y recibir alertas instantáneas de nuevos pedidos, pagos confirmados e incidencias. La vinculación se hace con un enlace seguro y puedes desconectarla o elegir qué eventos recibir en cualquier momento.',
+            },
+            {
+              q: '¿Puedo instalar Mercado Productor como app en el móvil?',
+              a: 'Sí. La plataforma es una app instalable (PWA): desde el navegador del móvil o la tablet puedes añadirla a la pantalla de inicio y abrirla como una app nativa, sin pasar por ninguna tienda. Carga rápido, consume pocos datos y se actualiza sola.',
             },
           ],
         },
@@ -469,6 +480,28 @@ const publicPageCopy: Record<Locale, PublicPageCopy> = {
         {
           title: 'Sin cuotas mensuales',
           description: 'Solo pagas comisión cuando vendes. Cero costes fijos.',
+        },
+      ],
+      toolsTitle: 'Herramientas que marcan la diferencia',
+      toolsBody: 'Tecnología pensada para productores: entérate de cada venta al instante y trabaja desde donde estés, también sin cobertura.',
+      tools: [
+        {
+          title: 'Avisos al instante en Telegram',
+          description: 'Vincula tu cuenta de Telegram y recibe una notificación en cuanto entra un pedido. Sin abrir el panel, sin refrescar el correo.',
+          bullets: [
+            'Alertas de nuevos pedidos, pagos confirmados e incidencias.',
+            'Configura qué eventos quieres recibir desde tus preferencias.',
+            'Vinculación en segundos con un enlace seguro; puedes desconectarlo cuando quieras.',
+          ],
+        },
+        {
+          title: 'App instalable en el móvil (PWA)',
+          description: 'Mercado Productor se instala como una app nativa en tu móvil o tablet, sin pasar por ninguna tienda. Rápida, ligera y lista para el día a día.',
+          bullets: [
+            'Icono en la pantalla de inicio y pantalla completa, sin barra del navegador.',
+            'Carga rápida y consumo mínimo de datos, incluso con conexión irregular.',
+            'Actualizaciones automáticas: siempre tienes la última versión sin reinstalar.',
+          ],
         },
       ],
       pricingTitle: 'Precios y comisiones',
@@ -669,6 +702,14 @@ const publicPageCopy: Record<Locale, PublicPageCopy> = {
               q: 'How do I start selling?',
               a: `Create your producer account, complete the ${BRAND_CLAIMS.verificationProcess.text.toLowerCase()}, connect your bank account, and start uploading products.`,
             },
+            {
+              q: 'Do you notify new orders via Telegram?',
+              a: 'Yes. From your notification preferences you can link your Telegram account and receive instant alerts for new orders, confirmed payments, and incidents. Linking happens through a secure link and you can disconnect it or pick which events to receive at any time.',
+            },
+            {
+              q: 'Can I install Mercado Productor as an app on my phone?',
+              a: 'Yes. The platform is an installable app (PWA): from your mobile or tablet browser you can add it to your home screen and open it like a native app, no app store required. It loads fast, uses little data, and updates itself.',
+            },
           ],
         },
         {
@@ -855,6 +896,28 @@ const publicPageCopy: Record<Locale, PublicPageCopy> = {
         {
           title: 'No monthly fees',
           description: 'You only pay commission when you sell. Zero fixed costs.',
+        },
+      ],
+      toolsTitle: 'Tools that make the difference',
+      toolsBody: 'Technology built for producers: know about every sale the moment it happens and work from anywhere, even on a patchy connection.',
+      tools: [
+        {
+          title: 'Instant Telegram alerts',
+          description: 'Link your Telegram account and get notified the moment an order comes in. No refreshing the dashboard, no checking email.',
+          bullets: [
+            'Alerts for new orders, confirmed payments, and incidents.',
+            'Choose which events you want to receive from your preferences.',
+            'Connect in seconds with a secure link; disconnect any time.',
+          ],
+        },
+        {
+          title: 'Installable mobile app (PWA)',
+          description: 'Mercado Productor installs on your phone or tablet like a native app, no app store required. Fast, lightweight, and ready for day-to-day use.',
+          bullets: [
+            'Home-screen icon and full-screen mode, no browser bar.',
+            'Fast loading and low data use, even on unstable connections.',
+            'Automatic updates: always on the latest version, no reinstall.',
+          ],
         },
       ],
       pricingTitle: 'Pricing and commission',
