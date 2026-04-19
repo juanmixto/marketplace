@@ -442,16 +442,15 @@ export async function advanceFulfillment(
     }
   })
 
-  // #570 — notify the buyer that a parcel is on the way. First live
-  // push event in the app. Fire-and-forget so a broken push provider
-  // never blocks the vendor's UI. sendPushToUser is already a no-op
-  // when VAPID is unconfigured or the buyer has no subscription.
+  // #570 — notify the buyer that a parcel is on the way. Goes through
+  // the notification dispatcher so both transports (Telegram + web
+  // push) deliver personalized copy. The direct `sendPushToUser` call
+  // this replaced would otherwise fire alongside the dispatcher path,
+  // producing two push events per transition (the buyer sees one
+  // thanks to the browser-level tag collapse, but the
+  // NotificationDelivery table logged both).
   if (nextStatus === 'SHIPPED') {
-    void notifyBuyerFulfillmentShipped(fulfillment.orderId, {
-      trackingNumber: trackingNumber ?? null,
-    }).catch(() => {
-      /* logged inside the helper — ignore here so the outer UI is unaffected */
-    })
+    void notifyBuyerFulfillmentShipped(fulfillment.orderId, fulfillment.vendorId, fulfillmentId)
   }
 
   safeRevalidatePath('/vendor/pedidos')
@@ -459,22 +458,28 @@ export async function advanceFulfillment(
 
 async function notifyBuyerFulfillmentShipped(
   orderId: string,
-  extras: { trackingNumber: string | null },
+  vendorId: string,
+  fulfillmentId: string,
 ) {
   try {
-    const order = await db.order.findUnique({
-      where: { id: orderId },
-      select: { customerId: true, orderNumber: true },
-    })
+    const [order, vendor] = await Promise.all([
+      db.order.findUnique({
+        where: { id: orderId },
+        select: { customerId: true, orderNumber: true },
+      }),
+      db.vendor.findUnique({
+        where: { id: vendorId },
+        select: { displayName: true },
+      }),
+    ])
     if (!order) return
-    const { sendPushToUser } = await import('@/lib/pwa/push-send')
-    await sendPushToUser(order.customerId, {
-      title: '📦 Tu pedido va en camino',
-      body: extras.trackingNumber
-        ? `Pedido ${order.orderNumber} · tracking ${extras.trackingNumber}`
-        : `Pedido ${order.orderNumber} enviado. Toca para ver el seguimiento.`,
-      url: `/cuenta/pedidos/${orderId}`,
-      tag: `order-shipped-${orderId}`,
+    void emitNotification('order.status_changed', {
+      orderId,
+      customerUserId: order.customerId,
+      fulfillmentId,
+      status: 'SHIPPED',
+      orderNumber: order.orderNumber,
+      vendorName: vendor?.displayName ?? undefined,
     })
   } catch (err) {
     const { logger } = await import('@/lib/logger')

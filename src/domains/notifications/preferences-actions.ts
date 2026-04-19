@@ -12,7 +12,7 @@ import {
 } from './preferences-schema'
 import type { NotificationEventType, NotificationChannel } from './types'
 
-const ALL_CHANNELS: NotificationChannel[] = ['TELEGRAM']
+const ALL_CHANNELS: NotificationChannel[] = ['TELEGRAM', 'WEB_PUSH']
 
 const VENDOR_EVENT_TYPES: NotificationEventType[] = [
   'ORDER_CREATED',
@@ -48,11 +48,20 @@ async function buildPreferenceRows(
   userId: string,
   eventTypes: NotificationEventType[],
 ): Promise<PreferenceRow[]> {
-  const link = await db.telegramLink.findUnique({
-    where: { userId },
-    select: { isActive: true },
-  })
-  const channelLinked = link?.isActive ?? false
+  // Default-enabled state is per-channel: if the user has hooked up
+  // that transport (linked Telegram / subscribed a device to web
+  // push) we opt them in so they start receiving every event, but
+  // otherwise we default to disabled so linking a transport later
+  // doesn't retroactively flood them.
+  const [link, pushCount] = await Promise.all([
+    db.telegramLink.findUnique({
+      where: { userId },
+      select: { isActive: true },
+    }),
+    db.pushSubscription.count({ where: { userId } }),
+  ])
+  const telegramLinked = link?.isActive ?? false
+  const webPushSubscribed = pushCount > 0
 
   const stored = await db.notificationPreference.findMany({
     where: { userId },
@@ -67,7 +76,8 @@ async function buildPreferenceRows(
     for (const eventType of eventTypes) {
       const key = `${channel}:${eventType}`
       const stored = storedMap.get(key)
-      const enabled = stored ?? channelLinked
+      const defaultEnabled = channel === 'TELEGRAM' ? telegramLinked : webPushSubscribed
+      const enabled = stored ?? defaultEnabled
       rows.push({ channel, eventType, enabled })
     }
   }
