@@ -694,6 +694,18 @@ const es = {
   'vendor.orders.statusDelivered': 'Entregado',
   'vendor.orders.statusCancelled': 'Cancelado',
   'vendor.orders.statusIncident': 'Incidencia',
+  'vendor.orders.detail.productsTitle': 'Productos',
+  'vendor.orders.detail.linesCount': '{count} líneas',
+  'vendor.orders.detail.summaryTitle': 'Resumen',
+  'vendor.orders.detail.subtotal': 'Subtotal',
+  'vendor.orders.detail.shipping': 'Envío',
+  'vendor.orders.detail.free': 'Gratis',
+  'vendor.orders.detail.total': 'Total',
+  'vendor.orders.detail.addressTitle': 'Dirección',
+  'vendor.orders.detail.shipmentTitle': 'Envío',
+  'vendor.orders.detail.trackingLabel': 'Seguimiento:',
+  'vendor.orders.detail.noTracking': 'Aún no hay número de seguimiento.',
+  'vendor.orders.detail.back': 'Volver a pedidos',
 
   // Vendor – fulfillment actions
   'vendor.fulfillment.confirm': 'Confirmar pedido',

@@ -695,6 +695,18 @@ const en: Record<TranslationKeys, string> = {
   'vendor.orders.statusDelivered': 'Delivered',
   'vendor.orders.statusCancelled': 'Cancelled',
   'vendor.orders.statusIncident': 'Incident',
+  'vendor.orders.detail.productsTitle': 'Products',
+  'vendor.orders.detail.linesCount': '{count} items',
+  'vendor.orders.detail.summaryTitle': 'Summary',
+  'vendor.orders.detail.subtotal': 'Subtotal',
+  'vendor.orders.detail.shipping': 'Shipping',
+  'vendor.orders.detail.free': 'Free',
+  'vendor.orders.detail.total': 'Total',
+  'vendor.orders.detail.addressTitle': 'Address',
+  'vendor.orders.detail.shipmentTitle': 'Shipment',
+  'vendor.orders.detail.trackingLabel': 'Tracking:',
+  'vendor.orders.detail.noTracking': 'No tracking number yet.',
+  'vendor.orders.detail.back': 'Back to orders',
 
   // Vendor – fulfillment actions
   'vendor.fulfillment.confirm': 'Confirm order',

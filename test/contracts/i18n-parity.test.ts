@@ -34,6 +34,8 @@ const INTENTIONAL_COPY_KEYS = new Set<string>([
   'lang_es',                      // language name shown in its own language
   'order.subtotal',
   'order.total',
+  'vendor.orders.detail.subtotal', // "Subtotal" is the same word in both locales
+  'vendor.orders.detail.total',    // "Total" is the same word in both locales
   'vendor.stock',                 // "Stock" reads the same in ES and EN
   'vendor.productForm.variantsColStock', // "Stock" reads the same in ES and EN (variant table column)
   'vendor.profileForm.ibanLabel', // "IBAN" is an untranslatable acronym

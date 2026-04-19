@@ -63,8 +63,8 @@ export default async function VendorOrderDetailPage({ params }: Props) {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
         <section className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-[var(--foreground)]">Productos</h2>
-            <p className="text-sm text-[var(--muted)]">{fulfillment.order.lines.length} líneas</p>
+            <h2 className="text-lg font-semibold text-[var(--foreground)]">{t('vendor.orders.detail.productsTitle')}</h2>
+            <p className="text-sm text-[var(--muted)]">{t('vendor.orders.detail.linesCount').replace('{count}', String(fulfillment.order.lines.length))}</p>
           </div>
 
           <div className="divide-y divide-[var(--border)]">
@@ -104,18 +104,18 @@ export default async function VendorOrderDetailPage({ params }: Props) {
 
         <aside className="space-y-4">
           <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-[var(--foreground)]">Resumen</h2>
+            <h2 className="text-lg font-semibold text-[var(--foreground)]">{t('vendor.orders.detail.summaryTitle')}</h2>
             <div className="mt-4 space-y-2 text-sm">
               <div className="flex justify-between text-[var(--foreground-soft)]">
-                <span>Subtotal</span>
+                <span>{t('vendor.orders.detail.subtotal')}</span>
                 <span>{formatPrice(itemTotal)}</span>
               </div>
               <div className="flex justify-between text-[var(--foreground-soft)]">
-                <span>Envío</span>
-                <span>{fulfillment.order.shippingCost ? formatPrice(Number(fulfillment.order.shippingCost)) : 'Gratis'}</span>
+                <span>{t('vendor.orders.detail.shipping')}</span>
+                <span>{fulfillment.order.shippingCost ? formatPrice(Number(fulfillment.order.shippingCost)) : t('vendor.orders.detail.free')}</span>
               </div>
               <div className="flex justify-between border-t border-[var(--border)] pt-2 text-base font-bold text-[var(--foreground)]">
-                <span>Total</span>
+                <span>{t('vendor.orders.detail.total')}</span>
                 <span>{formatPrice(Number(fulfillment.order.grandTotal))}</span>
               </div>
             </div>
@@ -123,7 +123,7 @@ export default async function VendorOrderDetailPage({ params }: Props) {
 
           {shippingAddress && (
             <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-              <h2 className="text-lg font-semibold text-[var(--foreground)]">Dirección</h2>
+              <h2 className="text-lg font-semibold text-[var(--foreground)]">{t('vendor.orders.detail.addressTitle')}</h2>
               <p className="mt-3 text-sm leading-relaxed text-[var(--foreground-soft)]">
                 {shippingAddress.firstName} {shippingAddress.lastName}<br />
                 {shippingAddress.line1}
@@ -134,11 +134,11 @@ export default async function VendorOrderDetailPage({ params }: Props) {
           )}
 
           <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-[var(--foreground)]">Envío</h2>
+            <h2 className="text-lg font-semibold text-[var(--foreground)]">{t('vendor.orders.detail.shipmentTitle')}</h2>
             <div className="mt-3 space-y-2 text-sm">
               {fulfillment.shipment?.trackingNumber ? (
                 <p className="text-[var(--foreground-soft)]">
-                  Tracking:{' '}
+                  {t('vendor.orders.detail.trackingLabel')}{' '}
                   {fulfillment.shipment.trackingUrl ? (
                     <a
                       href={fulfillment.shipment.trackingUrl}
@@ -153,7 +153,7 @@ export default async function VendorOrderDetailPage({ params }: Props) {
                   )}
                 </p>
               ) : (
-                <p className="text-[var(--muted)]">Aún no hay número de seguimiento.</p>
+                <p className="text-[var(--muted)]">{t('vendor.orders.detail.noTracking')}</p>
               )}
               <FulfillmentActions
                 fulfillmentId={fulfillment.id}
@@ -168,7 +168,7 @@ export default async function VendorOrderDetailPage({ params }: Props) {
             href="/vendor/pedidos"
             className="inline-flex items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
           >
-            Volver a pedidos
+            {t('vendor.orders.detail.back')}
           </Link>
         </aside>
       </div>
