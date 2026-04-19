@@ -462,6 +462,27 @@ const es = {
   'vendor.dashboard.actionManage': 'Gestionar catálogo',
   'vendor.dashboard.actionViewStore': 'Ver tienda',
 
+  // Vendor – welcome tour (first access after becoming vendor)
+  'vendor.welcome.badge': 'Bienvenido a bordo',
+  'vendor.welcome.intro.title': '¡Hola, {name}! 👋',
+  'vendor.welcome.intro.body': 'Enhorabuena por unirte como productor. Te damos un recorrido rápido por tu panel para que sepas dónde está todo.',
+  'vendor.welcome.step1.title': 'Tu panel',
+  'vendor.welcome.step1.body': 'Desde aquí verás un resumen de tu actividad: configuración pendiente, pedidos urgentes y estadísticas rápidas.',
+  'vendor.welcome.step2.title': 'Productos',
+  'vendor.welcome.step2.body': 'Crea, edita y gestiona tu catálogo. Añade fotos, precios y stock para empezar a vender.',
+  'vendor.welcome.step3.title': 'Pedidos',
+  'vendor.welcome.step3.body': 'Aquí llegan las compras de tus clientes. Confírmalas, prepáralas y marca cuándo están listas para envío.',
+  'vendor.welcome.step4.title': 'Tu perfil',
+  'vendor.welcome.step4.body': 'Completa la descripción, la ubicación y tus datos para que los compradores te conozcan.',
+  'vendor.welcome.step5.title': 'Cobros',
+  'vendor.welcome.step5.body': 'Configura tus datos bancarios y consulta tus liquidaciones para recibir pagos.',
+  'vendor.welcome.step6.title': 'Valoraciones',
+  'vendor.welcome.step6.body': 'Consulta las opiniones de tus clientes. ¡Empieza completando tu perfil para dar confianza!',
+  'vendor.welcome.next': 'Siguiente',
+  'vendor.welcome.back': 'Atrás',
+  'vendor.welcome.skip': 'Saltar',
+  'vendor.welcome.finish': 'Completar perfil',
+
   // Vendor – products list extras
   'vendor.productsList.productsOne': '1 producto',
   'vendor.productsList.productsOther': '{count} productos',
