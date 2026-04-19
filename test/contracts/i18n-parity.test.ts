@@ -41,6 +41,8 @@ const INTENTIONAL_COPY_KEYS = new Set<string>([
   'vendor.profileForm.ibanLabel', // "IBAN" is an untranslatable acronym
   'vendor.telegram.title',        // brand name, same in both locales
   'account.telegram.title',       // brand name, same in both locales (buyer-side)
+  'vendor.notifications.channel.telegram', // brand name, same in both locales
+  'account.notifications.channel.telegram', // brand name, same in both locales (buyer-side)
 ])
 
 /**

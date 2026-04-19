@@ -405,6 +405,8 @@ const es = {
   'vendor.nav.notifications': 'Notificaciones',
 
   // Vendor – telegram settings
+  'vendor.notifications.channel.telegram': 'Telegram',
+  'vendor.notifications.channel.webPush': 'Móvil/Web',
   'vendor.telegram.title': 'Telegram',
   'vendor.telegram.subtitle': 'Recibe avisos de pedidos nuevos y responde con un toque.',
   'vendor.telegram.comingSoon': 'Próximamente. Podrás recibir avisos de pedidos en tu Telegram.',
@@ -1016,7 +1018,11 @@ const es = {
   'account.notifications.subtitle': 'Recibe avisos en Telegram cuando cambia el estado de tus pedidos.',
   'account.notifications.comingSoon': 'La integración con Telegram aún no está disponible en esta instancia.',
   'account.notifications.preferencesTitle': 'Eventos',
-  'account.notifications.needsLink': 'Conecta tu cuenta de Telegram para empezar a recibir avisos.',
+  'account.notifications.needsLink': 'Vincula Telegram o activa las notificaciones del navegador para empezar a recibir avisos.',
+  'account.notifications.needsTelegram': 'Vincula Telegram para activar estos avisos',
+  'account.notifications.needsWebPush': 'Activa las notificaciones del navegador para usarlo',
+  'account.notifications.channel.telegram': 'Telegram',
+  'account.notifications.channel.webPush': 'Notificaciones del navegador',
   'account.notifications.enabled': 'Activado',
   'account.notifications.disabled': 'Desactivado',
   'account.notifications.saveError': 'No se ha podido guardar el cambio. Inténtalo de nuevo.',

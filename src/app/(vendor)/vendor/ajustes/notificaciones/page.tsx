@@ -4,6 +4,7 @@ import { getServerT } from '@/i18n/server'
 import { getMyPreferences } from '@/domains/notifications'
 import { getTelegramConfig } from '@/domains/notifications/telegram/config'
 import { getTelegramLinkForUser } from '@/domains/notifications/telegram/queries'
+import { db } from '@/lib/db'
 import { NotificationPreferencesForm } from './NotificationPreferencesForm'
 import { TelegramConnectPanel } from './TelegramConnectPanel'
 
@@ -23,10 +24,12 @@ export default async function VendorNotificationsPage() {
     )
   }
 
-  const [preferences, link] = await Promise.all([
+  const [preferences, link, pushSubscriptionCount] = await Promise.all([
     getMyPreferences(),
     getTelegramLinkForUser(session.user.id),
+    db.pushSubscription.count({ where: { userId: session.user.id } }),
   ])
+  const webPushSubscribed = pushSubscriptionCount > 0
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -48,6 +51,7 @@ export default async function VendorNotificationsPage() {
         <NotificationPreferencesForm
           preferences={preferences}
           telegramLinked={link.linked}
+          webPushSubscribed={webPushSubscribed}
         />
       </section>
     </div>

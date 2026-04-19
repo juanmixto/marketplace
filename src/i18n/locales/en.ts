@@ -407,6 +407,8 @@ const en: Record<TranslationKeys, string> = {
   'vendor.nav.notifications': 'Notifications',
 
   // Vendor – telegram settings
+  'vendor.notifications.channel.telegram': 'Telegram',
+  'vendor.notifications.channel.webPush': 'Mobile/Web',
   'vendor.telegram.title': 'Telegram',
   'vendor.telegram.subtitle': 'Get instant alerts for new orders and reply with one tap.',
   'vendor.telegram.comingSoon': 'Coming soon. You will be able to receive order alerts on Telegram.',
@@ -1017,7 +1019,11 @@ const en: Record<TranslationKeys, string> = {
   'account.notifications.subtitle': 'Get Telegram alerts when your order status changes.',
   'account.notifications.comingSoon': 'The Telegram integration is not available on this instance yet.',
   'account.notifications.preferencesTitle': 'Events',
-  'account.notifications.needsLink': 'Connect your Telegram account to start receiving alerts.',
+  'account.notifications.needsLink': 'Connect Telegram or enable browser notifications to start receiving alerts.',
+  'account.notifications.needsTelegram': 'Connect Telegram to enable these alerts',
+  'account.notifications.needsWebPush': 'Enable browser notifications to use this channel',
+  'account.notifications.channel.telegram': 'Telegram',
+  'account.notifications.channel.webPush': 'Browser notifications',
   'account.notifications.enabled': 'Enabled',
   'account.notifications.disabled': 'Disabled',
   'account.notifications.saveError': 'Could not save the change. Please try again.',
