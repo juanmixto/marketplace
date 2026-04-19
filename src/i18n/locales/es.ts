@@ -156,6 +156,16 @@ const es = {
   'login.portal.admin.badge': 'Panel admin',
   'login.portal.admin.title': 'Entrar como administrador',
   'login.portal.admin.desc': 'Supervisa el marketplace, revisiones y operaciones internas.',
+  'login.continue': 'Continuar',
+  'login.back': 'Volver',
+  'login.error.invalidCredentials': 'Email o contraseña incorrectos',
+  'login.error.tooManyAttempts': 'Demasiados intentos. Prueba de nuevo en unos minutos.',
+  'login.error.generic': 'No pudimos procesar la petición. Inténtalo de nuevo.',
+  'login.totp.label': 'Código 2FA',
+  'login.totp.description': 'Introduce el código de 6 dígitos que muestra tu app de autenticación.',
+  'login.totp.rememberDevice': 'Confiar en este dispositivo durante 30 días',
+  'login.totp.rememberDeviceHint': 'No te pediremos el código en este navegador hasta que caduque o cambies la contraseña.',
+  'login.totp.submit': 'Verificar y entrar',
 
   // Auth – register
   'register.title': 'Crear cuenta',
