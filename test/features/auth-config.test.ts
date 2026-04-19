@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { authConfig } from '@/lib/auth-config'
+import { authConfig, resolveUseSecureCookies } from '@/lib/auth-config'
 import { UserRole } from '@/generated/prisma/enums'
 
 const callbacks = authConfig.callbacks!
@@ -73,6 +73,25 @@ test('jwt callback persists id and role onto the token', async () => {
   assert.ok(token)
   assert.equal(token.id, 'user_123')
   assert.equal(token.role, 'SUPERADMIN')
+})
+
+// Regression (auth enroll 403 behind Cloudflare Tunnel): in Route Handlers
+// Next.js sees the request as http://localhost while the login callback set
+// `__Secure-authjs.session-token` because AUTH_URL is https. Auth.js derives
+// the expected cookie name from `url.protocol` unless `useSecureCookies` is
+// explicit, which would leave `auth()` searching for the non-prefixed cookie
+// name and return null. The config must force secure cookies when AUTH_URL
+// announces an HTTPS origin.
+test('useSecureCookies follows AUTH_URL / NEXTAUTH_URL scheme', () => {
+  assert.equal(resolveUseSecureCookies({ AUTH_URL: 'https://dev.feldescloud.com' }), true)
+  assert.equal(resolveUseSecureCookies({ AUTH_URL: 'http://localhost:3001' }), false)
+  assert.equal(resolveUseSecureCookies({}), false)
+  assert.equal(resolveUseSecureCookies({ NEXTAUTH_URL: 'https://prod.example.com' }), true)
+  // AUTH_URL takes precedence over NEXTAUTH_URL.
+  assert.equal(
+    resolveUseSecureCookies({ AUTH_URL: 'http://a', NEXTAUTH_URL: 'https://b' }),
+    false
+  )
 })
 
 test('session callback copies token identity onto the session user', async () => {

@@ -3,7 +3,25 @@
 import type { NextAuthConfig } from 'next-auth'
 import { coerceUserRole, isAdmin, isVendor } from '@/lib/roles'
 
+// Behind the Cloudflare Tunnel (dev) / HTTPS terminator (prod), the
+// Next.js server sees requests as http://localhost internally. Auth.js
+// v5 derives `useSecureCookies` from `url.protocol` and, in Route
+// Handlers, that URL is the internal http:// one — so it falls back to
+// the non-prefixed `authjs.session-token` cookie name while the login
+// callback actually wrote `__Secure-authjs.session-token`. That leaves
+// `auth()` in /api/* route handlers unable to read a valid session
+// (server components read via next/headers and are unaffected).
+// Forcing useSecureCookies based on AUTH_URL matches the proxy fix in
+// #597 and keeps dev (http) working when AUTH_URL is unset.
+export function resolveUseSecureCookies(
+  env: { AUTH_URL?: string; NEXTAUTH_URL?: string } = process.env
+): boolean {
+  const authUrl = env.AUTH_URL ?? env.NEXTAUTH_URL
+  return authUrl?.startsWith('https://') ?? false
+}
+
 export const authConfig: NextAuthConfig = {
+  useSecureCookies: resolveUseSecureCookies(),
   pages: {
     signIn: '/login',
     error: '/login',
