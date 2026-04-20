@@ -5,6 +5,7 @@ import en from '@/i18n/locales/en'
 
 const WELCOME_KEYS = [
   'vendor.welcome.badge',
+  'vendor.welcome.stepCounter',
   'vendor.welcome.intro.title',
   'vendor.welcome.intro.body',
   'vendor.welcome.step1.title',
@@ -19,6 +20,7 @@ const WELCOME_KEYS = [
   'vendor.welcome.step5.body',
   'vendor.welcome.step6.title',
   'vendor.welcome.step6.body',
+  'vendor.welcome.start',
   'vendor.welcome.next',
   'vendor.welcome.back',
   'vendor.welcome.skip',
@@ -44,6 +46,14 @@ test('welcome tour keys exist in English locale and are non-empty', () => {
 test('intro.title contains {name} placeholder for both locales', () => {
   assert.ok((es as Record<string, string>)['vendor.welcome.intro.title']?.includes('{name}'))
   assert.ok((en as Record<string, string>)['vendor.welcome.intro.title']?.includes('{name}'))
+})
+
+test('stepCounter contains {current} and {total} placeholders', () => {
+  for (const locale of [es, en]) {
+    const value = (locale as Record<string, string>)['vendor.welcome.stepCounter']
+    assert.ok(value?.includes('{current}'), 'stepCounter missing {current}')
+    assert.ok(value?.includes('{total}'), 'stepCounter missing {total}')
+  }
 })
 
 test('welcome keys are present in both locales symmetrically', () => {
