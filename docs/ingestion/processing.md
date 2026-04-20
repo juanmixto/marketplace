@@ -59,6 +59,61 @@ stopping the pipeline mid-flight never corrupts state.
 Changing any of the above is a cross-phase breaking change, not a silent
 drift. Phase 2.5 (LLM) MUST emit values that respect the same contracts.
 
+## Tradeoffs the operator should track (Phase 2)
+
+These are **deliberate Phase-2 simplifications**, not stable semantics.
+They exist so the rule layer stays auditable. Each is a candidate for
+revisit in Phase 2.5 (LLM) or Phase 3 (admin tooling) once we have real
+metrics.
+
+### Price ranges ("4-6€/kg") → lower bound with halved confidence
+
+**Decision** (PR-F): when the extractor sees `A-B€/unit`, it stores
+`priceCents = lower(A, B)` and halves the price-field confidence to
+`0.4`. The rule name `priceRangeLowerBound` is recorded in
+`extractionMeta.priceCents` together with the full `A-B€/unit` source
+substring. **`4-6€/kg` does NOT mean `4€/kg`.** Treat this as a
+provisional readable-but-approximate value that the admin review must
+settle before any downstream use.
+
+- **Why not null?** Review queue still sees the range via the meta;
+  lower bound + low confidence is useful triage signal.
+- **Risk:** if anyone downstream reads `priceCents` without checking
+  `confidenceBand` / the raw `source`, they silently under-price.
+- **Mitigation:** the `IngestionProductDraft.rawFieldsSeen` column
+  holds the original range string; admin UI must show it.
+
+### Product classified PRODUCT but extractor returns zero → skip draft
+
+**Decision** (PR-F): the drafts builder returns
+`SKIPPED_NON_PRODUCT` when the classifier says PRODUCT but the
+extractor can't find a price. No draft is created, only the audit
+`IngestionExtractionResult` row. Deliberate false-negative bias —
+"Ante ambigüedad: menos extracción, no más."
+
+- **Expected real-world impact:** producer groups where price is
+  announced separately ("DMs", "precio en privado", photo-only posts)
+  will generate zero drafts. This is the documented cost of the
+  conservative stance.
+- **Observability:** the `ingestion.processing.drafts.classified_product_with_no_extractable_fields`
+  log line fires on every such skip. Phase 2 operators should track
+  the ratio:
+  ```sql
+  SELECT
+    COUNT(*) FILTER (WHERE "classification"='PRODUCT')          AS products_classified,
+    COUNT(*) FILTER (WHERE
+      "classification"='PRODUCT' AND
+      NOT EXISTS (
+        SELECT 1 FROM "IngestionProductDraft"
+         WHERE "sourceExtractionId" = "IngestionExtractionResult".id
+      )
+    )                                                          AS products_skipped_no_extraction
+  FROM "IngestionExtractionResult";
+  ```
+- **Revisit trigger:** if skip-ratio climbs above ~20 % on real
+  messages, the rule set is too strict and should be adjusted before
+  enabling LLM enrichment (Phase 2.5) as a fallback.
+
 ## Components (populated as PRs land)
 
 - [`src/domains/ingestion/processing/`](../../src/domains/ingestion/processing/)
@@ -67,13 +122,93 @@ drift. Phase 2.5 (LLM) MUST emit values that respect the same contracts.
   - `extractor-version.ts` — `CURRENT_RULES_EXTRACTOR_VERSION`.
   - `flags.ts` — `isProcessingKilled` + `isStageEnabled`.
   - `types.ts` — public surface re-exported from the top-level ingestion barrel.
-  - `classifier/` — PR-F.
-  - `extractor/` — PR-F (with Zod freeze test).
-  - `drafts/` — PR-F.
-  - `review-queue/` — PR-G.
-  - (dedupe lives inline in `drafts/dedupe.ts` — PR-G.)
+  - `classifier/` — rules-based classifier (PR-F).
+  - `extractor/` — rules extractor + Zod freeze test (PR-F).
+  - `drafts/` — drafts builder + idempotent upsert (PR-F).
+  - `dedupe/` — classification rules + scanner + LOW-only auto-merge (PR-G).
 - `prisma/schema.prisma` — `IngestionExtractionResult`, `IngestionProductDraft`,
   `IngestionVendorDraft`, `IngestionReviewQueueItem`, `IngestionDedupeCandidate`.
+
+## Dedupe (PR-G)
+
+Every freshly built `ProductDraft` triggers a `telegram.dedupe.drafts`
+job. The scanner compares the new draft pairwise against every other
+canonical draft at the same `extractorVersion`, plus — for the vendor
+side only — every canonical vendor with the same `externalId` across
+versions.
+
+### Classification taxonomy
+
+| Kind | Rule | Risk | Action |
+|---|---|---|---|
+| `STRONG` | same vendor + same normalised name + same unit + same weight bucket + same priceCents (product)<br>— OR —<br>same `externalId` (vendor) | `LOW` | **Auto-merge** via `canonicalDraftId` + `duplicateOf` + review item transitions to `AUTO_RESOLVED` |
+| `HEURISTIC` | same vendor + same normalised name + same unit, but priceCents or weight bucket differs | `MEDIUM` | `DedupeCandidate` row + `DEDUPE_CANDIDATE` review queue entry, priority 50 |
+| `SIMILARITY` | different vendor, same normalised name (exact equality after NFD + accent strip + punctuation collapse) | `HIGH` | `DedupeCandidate` row + review queue entry, priority 100 |
+
+Name normalisation strips case, accents, punctuation, emoji, and
+collapses whitespace — but **does not** apply Levenshtein, stemming,
+or embeddings. Anything weaker than exact normalised equality is left
+alone in Phase 2.
+
+### Every candidate is explainable
+
+`IngestionDedupeCandidate.reasonJson` stores:
+
+```json
+{
+  "reason": "identicalAcrossAllFields",
+  "score": 1,
+  "signals": [
+    { "rule": "product.vendor.equal", "matched": "v1", "compared": "v1" },
+    { "rule": "product.name.equal", "matched": "manzanas golden", "compared": "manzanas golden" },
+    { "rule": "product.unit.equal", "matched": "KG", "compared": "KG" },
+    { "rule": "product.weightBucket.equal", "matched": "none", "compared": "none" },
+    { "rule": "product.priceCents.equal", "matched": 250, "compared": 250 }
+  ]
+}
+```
+
+Every auto-merge or review-queue entry can be explained without
+re-running anything.
+
+### Non-destructive, always
+
+- Auto-merge sets `canonicalDraftId` + `duplicateOf` on the **newer**
+  row only. The older canonical row stays untouched.
+- Candidates and review rows persist forever (subject to retention in
+  a later phase). An operator in Phase 3 can undo a merge by clearing
+  the canonical pointers — no data recovery required.
+
+### Metrics (Phase 2 baseline)
+
+Every scan emits `ingestion.processing.dedupe.metrics` with:
+
+- `candidatesCreated`
+- `autoMerged`
+- `enqueuedForReview`
+- `autoMergeRatio` (of candidates)
+- `reviewRatio` (of candidates)
+- `byKind` — counts per STRONG / HEURISTIC / SIMILARITY
+- `byRisk` — counts per LOW / MEDIUM / HIGH
+
+For global aggregates, operators can query directly:
+
+```sql
+SELECT "riskClass", COUNT(*) FILTER (WHERE "autoApplied")    AS auto,
+                    COUNT(*) FILTER (WHERE NOT "autoApplied") AS queued
+  FROM "IngestionDedupeCandidate"
+ WHERE "createdAt" > now() - interval '7 days'
+ GROUP BY "riskClass";
+```
+
+Expected healthy distribution (Phase 2, rules-only):
+
+- `LOW` (auto-merged): re-posts of the same listing. Low single-digit
+  ratio relative to total drafts — most producers don't spam.
+- `MEDIUM`: same seller + same product + price tweak. Should track
+  producer-update frequency; investigate if it dominates.
+- `HIGH`: same name across sellers. Useful for the admin to spot
+  cross-seller overlap; never auto-acts.
 
 ## Feature flags
 
