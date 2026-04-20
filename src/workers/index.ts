@@ -22,12 +22,17 @@ import { getQueue, registerHandler, stopQueue } from '@/lib/queue'
 import { logger } from '@/lib/logger'
 import {
   INGESTION_JOB_KINDS,
+  PROCESSING_JOB_KINDS,
   resolveIngestionRuntimeConfig,
   type TelegramMediaDownloadJobData,
   type TelegramSyncJobData,
 } from '@/domains/ingestion'
 import { runTelegramSyncJob } from './jobs/telegram-sync'
 import { runTelegramMediaDownloadJob } from './jobs/telegram-media-download'
+import {
+  runProcessMessageJob,
+  type ProcessMessageJobData,
+} from './jobs/ingestion-processing'
 
 async function main() {
   logger.info('worker.starting', {
@@ -50,11 +55,23 @@ async function main() {
       await runTelegramMediaDownloadJob(job)
     },
   )
+  // Phase 2: deterministic processing pipeline (classifier + rules
+  // extractor + drafts builder) run inline inside a single job per
+  // raw message. The umbrella `kill-ingestion-processing` + the
+  // `feat-ingestion-rules-extractor` stage flag both default to off,
+  // so the handler is inert until operators opt in.
+  await registerHandler<ProcessMessageJobData>(
+    PROCESSING_JOB_KINDS.buildDrafts,
+    async (job) => {
+      await runProcessMessageJob(job)
+    },
+  )
 
   logger.info('worker.ready', {
     handlers: [
       INGESTION_JOB_KINDS.telegramSync,
       INGESTION_JOB_KINDS.telegramMediaDownload,
+      PROCESSING_JOB_KINDS.buildDrafts,
     ],
     config,
   })

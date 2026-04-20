@@ -1,0 +1,116 @@
+[
+  {
+    "id": "simple-apples",
+    "description": "clear single-product: produce + price + unit",
+    "text": "Manzanas golden: 2,50€/kg. Disponibles hoy.",
+    "expectedClassifier": { "kind": "PRODUCT", "confidenceAtLeast": 0.6 },
+    "expectedProducts": 1,
+    "expectedFirstProduct": {
+      "productName": "Manzanas golden",
+      "unit": "KG",
+      "priceCents": 250,
+      "currencyCode": "EUR",
+      "availability": "AVAILABLE"
+    }
+  },
+  {
+    "id": "multi-product-list",
+    "description": "bullet list of three products, each with its own price",
+    "text": "Hoy tenemos:\n• Tomates 1,80€/kg\n• Lechuga 0,90€/ud\n• Patatas nuevas 1,20€/kg",
+    "expectedClassifier": { "kind": "PRODUCT" },
+    "expectedProducts": 3,
+    "expectedOrdinals": [0, 1, 2],
+    "expectedPrices": [180, 90, 120]
+  },
+  {
+    "id": "numbered-multi-product",
+    "description": "numbered list split into products",
+    "text": "Pedido semanal:\n1. Queso curado 8,00€/kg\n2. Yogur natural 0,60€/ud\n3. Huevos camperos 2,50€/ud",
+    "expectedClassifier": { "kind": "PRODUCT" },
+    "expectedProducts": 3
+  },
+  {
+    "id": "conversation-greeting",
+    "description": "greeting + question, no price, no produce word",
+    "text": "Hola buenas, ¿alguien sabe si queda algo para el sábado?",
+    "expectedClassifier": { "kind": "CONVERSATION" }
+  },
+  {
+    "id": "conversation-thanks",
+    "description": "thanks message, clearly conversational",
+    "text": "Muchas gracias, todo estupendo como siempre",
+    "expectedClassifier": { "kind": "CONVERSATION" }
+  },
+  {
+    "id": "spam-promo-link",
+    "description": "promotional link — clear spam",
+    "text": "Click aquí para ganar un premio exclusivo https://bit.ly/promo-exclusiva",
+    "expectedClassifier": { "kind": "SPAM" }
+  },
+  {
+    "id": "ambiguous-single-word",
+    "description": "single produce word with no price, no unit — too weak to be PRODUCT",
+    "text": "Tomates",
+    "expectedClassifier": { "kind": "OTHER" }
+  },
+  {
+    "id": "price-only-no-corroboration",
+    "description": "price alone with no unit or produce word — conservative classifier rejects PRODUCT",
+    "text": "5€",
+    "expectedClassifier": { "kind": "OTHER" }
+  },
+  {
+    "id": "emoji-heavy-product",
+    "description": "emoji-heavy producer post should still classify as PRODUCT",
+    "text": "🍅🍅 Tomates raf 3,20€/kg 🍅🍅 Disponibles",
+    "expectedClassifier": { "kind": "PRODUCT" },
+    "expectedProducts": 1,
+    "expectedFirstProduct": { "priceCents": 320, "unit": "KG" }
+  },
+  {
+    "id": "weight-no-price",
+    "description": "weight mentioned but no price — classifier rejects PRODUCT (no price signal)",
+    "text": "Tengo 500g de queso curado disponible",
+    "expectedClassifier": { "kind": "OTHER" }
+  },
+  {
+    "id": "limited-availability",
+    "description": "availability signal LIMITED",
+    "text": "Últimas naranjas de la temporada, 1,50€/kg. Quedan pocas.",
+    "expectedClassifier": { "kind": "PRODUCT" },
+    "expectedProducts": 1,
+    "expectedFirstProduct": { "availability": "LIMITED" }
+  },
+  {
+    "id": "sold-out",
+    "description": "availability signal SOLD_OUT",
+    "text": "Queso manchego: 12€/kg. Agotado por esta semana.",
+    "expectedClassifier": { "kind": "PRODUCT" },
+    "expectedFirstProduct": { "availability": "SOLD_OUT" }
+  },
+  {
+    "id": "empty-message",
+    "description": "empty text → OTHER",
+    "text": "",
+    "expectedClassifier": { "kind": "OTHER" }
+  },
+  {
+    "id": "whitespace-only",
+    "description": "whitespace-only → OTHER",
+    "text": "   \n\t ",
+    "expectedClassifier": { "kind": "OTHER" }
+  },
+  {
+    "id": "price-range-conservative",
+    "description": "price range — extract conservatively (take the first/lower number)",
+    "text": "Miel de romero 4-6€/kg según formato",
+    "expectedClassifier": { "kind": "PRODUCT" },
+    "expectedFirstProduct": { "priceCents": 400, "unit": "KG" }
+  },
+  {
+    "id": "bilingual-catalan",
+    "description": "catalan-flavoured producer post still reaches PRODUCT via price+unit",
+    "text": "Pebrot vermell, molt fresc, 2,20€/kg",
+    "expectedClassifier": { "kind": "PRODUCT" }
+  }
+]
