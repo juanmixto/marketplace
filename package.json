@@ -35,7 +35,8 @@
     "sendcloud:replay": "node --env-file=.env --env-file-if-exists=.env.local --import tsx scripts/sendcloud-replay.ts",
     "reports:reviews": "node --env-file=.env --env-file-if-exists=.env.local --import tsx scripts/review-reports-list.ts",
     "worker": "node --env-file=.env --env-file-if-exists=.env.local --import tsx src/workers/index.ts",
-    "ingestion:sweep": "node --env-file=.env --env-file-if-exists=.env.local --import tsx scripts/ingestion-retention-sweep.ts"
+    "ingestion:sweep": "node --env-file=.env --env-file-if-exists=.env.local --import tsx scripts/ingestion-retention-sweep.ts",
+    "ingestion:metrics": "node --env-file=.env --env-file-if-exists=.env.local --import tsx scripts/ingestion-metrics.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
