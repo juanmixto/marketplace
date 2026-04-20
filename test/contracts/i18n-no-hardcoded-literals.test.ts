@@ -67,6 +67,9 @@ const ALLOWLIST_FILES: ReadonlySet<string> = new Set([
   'src/app/(admin)/admin/productores/[id]/edit/page.tsx', // Admin-only edit surface — not localized yet.
   'src/app/(admin)/admin/promociones/[id]/edit/page.tsx', // Admin-only edit surface — not localized yet.
   'src/app/(admin)/admin/suscripciones/[id]/edit/page.tsx', // Admin-only edit surface — not localized yet.
+  'src/app/(admin)/admin/ingestion/page.tsx', // Phase 3 ingestion review queue — feat-ingestion-admin gated, not localized yet.
+  'src/app/(admin)/admin/ingestion/[itemId]/page.tsx', // Phase 3 ingestion review item detail — feat-ingestion-admin gated, not localized yet.
+  'src/components/admin/ingestion/ReviewItemActions.tsx', // Phase 3 ingestion review actions — feat-ingestion-admin gated, not localized yet.
   // Auth flows — pending dedicated i18n PR.
   'src/app/(auth)/forgot-password/page.tsx',
   'src/app/(auth)/recuperar-contrasena/nueva/ResetForm.tsx',
