@@ -30,6 +30,37 @@ export {
   IngestionFeatureUnavailableError,
 } from './authz'
 
+// Runtime tunables (batch size, concurrency, media cap).
+export {
+  DEFAULT_SYNC_BATCH_SIZE,
+  MAX_SYNC_BATCH_SIZE,
+  DEFAULT_SYNC_CONCURRENCY,
+  DEFAULT_MEDIA_CONCURRENCY,
+  DEFAULT_MEDIA_MAX_BYTES,
+  DEFAULT_JOB_RETRY_LIMIT,
+  resolveIngestionRuntimeConfig,
+  type IngestionRuntimeConfig,
+} from './telegram/config'
+
+// Job handlers — pure functions exported so tests can drive them
+// with fakes, and the worker wires them with real dependencies.
+export {
+  telegramSyncHandler,
+  telegramMediaDownloadHandler,
+  MediaOversizeError,
+  type TelegramSyncDeps,
+  type TelegramSyncOutcome,
+  type TelegramMediaDownloadDeps,
+  type TelegramMediaDownloadOutcome,
+  type TelegramSyncJobData,
+  type TelegramMediaDownloadJobData,
+  type IngestionSyncDb,
+  type MediaStoreFn,
+  type MediaStoreResult,
+  type ChatWithConnection,
+  type MessageMediaWithMessage,
+} from './telegram/jobs'
+
 // Provider layer — types + factory + typed error taxonomy. The worker
 // imports `getTelegramProvider` to obtain the configured client;
 // business code only needs the types for DTO shapes and the error
