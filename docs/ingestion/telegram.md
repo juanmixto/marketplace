@@ -88,7 +88,48 @@ placeholder.
 - [`services/telegram-sidecar/`](../../services/telegram-sidecar/) —
   Python + Telethon sidecar (FastAPI). Phase 1 PR-B ships the contract
   surface; auth + read endpoints return `501` until PR-C.
+- [`src/domains/ingestion/telegram/jobs/`](../../src/domains/ingestion/telegram/jobs/)
+  — pure job handlers (`telegramSyncHandler`, `telegramMediaDownloadHandler`)
+  with dependency-injected `db` / provider / store / clock. Tests drive
+  the pure form; production wraps them in
+  [`src/workers/jobs/`](../../src/workers/jobs/).
 - `prisma/schema.prisma` — the `TelegramIngestion*` models + `IngestionJob`.
+
+### Job handlers (PR-C)
+
+| Job | Singleton key | Retry | Concurrency (default) |
+|---|---|---|---|
+| `telegram.sync` | per chat | exponential ×5 | 1 |
+| `telegram.mediaDownload` | `media:<fileUniqueId>` | exponential ×5 | 1 |
+
+**Sync handler invariants** (pinned in tests):
+
+- Kill switch is the first operation — zero I/O when engaged.
+- Disabled chat / inactive connection → skip without opening a run.
+- Message upserts + cursor advance run in **one transaction**;
+  mid-batch failure → rollback → next attempt re-reads → `@@unique`
+  dedupes. No gaps, no duplicates.
+- `TelegramChatGoneError` → disables the chat (terminal state).
+- Other provider errors rethrow so pg-boss applies retry policy.
+- Media downloads are enqueued **after** the commit, deduped by
+  `fileUniqueId` within the batch. Enqueue failure leaves the media
+  row `PENDING` for the Phase 6 sweeper.
+
+**Media handler invariants** (pinned in tests):
+
+- Kill switch first. Then dedupe on `blobKey`.
+- Hard size cap enforced both as pre-check and mid-stream.
+- `SOURCE_GONE` terminal; `AUTH_REQUIRED` rethrows for alert; retryable
+  errors leave row `PENDING` and rethrow.
+
+**Runtime tunables** (env, conservative defaults):
+
+| Env var | Default | Max | Purpose |
+|---|---|---|---|
+| `INGESTION_TELEGRAM_BATCH_SIZE` | 100 | 500 | Messages per sync batch |
+| `INGESTION_TELEGRAM_SYNC_CONCURRENCY` | 1 | 4 | Parallel sync workers |
+| `INGESTION_TELEGRAM_MEDIA_CONCURRENCY` | 1 | 4 | Parallel media workers |
+| `INGESTION_TELEGRAM_MEDIA_MAX_BYTES` | 20 MB | 256 MB | Hard cap per file |
 
 ### Provider contract
 
@@ -170,9 +211,14 @@ without deploying anything:
    `src/lib/flags.ts` is fail-open and the flag meaning inverts for
    `kill-*` (`true` = killed). Pinned by
    `test/features/ingestion-flags.test.ts`.
-5. **No handler registered** — `src/workers/index.ts` boots pg-boss but
-   calls no `registerHandler`. If the worker were deployed today, it would
-   idle. Handlers land in PR-C.
+5. **Handler kill-switch invariant** — `src/workers/index.ts` registers
+   two handlers (`telegram.sync`, `telegram.mediaDownload`). The very
+   first operation in each handler is a `kill-ingestion-telegram`
+   probe; if engaged, the handler returns `KILLED` before any provider
+   I/O, DB create, or enqueue. The default provider is `mock`, so even
+   an accidental deploy with the kill switch disabled returns no data.
+   Pinned by `test/features/ingestion-sync-handler.test.ts` and
+   `test/features/ingestion-media-handler.test.ts`.
 
 ### Rollout plan
 

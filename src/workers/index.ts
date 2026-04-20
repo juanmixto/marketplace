@@ -6,15 +6,28 @@
  * container / dyno. Heavy ingestion work lives here so the Next.js
  * request/response cycle stays untouched.
  *
- * Phase 1 scope: boot pg-boss, register no job handlers yet, stay
- * alive to prove the deployment story. Handlers land in PR-C
- * (telegram.sync, telegram.mediaDownload). The kill switch is
- * checked inside each handler, not at the worker level, so a flipped
- * flag stops work immediately without needing a redeploy.
+ * PR-C registers two handlers:
+ *
+ *   - `telegram.sync`           — incremental pull for one chat
+ *   - `telegram.mediaDownload`  — one media file per job
+ *
+ * Both handlers start with a `kill-ingestion-telegram` probe so a
+ * flipped flag stops new work within a single poll cycle, with no
+ * redeploy needed. Concurrency is configurable but defaults to 1 per
+ * job kind, which is deliberately conservative — raising it requires
+ * a Phase 6 review.
  */
 
-import { getQueue, stopQueue } from '@/lib/queue'
+import { getQueue, registerHandler, stopQueue } from '@/lib/queue'
 import { logger } from '@/lib/logger'
+import {
+  INGESTION_JOB_KINDS,
+  resolveIngestionRuntimeConfig,
+  type TelegramMediaDownloadJobData,
+  type TelegramSyncJobData,
+} from '@/domains/ingestion'
+import { runTelegramSyncJob } from './jobs/telegram-sync'
+import { runTelegramMediaDownloadJob } from './jobs/telegram-media-download'
 
 async function main() {
   logger.info('worker.starting', {
@@ -22,13 +35,29 @@ async function main() {
     pid: process.pid,
   })
 
+  const config = resolveIngestionRuntimeConfig()
   await getQueue()
 
-  // PR-C will register handlers here, e.g.:
-  //   await registerHandler('telegram.sync', telegramSyncHandler)
-  //   await registerHandler('telegram.mediaDownload', telegramMediaDownloadHandler)
+  await registerHandler<TelegramSyncJobData>(
+    INGESTION_JOB_KINDS.telegramSync,
+    async (job) => {
+      await runTelegramSyncJob(job)
+    },
+  )
+  await registerHandler<TelegramMediaDownloadJobData>(
+    INGESTION_JOB_KINDS.telegramMediaDownload,
+    async (job) => {
+      await runTelegramMediaDownloadJob(job)
+    },
+  )
 
-  logger.info('worker.ready')
+  logger.info('worker.ready', {
+    handlers: [
+      INGESTION_JOB_KINDS.telegramSync,
+      INGESTION_JOB_KINDS.telegramMediaDownload,
+    ],
+    config,
+  })
 
   const shutdown = async (signal: string) => {
     logger.info('worker.shutdown_signal', { signal })
