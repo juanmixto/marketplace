@@ -15,6 +15,7 @@ import {
   ListBulletIcon,
   PaperAirplaneIcon,
   PencilSquareIcon,
+  ArchiveBoxIcon,
 } from '@heroicons/react/24/outline'
 import { ProductActions } from '@/components/vendor/ProductActions'
 import { setProductStock, submitForReview } from '@/domains/vendors/actions'
@@ -162,10 +163,14 @@ export function VendorProductListClient({ products }: Props) {
       )}
 
       {products.length === 0 ? (
-        <div className="rounded-xl border-2 border-dashed border-[var(--border)] py-16 text-center">
-          <p className="text-[var(--muted)] mb-3">{t('vendor.noProducts')}</p>
+        <div className="rounded-xl border-2 border-dashed border-[var(--border)] px-6 py-12 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+            <ArchiveBoxIcon className="h-8 w-8" aria-hidden="true" />
+          </div>
+          <h2 className="text-lg font-semibold text-[var(--foreground)]">{t('vendor.noProductsTitle')}</h2>
+          <p className="mx-auto mt-1 max-w-md text-sm text-[var(--muted)]">{t('vendor.noProductsBody')}</p>
           <Link href="/vendor/productos/nuevo"
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
+            className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
             <PlusIcon className="h-4 w-4" /> {t('vendor.addFirstProduct')}
           </Link>
         </div>
