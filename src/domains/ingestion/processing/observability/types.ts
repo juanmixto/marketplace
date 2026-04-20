@@ -25,16 +25,26 @@ export interface ObservabilityDb {
     count(args: {
       where: { createdAt: { gte: Date; lt: Date }; engine?: 'RULES' | 'LLM' }
     }): Promise<number>
-    findMany(args: {
-      where: {
-        createdAt: { gte: Date; lt: Date }
-        classification: 'PRODUCT'
-      }
-      select: {
-        id: true
-        productDrafts: { select: { id: true } }
-      }
-    }): Promise<Array<{ id: string; productDrafts: Array<{ id: string }> }>>
+    findMany(
+      args:
+        | {
+            where: {
+              createdAt: { gte: Date; lt: Date }
+              classification: 'PRODUCT'
+            }
+            select: {
+              id: true
+              productDrafts: { select: { id: true } }
+            }
+          }
+        | {
+            where: { createdAt: { gte: Date; lt: Date } }
+            select: { classification: true; inputSnapshot: true }
+          },
+    ): Promise<
+      | Array<{ id: string; productDrafts: Array<{ id: string }> }>
+      | Array<{ classification: string | null; inputSnapshot: unknown }>
+    >
   }
   ingestionProductDraft: {
     count(args: {
@@ -47,6 +57,10 @@ export interface ObservabilityDb {
     }): Promise<
       Array<{ status?: string; confidenceBand?: string; _count: number }>
     >
+    findMany(args: {
+      where: { createdAt: { gte: Date; lt: Date } }
+      select: { productName: true }
+    }): Promise<Array<{ productName: string | null }>>
   }
   ingestionDedupeCandidate: {
     count(args: {
@@ -70,13 +84,22 @@ export interface ObservabilityDb {
   }
 }
 
-export type MessageClassName = 'PRODUCT' | 'CONVERSATION' | 'SPAM' | 'OTHER'
+export type MessageClassName =
+  | 'PRODUCT'
+  | 'PRODUCT_NO_PRICE'
+  | 'CONVERSATION'
+  | 'SPAM'
+  | 'OTHER'
 export type ConfidenceBandName = 'LOW' | 'MEDIUM' | 'HIGH'
 export type DraftStatusName = 'PENDING' | 'APPROVED' | 'REJECTED' | 'TOMBSTONED'
 export type DedupeKindName = 'STRONG' | 'HEURISTIC' | 'SIMILARITY'
 export type DedupeRiskName = 'LOW' | 'MEDIUM' | 'HIGH'
 export type ReviewStateName = 'ENQUEUED' | 'AUTO_RESOLVED'
-export type ReviewKindName = 'PRODUCT_DRAFT' | 'VENDOR_DRAFT' | 'DEDUPE_CANDIDATE'
+export type ReviewKindName =
+  | 'PRODUCT_DRAFT'
+  | 'VENDOR_DRAFT'
+  | 'DEDUPE_CANDIDATE'
+  | 'UNEXTRACTABLE_PRODUCT'
 
 export interface ProcessingAggregates {
   window: AggregatesTimeWindow
@@ -89,6 +112,11 @@ export interface ProcessingAggregates {
     total: number
     byStatus: Record<DraftStatusName, number>
     byConfidenceBand: Record<ConfidenceBandName, number>
+    /** rules-1.1.0 quality signal: average length of `productName`
+     *  across drafts in the window. Low numbers (< 5 chars) suggest
+     *  rules failing to pull a real name; high numbers (> 40) suggest
+     *  the rule grabbed a paragraph instead of a title. */
+    productNameAvgLen: number
   }
   skip: {
     productClassifications: number
@@ -104,6 +132,23 @@ export interface ProcessingAggregates {
     autoMergeRatio: number
     reviewRatio: number
   }
+  /** Same-text reuse within the window. A "repeat" is any message
+   *  whose (tgAuthorId, normalised text) tuple appears >= 2 times.
+   *  `repetitionRatio = messagesInARepeatSet / totalMessages`. The
+   *  null-author case is treated as its own author (anonymous
+   *  channel posts can still repeat). Added in rules-1.1.0-observ
+   *  to motivate dedupe for PRODUCT_NO_PRICE in iter-2. */
+  repetition: {
+    totalMessages: number
+    messagesInRepeatSets: number
+    distinctRepeatSets: number
+    ratio: number
+  }
+  /** Average `inputSnapshot.text` length (chars, NOT bytes) grouped
+   *  by classification kind. Signal for tuning extractor / producer
+   *  tone rules: long PRODUCT_NO_PRICE entries are the kind that
+   *  Phase 2.5 LLM would handle. */
+  textLenByClass: Record<MessageClassName, number>
   reviewQueue: {
     total: number
     byState: Record<ReviewStateName, number>

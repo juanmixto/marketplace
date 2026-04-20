@@ -139,14 +139,55 @@ function extractSingleProduct(segment: string, ordinal: number): ExtractedProduc
   // empty rather than build a draft from a single word.
   if (!price) return null
 
-  const confidenceOverall = normaliseConfidence(
-    meanConfidence(confidenceByField),
-  )
+  // rules-1.2.0: weighted mean per field criticality (A in iter-2).
+  //
+  // Confidence contract (locked — any shift is a cross-phase change):
+  //   - Critical fields (priceCents, productName) double-weighted.
+  //   - Low-signal fields (availability, categorySlug) half-weighted.
+  //   - `availability` is EXCLUDED when it's the default "UNKNOWN"
+  //     reading (confidence 0.3) so a missing signal doesn't drag
+  //     the overall score down.
+  //   - +0.05 bonus when every critical + unit signal fires AND no
+  //     promo marker was detected (isolated caller hint is
+  //     `priceWithPerUnit`). Cap still 1.0 via clamp.
+  //
+  // `confidenceModel` persists the exact calculation so operators
+  // can reconstruct any score from the stored row later.
+  const weights: Record<string, number> = {
+    priceCents: 2.0,
+    productName: 2.0,
+    unit: 1.0,
+    weightGrams: 1.0,
+    currencyCode: 1.0,
+    availability: 0.5,
+    categorySlug: 0.5,
+  }
+  const excludedFields: string[] = []
+  // Exclude availability when it fell back to the default
+  // (no explicit signal fired — rule `availDefault`).
+  if (meta.availability?.rule === 'availDefault') {
+    excludedFields.push('availability')
+  }
+
+  // Bonus: pricePerUnit rule fired (`priceWithPerUnit`) AND unit AND
+  // name all present, and no promo rule fired (already enforced by
+  // the fact that `isLikelyPromo` returns null for price).
+  const bonusEligible =
+    meta.priceCents?.rule === 'priceWithPerUnit' &&
+    meta.unit !== undefined &&
+    meta.productName !== undefined
+  const bonusAmount = bonusEligible ? 0.05 : 0
+  const bonus = bonusEligible
+    ? { rule: 'priceWithPerUnit+unit+name', amount: bonusAmount }
+    : null
+
+  const rawWeighted = weightedConfidence(confidenceByField, weights, excludedFields)
+  const confidenceOverall = normaliseConfidence(rawWeighted + bonusAmount)
 
   return {
     productOrdinal: ordinal,
     productName: name?.value ?? null,
-    categorySlug: null, // Phase 2 leaves categorySlug to admin review.
+    categorySlug: null,
     unit: unit?.value ?? null,
     weightGrams: weight?.value ?? null,
     priceCents: price?.value ?? null,
@@ -155,7 +196,31 @@ function extractSingleProduct(segment: string, ordinal: number): ExtractedProduc
     confidenceOverall,
     confidenceByField,
     extractionMeta: meta,
+    confidenceModel: {
+      method: 'weightedMean' as const,
+      weights,
+      excludedFields,
+      bonus,
+    },
   }
+}
+
+function weightedConfidence(
+  byField: Record<string, number>,
+  weights: Record<string, number>,
+  excluded: string[],
+): number {
+  const excludedSet = new Set(excluded)
+  let num = 0
+  let denom = 0
+  for (const [k, v] of Object.entries(byField)) {
+    if (excludedSet.has(k)) continue
+    const w = weights[k] ?? 1.0
+    num += v * w
+    denom += w
+  }
+  if (denom === 0) return 0
+  return num / denom
 }
 
 // ─── Field extractors ────────────────────────────────────────────────────────
@@ -166,12 +231,32 @@ interface Extracted<T> {
   meta: ExtractionMetaEntry
 }
 
+// rules-1.2.0: optionally capture the "/kg" tail so `m[0]` includes
+// it. Fixes a latent v1.0.0 bug where `hasPerUnit` downstream never
+// fired because `m[0]` only held "2,50€" regardless of trailing
+// per-unit indicator. Without this fix the bonus path in
+// weightedConfidence could not be reached.
 const PRICE_REGEX_FULL =
-  /(\d+[.,]?\d*)\s*(?:€|eur(?:os?)?)/i
+  /(\d+[.,]?\d*)\s*(?:€|eur(?:os?)?)(?:\s*\/\s*(?:kg|g|l|ml|ud|uds|unidades?))?/i
 const PRICE_RANGE_REGEX =
   /(\d+[.,]?\d*)\s*-\s*(\d+[.,]?\d*)\s*(?:€|eur(?:os?)?)/i
 
+// rules-1.1.0: promotional copy regularly mentions "10€ de descuento"
+// / "hasta 5€" / "DESCUENTO" near the main price. Those numbers are
+// not product prices; we block extraction and let the operator
+// decide via the review queue. The classifier has already decided
+// this is PRODUCT-like, so we don't reject the whole extraction —
+// we just decline to set a price.
+const PROMO_MARKERS = /\b(?:PROMOCI[OÓ]N|DESCUENTO|OFERTA)\b|\bhasta\s+\d+\s*(?:€|eur|%)/i
+
+function isLikelyPromo(segment: string): boolean {
+  return PROMO_MARKERS.test(segment)
+}
+
 function extractPrice(segment: string): Extracted<number> | null {
+  if (isLikelyPromo(segment)) {
+    return null
+  }
   // Price ranges ("4-6€/kg") are deliberately NOT extracted as a
   // single value: picking either bound is wrong for at least some
   // buyers. Conservative policy: take the lower bound with halved
@@ -277,23 +362,55 @@ function extractAvailability(segment: string): Extracted<ExtractedProduct['avail
 }
 
 function extractProductName(segment: string): Extracted<string> | null {
-  // Take everything before the first price / unit token, up to 80
-  // chars, strip bullets + trailing punctuation. If empty, null.
-  const priceIdx = searchIndex(segment, PRICE_REGEX_FULL)
-  const unitIdx = searchIndex(segment, UNIT_TOKEN_REGEX)
+  // rules-1.1.0: real-world producer posts put the product name in
+  // a short opening line (often all-caps or emoji-bracketed) and
+  // then drop into a long marketing paragraph. The old rule took
+  // "everything before the first price/unit token" which in long
+  // posts captured the whole paragraph.
+  //
+  // New rule, in priority order:
+  //   1. If the first line is short (≤ 60 chars) and has at least one
+  //      letter, use it (strip bullets / emojis-only tails).
+  //   2. Otherwise, fall back to the first 5 "useful" words of the
+  //      opening line, joined with spaces.
+  //   3. Always single-line output (no \n).
+  const firstLineRaw = segment.split(/\r?\n/)[0] ?? ''
+  const firstLine = firstLineRaw
+    .replace(/^[-*•·\s]+/, '') // bullet prefix
+    .replace(/[:,.\s-]+$/, '') // trailing punctuation
+    .trim()
+  if (firstLine.length === 0) return null
+  // Reject lines that are pure emoji / symbols (no letter).
+  if (!/[a-záéíóúñ]/i.test(firstLine)) return null
+
+  let candidate = firstLine
+  if (candidate.length > 60) {
+    // Too long: take up to 5 meaningful word tokens.
+    const words = candidate.split(/\s+/).filter((w) => /[a-záéíóúñ]/i.test(w))
+    candidate = words.slice(0, 5).join(' ')
+  }
+  // If there's a price/unit token inside the short opening line,
+  // trim to what precedes it (same behaviour as before, now safely
+  // scoped to one line).
+  const priceIdx = searchIndex(candidate, PRICE_REGEX_FULL)
+  const unitIdx = searchIndex(candidate, UNIT_TOKEN_REGEX)
   const cutoffs = [priceIdx, unitIdx].filter((n): n is number => n > 0)
-  const cutoff = cutoffs.length > 0 ? Math.min(...cutoffs) : segment.length
-  let candidate = segment.slice(0, cutoff).trim()
-  candidate = candidate.replace(/^[-*•·]\s*/, '').replace(/[:,.\s-]+$/, '').trim()
+  if (cutoffs.length > 0) {
+    candidate = candidate.slice(0, Math.min(...cutoffs)).trim()
+  }
+  candidate = candidate.replace(/[:,.\s-]+$/, '').trim()
+
   if (candidate.length < 2) return null
-  // Cap length to avoid swallowing emoji-heavy headers.
-  if (candidate.length > 80) candidate = candidate.slice(0, 80).trim()
-  // Clean emoji-only strings.
-  if (!/[a-z]/i.test(candidate)) return null
+  // Final hard cap; this should be rare after the first-line logic
+  // above but stays as a safety net.
+  if (candidate.length > 60) candidate = candidate.slice(0, 60).trim()
+  // Clean emoji-only strings (ASCII letter check to reject
+  // decorative headers that slipped past the accented-letter gate).
+  if (!/[a-záéíóúñ]/i.test(candidate)) return null
   return {
     value: candidate,
-    confidence: 0.6,
-    meta: { rule: 'firstSegmentBeforePriceOrUnit', source: candidate },
+    confidence: 0.65,
+    meta: { rule: 'firstLineOpeningWords', source: candidate },
   }
 }
 
@@ -329,9 +446,7 @@ function buildVendorHint(input: ExtractorInput): ExtractionVendorHint {
 }
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
-
-function meanConfidence(byField: Record<string, number>): number {
-  const values = Object.values(byField)
-  if (values.length === 0) return 0
-  return values.reduce((a, b) => a + b, 0) / values.length
-}
+//
+// `meanConfidence` was removed in rules-1.2.0 in favour of
+// `weightedConfidence`. Keep this comment so grep / history
+// searches find the transition.

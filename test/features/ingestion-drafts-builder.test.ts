@@ -92,7 +92,7 @@ function baseInput(overrides: Partial<BuildDraftsInput> = {}): BuildDraftsInput 
       signals: [{ rule: 'pricePerUnitToken', weight: 0.65, match: '2,50€/kg' }],
     },
     extraction: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       products: [
         {
           productOrdinal: 0,
@@ -109,6 +109,7 @@ function baseInput(overrides: Partial<BuildDraftsInput> = {}): BuildDraftsInput 
             priceCents: { rule: 'priceWithPerUnit', source: '2,50€/kg' },
             unit: { rule: 'unitToken', source: 'kg' },
           },
+          confidenceModel: { method: 'weightedMean', weights: {}, excludedFields: [], bonus: null },
         },
       ],
       vendorHint: {
@@ -168,7 +169,7 @@ test('buildDrafts: multi-product message persists one draft per ordinal, no cros
   const fake = createFakeDb()
   const input = baseInput({
     extraction: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       products: [
         {
           productOrdinal: 0,
@@ -182,6 +183,7 @@ test('buildDrafts: multi-product message persists one draft per ordinal, no cros
           confidenceOverall: 0.7,
           confidenceByField: {},
           extractionMeta: {},
+          confidenceModel: { method: 'weightedMean', weights: {}, excludedFields: [], bonus: null },
         },
         {
           productOrdinal: 1,
@@ -195,6 +197,7 @@ test('buildDrafts: multi-product message persists one draft per ordinal, no cros
           confidenceOverall: 0.65,
           confidenceByField: {},
           extractionMeta: {},
+          confidenceModel: { method: 'weightedMean', weights: {}, excludedFields: [], bonus: null },
         },
       ],
       vendorHint: {
@@ -232,11 +235,11 @@ test('buildDrafts: non-PRODUCT classification keeps audit trail but creates no d
   assert.equal(fake.reviewItems.size, 0)
 })
 
-test('buildDrafts: PRODUCT with zero extracted products still keeps audit, no drafts', async () => {
+test('buildDrafts: PRODUCT with zero extracted products returns UNEXTRACTABLE + enqueues review item (rules-1.1.0)', async () => {
   const fake = createFakeDb()
   const input = baseInput({
     extraction: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       products: [],
       vendorHint: {
         externalId: null,
@@ -248,16 +251,53 @@ test('buildDrafts: PRODUCT with zero extracted products still keeps audit, no dr
     },
   })
   const result = await buildDrafts(input, { db: fake.db, isKilled: async () => false })
-  assert.equal(result.status, 'SKIPPED_NON_PRODUCT')
+  assert.equal(result.status, 'UNEXTRACTABLE')
   assert.ok(result.extractionResultId)
   assert.equal(fake.products.size, 0)
+  assert.equal(result.reviewItemsEnqueued, 1)
+  // The review row must target the extraction id (not a draft) and
+  // be of kind UNEXTRACTABLE_PRODUCT so the future admin UI can
+  // distinguish it from reviewable drafts.
+  assert.ok(
+    [...fake.reviewItems.keys()].some(
+      (k) => k.startsWith('UNEXTRACTABLE_PRODUCT|') && k.endsWith(result.extractionResultId!),
+    ),
+    'expected UNEXTRACTABLE_PRODUCT review queue item targeting the extraction',
+  )
+})
+
+test('buildDrafts: classifier=PRODUCT_NO_PRICE also takes the UNEXTRACTABLE path (no drafts)', async () => {
+  const fake = createFakeDb()
+  const input = baseInput({
+    classification: {
+      kind: 'PRODUCT_NO_PRICE',
+      confidence: 0.5,
+      confidenceBand: 'MEDIUM',
+      signals: [],
+    },
+    extraction: {
+      schemaVersion: 2,
+      products: [],
+      vendorHint: {
+        externalId: null,
+        displayName: null,
+        meta: { rule: 'classifiedProductNoPrice', source: 'PRODUCT_NO_PRICE' },
+      },
+      confidenceOverall: 0,
+      rulesFired: [],
+    },
+  })
+  const result = await buildDrafts(input, { db: fake.db, isKilled: async () => false })
+  assert.equal(result.status, 'UNEXTRACTABLE')
+  assert.equal(fake.products.size, 0)
+  assert.equal(result.reviewItemsEnqueued, 1)
 })
 
 test('buildDrafts: vendor with null externalId always creates a fresh vendor draft (no auto-merge)', async () => {
   const fake = createFakeDb()
   const input = baseInput({
     extraction: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       products: [
         {
           productOrdinal: 0,
@@ -271,6 +311,7 @@ test('buildDrafts: vendor with null externalId always creates a fresh vendor dra
           confidenceOverall: 0.5,
           confidenceByField: {},
           extractionMeta: {},
+          confidenceModel: { method: 'weightedMean', weights: {}, excludedFields: [], bonus: null },
         },
       ],
       vendorHint: {

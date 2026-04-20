@@ -38,7 +38,7 @@ import { generateCorrelationId } from '@/lib/correlation'
  */
 
 function emptyExtractionFor(
-  classifierKind: 'CONVERSATION' | 'SPAM' | 'OTHER',
+  classifierKind: 'PRODUCT_NO_PRICE' | 'CONVERSATION' | 'SPAM' | 'OTHER',
 ): ExtractionPayload {
   return {
     schemaVersion: EXTRACTION_SCHEMA_VERSION,
@@ -46,7 +46,13 @@ function emptyExtractionFor(
     vendorHint: {
       externalId: null,
       displayName: null,
-      meta: { rule: 'classifiedNonProduct', source: classifierKind },
+      meta: {
+        rule:
+          classifierKind === 'PRODUCT_NO_PRICE'
+            ? 'classifiedProductNoPrice'
+            : 'classifiedNonProduct',
+        source: classifierKind,
+      },
     },
     confidenceOverall: 0,
     rulesFired: [],
@@ -149,6 +155,28 @@ export async function runProcessMessageJob(
           error: err,
         })
       }
+    }
+  }
+
+  // rules-1.2.0: enqueue an unextractable-dedupe scan when the
+  // builder routed to UNEXTRACTABLE. Same stage gate, same
+  // best-effort semantics.
+  if (
+    draftsResult.status === 'UNEXTRACTABLE' &&
+    draftsResult.extractionResultId
+  ) {
+    try {
+      await enqueue(
+        PROCESSING_JOB_KINDS.unextractableDedupe,
+        { extractionId: draftsResult.extractionResultId, correlationId },
+        { singletonKey: `unxdedupe:${draftsResult.extractionResultId}` },
+      )
+    } catch (err) {
+      logger.warn('ingestion.processing.unextractable-dedupe.enqueue_failed', {
+        extractionId: draftsResult.extractionResultId,
+        correlationId,
+        error: err,
+      })
     }
   }
 }

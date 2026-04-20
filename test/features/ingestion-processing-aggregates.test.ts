@@ -56,8 +56,18 @@ function createFake(data: {
         const engine = args.where.engine
         return ex.filter((e) => (engine ? e.engine === engine : true)).length
       },
-      async findMany() {
-        return productExtractions
+      async findMany(args: unknown) {
+        // Two shapes: skip metric (PRODUCT classification + productDrafts)
+        // and reuse metric (all + inputSnapshot). Route by the `where`.
+        const a = args as {
+          where: { classification?: string }
+          select: Record<string, unknown>
+        }
+        if (a.where.classification === 'PRODUCT') return productExtractions
+        return ex.map((e) => ({
+          classification: e.classification,
+          inputSnapshot: {},
+        }))
       },
     },
     ingestionProductDraft: {
@@ -66,6 +76,12 @@ function createFake(data: {
       },
       async groupBy(args) {
         return groupCount(data.drafts ?? [], args.by[0]) as never
+      },
+      async findMany() {
+        // rules-1.1.0 productName avg: fake rows have no productName
+        // field in this test harness, return null entries so the
+        // average calculation handles the no-data case.
+        return (data.drafts ?? []).map(() => ({ productName: null }))
       },
     },
     ingestionDedupeCandidate: {
@@ -122,6 +138,7 @@ test('aggregates: classification buckets fill for every kind', async () => {
   )
   assert.deepEqual(result.classification, {
     PRODUCT: 2,
+    PRODUCT_NO_PRICE: 0,
     CONVERSATION: 1,
     SPAM: 1,
     OTHER: 1,
@@ -176,12 +193,13 @@ test('aggregates: dedupe ratios divide by candidatesTotal correctly', async () =
 function healthyAggregates(): ProcessingAggregates {
   return {
     window,
-    classification: { PRODUCT: 10, CONVERSATION: 5, SPAM: 1, OTHER: 4 },
+    classification: { PRODUCT: 10, PRODUCT_NO_PRICE: 0, CONVERSATION: 5, SPAM: 1, OTHER: 4 },
     extractions: { total: 20, byEngine: { RULES: 20, LLM: 0 } },
     drafts: {
       total: 10,
       byStatus: { PENDING: 10, APPROVED: 0, REJECTED: 0, TOMBSTONED: 0 },
       byConfidenceBand: { LOW: 1, MEDIUM: 2, HIGH: 7 },
+      productNameAvgLen: 20,
     },
     skip: { productClassifications: 10, withZeroDrafts: 1, ratio: 0.1 },
     dedupe: {
@@ -196,7 +214,16 @@ function healthyAggregates(): ProcessingAggregates {
     reviewQueue: {
       total: 19,
       byState: { ENQUEUED: 18, AUTO_RESOLVED: 1 },
-      byKind: { PRODUCT_DRAFT: 10, VENDOR_DRAFT: 0, DEDUPE_CANDIDATE: 9 },
+      byKind: { PRODUCT_DRAFT: 10, VENDOR_DRAFT: 0, DEDUPE_CANDIDATE: 9, UNEXTRACTABLE_PRODUCT: 0 },
+    },
+    repetition: {
+      totalMessages: 20,
+      messagesInRepeatSets: 0,
+      distinctRepeatSets: 0,
+      ratio: 0,
+    },
+    textLenByClass: {
+      PRODUCT: 120, PRODUCT_NO_PRICE: 0, CONVERSATION: 40, SPAM: 100, OTHER: 25,
     },
   }
 }

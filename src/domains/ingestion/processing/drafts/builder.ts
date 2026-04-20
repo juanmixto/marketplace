@@ -81,7 +81,10 @@ export async function buildDrafts(
       update: {}, // idempotent: same (message, version) returns existing row
     })
 
-    if (input.classification.kind !== 'PRODUCT') {
+    const kind = input.classification.kind
+    const isProductLike = kind === 'PRODUCT' || kind === 'PRODUCT_NO_PRICE'
+
+    if (!isProductLike) {
       // Non-product classifications keep an audit trail but do not
       // produce drafts or review queue items.
       return {
@@ -93,19 +96,41 @@ export async function buildDrafts(
       }
     }
 
-    if (input.extraction.products.length === 0) {
-      // Classifier flagged PRODUCT but rules couldn't pull anything
-      // useful out. Leave the audit trail; don't create empty drafts.
-      logger.warn(`${LOG_SCOPE}.classified_product_with_no_extractable_fields`, {
+    // UNEXTRACTABLE path (new in rules-1.1.0): classifier said
+    // PRODUCT_NO_PRICE, OR it said PRODUCT but the extractor could
+    // not produce any `products`. Either way we persist the audit
+    // row and enqueue a review queue item keyed on the extraction
+    // id so the Phase 3 UI can surface these for operator triage.
+    if (kind === 'PRODUCT_NO_PRICE' || input.extraction.products.length === 0) {
+      logger.warn(`${LOG_SCOPE}.unextractable_product`, {
         messageId: input.messageId,
+        classifiedAs: kind,
+        productsInPayload: input.extraction.products.length,
         correlationId: input.correlationId,
       })
+      await tx.ingestionReviewQueueItem.upsert({
+        where: {
+          kind_targetId: {
+            kind: 'UNEXTRACTABLE_PRODUCT',
+            targetId: extractionRow.id,
+          },
+        },
+        create: {
+          kind: 'UNEXTRACTABLE_PRODUCT',
+          targetId: extractionRow.id,
+          // Mid-priority: operators should be aware but these don't
+          // block live listings. Lower than HIGH-risk dedupe (100),
+          // higher than plain PRODUCT_DRAFT (0).
+          priority: 25,
+        },
+        update: {},
+      })
       return {
-        status: 'SKIPPED_NON_PRODUCT' as const,
+        status: 'UNEXTRACTABLE' as const,
         extractionResultId: extractionRow.id,
         productDraftIds: [] as string[],
         vendorDraftId: null,
-        reviewItemsEnqueued: 0,
+        reviewItemsEnqueued: 1,
       }
     }
 

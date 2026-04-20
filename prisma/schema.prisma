@@ -1450,6 +1450,12 @@ enum IngestionDraftKind {
   PRODUCT_DRAFT
   VENDOR_DRAFT
   DEDUPE_CANDIDATE
+  // Added in rules-1.1.0. Enqueued when the classifier says PRODUCT
+  // (or PRODUCT_NO_PRICE) but the extractor could not materialise a
+  // draft — either because there was no price signal or the fields
+  // looked like a promo. `targetId` points at the
+  // IngestionExtractionResult.id instead of a draft id.
+  UNEXTRACTABLE_PRODUCT
 }
 
 enum IngestionReviewState {
@@ -1471,6 +1477,12 @@ enum IngestionDedupeRisk {
 
 enum IngestionMessageClass {
   PRODUCT
+  // Added in rules-1.1.0. Producer-flavoured post that does NOT
+  // contain a usable price token (very common in real chats where
+  // price is moved to DM). The extractor runs but does not produce
+  // drafts; the drafts builder enqueues an UNEXTRACTABLE_PRODUCT
+  // review queue item so the message stays visible to operators.
+  PRODUCT_NO_PRICE
   CONVERSATION
   SPAM
   OTHER
@@ -1501,6 +1513,11 @@ model IngestionExtractionResult {
 
   message       TelegramIngestionMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
   productDrafts IngestionProductDraft[]
+
+  // rules-1.2.0: unextractable-dedupe candidates reference this
+  // row via two optional relations (left vs right side of the pair).
+  unextractableLefts  IngestionUnextractableDedupeCandidate[] @relation("UnextractableLeft")
+  unextractableRights IngestionUnextractableDedupeCandidate[] @relation("UnextractableRight")
 
   // Re-running the same extractor version on the same message MUST
   // be a no-op. Bumping the version creates a new revision row.
@@ -1613,4 +1630,32 @@ model IngestionDedupeCandidate {
   @@unique([leftDraftId, rightDraftId, kind])
   @@index([riskClass, autoApplied])
   @@index([createdAt])
+}
+
+// Phase 2.x iter-2 / rules-1.2.0: dedupe candidates for
+// `PRODUCT_NO_PRICE` extractions. Separate table from
+// `IngestionDedupeCandidate` by design (user rejected polymorphic
+// target columns) — a candidate here always links two
+// `IngestionExtractionResult` rows, never drafts. Policy mirrors the
+// product-draft dedupe: only STRONG → LOW → auto-merge, MEDIUM / HIGH
+// require human review. The "merge" in this table is a pointer
+// operation on the review queue (ENQUEUED → AUTO_RESOLVED), never a
+// destructive write to the extraction rows.
+model IngestionUnextractableDedupeCandidate {
+  id                String              @id @default(cuid())
+  leftExtractionId  String
+  rightExtractionId String
+  kind              IngestionDedupeKind
+  riskClass         IngestionDedupeRisk
+  reasonJson        Json
+  autoApplied       Boolean             @default(false)
+  autoAppliedAt     DateTime?
+  createdAt         DateTime            @default(now())
+
+  leftExtraction  IngestionExtractionResult @relation("UnextractableLeft", fields: [leftExtractionId], references: [id], onDelete: Cascade)
+  rightExtraction IngestionExtractionResult @relation("UnextractableRight", fields: [rightExtractionId], references: [id], onDelete: Cascade)
+
+  @@unique([leftExtractionId, rightExtractionId, kind], map: "IngUnxDedupe_left_right_kind_key")
+  @@index([riskClass, autoApplied], map: "IngUnxDedupe_riskClass_autoApplied_idx")
+  @@index([createdAt], map: "IngUnxDedupe_createdAt_idx")
 }

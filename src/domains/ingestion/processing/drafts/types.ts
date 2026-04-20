@@ -6,7 +6,7 @@ import type { ExtractionPayload } from '../extractor/schema'
  */
 
 export interface ClassifierPersistenceInput {
-  kind: 'PRODUCT' | 'CONVERSATION' | 'SPAM' | 'OTHER'
+  kind: 'PRODUCT' | 'PRODUCT_NO_PRICE' | 'CONVERSATION' | 'SPAM' | 'OTHER'
   confidence: number
   confidenceBand: 'LOW' | 'MEDIUM' | 'HIGH'
   signals: unknown // serialised ClassifierSignal[]
@@ -22,7 +22,16 @@ export interface BuildDraftsInput {
 }
 
 export interface BuildDraftsResult {
-  status: 'OK' | 'KILLED' | 'SKIPPED_NON_PRODUCT'
+  status:
+    | 'OK'
+    | 'KILLED'
+    | 'SKIPPED_NON_PRODUCT'
+    // New in rules-1.1.0. Classifier said PRODUCT / PRODUCT_NO_PRICE
+    // but the extractor returned zero products (or the classification
+    // was PRODUCT_NO_PRICE outright). Extraction row persisted as
+    // audit, UNEXTRACTABLE_PRODUCT review queue row created, zero
+    // drafts built.
+    | 'UNEXTRACTABLE'
   extractionResultId: string | null
   productDraftIds: string[]
   vendorDraftId: string | null
@@ -44,7 +53,7 @@ export interface DraftsBuilderDb {
         confidenceOverall: number | string
         confidenceBand: 'LOW' | 'MEDIUM' | 'HIGH'
         confidenceByField: unknown
-        classification: 'PRODUCT' | 'CONVERSATION' | 'SPAM' | 'OTHER'
+        classification: 'PRODUCT' | 'PRODUCT_NO_PRICE' | 'CONVERSATION' | 'SPAM' | 'OTHER'
         correlationId: string
       }
       update: Record<string, never>
@@ -105,9 +114,9 @@ export interface DraftsBuilderDb {
   }
   ingestionReviewQueueItem: {
     upsert(args: {
-      where: { kind_targetId: { kind: 'PRODUCT_DRAFT' | 'VENDOR_DRAFT' | 'DEDUPE_CANDIDATE'; targetId: string } }
+      where: { kind_targetId: { kind: 'PRODUCT_DRAFT' | 'VENDOR_DRAFT' | 'DEDUPE_CANDIDATE' | 'UNEXTRACTABLE_PRODUCT'; targetId: string } }
       create: {
-        kind: 'PRODUCT_DRAFT' | 'VENDOR_DRAFT' | 'DEDUPE_CANDIDATE'
+        kind: 'PRODUCT_DRAFT' | 'VENDOR_DRAFT' | 'DEDUPE_CANDIDATE' | 'UNEXTRACTABLE_PRODUCT'
         targetId: string
         priority: number
       }

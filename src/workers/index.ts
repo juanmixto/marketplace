@@ -34,6 +34,10 @@ import {
   type ProcessMessageJobData,
 } from './jobs/ingestion-processing'
 import { runDedupeJob, type DedupeJobData } from './jobs/ingestion-dedupe'
+import {
+  runUnextractableDedupeJob,
+  type UnextractableDedupeJobData,
+} from './jobs/ingestion-unextractable-dedupe'
 
 async function main() {
   logger.info('worker.starting', {
@@ -73,6 +77,15 @@ async function main() {
       await runDedupeJob(job)
     },
   )
+  // rules-1.2.0: unextractable dedupe runs after UNEXTRACTABLE
+  // builder outcomes. Same stage flag (`feat-ingestion-dedupe`)
+  // controls both product-draft and unextractable dedupe.
+  await registerHandler<UnextractableDedupeJobData>(
+    PROCESSING_JOB_KINDS.unextractableDedupe,
+    async (job) => {
+      await runUnextractableDedupeJob(job)
+    },
+  )
 
   logger.info('worker.ready', {
     handlers: [
@@ -80,6 +93,7 @@ async function main() {
       INGESTION_JOB_KINDS.telegramMediaDownload,
       PROCESSING_JOB_KINDS.buildDrafts,
       PROCESSING_JOB_KINDS.dedupeDrafts,
+      PROCESSING_JOB_KINDS.unextractableDedupe,
     ],
     config,
   })
