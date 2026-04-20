@@ -50,7 +50,7 @@ async function ingest(
     classifier.kind === 'PRODUCT'
       ? extractRules({ text, vendorHint: { authorExternalId: authorId } })
       : {
-          schemaVersion: 1 as const,
+          schemaVersion: 2 as const,
           products: [] as never[],
           vendorHint: {
             externalId: null,

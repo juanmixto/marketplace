@@ -85,12 +85,12 @@ function createFakeDb(seed: {
 function ext(
   overrides: Partial<UnextractableExtractionRow> & { id: string; text: string; author: string | null },
 ): UnextractableExtractionRow {
+  const { text: _text, author: _author, ...rest } = overrides
   return {
-    id: overrides.id,
     extractorVersion: 'rules-1.2.0',
     classification: 'PRODUCT_NO_PRICE',
     inputSnapshot: { text: overrides.text, tgAuthorId: overrides.author },
-    ...overrides,
+    ...rest,
   }
 }
 

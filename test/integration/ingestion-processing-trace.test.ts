@@ -62,7 +62,7 @@ async function runPipeline(messageId: string, text: string) {
     classifier.kind === 'PRODUCT'
       ? extractRules({ text, vendorHint: { authorExternalId: '42' } })
       : ({
-          schemaVersion: 1 as const,
+          schemaVersion: 2 as const,
           products: [] as never[],
           vendorHint: {
             externalId: null,

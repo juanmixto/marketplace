@@ -92,7 +92,7 @@ function baseInput(overrides: Partial<BuildDraftsInput> = {}): BuildDraftsInput 
       signals: [{ rule: 'pricePerUnitToken', weight: 0.65, match: '2,50€/kg' }],
     },
     extraction: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       products: [
         {
           productOrdinal: 0,
@@ -109,6 +109,7 @@ function baseInput(overrides: Partial<BuildDraftsInput> = {}): BuildDraftsInput 
             priceCents: { rule: 'priceWithPerUnit', source: '2,50€/kg' },
             unit: { rule: 'unitToken', source: 'kg' },
           },
+          confidenceModel: { method: 'weightedMean', weights: {}, excludedFields: [], bonus: null },
         },
       ],
       vendorHint: {
@@ -168,7 +169,7 @@ test('buildDrafts: multi-product message persists one draft per ordinal, no cros
   const fake = createFakeDb()
   const input = baseInput({
     extraction: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       products: [
         {
           productOrdinal: 0,
@@ -182,6 +183,7 @@ test('buildDrafts: multi-product message persists one draft per ordinal, no cros
           confidenceOverall: 0.7,
           confidenceByField: {},
           extractionMeta: {},
+          confidenceModel: { method: 'weightedMean', weights: {}, excludedFields: [], bonus: null },
         },
         {
           productOrdinal: 1,
@@ -195,6 +197,7 @@ test('buildDrafts: multi-product message persists one draft per ordinal, no cros
           confidenceOverall: 0.65,
           confidenceByField: {},
           extractionMeta: {},
+          confidenceModel: { method: 'weightedMean', weights: {}, excludedFields: [], bonus: null },
         },
       ],
       vendorHint: {
@@ -236,7 +239,7 @@ test('buildDrafts: PRODUCT with zero extracted products returns UNEXTRACTABLE + 
   const fake = createFakeDb()
   const input = baseInput({
     extraction: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       products: [],
       vendorHint: {
         externalId: null,
@@ -273,7 +276,7 @@ test('buildDrafts: classifier=PRODUCT_NO_PRICE also takes the UNEXTRACTABLE path
       signals: [],
     },
     extraction: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       products: [],
       vendorHint: {
         externalId: null,
@@ -294,7 +297,7 @@ test('buildDrafts: vendor with null externalId always creates a fresh vendor dra
   const fake = createFakeDb()
   const input = baseInput({
     extraction: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       products: [
         {
           productOrdinal: 0,
@@ -308,6 +311,7 @@ test('buildDrafts: vendor with null externalId always creates a fresh vendor dra
           confidenceOverall: 0.5,
           confidenceByField: {},
           extractionMeta: {},
+          confidenceModel: { method: 'weightedMean', weights: {}, excludedFields: [], bonus: null },
         },
       ],
       vendorHint: {
