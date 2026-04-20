@@ -108,3 +108,10 @@ export {
   TelegramFloodWaitError,
   TelegramChatGoneError,
 } from './telegram/providers'
+
+// Phase 2 — deterministic processing layer. Handlers for classifier /
+// extractor / drafts / dedupe land in PR-F and PR-G; PR-E exports
+// shared contracts (confidence bands, extractor version, flags, job
+// kinds) so downstream code can start referencing them with stable
+// semantics.
+export * from './processing'
