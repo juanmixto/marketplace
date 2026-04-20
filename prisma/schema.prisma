@@ -535,10 +535,10 @@ model Review {
   vendorResponse   String?   @db.Text
   vendorResponseAt DateTime?
 
-  order    Order   @relation(fields: [orderId], references: [id])
-  product  Product @relation(fields: [productId], references: [id])
-  vendor   Vendor  @relation(fields: [vendorId], references: [id])
-  customer User    @relation(fields: [customerId], references: [id])
+  order    Order          @relation(fields: [orderId], references: [id])
+  product  Product        @relation(fields: [productId], references: [id])
+  vendor   Vendor         @relation(fields: [vendorId], references: [id])
+  customer User           @relation(fields: [customerId], references: [id])
   reports  ReviewReport[]
 
   @@unique([orderId, productId])
@@ -1226,4 +1226,184 @@ model TelegramActionLog {
 
   @@index([userId, createdAt])
   @@index([chatId, createdAt])
+}
+
+// ─── Telegram ingestion (PHASE 1 — raw data only) ────────────────────────────
+//
+// Observer-side read of public Telegram groups via a MTProto sidecar
+// (Telethon). Completely separate from TelegramLink / TelegramActionLog,
+// which are for the USER-facing notification bot. Naming is explicit
+// (TelegramIngestion*) to avoid any confusion between the two concerns.
+//
+// These tables are the source of truth for raw messages; nothing here
+// feeds Product / Vendor / ProductImage in Phase 1. Processing, drafts,
+// and publishing land in later phases behind the same kill switch.
+
+enum TelegramIngestionChatKind {
+  GROUP
+  SUPERGROUP
+  CHANNEL
+}
+
+enum TelegramIngestionConnectionStatus {
+  PENDING
+  ACTIVE
+  REVOKED
+}
+
+enum TelegramIngestionMediaKind {
+  PHOTO
+  VIDEO
+  DOCUMENT
+  OTHER
+}
+
+enum TelegramIngestionMediaStatus {
+  PENDING
+  DOWNLOADED
+  SKIPPED_OVERSIZE
+  SOURCE_GONE
+  FAILED
+}
+
+enum TelegramIngestionSyncStatus {
+  RUNNING
+  OK
+  FAILED
+  CANCELLED
+}
+
+enum IngestionJobStatus {
+  QUEUED
+  RUNNING
+  OK
+  FAILED
+  DEAD
+}
+
+model TelegramIngestionConnection {
+  id              String                            @id @default(cuid())
+  label           String
+  // One-way hash of the phone number that owns the Telethon session.
+  // The actual phone number and session data live ONLY inside the
+  // sidecar's encrypted volume — never in this DB.
+  phoneNumberHash String
+  // Opaque pointer the sidecar uses to look up its local session.
+  sessionRef      String                            @unique
+  status          TelegramIngestionConnectionStatus @default(PENDING)
+  createdByUserId String
+  createdAt       DateTime                          @default(now())
+  updatedAt       DateTime                          @updatedAt
+
+  chats TelegramIngestionChat[]
+
+  @@index([status])
+  @@index([createdByUserId])
+}
+
+model TelegramIngestionChat {
+  id             String                    @id @default(cuid())
+  connectionId   String
+  // Telegram chat IDs exceed 32-bit; BigInt is required.
+  tgChatId       BigInt
+  title          String
+  kind           TelegramIngestionChatKind
+  // Incremental sync cursor. Only advanced after a batch lands in DB.
+  lastMessageId  BigInt?
+  isEnabled      Boolean                   @default(false)
+  disabledReason String?                   @db.Text
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  connection TelegramIngestionConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  messages   TelegramIngestionMessage[]
+  syncRuns   TelegramIngestionSyncRun[]
+
+  @@unique([connectionId, tgChatId])
+  @@index([isEnabled])
+}
+
+model TelegramIngestionMessage {
+  id          String   @id @default(cuid())
+  chatId      String
+  tgMessageId BigInt
+  tgAuthorId  BigInt?
+  text        String?  @db.Text
+  // Raw Telethon payload, preserved verbatim for source-of-truth.
+  rawJson     Json
+  postedAt    DateTime
+  fetchedAt   DateTime @default(now())
+  // Phase-1-ready hook for the right-to-erasure / tombstone flow.
+  tombstoned  Boolean  @default(false)
+
+  chat  TelegramIngestionChat           @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  media TelegramIngestionMessageMedia[]
+
+  @@unique([chatId, tgMessageId])
+  @@index([chatId, postedAt(sort: Desc)])
+  @@index([tgAuthorId])
+}
+
+model TelegramIngestionMessageMedia {
+  id           String                       @id @default(cuid())
+  messageId    String
+  // Telegram's stable unique id lets us dedupe across messages that
+  // forward the same media. One download → one blob → many references.
+  fileUniqueId String                       @unique
+  kind         TelegramIngestionMediaKind
+  status       TelegramIngestionMediaStatus @default(PENDING)
+  blobKey      String?
+  sizeBytes    Int?
+  mimeType     String?
+  downloadedAt DateTime?
+  lastErrorMsg String?                      @db.Text
+  createdAt    DateTime                     @default(now())
+
+  message TelegramIngestionMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([status])
+}
+
+model TelegramIngestionSyncRun {
+  id              String                      @id @default(cuid())
+  chatId          String
+  status          TelegramIngestionSyncStatus @default(RUNNING)
+  startedAt       DateTime                    @default(now())
+  finishedAt      DateTime?
+  fromMessageId   BigInt?
+  toMessageId     BigInt?
+  messagesFetched Int                         @default(0)
+  mediaFetched    Int                         @default(0)
+  errorMessage    String?                     @db.Text
+  // Correlation id threaded to every log line emitted during the run.
+  correlationId   String
+
+  chat TelegramIngestionChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, startedAt(sort: Desc)])
+  @@index([status])
+}
+
+// Admin-visible mirror of pg-boss job outcomes. pg-boss keeps its own
+// `pgboss.*` schema for internal state; this table exists so the admin
+// panel + operators can browse ingestion job history using the same
+// Prisma client as the rest of the app.
+model IngestionJob {
+  id           String             @id @default(cuid())
+  kind         String
+  status       IngestionJobStatus @default(QUEUED)
+  // Opaque payload pointer (e.g. chatId, messageMediaId). Kept small
+  // on purpose; the full payload stays in pg-boss.
+  payloadRef   String
+  attempts     Int                @default(0)
+  lastErrorMsg String?            @db.Text
+  lastErrorAt  DateTime?
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([kind, status])
+  @@index([status, createdAt])
 }
