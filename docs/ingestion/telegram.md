@@ -112,6 +112,36 @@ Flip `kill-ingestion-telegram` to `true` in PostHog. Expected behaviour:
 Incident override (PostHog itself down):
 `FEATURE_FLAGS_OVERRIDE='{"kill-ingestion-telegram":true}'`.
 
+### How to verify zero runtime impact (Phase 1 acceptance)
+
+Phase 1 ships inert code. Any doubt about that can be confirmed mechanically,
+without deploying anything:
+
+1. **Web graph isolation** — `src/workers/` and `src/lib/queue.ts` are not
+   imported by any file under `src/app/`, `src/components/`, or any domain
+   other than `ingestion`. Verify:
+   ```bash
+   grep -rE "from ['\"]@/workers|from ['\"]@/lib/queue['\"]" src/app src/components src/domains \
+     | grep -v src/workers
+   # expected: no output
+   ```
+2. **Lazy queue init** — `src/lib/queue.ts` declares `let instance = null`
+   and `let startPromise = null` at module level. `new PgBoss(...)` is only
+   constructed inside `createInstance()`, which only runs when `getQueue()`
+   is called. Importing the module does not open a DB connection.
+3. **Migration additivity** — the migration contains only `CREATE TABLE`,
+   `CREATE TYPE`, `CREATE INDEX`, and `ALTER TABLE ... ADD CONSTRAINT`
+   statements, all scoped to the new `TelegramIngestion*` / `IngestionJob`
+   tables. No pre-existing table is touched.
+4. **Kill switch default** — `isIngestionKilled()` resolves to `true` when
+   no `FEATURE_FLAGS_OVERRIDE` is set and PostHog is unavailable, because
+   `src/lib/flags.ts` is fail-open and the flag meaning inverts for
+   `kill-*` (`true` = killed). Pinned by
+   `test/features/ingestion-flags.test.ts`.
+5. **No handler registered** — `src/workers/index.ts` boots pg-boss but
+   calls no `registerHandler`. If the worker were deployed today, it would
+   idle. Handlers land in PR-C.
+
 ### Rollout plan
 
 To be filled in PR-D (#666).
