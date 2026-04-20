@@ -56,8 +56,18 @@ function createFake(data: {
         const engine = args.where.engine
         return ex.filter((e) => (engine ? e.engine === engine : true)).length
       },
-      async findMany() {
-        return productExtractions
+      async findMany(args: unknown) {
+        // Two shapes: skip metric (PRODUCT classification + productDrafts)
+        // and reuse metric (all + inputSnapshot). Route by the `where`.
+        const a = args as {
+          where: { classification?: string }
+          select: Record<string, unknown>
+        }
+        if (a.where.classification === 'PRODUCT') return productExtractions
+        return ex.map((e) => ({
+          classification: e.classification,
+          inputSnapshot: {},
+        }))
       },
     },
     ingestionProductDraft: {
@@ -205,6 +215,15 @@ function healthyAggregates(): ProcessingAggregates {
       total: 19,
       byState: { ENQUEUED: 18, AUTO_RESOLVED: 1 },
       byKind: { PRODUCT_DRAFT: 10, VENDOR_DRAFT: 0, DEDUPE_CANDIDATE: 9, UNEXTRACTABLE_PRODUCT: 0 },
+    },
+    repetition: {
+      totalMessages: 20,
+      messagesInRepeatSets: 0,
+      distinctRepeatSets: 0,
+      ratio: 0,
+    },
+    textLenByClass: {
+      PRODUCT: 120, PRODUCT_NO_PRICE: 0, CONVERSATION: 40, SPAM: 100, OTHER: 25,
     },
   }
 }

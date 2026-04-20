@@ -25,16 +25,26 @@ export interface ObservabilityDb {
     count(args: {
       where: { createdAt: { gte: Date; lt: Date }; engine?: 'RULES' | 'LLM' }
     }): Promise<number>
-    findMany(args: {
-      where: {
-        createdAt: { gte: Date; lt: Date }
-        classification: 'PRODUCT'
-      }
-      select: {
-        id: true
-        productDrafts: { select: { id: true } }
-      }
-    }): Promise<Array<{ id: string; productDrafts: Array<{ id: string }> }>>
+    findMany(
+      args:
+        | {
+            where: {
+              createdAt: { gte: Date; lt: Date }
+              classification: 'PRODUCT'
+            }
+            select: {
+              id: true
+              productDrafts: { select: { id: true } }
+            }
+          }
+        | {
+            where: { createdAt: { gte: Date; lt: Date } }
+            select: { classification: true; inputSnapshot: true }
+          },
+    ): Promise<
+      | Array<{ id: string; productDrafts: Array<{ id: string }> }>
+      | Array<{ classification: string | null; inputSnapshot: unknown }>
+    >
   }
   ingestionProductDraft: {
     count(args: {
@@ -122,6 +132,23 @@ export interface ProcessingAggregates {
     autoMergeRatio: number
     reviewRatio: number
   }
+  /** Same-text reuse within the window. A "repeat" is any message
+   *  whose (tgAuthorId, normalised text) tuple appears >= 2 times.
+   *  `repetitionRatio = messagesInARepeatSet / totalMessages`. The
+   *  null-author case is treated as its own author (anonymous
+   *  channel posts can still repeat). Added in rules-1.1.0-observ
+   *  to motivate dedupe for PRODUCT_NO_PRICE in iter-2. */
+  repetition: {
+    totalMessages: number
+    messagesInRepeatSets: number
+    distinctRepeatSets: number
+    ratio: number
+  }
+  /** Average `inputSnapshot.text` length (chars, NOT bytes) grouped
+   *  by classification kind. Signal for tuning extractor / producer
+   *  tone rules: long PRODUCT_NO_PRICE entries are the kind that
+   *  Phase 2.5 LLM would handle. */
+  textLenByClass: Record<MessageClassName, number>
   reviewQueue: {
     total: number
     byState: Record<ReviewStateName, number>

@@ -51,6 +51,7 @@ export async function computeProcessingAggregates(
     reviewTotal,
     reviewByStateRows,
     reviewByKindRows,
+    reuseRows,
   ] = await Promise.all([
     db.ingestionExtractionResult.groupBy({
       by: ['classification'],
@@ -68,7 +69,7 @@ export async function computeProcessingAggregates(
     db.ingestionExtractionResult.findMany({
       where: { ...whereInWindow, classification: 'PRODUCT' },
       select: { id: true, productDrafts: { select: { id: true } } },
-    }),
+    }) as Promise<Array<{ id: string; productDrafts: Array<{ id: string }> }>>,
     db.ingestionProductDraft.count({ where: whereInWindow }),
     db.ingestionProductDraft.groupBy({
       by: ['status'],
@@ -112,6 +113,10 @@ export async function computeProcessingAggregates(
       where: whereInWindow,
       _count: true,
     }),
+    db.ingestionExtractionResult.findMany({
+      where: whereInWindow,
+      select: { classification: true, inputSnapshot: true },
+    }) as Promise<Array<{ classification: string | null; inputSnapshot: unknown }>>,
   ])
 
   const classificationBuckets: Record<MessageClassName, number> = {
@@ -132,6 +137,8 @@ export async function computeProcessingAggregates(
   const skipWithZeroDrafts = productClassifications.filter(
     (e) => e.productDrafts.length === 0,
   ).length
+
+  const { repetition, textLenByClass } = computeReuseStats(reuseRows)
 
   return {
     window,
@@ -160,6 +167,8 @@ export async function computeProcessingAggregates(
       withZeroDrafts: skipWithZeroDrafts,
       ratio: ratio(skipWithZeroDrafts, skipProductCount),
     },
+    repetition,
+    textLenByClass,
     dedupe: {
       candidatesTotal,
       byKind: bucketByKey<DedupeKindName>(candidatesByKindRows, 'kind', [
@@ -187,6 +196,7 @@ export async function computeProcessingAggregates(
         'PRODUCT_DRAFT',
         'VENDOR_DRAFT',
         'DEDUPE_CANDIDATE',
+        'UNEXTRACTABLE_PRODUCT',
       ]),
     },
   }
@@ -220,4 +230,90 @@ function productNameAverageLength(
     .filter((n) => n > 0)
   if (lengths.length === 0) return 0
   return Math.round(lengths.reduce((a, b) => a + b, 0) / lengths.length)
+}
+
+interface ReuseRow {
+  classification: string | null
+  inputSnapshot: unknown
+}
+
+function normaliseReuseText(raw: unknown): string {
+  if (typeof raw !== 'string') return ''
+  return raw
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function computeReuseStats(rows: ReuseRow[]): {
+  repetition: ProcessingAggregates['repetition']
+  textLenByClass: ProcessingAggregates['textLenByClass']
+} {
+  const keyCounts = new Map<string, number>()
+  const textSumByClass: Record<MessageClassName, number> = {
+    PRODUCT: 0,
+    PRODUCT_NO_PRICE: 0,
+    CONVERSATION: 0,
+    SPAM: 0,
+    OTHER: 0,
+  }
+  const textCountByClass: Record<MessageClassName, number> = {
+    PRODUCT: 0,
+    PRODUCT_NO_PRICE: 0,
+    CONVERSATION: 0,
+    SPAM: 0,
+    OTHER: 0,
+  }
+
+  for (const row of rows) {
+    const snap = row.inputSnapshot as { text?: unknown; tgAuthorId?: unknown } | null
+    const text = typeof snap?.text === 'string' ? snap.text : ''
+    const author =
+      snap?.tgAuthorId === null || snap?.tgAuthorId === undefined
+        ? 'null'
+        : String(snap.tgAuthorId)
+    const normText = normaliseReuseText(text)
+    const key = `${author}|${normText}`
+    keyCounts.set(key, (keyCounts.get(key) ?? 0) + 1)
+
+    const cls = (row.classification ?? 'OTHER') as MessageClassName
+    if (cls in textSumByClass) {
+      textSumByClass[cls] += text.length
+      textCountByClass[cls] += 1
+    }
+  }
+
+  let messagesInRepeatSets = 0
+  let distinctRepeatSets = 0
+  for (const count of keyCounts.values()) {
+    if (count >= 2) {
+      messagesInRepeatSets += count
+      distinctRepeatSets += 1
+    }
+  }
+
+  const textLenByClass = {
+    PRODUCT: avg(textSumByClass.PRODUCT, textCountByClass.PRODUCT),
+    PRODUCT_NO_PRICE: avg(textSumByClass.PRODUCT_NO_PRICE, textCountByClass.PRODUCT_NO_PRICE),
+    CONVERSATION: avg(textSumByClass.CONVERSATION, textCountByClass.CONVERSATION),
+    SPAM: avg(textSumByClass.SPAM, textCountByClass.SPAM),
+    OTHER: avg(textSumByClass.OTHER, textCountByClass.OTHER),
+  }
+
+  return {
+    repetition: {
+      totalMessages: rows.length,
+      messagesInRepeatSets,
+      distinctRepeatSets,
+      ratio: ratio(messagesInRepeatSets, rows.length),
+    },
+    textLenByClass,
+  }
+}
+
+function avg(sum: number, count: number): number {
+  if (count === 0) return 0
+  return Math.round(sum / count)
 }
