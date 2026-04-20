@@ -77,12 +77,44 @@ placeholder.
 ## Components
 
 - [`src/domains/ingestion/`](../../src/domains/ingestion/) — domain barrel,
-  types, flag helpers, admin authz guard.
+  types, flag helpers, admin authz guard, Telegram provider layer.
+- [`src/domains/ingestion/telegram/providers/`](../../src/domains/ingestion/telegram/providers/)
+  — provider contract (`TelegramIngestionProvider`), `createMockProvider`,
+  `createTelethonHttpProvider`, typed error classes, env-selected factory
+  `getTelegramProvider`.
 - [`src/lib/queue.ts`](../../src/lib/queue.ts) — pg-boss wrapper
   (`getQueue`, `enqueue`, `registerHandler`, `stopQueue`).
 - [`src/workers/index.ts`](../../src/workers/index.ts) — worker entrypoint.
-- `services/telegram-sidecar/` — Python/Telethon sidecar. **(PR-B)**
+- [`services/telegram-sidecar/`](../../services/telegram-sidecar/) —
+  Python + Telethon sidecar (FastAPI). Phase 1 PR-B ships the contract
+  surface; auth + read endpoints return `501` until PR-C.
 - `prisma/schema.prisma` — the `TelegramIngestion*` models + `IngestionJob`.
+
+### Provider contract
+
+The worker never talks to Telegram directly. It obtains a
+`TelegramIngestionProvider` via `getTelegramProvider()` and uses the
+contract:
+
+```ts
+fetchChats(input): Promise<{ chats: RawTelegramChat[] }>
+fetchMessages(input): Promise<{ messages: RawTelegramMessage[]; nextFromMessageId: string | null }>
+fetchMedia(input): Promise<{ stream: AsyncIterable<Uint8Array>; mimeType; sizeBytes }>
+```
+
+Selection is env-driven via `INGESTION_TELEGRAM_PROVIDER`:
+
+| Value | Implementation | Default? |
+|---|---|---|
+| `mock` (or unset) | in-memory fixtures | yes |
+| `telethon` | HTTP bridge to the sidecar (requires `TELEGRAM_SIDECAR_URL` + `TELEGRAM_SIDECAR_TOKEN`) | no |
+
+Errors bubble as a closed taxonomy so the worker can dispatch without
+string matching: `TelegramTransportError` (retryable),
+`TelegramFloodWaitError` (reschedule with `retryAfterSeconds`),
+`TelegramAuthRequiredError` (disable connection, alert),
+`TelegramChatGoneError` (disable chat), `TelegramBadResponseError`
+(fail loud — indicates SDK/sidecar drift).
 
 ## Feature flags
 
