@@ -1336,8 +1336,10 @@ model TelegramIngestionMessage {
   // Phase-1-ready hook for the right-to-erasure / tombstone flow.
   tombstoned  Boolean  @default(false)
 
-  chat  TelegramIngestionChat           @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  media TelegramIngestionMessageMedia[]
+  chat                       TelegramIngestionChat           @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  media                      TelegramIngestionMessageMedia[]
+  ingestionExtractionResults IngestionExtractionResult[]
+  ingestionProductDrafts     IngestionProductDraft[]
 
   @@unique([chatId, tgMessageId])
   @@index([chatId, postedAt(sort: Desc)])
@@ -1406,4 +1408,209 @@ model IngestionJob {
 
   @@index([kind, status])
   @@index([status, createdAt])
+}
+
+// ─── Telegram ingestion processing (PHASE 2 — deterministic drafts) ──────────
+//
+// Deterministic intermediate layer between raw messages and any future
+// catalog publishing. Rules-only in Phase 2; LLM is deferred to Phase
+// 2.5 behind a separate flag. Source of truth remains
+// `TelegramIngestionMessage`; drafts never mutate raw and always carry
+// provenance via `sourceMessageId`.
+//
+// Locked invariants (see #679 comment 4281108530):
+//   - idempotency key on drafts: (sourceMessageId, extractorVersion, productOrdinal)
+//   - ExtractionResult unique on (messageId, extractorVersion)
+//   - every extraction carries `inputSnapshot` so rule changes don't
+//     invalidate historical results
+//   - confidence range [0,1] + fixed bands HIGH (≥0.8) / MEDIUM / LOW
+//   - non-destructive dedupe via canonicalDraftId / duplicateOf
+//   - ReviewQueueItem states limited to ENQUEUED | AUTO_RESOLVED
+
+enum IngestionExtractorEngine {
+  RULES
+  // LLM reserved for Phase 2.5 — deliberate, not implemented in Phase 2.
+  LLM
+}
+
+enum IngestionConfidenceBand {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum IngestionDraftStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  TOMBSTONED
+}
+
+enum IngestionDraftKind {
+  PRODUCT_DRAFT
+  VENDOR_DRAFT
+  DEDUPE_CANDIDATE
+}
+
+enum IngestionReviewState {
+  ENQUEUED
+  AUTO_RESOLVED
+}
+
+enum IngestionDedupeKind {
+  STRONG
+  HEURISTIC
+  SIMILARITY
+}
+
+enum IngestionDedupeRisk {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum IngestionMessageClass {
+  PRODUCT
+  CONVERSATION
+  SPAM
+  OTHER
+}
+
+model IngestionExtractionResult {
+  id                String                   @id @default(cuid())
+  messageId         String
+  engine            IngestionExtractorEngine @default(RULES)
+  extractorVersion  String
+  schemaVersion     Int                      @default(1)
+  // Raw-message snapshot at extraction time so historical results
+  // stay self-contained when rules change. Never mutated.
+  inputSnapshot     Json
+  // Extractor output, pinned by a Zod freeze test.
+  payload           Json
+  // Overall confidence in [0,1]. Decimal(3,2) to keep shape stable.
+  confidenceOverall Decimal                  @db.Decimal(3, 2)
+  confidenceBand    IngestionConfidenceBand
+  confidenceByField Json
+  classification    IngestionMessageClass?
+  // Cost fields reserved for Phase 2.5 (LLM); always NULL for RULES.
+  costTokensIn      Int?
+  costTokensOut     Int?
+  costUsd           Decimal?                 @db.Decimal(10, 4)
+  correlationId     String
+  createdAt         DateTime                 @default(now())
+
+  message       TelegramIngestionMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  productDrafts IngestionProductDraft[]
+
+  // Re-running the same extractor version on the same message MUST
+  // be a no-op. Bumping the version creates a new revision row.
+  @@unique([messageId, extractorVersion])
+  @@index([messageId, createdAt(sort: Desc)])
+  @@index([engine, extractorVersion])
+}
+
+model IngestionVendorDraft {
+  id                     String                  @id @default(cuid())
+  // Hash of phone, username, bot id — the stable identifier we can
+  // match across messages. Null when the extractor could not infer a
+  // stable identity; such drafts NEVER auto-merge.
+  externalId             String?
+  displayName            String
+  // Provenance: which messages contributed to inferring this vendor.
+  inferredFromMessageIds Json
+  extractorVersion       String
+  confidenceOverall      Decimal                 @db.Decimal(3, 2)
+  confidenceBand         IngestionConfidenceBand
+  status                 IngestionDraftStatus    @default(PENDING)
+  // Non-destructive dedupe pointers. When null, this row IS canonical.
+  canonicalDraftId       String?
+  duplicateOf            String?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+
+  canonical IngestionVendorDraft?  @relation("VendorDraftCanonical", fields: [canonicalDraftId], references: [id], onDelete: SetNull)
+  merges    IngestionVendorDraft[] @relation("VendorDraftCanonical")
+
+  productDrafts IngestionProductDraft[]
+
+  @@unique([externalId, extractorVersion])
+  @@index([status])
+  @@index([canonicalDraftId])
+}
+
+model IngestionProductDraft {
+  id                 String                  @id @default(cuid())
+  sourceMessageId    String
+  sourceExtractionId String
+  extractorVersion   String
+  // 0-based index into the extractor's product array for this message.
+  productOrdinal     Int                     @default(0)
+  vendorDraftId      String?
+  status             IngestionDraftStatus    @default(PENDING)
+  confidenceOverall  Decimal                 @db.Decimal(3, 2)
+  confidenceBand     IngestionConfidenceBand
+  // Structured fields produced by the extractor. `null` means the
+  // field was not present or not inferred.
+  productName        String?
+  categorySlug       String?
+  unit               String?
+  weightGrams        Int?
+  priceCents         Int?
+  currencyCode       String?
+  availability       String?
+  rawFieldsSeen      Json
+  // Non-destructive dedupe pointers. Canonical when null.
+  canonicalDraftId   String?
+  duplicateOf        String?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  sourceMessage    TelegramIngestionMessage  @relation(fields: [sourceMessageId], references: [id], onDelete: Cascade)
+  sourceExtraction IngestionExtractionResult @relation(fields: [sourceExtractionId], references: [id], onDelete: Cascade)
+  vendorDraft      IngestionVendorDraft?     @relation(fields: [vendorDraftId], references: [id], onDelete: SetNull)
+  canonical        IngestionProductDraft?    @relation("ProductDraftCanonical", fields: [canonicalDraftId], references: [id], onDelete: SetNull)
+  merges           IngestionProductDraft[]   @relation("ProductDraftCanonical")
+
+  // Idempotency key: re-running the same version on the same message
+  // returns the existing row for every ordinal.
+  @@unique([sourceMessageId, extractorVersion, productOrdinal], map: "IngestionProductDraft_source_ver_ordinal_key")
+  @@index([status, createdAt(sort: Desc)])
+  @@index([vendorDraftId])
+  @@index([canonicalDraftId])
+  @@index([confidenceBand])
+}
+
+model IngestionReviewQueueItem {
+  id                 String               @id @default(cuid())
+  kind               IngestionDraftKind
+  targetId           String
+  priority           Int                  @default(0)
+  state              IngestionReviewState @default(ENQUEUED)
+  // Populated only when state transitions to AUTO_RESOLVED (LOW-risk
+  // dedupe auto-merge). Everything else stays ENQUEUED until Phase 3
+  // introduces the manual-review state machine.
+  autoResolvedReason String?
+  autoResolvedAt     DateTime?
+  createdAt          DateTime             @default(now())
+
+  @@unique([kind, targetId])
+  @@index([state, priority(sort: Desc), createdAt])
+}
+
+model IngestionDedupeCandidate {
+  id            String              @id @default(cuid())
+  leftDraftId   String
+  rightDraftId  String
+  kind          IngestionDedupeKind
+  riskClass     IngestionDedupeRisk
+  reasonJson    Json
+  // True only for LOW-risk auto-applied merges. MEDIUM / HIGH always
+  // remain false in Phase 2 (manual review is mandatory).
+  autoApplied   Boolean             @default(false)
+  autoAppliedAt DateTime?
+  createdAt     DateTime            @default(now())
+
+  @@unique([leftDraftId, rightDraftId, kind])
+  @@index([riskClass, autoApplied])
+  @@index([createdAt])
 }
