@@ -501,6 +501,16 @@ const en: Record<TranslationKeys, string> = {
   'vendor.welcome.skip': 'Skip tour',
   'vendor.welcome.finish': 'Complete my profile',
 
+  // Vendor – first sale celebration (shown once when totalFulfillments === 1)
+  'vendor.firstSale.badge': 'Congrats!',
+  'vendor.firstSale.title': '{name}, your first sale!',
+  'vendor.firstSale.body': 'You just got going. Someone decided to trust your craft — that\'s huge. Here are the 3 steps that take the order from inbox to delivery:',
+  'vendor.firstSale.tip1': 'Confirm the order quickly — buyers love responsiveness.',
+  'vendor.firstSale.tip2': 'Prepare it with care: photo, handwritten note… whatever you do best.',
+  'vendor.firstSale.tip3': 'Mark it as ready when you hand it over. And on to the next!',
+  'vendor.firstSale.goToOrder': 'See my order',
+  'vendor.firstSale.dismiss': 'Later',
+
   // Vendor – products list extras
   'vendor.productsList.productsOne': '1 product',
   'vendor.productsList.productsOther': '{count} products',
