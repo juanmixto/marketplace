@@ -7,7 +7,6 @@ import type { Metadata } from 'next'
 import { getAvailableProductWhere } from '@/domains/catalog/availability'
 import { getServerT } from '@/i18n/server'
 import type { TranslationKeys } from '@/i18n/locales'
-import { VendorWelcomeTour } from '@/components/vendor/VendorWelcomeTour'
 
 export const metadata: Metadata = { title: 'Dashboard' }
 
@@ -57,7 +56,6 @@ export default async function VendorDashboardPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <VendorWelcomeTour vendorId={vendor.id} vendorName={vendor.displayName} />
       <div>
         <h1 className="text-2xl font-bold text-[var(--foreground)]">
           {t('vendor.dashboard.greeting').replace('{name}', vendor.displayName)}

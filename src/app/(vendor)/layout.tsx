@@ -8,6 +8,7 @@ import { db } from '@/lib/db'
 import { requireVendor } from '@/lib/auth-guard'
 import { getAvailablePortals } from '@/lib/portals'
 import { IMPERSONATION_COOKIE, verifyImpersonationToken } from '@/lib/impersonation'
+import { VendorWelcomeTour } from '@/components/vendor/VendorWelcomeTour'
 
 export default async function VendorLayout({ children }: { children: React.ReactNode }) {
   const session = await requireVendor()
@@ -65,6 +66,7 @@ export default async function VendorLayout({ children }: { children: React.React
           <VendorHeader user={session.user} vendor={vendor} portals={portals} />
           <AppBadgeSync count={pendingFulfillments} />
           <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">{children}</main>
+          {vendor && <VendorWelcomeTour vendorId={vendor.id} vendorName={vendor.displayName} />}
         </div>
       </div>
     </SidebarProvider>
