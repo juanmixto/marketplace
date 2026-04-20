@@ -25,7 +25,7 @@ export class TelegramProviderConfigError extends Error {
 }
 
 export function resolveProviderCode(
-  env: NodeJS.ProcessEnv = process.env,
+  env: Record<string, string | undefined> = process.env,
 ): TelegramIngestionProviderCode {
   const raw = env[TELEGRAM_PROVIDER_ENV]?.trim().toLowerCase()
   if (!raw || raw === 'mock') return 'mock'
@@ -36,7 +36,7 @@ export function resolveProviderCode(
 }
 
 export function getTelegramProvider(
-  env: NodeJS.ProcessEnv = process.env,
+  env: Record<string, string | undefined> = process.env,
 ): TelegramIngestionProvider {
   const code = resolveProviderCode(env)
   if (code === 'mock') {
