@@ -1,9 +1,11 @@
 import type PgBoss from 'pg-boss'
 import { db } from '@/lib/db'
+import { enqueue } from '@/lib/queue'
 import {
   buildDrafts,
   CURRENT_RULES_EXTRACTOR_VERSION,
   EXTRACTION_SCHEMA_VERSION,
+  PROCESSING_JOB_KINDS,
   classifyMessage,
   confidenceBandFor,
   extractRules,
@@ -103,7 +105,7 @@ export async function runProcessMessageJob(
       })
     : emptyExtractionFor(classifier.kind)
 
-  await buildDrafts(
+  const draftsResult = await buildDrafts(
     {
       messageId: message.id,
       extractorVersion,
@@ -126,4 +128,27 @@ export async function runProcessMessageJob(
       db: db as unknown as DraftsBuilderDb,
     },
   )
+
+  // Enqueue one dedupe scan per freshly built product draft. Dedupe
+  // is stage-flagged (`feat-ingestion-dedupe`) independently, so the
+  // jobs sit dormant in the queue until operators opt in. Enqueue is
+  // best-effort: a queue failure leaves the draft in the review
+  // queue as PENDING, never loses it.
+  if (draftsResult.status === 'OK') {
+    for (const draftId of draftsResult.productDraftIds) {
+      try {
+        await enqueue(
+          PROCESSING_JOB_KINDS.dedupeDrafts,
+          { productDraftId: draftId, correlationId },
+          { singletonKey: `dedupe:${draftId}` },
+        )
+      } catch (err) {
+        logger.warn('ingestion.processing.dedupe.enqueue_failed', {
+          productDraftId: draftId,
+          correlationId,
+          error: err,
+        })
+      }
+    }
+  }
 }

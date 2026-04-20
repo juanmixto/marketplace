@@ -33,6 +33,7 @@ import {
   runProcessMessageJob,
   type ProcessMessageJobData,
 } from './jobs/ingestion-processing'
+import { runDedupeJob, type DedupeJobData } from './jobs/ingestion-dedupe'
 
 async function main() {
   logger.info('worker.starting', {
@@ -66,12 +67,19 @@ async function main() {
       await runProcessMessageJob(job)
     },
   )
+  await registerHandler<DedupeJobData>(
+    PROCESSING_JOB_KINDS.dedupeDrafts,
+    async (job) => {
+      await runDedupeJob(job)
+    },
+  )
 
   logger.info('worker.ready', {
     handlers: [
       INGESTION_JOB_KINDS.telegramSync,
       INGESTION_JOB_KINDS.telegramMediaDownload,
       PROCESSING_JOB_KINDS.buildDrafts,
+      PROCESSING_JOB_KINDS.dedupeDrafts,
     ],
     config,
   })
