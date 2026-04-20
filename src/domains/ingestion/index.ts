@@ -42,6 +42,22 @@ export {
   type IngestionRuntimeConfig,
 } from './telegram/config'
 
+// Retention policy + sweeper.
+export {
+  DEFAULT_SYNC_RUN_RETENTION_DAYS,
+  DEFAULT_INGESTION_JOB_RETENTION_DAYS,
+  DEFAULT_FAILED_MEDIA_RETENTION_DAYS,
+  DEFAULT_SWEEP_BATCH_SIZE,
+  DEFAULT_SWEEP_MAX_DURATION_MS,
+  resolveRetentionPolicy,
+  runRetentionSweep,
+  type RetentionPolicy,
+  type SweeperDb,
+  type SweeperDeps,
+  type SweepProgress,
+  type SweepResult,
+} from './retention'
+
 // Job handlers — pure functions exported so tests can drive them
 // with fakes, and the worker wires them with real dependencies.
 export {
