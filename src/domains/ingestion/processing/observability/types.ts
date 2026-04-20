@@ -47,6 +47,10 @@ export interface ObservabilityDb {
     }): Promise<
       Array<{ status?: string; confidenceBand?: string; _count: number }>
     >
+    findMany(args: {
+      where: { createdAt: { gte: Date; lt: Date } }
+      select: { productName: true }
+    }): Promise<Array<{ productName: string | null }>>
   }
   ingestionDedupeCandidate: {
     count(args: {
@@ -70,13 +74,22 @@ export interface ObservabilityDb {
   }
 }
 
-export type MessageClassName = 'PRODUCT' | 'CONVERSATION' | 'SPAM' | 'OTHER'
+export type MessageClassName =
+  | 'PRODUCT'
+  | 'PRODUCT_NO_PRICE'
+  | 'CONVERSATION'
+  | 'SPAM'
+  | 'OTHER'
 export type ConfidenceBandName = 'LOW' | 'MEDIUM' | 'HIGH'
 export type DraftStatusName = 'PENDING' | 'APPROVED' | 'REJECTED' | 'TOMBSTONED'
 export type DedupeKindName = 'STRONG' | 'HEURISTIC' | 'SIMILARITY'
 export type DedupeRiskName = 'LOW' | 'MEDIUM' | 'HIGH'
 export type ReviewStateName = 'ENQUEUED' | 'AUTO_RESOLVED'
-export type ReviewKindName = 'PRODUCT_DRAFT' | 'VENDOR_DRAFT' | 'DEDUPE_CANDIDATE'
+export type ReviewKindName =
+  | 'PRODUCT_DRAFT'
+  | 'VENDOR_DRAFT'
+  | 'DEDUPE_CANDIDATE'
+  | 'UNEXTRACTABLE_PRODUCT'
 
 export interface ProcessingAggregates {
   window: AggregatesTimeWindow
@@ -89,6 +102,11 @@ export interface ProcessingAggregates {
     total: number
     byStatus: Record<DraftStatusName, number>
     byConfidenceBand: Record<ConfidenceBandName, number>
+    /** rules-1.1.0 quality signal: average length of `productName`
+     *  across drafts in the window. Low numbers (< 5 chars) suggest
+     *  rules failing to pull a real name; high numbers (> 40) suggest
+     *  the rule grabbed a paragraph instead of a title. */
+    productNameAvgLen: number
   }
   skip: {
     productClassifications: number

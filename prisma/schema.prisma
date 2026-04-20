@@ -1450,6 +1450,12 @@ enum IngestionDraftKind {
   PRODUCT_DRAFT
   VENDOR_DRAFT
   DEDUPE_CANDIDATE
+  // Added in rules-1.1.0. Enqueued when the classifier says PRODUCT
+  // (or PRODUCT_NO_PRICE) but the extractor could not materialise a
+  // draft — either because there was no price signal or the fields
+  // looked like a promo. `targetId` points at the
+  // IngestionExtractionResult.id instead of a draft id.
+  UNEXTRACTABLE_PRODUCT
 }
 
 enum IngestionReviewState {
@@ -1471,6 +1477,12 @@ enum IngestionDedupeRisk {
 
 enum IngestionMessageClass {
   PRODUCT
+  // Added in rules-1.1.0. Producer-flavoured post that does NOT
+  // contain a usable price token (very common in real chats where
+  // price is moved to DM). The extractor runs but does not produce
+  // drafts; the drafts builder enqueues an UNEXTRACTABLE_PRODUCT
+  // review queue item so the message stays visible to operators.
+  PRODUCT_NO_PRICE
   CONVERSATION
   SPAM
   OTHER

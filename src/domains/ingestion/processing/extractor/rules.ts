@@ -171,7 +171,22 @@ const PRICE_REGEX_FULL =
 const PRICE_RANGE_REGEX =
   /(\d+[.,]?\d*)\s*-\s*(\d+[.,]?\d*)\s*(?:€|eur(?:os?)?)/i
 
+// rules-1.1.0: promotional copy regularly mentions "10€ de descuento"
+// / "hasta 5€" / "DESCUENTO" near the main price. Those numbers are
+// not product prices; we block extraction and let the operator
+// decide via the review queue. The classifier has already decided
+// this is PRODUCT-like, so we don't reject the whole extraction —
+// we just decline to set a price.
+const PROMO_MARKERS = /\b(?:PROMOCI[OÓ]N|DESCUENTO|OFERTA)\b|\bhasta\s+\d+\s*(?:€|eur|%)/i
+
+function isLikelyPromo(segment: string): boolean {
+  return PROMO_MARKERS.test(segment)
+}
+
 function extractPrice(segment: string): Extracted<number> | null {
+  if (isLikelyPromo(segment)) {
+    return null
+  }
   // Price ranges ("4-6€/kg") are deliberately NOT extracted as a
   // single value: picking either bound is wrong for at least some
   // buyers. Conservative policy: take the lower bound with halved
@@ -277,23 +292,55 @@ function extractAvailability(segment: string): Extracted<ExtractedProduct['avail
 }
 
 function extractProductName(segment: string): Extracted<string> | null {
-  // Take everything before the first price / unit token, up to 80
-  // chars, strip bullets + trailing punctuation. If empty, null.
-  const priceIdx = searchIndex(segment, PRICE_REGEX_FULL)
-  const unitIdx = searchIndex(segment, UNIT_TOKEN_REGEX)
+  // rules-1.1.0: real-world producer posts put the product name in
+  // a short opening line (often all-caps or emoji-bracketed) and
+  // then drop into a long marketing paragraph. The old rule took
+  // "everything before the first price/unit token" which in long
+  // posts captured the whole paragraph.
+  //
+  // New rule, in priority order:
+  //   1. If the first line is short (≤ 60 chars) and has at least one
+  //      letter, use it (strip bullets / emojis-only tails).
+  //   2. Otherwise, fall back to the first 5 "useful" words of the
+  //      opening line, joined with spaces.
+  //   3. Always single-line output (no \n).
+  const firstLineRaw = segment.split(/\r?\n/)[0] ?? ''
+  const firstLine = firstLineRaw
+    .replace(/^[-*•·\s]+/, '') // bullet prefix
+    .replace(/[:,.\s-]+$/, '') // trailing punctuation
+    .trim()
+  if (firstLine.length === 0) return null
+  // Reject lines that are pure emoji / symbols (no letter).
+  if (!/[a-záéíóúñ]/i.test(firstLine)) return null
+
+  let candidate = firstLine
+  if (candidate.length > 60) {
+    // Too long: take up to 5 meaningful word tokens.
+    const words = candidate.split(/\s+/).filter((w) => /[a-záéíóúñ]/i.test(w))
+    candidate = words.slice(0, 5).join(' ')
+  }
+  // If there's a price/unit token inside the short opening line,
+  // trim to what precedes it (same behaviour as before, now safely
+  // scoped to one line).
+  const priceIdx = searchIndex(candidate, PRICE_REGEX_FULL)
+  const unitIdx = searchIndex(candidate, UNIT_TOKEN_REGEX)
   const cutoffs = [priceIdx, unitIdx].filter((n): n is number => n > 0)
-  const cutoff = cutoffs.length > 0 ? Math.min(...cutoffs) : segment.length
-  let candidate = segment.slice(0, cutoff).trim()
-  candidate = candidate.replace(/^[-*•·]\s*/, '').replace(/[:,.\s-]+$/, '').trim()
+  if (cutoffs.length > 0) {
+    candidate = candidate.slice(0, Math.min(...cutoffs)).trim()
+  }
+  candidate = candidate.replace(/[:,.\s-]+$/, '').trim()
+
   if (candidate.length < 2) return null
-  // Cap length to avoid swallowing emoji-heavy headers.
-  if (candidate.length > 80) candidate = candidate.slice(0, 80).trim()
-  // Clean emoji-only strings.
-  if (!/[a-z]/i.test(candidate)) return null
+  // Final hard cap; this should be rare after the first-line logic
+  // above but stays as a safety net.
+  if (candidate.length > 60) candidate = candidate.slice(0, 60).trim()
+  // Clean emoji-only strings (ASCII letter check to reject
+  // decorative headers that slipped past the accented-letter gate).
+  if (!/[a-záéíóúñ]/i.test(candidate)) return null
   return {
     value: candidate,
-    confidence: 0.6,
-    meta: { rule: 'firstSegmentBeforePriceOrUnit', source: candidate },
+    confidence: 0.65,
+    meta: { rule: 'firstLineOpeningWords', source: candidate },
   }
 }
 

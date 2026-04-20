@@ -42,6 +42,7 @@ export async function computeProcessingAggregates(
     draftsTotal,
     draftsByStatusRows,
     draftsByBandRows,
+    draftNames,
     candidatesTotal,
     autoMerged,
     enqueuedForReview,
@@ -79,6 +80,10 @@ export async function computeProcessingAggregates(
       where: whereInWindow,
       _count: true,
     }),
+    db.ingestionProductDraft.findMany({
+      where: whereInWindow,
+      select: { productName: true },
+    }),
     db.ingestionDedupeCandidate.count({ where: whereInWindow }),
     db.ingestionDedupeCandidate.count({
       where: { ...whereInWindow, autoApplied: true },
@@ -111,6 +116,7 @@ export async function computeProcessingAggregates(
 
   const classificationBuckets: Record<MessageClassName, number> = {
     PRODUCT: 0,
+    PRODUCT_NO_PRICE: 0,
     CONVERSATION: 0,
     SPAM: 0,
     OTHER: 0,
@@ -147,6 +153,7 @@ export async function computeProcessingAggregates(
         'confidenceBand',
         ['LOW', 'MEDIUM', 'HIGH'],
       ),
+      productNameAvgLen: productNameAverageLength(draftNames),
     },
     skip: {
       productClassifications: skipProductCount,
@@ -203,4 +210,14 @@ function bucketByKey<K extends string>(
 function ratio(numerator: number, denominator: number): number {
   if (denominator === 0) return 0
   return Math.round((numerator / denominator) * 10_000) / 10_000
+}
+
+function productNameAverageLength(
+  rows: Array<{ productName: string | null }>,
+): number {
+  const lengths = rows
+    .map((r) => (r.productName ?? '').length)
+    .filter((n) => n > 0)
+  if (lengths.length === 0) return 0
+  return Math.round(lengths.reduce((a, b) => a + b, 0) / lengths.length)
 }

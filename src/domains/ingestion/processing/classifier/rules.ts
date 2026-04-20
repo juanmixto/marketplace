@@ -1,22 +1,33 @@
 /**
- * Conservative classifier rules.
+ * Conservative classifier rules — rules-1.1.0.
  *
  * Philosophy (locked in #679 comment 4281108530): favour false
- * negatives over false positives. A message reaches the extractor
- * only when we have strong signals for `PRODUCT`. Everything else
- * falls back to `OTHER` or `CONVERSATION`.
+ * negatives over false positives. But after the Phase 2.x dry run
+ * on real producer traffic we learned that requiring an explicit
+ * price token pushed ~45 legitimate producer posts into OTHER with
+ * zero visibility. rules-1.1.0 introduces a new intermediate class
+ * `PRODUCT_NO_PRICE` and a `producerTone` signal so that
+ * producer-flavoured posts without a price still enter the pipeline
+ * as audit rows + review queue items (never as drafts, to avoid
+ * fabricating data).
  *
- * Weights are additive, never multiplicative — a single weak signal
- * cannot elevate confidence on its own. Two independent signals at
- * 0.3 still produce a 0.6 score, not a 0.09 one.
+ * Gate (rules-1.1.0):
+ *   PRODUCT         = priceToken AND corroboration
+ *   PRODUCT_NO_PRICE= producerTone AND produceWord  (no price required)
+ *   SPAM            = URL/phrase above spam threshold
+ *   CONVERSATION    = question / greeting / thanks markers
+ *   OTHER           = nothing reaches thresholds above
  *
- * If you add a rule, also add:
- *   1. A fixture case in `test/fixtures/ingestion-messages/` exercising it.
- *   2. A short comment here explaining *why* the signal is
- *      producer-speech rather than conversation or spam.
+ * Weights are still additive. A single weak signal cannot by itself
+ * elevate confidence.
  */
 
-export type MessageClass = 'PRODUCT' | 'CONVERSATION' | 'SPAM' | 'OTHER'
+export type MessageClass =
+  | 'PRODUCT'
+  | 'PRODUCT_NO_PRICE'
+  | 'CONVERSATION'
+  | 'SPAM'
+  | 'OTHER'
 
 export interface ClassifierSignal {
   rule: string
@@ -39,21 +50,50 @@ export interface ClassifierInput {
 const PRICE_REGEX =
   /(\d+[.,]?\d*)\s*(?:€|eur(?:os?)?)(?:\s*\/\s*(?:kg|g|l|ml|ud|uds|unidades?|pieza|pza))?/i
 const UNIT_REGEX = /\b(\d+[.,]?\d*)\s*(kg|g|l|ml|ud|uds|unidades?|gramos?|kilos?|litros?|mililitros?)\b/i
-// Minimal produce vocabulary. Conservative: missing categories are
-// safer than over-broad ones; admin can grow the list later.
 const PRODUCE_WORDS = [
   // Fruits
   'manzana', 'manzanas', 'pera', 'peras', 'naranja', 'naranjas',
   'limon', 'limones', 'fresa', 'fresas', 'uva', 'uvas',
+  'clementina', 'clementinas', 'mandarina', 'mandarinas',
+  'aguacate', 'aguacates',
   // Vegetables
   'tomate', 'tomates', 'lechuga', 'pimiento', 'pimientos', 'cebolla',
   'cebollas', 'ajo', 'ajos', 'patata', 'patatas', 'zanahoria', 'zanahorias',
+  'pebrot', // catalan pepper — seen in the dry run
   // Dairy
   'queso', 'quesos', 'leche', 'yogur', 'mantequilla',
-  // Meat / fish
+  // Meat / fish / jamón
   'pollo', 'cerdo', 'ternera', 'cordero', 'pescado', 'atun', 'bacalao',
+  'jamon', 'jamones', 'embutido', 'embutidos', 'chorizo', 'salchichon',
   // Pantry
   'aceite', 'vinagre', 'miel', 'harina', 'pan', 'huevos',
+  'espirulina', 'polen',
+]
+
+// Producer-tone markers. Each match is strong evidence that the
+// message is a producer speaking about their own offering. These are
+// HAND-CURATED from the Phase 2.x dry run on the "AGRICULTOR A
+// CONSUMIDOR" group — the list is Spanish / Catalan flavoured and
+// should grow only with fixture-backed evidence.
+const PRODUCER_TONE_PATTERNS: RegExp[] = [
+  /\bsomos (?:una? )?(?:peque[ñn]a? )?(?:empresa )?(?:familiar|productor[ae]s?)\b/i,
+  /\bsomos productores\b/i,
+  /\bproducci[oó]n (?:propia|artesanal|limitada|familiar)\b/i,
+  /\benv[ií]os? a toda la pen[ií]nsula\b/i,
+  /\benv[ií]os? a (?:espa[ñn]a|peninsula)\b/i,
+  /\bdirectamente de (?:nuestr[ao]s?|la huerta|el campo|mi huerta|la granja)\b/i,
+  /\b(?:nuestr[ao]s?) (?:frutas?|verduras?|huert[ao]s?|granjas?|aceites?|mieles?|quesos?)\b/i,
+  /\bnueva campa[ñn]a\b/i,
+  /\btemporada\b/i,
+  /\bapicultura artesanal\b/i,
+  /\barte?sanal(?:es|mente)?\b/i,
+  /\bde (?:nuestro|nuestra|mi) (?:huerta|huerto|granja|campo|finca)\b/i,
+  /\bcultivad[ao]s? (?:por|en)\b/i,
+  /\bseleccion(?:ados?|ado|ada|adas?)\b/i,
+  /\bde temporada\b/i,
+  /\bpedidos\b/i,
+  /\bfresco\b/i,
+  /\bdisponibles? (?:hoy|ahora|esta semana)\b/i,
 ]
 
 const CONVERSATION_MARKERS = [
@@ -69,19 +109,21 @@ const SPAM_HINTS = [
 ]
 
 // ─── Weights ─────────────────────────────────────────────────────────────────
-//
-// Each signal contributes one additive term. A message needs signals
-// totalling >= 0.6 to reach the PRODUCT class. That threshold is
-// deliberately tight to push ambiguous messages into OTHER.
 
 const W_PRICE = 0.4
 const W_UNIT = 0.25
 const W_PRODUCE_WORD = 0.25
+const W_PRODUCER_TONE = 0.2 // per matched pattern, capped below
+const W_PRODUCER_TONE_CAP = 0.5
 const W_CONVERSATION_MARKER = 0.3
 const W_SPAM_URL = 0.35
 const W_SPAM_PHRASE = 0.35
 
 const PRODUCT_THRESHOLD = 0.6
+// PRODUCT_NO_PRICE needs producerTone AND produceWord but no price;
+// threshold is deliberately lower so a single clear producer-post
+// with a produce mention qualifies.
+const PRODUCT_NO_PRICE_THRESHOLD = 0.35
 const CONVERSATION_THRESHOLD = 0.3
 const SPAM_THRESHOLD = 0.6
 
@@ -98,10 +140,11 @@ export function classifyMessage(input: ClassifierInput): ClassifierResult {
   }
 
   const productSignals: ClassifierSignal[] = []
+  const producerToneSignals: ClassifierSignal[] = []
   const convSignals: ClassifierSignal[] = []
   const spamSignals: ClassifierSignal[] = []
 
-  // Product signals
+  // Price signal
   const priceMatch = PRICE_REGEX.exec(text)
   if (priceMatch) {
     const includesPerUnit = /\/\s*(?:kg|g|l|ml|ud|uds|unidades?|pieza|pza)/i.test(
@@ -109,8 +152,6 @@ export function classifyMessage(input: ClassifierInput): ClassifierResult {
     )
     productSignals.push({
       rule: includesPerUnit ? 'pricePerUnitToken' : 'priceToken',
-      // A price with an adjacent per-unit indicator is strong enough
-      // to corroborate itself. A bare price still needs a second signal.
       weight: includesPerUnit ? W_PRICE + W_UNIT : W_PRICE,
       match: priceMatch[0],
     })
@@ -119,11 +160,26 @@ export function classifyMessage(input: ClassifierInput): ClassifierResult {
   if (unitMatch) {
     productSignals.push({ rule: 'unitToken', weight: W_UNIT, match: unitMatch[0] })
   }
+
   const normalized = normaliseForProduceLookup(text)
+  let produceMatched = false
   for (const word of PRODUCE_WORDS) {
     if (normalized.includes(word)) {
       productSignals.push({ rule: 'produceWord', weight: W_PRODUCE_WORD, match: word })
-      break // first match is enough; don't double-count synonyms
+      produceMatched = true
+      break
+    }
+  }
+
+  // Producer-tone signals (cap the cumulative weight so many matches
+  // don't push the score beyond a reasonable ceiling).
+  let producerToneWeight = 0
+  for (const re of PRODUCER_TONE_PATTERNS) {
+    const m = re.exec(text)
+    if (m && producerToneWeight < W_PRODUCER_TONE_CAP) {
+      const weight = Math.min(W_PRODUCER_TONE, W_PRODUCER_TONE_CAP - producerToneWeight)
+      producerToneSignals.push({ rule: 'producerTone', weight, match: m[0] })
+      producerToneWeight += weight
     }
   }
 
@@ -149,22 +205,16 @@ export function classifyMessage(input: ClassifierInput): ClassifierResult {
   }
 
   const productScore = sumWeights(productSignals)
+  const producerToneScore = sumWeights(producerToneSignals)
   const convScore = sumWeights(convSignals)
   const spamScore = sumWeights(spamSignals)
 
-  // SPAM wins over PRODUCT when both fire — a link to a promo page
-  // plus a price is spam, not a legitimate listing.
+  // SPAM wins over PRODUCT.
   if (spamScore >= SPAM_THRESHOLD) {
-    return {
-      kind: 'SPAM',
-      confidence: clamp01(spamScore),
-      signals: spamSignals,
-    }
+    return { kind: 'SPAM', confidence: clamp01(spamScore), signals: spamSignals }
   }
 
-  // PRODUCT requires both a price signal AND at least one corroborating
-  // signal (unit or produce word). Price alone can be a quote or a
-  // memory; we demand confirmation.
+  // PRODUCT (strict): price + corroboration.
   const hasPrice = productSignals.some(
     (s) => s.rule === 'priceToken' || s.rule === 'pricePerUnitToken',
   )
@@ -172,13 +222,32 @@ export function classifyMessage(input: ClassifierInput): ClassifierResult {
     (s) =>
       s.rule === 'unitToken' ||
       s.rule === 'produceWord' ||
-      s.rule === 'pricePerUnitToken', // per-unit is self-corroborating
+      s.rule === 'pricePerUnitToken',
   )
   if (hasPrice && hasCorroboration && productScore >= PRODUCT_THRESHOLD) {
     return {
       kind: 'PRODUCT',
       confidence: clamp01(productScore),
       signals: productSignals,
+    }
+  }
+
+  // PRODUCT_NO_PRICE (new in 1.1.0): producerTone + produceWord with
+  // no price signal. Must not fire when conversation markers dominate
+  // — greetings + "alguien sabe si queda" + "fresco" shouldn't become
+  // PRODUCT_NO_PRICE just because "fresco" is a producer-tone word.
+  const noPriceScore = producerToneScore + (produceMatched ? W_PRODUCE_WORD : 0)
+  if (
+    produceMatched &&
+    producerToneSignals.length > 0 &&
+    !hasPrice &&
+    noPriceScore >= PRODUCT_NO_PRICE_THRESHOLD &&
+    noPriceScore > convScore // producer evidence must exceed conversation evidence
+  ) {
+    return {
+      kind: 'PRODUCT_NO_PRICE',
+      confidence: clamp01(noPriceScore),
+      signals: [...productSignals, ...producerToneSignals],
     }
   }
 
@@ -190,11 +259,7 @@ export function classifyMessage(input: ClassifierInput): ClassifierResult {
     }
   }
 
-  return {
-    kind: 'OTHER',
-    confidence: 0,
-    signals: [],
-  }
+  return { kind: 'OTHER', confidence: 0, signals: [] }
 }
 
 function sumWeights(signals: ClassifierSignal[]): number {
@@ -211,5 +276,5 @@ function normaliseForProduceLookup(text: string): string {
   return text
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // strip accents so "manzána" matches
+    .replace(/[\u0300-\u036f]/g, '')
 }

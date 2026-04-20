@@ -112,5 +112,50 @@
     "description": "catalan-flavoured producer post still reaches PRODUCT via price+unit",
     "text": "Pebrot vermell, molt fresc, 2,20€/kg",
     "expectedClassifier": { "kind": "PRODUCT" }
+  },
+  {
+    "id": "product-no-price-apicultor",
+    "description": "rules-1.1.0: apicultor post with producer tone + produce word but no price -> PRODUCT_NO_PRICE",
+    "text": "🍯 LA MIEL DE ANGEL Apicultura artesanal - Producción limitada. Miel cruda y polen seco obtenidos directamente de nuestras colmenas.",
+    "expectedClassifier": { "kind": "PRODUCT_NO_PRICE" }
+  },
+  {
+    "id": "product-no-price-catalog-entry",
+    "description": "rules-1.1.0: vendor catalog line without price -> PRODUCT_NO_PRICE",
+    "text": "Naranjas Coronat. Envíos de naranjas de variedad Valencies, directamente de nuestra huerta. De temporada.",
+    "expectedClassifier": { "kind": "PRODUCT_NO_PRICE" }
+  },
+  {
+    "id": "product-no-price-must-beat-conversation",
+    "description": "rules-1.1.0: producer signal must exceed conversation marker to reach PRODUCT_NO_PRICE",
+    "text": "Hola buenas, alguien sabe si queda algo de fresco?",
+    "expectedClassifier": { "kind": "CONVERSATION" }
+  },
+  {
+    "id": "promo-blocks-price",
+    "description": "rules-1.1.0: PROMOCION header still classifies as PRODUCT (has price+unit tokens) but the extractor refuses priceCents → 0 products → builder routes to UNEXTRACTABLE_PRODUCT review queue",
+    "text": "PROMOCION hasta el 1 de Abril! Hasta 10€ de descuento en tu pedido de naranjas 4 kg. Aprovecha!",
+    "expectedClassifier": { "kind": "PRODUCT" },
+    "expectedProducts": 0
+  },
+  {
+    "id": "product-name-short-first-line",
+    "description": "rules-1.1.0: productName comes from first (short) line, not whole paragraph",
+    "text": "Manzanas golden 2,50€/kg\nNuestras manzanas vienen directamente del huerto familiar, sin tratamientos químicos.\nEnvíos a toda la península.",
+    "expectedClassifier": { "kind": "PRODUCT" },
+    "expectedProducts": 1,
+    "expectedFirstProduct": {
+      "productName": "Manzanas golden"
+    }
+  },
+  {
+    "id": "product-name-long-first-line-capped",
+    "description": "rules-1.1.0: long first line falls back to first 5 useful words (no newlines, no paragraph)",
+    "text": "ESPIRULINA ECOLÓGICA PREMIUM cultivada y secada de manera artesanal en la sierra de Acebo por nuestra familia 60€ el kilo.",
+    "expectedClassifier": { "kind": "PRODUCT" },
+    "expectedProducts": 1,
+    "expectedFirstProduct": {
+      "productName": "ESPIRULINA ECOLÓGICA PREMIUM cultivada y"
+    }
   }
 ]

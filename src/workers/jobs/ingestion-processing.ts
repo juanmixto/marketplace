@@ -38,7 +38,7 @@ import { generateCorrelationId } from '@/lib/correlation'
  */
 
 function emptyExtractionFor(
-  classifierKind: 'CONVERSATION' | 'SPAM' | 'OTHER',
+  classifierKind: 'PRODUCT_NO_PRICE' | 'CONVERSATION' | 'SPAM' | 'OTHER',
 ): ExtractionPayload {
   return {
     schemaVersion: EXTRACTION_SCHEMA_VERSION,
@@ -46,7 +46,13 @@ function emptyExtractionFor(
     vendorHint: {
       externalId: null,
       displayName: null,
-      meta: { rule: 'classifiedNonProduct', source: classifierKind },
+      meta: {
+        rule:
+          classifierKind === 'PRODUCT_NO_PRICE'
+            ? 'classifiedProductNoPrice'
+            : 'classifiedNonProduct',
+        source: classifierKind,
+      },
     },
     confidenceOverall: 0,
     rulesFired: [],
