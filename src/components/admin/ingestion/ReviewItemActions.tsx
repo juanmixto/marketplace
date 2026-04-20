@@ -9,7 +9,7 @@ import {
   discardProductDraft,
   discardUnextractable,
   markUnextractableValid,
-} from '@/domains/ingestion'
+} from '@/domains/ingestion/processing/admin/actions'
 
 interface ProductDraftActionsProps {
   kind: 'PRODUCT_DRAFT'
