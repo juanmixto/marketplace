@@ -497,6 +497,16 @@ const es = {
   'vendor.welcome.skip': 'Saltar tour',
   'vendor.welcome.finish': 'Completar mi perfil',
 
+  // Vendor – first sale celebration (shown once when totalFulfillments === 1)
+  'vendor.firstSale.badge': '¡Enhorabuena!',
+  'vendor.firstSale.title': '¡{name}, tu primera venta!',
+  'vendor.firstSale.body': 'Acabas de estrenarte. Alguien ha decidido confiar en lo que haces — y eso es enorme. Aquí van los 3 pasos que te llevan del pedido al reparto:',
+  'vendor.firstSale.tip1': 'Confirma el pedido cuanto antes — da confianza al comprador.',
+  'vendor.firstSale.tip2': 'Prepáralo con cariño: foto, nota a mano… lo que suelas hacer bien.',
+  'vendor.firstSale.tip3': 'Márcalo como listo cuando lo entregues. ¡Y a por el siguiente!',
+  'vendor.firstSale.goToOrder': 'Ver mi pedido',
+  'vendor.firstSale.dismiss': 'Luego lo veo',
+
   // Vendor – products list extras
   'vendor.productsList.productsOne': '1 producto',
   'vendor.productsList.productsOther': '{count} productos',

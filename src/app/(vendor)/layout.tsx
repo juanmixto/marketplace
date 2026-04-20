@@ -9,6 +9,7 @@ import { requireVendor } from '@/lib/auth-guard'
 import { getAvailablePortals } from '@/lib/portals'
 import { IMPERSONATION_COOKIE, verifyImpersonationToken } from '@/lib/impersonation'
 import { VendorWelcomeTour } from '@/components/vendor/VendorWelcomeTour'
+import { VendorFirstSaleCelebration } from '@/components/vendor/VendorFirstSaleCelebration'
 
 export default async function VendorLayout({ children }: { children: React.ReactNode }) {
   const session = await requireVendor()
@@ -34,7 +35,7 @@ export default async function VendorLayout({ children }: { children: React.React
   // the impersonating admin's email depends on the verified impersonation
   // token. Both are cheap point lookups — run them together so the layout
   // doesn't wait on each sequentially.
-  const [pendingFulfillments, impersonatingAdminEmail] = await Promise.all([
+  const [pendingFulfillments, totalFulfillments, impersonatingAdminEmail] = await Promise.all([
     vendor
       ? db.vendorFulfillment.count({
           where: {
@@ -43,6 +44,9 @@ export default async function VendorLayout({ children }: { children: React.React
           },
         })
       : Promise.resolve(0),
+    // Total count — drives the one-shot first-sale celebration modal.
+    // Cheap: hits the same (vendorId) index as the pending count above.
+    vendor ? db.vendorFulfillment.count({ where: { vendorId: vendor.id } }) : Promise.resolve(0),
     impersonation
       ? db.user
           .findUnique({ where: { id: impersonation.adminId }, select: { email: true } })
@@ -67,6 +71,9 @@ export default async function VendorLayout({ children }: { children: React.React
           <AppBadgeSync count={pendingFulfillments} />
           <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">{children}</main>
           {vendor && <VendorWelcomeTour vendorId={vendor.id} vendorName={vendor.displayName} />}
+          {vendor && totalFulfillments === 1 && (
+            <VendorFirstSaleCelebration vendorId={vendor.id} vendorName={vendor.displayName} />
+          )}
         </div>
       </div>
     </SidebarProvider>
