@@ -1299,6 +1299,28 @@ const en: Record<TranslationKeys, string> = {
   'admin.vendors': 'Producers',
   'admin.config': 'Configuration',
 
+  // Admin – welcome tour (first access for new admins)
+  'admin.welcome.stepCounter': 'Step {current} of {total}',
+  'admin.welcome.intro.title': 'Hi, {name}!',
+  'admin.welcome.intro.body': 'This is the admin panel. In under a minute we\'ll show you the essentials: producers, products, orders and how to impersonate a producer to support them. Ready?',
+  'admin.welcome.step1.title': 'Control panel',
+  'admin.welcome.step1.body': 'The marketplace pulse: recent orders, new producers, products pending review and incident alerts. Everything important at a glance.',
+  'admin.welcome.step2.title': 'Producers',
+  'admin.welcome.step2.body': 'Manage approvals, activate or suspend accounts and access their stores. Core to moderating the community.',
+  'admin.welcome.step3.title': 'Products',
+  'admin.welcome.step3.body': 'Review and approve new products, mark drafts or remove ones that don\'t comply. Your moderation queue lives here.',
+  'admin.welcome.step4.title': 'Orders',
+  'admin.welcome.step4.body': 'Global view of every marketplace order. Use it to resolve incidents, track status and check history.',
+  'admin.welcome.step5.title': 'Commissions & payouts',
+  'admin.welcome.step5.body': 'Tweak per-producer commissions, review settlements and control payouts. The marketplace till.',
+  'admin.welcome.step6.title': 'Impersonate producer',
+  'admin.welcome.step6.body': 'From any producer\'s page you can enter their panel in impersonation mode to help them live. An orange banner keeps you aware while using it.',
+  'admin.welcome.start': 'Get started',
+  'admin.welcome.next': 'Next',
+  'admin.welcome.back': 'Back',
+  'admin.welcome.skip': 'Skip',
+  'admin.welcome.finish': 'Got it',
+
   // Admin · Producers
   'adminProducers.eyebrow': 'Catalog',
   // Admin – promotions overview (phase 5)
