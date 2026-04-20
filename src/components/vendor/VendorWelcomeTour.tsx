@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   HomeIcon, ShoppingBagIcon, ArchiveBoxIcon, UserCircleIcon,
-  CurrencyEuroIcon, StarIcon, XMarkIcon, SparklesIcon,
+  CurrencyEuroIcon, StarIcon, XMarkIcon, SparklesIcon, BellIcon,
 } from '@heroicons/react/24/outline'
 import { useT } from '@/i18n'
 import type { TranslationKeys } from '@/i18n/locales'
@@ -24,13 +24,14 @@ interface Step {
 // Steps 1..N each navigate to their own section so the modal sits
 // on top of the real UI the vendor will use.
 const STEPS: Step[] = [
-  { path: '/vendor/dashboard',     titleKey: 'vendor.welcome.intro.title',  bodyKey: 'vendor.welcome.intro.body',  Icon: SparklesIcon,     emoji: '🎉' },
-  { path: '/vendor/dashboard',     titleKey: 'vendor.welcome.step1.title',  bodyKey: 'vendor.welcome.step1.body',  Icon: HomeIcon,         emoji: '🏡' },
-  { path: '/vendor/productos',     titleKey: 'vendor.welcome.step2.title',  bodyKey: 'vendor.welcome.step2.body',  Icon: ArchiveBoxIcon,   emoji: '🌱' },
-  { path: '/vendor/pedidos',       titleKey: 'vendor.welcome.step3.title',  bodyKey: 'vendor.welcome.step3.body',  Icon: ShoppingBagIcon,  emoji: '📦' },
-  { path: '/vendor/liquidaciones', titleKey: 'vendor.welcome.step4.title',  bodyKey: 'vendor.welcome.step4.body',  Icon: CurrencyEuroIcon, emoji: '💰' },
-  { path: '/vendor/valoraciones',  titleKey: 'vendor.welcome.step5.title',  bodyKey: 'vendor.welcome.step5.body',  Icon: StarIcon,         emoji: '⭐' },
-  { path: '/vendor/perfil',        titleKey: 'vendor.welcome.step6.title',  bodyKey: 'vendor.welcome.step6.body',  Icon: UserCircleIcon,   emoji: '✨' },
+  { path: '/vendor/dashboard',              titleKey: 'vendor.welcome.intro.title', bodyKey: 'vendor.welcome.intro.body', Icon: SparklesIcon,     emoji: '🎉' },
+  { path: '/vendor/dashboard',              titleKey: 'vendor.welcome.step1.title', bodyKey: 'vendor.welcome.step1.body', Icon: HomeIcon,         emoji: '🏡' },
+  { path: '/vendor/productos',              titleKey: 'vendor.welcome.step2.title', bodyKey: 'vendor.welcome.step2.body', Icon: ArchiveBoxIcon,   emoji: '🌱' },
+  { path: '/vendor/pedidos',                titleKey: 'vendor.welcome.step3.title', bodyKey: 'vendor.welcome.step3.body', Icon: ShoppingBagIcon,  emoji: '📦' },
+  { path: '/vendor/liquidaciones',          titleKey: 'vendor.welcome.step4.title', bodyKey: 'vendor.welcome.step4.body', Icon: CurrencyEuroIcon, emoji: '💰' },
+  { path: '/vendor/valoraciones',           titleKey: 'vendor.welcome.step5.title', bodyKey: 'vendor.welcome.step5.body', Icon: StarIcon,         emoji: '⭐' },
+  { path: '/vendor/ajustes/notificaciones', titleKey: 'vendor.welcome.step6.title', bodyKey: 'vendor.welcome.step6.body', Icon: BellIcon,         emoji: '🔔' },
+  { path: '/vendor/perfil',                 titleKey: 'vendor.welcome.step7.title', bodyKey: 'vendor.welcome.step7.body', Icon: UserCircleIcon,   emoji: '✨' },
 ]
 
 interface Props {
