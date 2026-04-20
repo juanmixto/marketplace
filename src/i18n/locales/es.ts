@@ -1298,6 +1298,28 @@ const es = {
   'admin.vendors': 'Productores',
   'admin.config': 'Configuración',
 
+  // Admin – welcome tour (first access for new admins)
+  'admin.welcome.stepCounter': 'Paso {current} de {total}',
+  'admin.welcome.intro.title': '¡Hola, {name}!',
+  'admin.welcome.intro.body': 'Este es el panel de administración. En menos de un minuto te enseñamos lo esencial: productores, productos, pedidos y cómo actuar como ellos para dar soporte. ¿Empezamos?',
+  'admin.welcome.step1.title': 'Panel de control',
+  'admin.welcome.step1.body': 'Aquí ves el pulso del marketplace: pedidos recientes, productores nuevos, productos pendientes de revisar y alertas de incidencias. Lo importante, de un vistazo.',
+  'admin.welcome.step2.title': 'Productores',
+  'admin.welcome.step2.body': 'Gestiona aprobaciones, activa o suspende cuentas y accede a sus escaparates. Clave en la moderación de la comunidad.',
+  'admin.welcome.step3.title': 'Productos',
+  'admin.welcome.step3.body': 'Revisa y aprueba productos nuevos, marca borradores o retira los que no cumplan. Tu cola de moderación vive aquí.',
+  'admin.welcome.step4.title': 'Pedidos',
+  'admin.welcome.step4.body': 'Vista global de todos los pedidos del marketplace. Úsala para resolver incidencias, seguir el estado y consultar historial.',
+  'admin.welcome.step5.title': 'Comisiones y pagos',
+  'admin.welcome.step5.body': 'Ajusta las comisiones por productor, revisa liquidaciones y controla los pagos a los productores. La caja del marketplace.',
+  'admin.welcome.step6.title': 'Impersonar productor',
+  'admin.welcome.step6.body': 'Desde la ficha de cada productor puedes entrar a su panel en modo impersonación para ayudarles en directo. Un banner naranja te lo recuerda mientras lo usas.',
+  'admin.welcome.start': 'Empezar',
+  'admin.welcome.next': 'Siguiente',
+  'admin.welcome.back': 'Atrás',
+  'admin.welcome.skip': 'Saltar',
+  'admin.welcome.finish': 'Entendido',
+
   // Admin · Productores
   'adminProducers.eyebrow': 'Catálogo',
   // Admin – promotions overview (phase 5)
