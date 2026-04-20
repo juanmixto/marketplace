@@ -139,14 +139,55 @@ function extractSingleProduct(segment: string, ordinal: number): ExtractedProduc
   // empty rather than build a draft from a single word.
   if (!price) return null
 
-  const confidenceOverall = normaliseConfidence(
-    meanConfidence(confidenceByField),
-  )
+  // rules-1.2.0: weighted mean per field criticality (A in iter-2).
+  //
+  // Confidence contract (locked — any shift is a cross-phase change):
+  //   - Critical fields (priceCents, productName) double-weighted.
+  //   - Low-signal fields (availability, categorySlug) half-weighted.
+  //   - `availability` is EXCLUDED when it's the default "UNKNOWN"
+  //     reading (confidence 0.3) so a missing signal doesn't drag
+  //     the overall score down.
+  //   - +0.05 bonus when every critical + unit signal fires AND no
+  //     promo marker was detected (isolated caller hint is
+  //     `priceWithPerUnit`). Cap still 1.0 via clamp.
+  //
+  // `confidenceModel` persists the exact calculation so operators
+  // can reconstruct any score from the stored row later.
+  const weights: Record<string, number> = {
+    priceCents: 2.0,
+    productName: 2.0,
+    unit: 1.0,
+    weightGrams: 1.0,
+    currencyCode: 1.0,
+    availability: 0.5,
+    categorySlug: 0.5,
+  }
+  const excludedFields: string[] = []
+  // Exclude availability when it fell back to the default
+  // (no explicit signal fired — rule `availDefault`).
+  if (meta.availability?.rule === 'availDefault') {
+    excludedFields.push('availability')
+  }
+
+  // Bonus: pricePerUnit rule fired (`priceWithPerUnit`) AND unit AND
+  // name all present, and no promo rule fired (already enforced by
+  // the fact that `isLikelyPromo` returns null for price).
+  const bonusEligible =
+    meta.priceCents?.rule === 'priceWithPerUnit' &&
+    meta.unit !== undefined &&
+    meta.productName !== undefined
+  const bonusAmount = bonusEligible ? 0.05 : 0
+  const bonus = bonusEligible
+    ? { rule: 'priceWithPerUnit+unit+name', amount: bonusAmount }
+    : null
+
+  const rawWeighted = weightedConfidence(confidenceByField, weights, excludedFields)
+  const confidenceOverall = normaliseConfidence(rawWeighted + bonusAmount)
 
   return {
     productOrdinal: ordinal,
     productName: name?.value ?? null,
-    categorySlug: null, // Phase 2 leaves categorySlug to admin review.
+    categorySlug: null,
     unit: unit?.value ?? null,
     weightGrams: weight?.value ?? null,
     priceCents: price?.value ?? null,
@@ -155,7 +196,31 @@ function extractSingleProduct(segment: string, ordinal: number): ExtractedProduc
     confidenceOverall,
     confidenceByField,
     extractionMeta: meta,
+    confidenceModel: {
+      method: 'weightedMean' as const,
+      weights,
+      excludedFields,
+      bonus,
+    },
   }
+}
+
+function weightedConfidence(
+  byField: Record<string, number>,
+  weights: Record<string, number>,
+  excluded: string[],
+): number {
+  const excludedSet = new Set(excluded)
+  let num = 0
+  let denom = 0
+  for (const [k, v] of Object.entries(byField)) {
+    if (excludedSet.has(k)) continue
+    const w = weights[k] ?? 1.0
+    num += v * w
+    denom += w
+  }
+  if (denom === 0) return 0
+  return num / denom
 }
 
 // ─── Field extractors ────────────────────────────────────────────────────────
@@ -166,8 +231,13 @@ interface Extracted<T> {
   meta: ExtractionMetaEntry
 }
 
+// rules-1.2.0: optionally capture the "/kg" tail so `m[0]` includes
+// it. Fixes a latent v1.0.0 bug where `hasPerUnit` downstream never
+// fired because `m[0]` only held "2,50€" regardless of trailing
+// per-unit indicator. Without this fix the bonus path in
+// weightedConfidence could not be reached.
 const PRICE_REGEX_FULL =
-  /(\d+[.,]?\d*)\s*(?:€|eur(?:os?)?)/i
+  /(\d+[.,]?\d*)\s*(?:€|eur(?:os?)?)(?:\s*\/\s*(?:kg|g|l|ml|ud|uds|unidades?))?/i
 const PRICE_RANGE_REGEX =
   /(\d+[.,]?\d*)\s*-\s*(\d+[.,]?\d*)\s*(?:€|eur(?:os?)?)/i
 
@@ -376,9 +446,7 @@ function buildVendorHint(input: ExtractorInput): ExtractionVendorHint {
 }
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
-
-function meanConfidence(byField: Record<string, number>): number {
-  const values = Object.values(byField)
-  if (values.length === 0) return 0
-  return values.reduce((a, b) => a + b, 0) / values.length
-}
+//
+// `meanConfidence` was removed in rules-1.2.0 in favour of
+// `weightedConfidence`. Keep this comment so grep / history
+// searches find the transition.

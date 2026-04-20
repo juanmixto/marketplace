@@ -27,3 +27,12 @@ export {
   dedupeMetricsFrom,
   type DedupeScanMetrics,
 } from './metrics'
+
+export {
+  scanUnextractableDedupe,
+  type UnextractableScannerDb,
+  type UnextractableScannerDeps,
+  type UnextractableScanInput,
+  type UnextractableScanResult,
+  type UnextractableExtractionRow,
+} from './unextractable'

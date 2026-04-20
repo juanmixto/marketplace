@@ -183,7 +183,7 @@ test('integration: bumping extractor version creates a new revision alongside th
   await buildDrafts(
     {
       messageId: message.id,
-      extractorVersion: 'rules-1.1.0',
+      extractorVersion: 'rules-1.3.0-hypothetical',
       classification: {
         kind: classifier.kind,
         confidence: 0.9,
@@ -207,7 +207,7 @@ test('integration: bumping extractor version creates a new revision alongside th
   assert.equal(extractions.length, 2)
   assert.deepEqual(
     extractions.map((e) => e.extractorVersion),
-    ['rules-1.0.0', 'rules-1.1.0'],
+    ['rules-1.2.0', 'rules-1.3.0-hypothetical'],
   )
   // Corresponding product drafts per version.
   const drafts = await db.ingestionProductDraft.findMany({

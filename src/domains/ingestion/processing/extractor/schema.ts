@@ -15,7 +15,15 @@ import { z } from 'zod'
  * the pipeline.
  */
 
-export const EXTRACTION_SCHEMA_VERSION = 1
+/**
+ * Schema versions:
+ *   1 — initial Phase 2 payload (PR-F).
+ *   2 — Phase 2.x iter-2: adds `confidenceModel` to each product so
+ *       operators can audit how `confidenceOverall` was computed
+ *       (weighted mean + bonus + exclusions). No other shape change;
+ *       Phase 1 / 1.0 consumers can still parse the core fields.
+ */
+export const EXTRACTION_SCHEMA_VERSION = 2
 
 const unitSchema = z
   .enum(['KG', 'G', 'L', 'ML', 'UNIT'])
@@ -43,6 +51,24 @@ const productMetaSchema = z.object({
   availability: extractionMetaEntrySchema.optional(),
 })
 
+/**
+ * Minimal record of how `confidenceOverall` was produced. Operators
+ * can rebuild the calculation from this without re-running the
+ * extractor. `excludedFields` captures fields skipped from the
+ * weighted mean (e.g. `availability=UNKNOWN` by default).
+ */
+const confidenceModelSchema = z.object({
+  method: z.literal('weightedMean'),
+  weights: z.record(z.string(), z.number().nonnegative()),
+  excludedFields: z.array(z.string()),
+  bonus: z
+    .object({
+      rule: z.string(),
+      amount: z.number().nonnegative(),
+    })
+    .nullable(),
+})
+
 const extractedProductSchema = z.object({
   productOrdinal: z.number().int().nonnegative(),
   productName: z.string().nullable(),
@@ -55,6 +81,8 @@ const extractedProductSchema = z.object({
   confidenceOverall: z.number().min(0).max(1),
   confidenceByField: z.record(z.string(), z.number().min(0).max(1)),
   extractionMeta: productMetaSchema,
+  // schemaVersion=2+: required.
+  confidenceModel: confidenceModelSchema,
 })
 
 const vendorHintSchema = z.object({
@@ -78,3 +106,4 @@ export type ExtractionPayload = z.infer<typeof extractionPayloadSchema>
 export type ExtractedProduct = z.infer<typeof extractedProductSchema>
 export type ExtractionVendorHint = z.infer<typeof vendorHintSchema>
 export type ExtractionMetaEntry = z.infer<typeof extractionMetaEntrySchema>
+export type ConfidenceModel = z.infer<typeof confidenceModelSchema>

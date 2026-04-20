@@ -43,6 +43,8 @@ export const PROCESSING_JOB_KINDS = {
   extractRules: 'ingestion.processing.extract.rules',
   buildDrafts: 'ingestion.processing.build-drafts',
   dedupeDrafts: 'ingestion.processing.dedupe-drafts',
+  // rules-1.2.0: dedupe for UNEXTRACTABLE extractions (PRODUCT_NO_PRICE).
+  unextractableDedupe: 'ingestion.processing.unextractable-dedupe',
 } as const
 
 export type ProcessingJobKind =

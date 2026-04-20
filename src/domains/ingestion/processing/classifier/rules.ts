@@ -75,6 +75,26 @@ const PRODUCE_WORDS = [
 // HAND-CURATED from the Phase 2.x dry run on the "AGRICULTOR A
 // CONSUMIDOR" group — the list is Spanish / Catalan flavoured and
 // should grow only with fixture-backed evidence.
+//
+// ─── rules-1.2.0 design note on multi-language expansion (item C) ───
+//
+// Iter-2 user decision: multi-language producer-tone support is
+// DESIGNED but NOT IMPLEMENTED. When real data arrives in catalan /
+// galician / basque / english:
+//   1. Move the current array into an object keyed by language
+//      (`spanish`, `catalan`, `galician`, `basque`, `english`).
+//   2. Require a new test file `ingestion-producer-tone-coverage.test.ts`
+//      that fails when any pattern has zero matching fixtures in
+//      `test/fixtures/ingestion-messages/cases.json`. Rule: no pattern
+//      without fixture.
+//   3. Keep the cumulative weight cap (W_PRODUCER_TONE_CAP = 0.5)
+//      unchanged — adding languages should not let a multi-language
+//      post double-score.
+//
+// Until there's real non-Spanish data to test against, adding patterns
+// is speculative expansion that the user explicitly rejected. Do not
+// ship language buckets before fixtures exist.
+// ────────────────────────────────────────────────────────────────────
 const PRODUCER_TONE_PATTERNS: RegExp[] = [
   /\bsomos (?:una? )?(?:peque[ñn]a? )?(?:empresa )?(?:familiar|productor[ae]s?)\b/i,
   /\bsomos productores\b/i,

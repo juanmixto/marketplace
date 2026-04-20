@@ -23,7 +23,7 @@
  * source of truth.
  */
 
-export const CURRENT_RULES_EXTRACTOR_VERSION = 'rules-1.1.0'
+export const CURRENT_RULES_EXTRACTOR_VERSION = 'rules-1.2.0'
 
 export function isRulesExtractorVersion(version: string): boolean {
   return version.startsWith('rules-')

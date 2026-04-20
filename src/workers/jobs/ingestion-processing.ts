@@ -157,4 +157,26 @@ export async function runProcessMessageJob(
       }
     }
   }
+
+  // rules-1.2.0: enqueue an unextractable-dedupe scan when the
+  // builder routed to UNEXTRACTABLE. Same stage gate, same
+  // best-effort semantics.
+  if (
+    draftsResult.status === 'UNEXTRACTABLE' &&
+    draftsResult.extractionResultId
+  ) {
+    try {
+      await enqueue(
+        PROCESSING_JOB_KINDS.unextractableDedupe,
+        { extractionId: draftsResult.extractionResultId, correlationId },
+        { singletonKey: `unxdedupe:${draftsResult.extractionResultId}` },
+      )
+    } catch (err) {
+      logger.warn('ingestion.processing.unextractable-dedupe.enqueue_failed', {
+        extractionId: draftsResult.extractionResultId,
+        correlationId,
+        error: err,
+      })
+    }
+  }
 }
