@@ -27,6 +27,7 @@ import {
 // eslint-disable-next-line no-restricted-imports -- calculator stays out of the shipping barrel (dynamic db import)
 import { getShippingCost } from '@/domains/shipping/calculator'
 import { getActionSession } from '@/lib/action-session'
+import { isFeatureEnabled } from '@/lib/flags'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { logger } from '@/lib/logger'
 import { generateCorrelationId } from '@/lib/correlation'
@@ -919,6 +920,29 @@ export async function createCheckoutOrder(
   // mock-confirmation follow-up call. On the success path createOrder
   // already logged `checkout.committed` with its own id.
   const wrapperCorrelationId = generateCorrelationId()
+
+  // Emergency kill switch. Flipped `false` in PostHog during an
+  // incident to stop accepting new checkout attempts without a deploy.
+  // Fail-open by design: a PostHog outage does not tumble checkout —
+  // the feature stays on unless someone explicitly turned it off.
+  // See docs/conventions.md § Feature flags.
+  const session = await getActionSession()
+  const checkoutEnabled = await isFeatureEnabled('kill-checkout', {
+    userId: session?.user.id,
+    email: session?.user.email ?? undefined,
+    role: session?.user.role,
+  })
+  if (!checkoutEnabled) {
+    logger.warn('checkout.kill_switch_active', {
+      correlationId: wrapperCorrelationId,
+      userId: session?.user.id,
+    })
+    return {
+      ok: false,
+      error: 'El checkout está temporalmente desactivado. Inténtalo en unos minutos.',
+    }
+  }
+
   try {
     const created = await createOrder(items, formData, options)
 

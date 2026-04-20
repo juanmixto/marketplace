@@ -20,6 +20,11 @@ const baseEnvSchema = z.object({
   // create new subscriptions and the "Mis suscripciones" buyer page shows
   // a disabled banner. Flip to 'true' in staging once Stripe Subscriptions
   // are wired in phase 4b.
+  //
+  // DEPRECATED: new feature gates should use src/lib/flags.ts
+  // (isFeatureEnabled / useFeatureFlag) instead of a process.env var.
+  // This one is kept until the subscriptions migration PR moves the
+  // gate to `feat-buyer-subscriptions` in PostHog.
   SUBSCRIPTIONS_BUYER_BETA: z.enum(['true', 'false']).default('false'),
   // Email — Resend
   RESEND_API_KEY: z.string().min(1).optional(),
@@ -35,6 +40,17 @@ const baseEnvSchema = z.object({
   SENDCLOUD_SECRET_KEY: z.string().min(1).optional(),
   SENDCLOUD_WEBHOOK_SECRET: z.string().min(1).optional(),
   SENDCLOUD_SENDER_ID: z.coerce.number().int().positive().optional(),
+  // PostHog — client key is read directly via process.env.NEXT_PUBLIC_*
+  // in src/lib/posthog.ts. The server-side flag evaluator lives in
+  // src/lib/flags.ts and needs two additional secrets:
+  //   - POSTHOG_PERSONAL_API_KEY enables in-process local evaluation
+  //     (no HTTP round-trip per isFeatureEnabled call). Without it the
+  //     SDK still works but adds ~50ms to every guarded server action.
+  //   - FEATURE_FLAGS_OVERRIDE takes precedence over PostHog. Intended
+  //     for tests and for the "PostHog itself is down during an
+  //     incident" case. Value is a JSON object: {"kill-checkout":false}.
+  POSTHOG_PERSONAL_API_KEY: z.string().min(1).optional(),
+  FEATURE_FLAGS_OVERRIDE: z.string().optional(),
 })
 
 export function parseServerEnv(env: NodeJS.ProcessEnv) {
@@ -157,6 +173,8 @@ export function parseServerEnv(env: NodeJS.ProcessEnv) {
     sendcloudWebhookSecret: parsed.SENDCLOUD_WEBHOOK_SECRET,
     sendcloudSenderId: parsed.SENDCLOUD_SENDER_ID ?? null,
     sendcloudConfigured,
+    posthogPersonalApiKey: parsed.POSTHOG_PERSONAL_API_KEY,
+    featureFlagsOverrideRaw: parsed.FEATURE_FLAGS_OVERRIDE,
   }
 }
 
