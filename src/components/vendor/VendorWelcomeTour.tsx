@@ -105,20 +105,15 @@ export function VendorWelcomeTour({ vendorId, vendorName }: Props) {
   const isLast = index === STEPS.length - 1
   const total = STEPS.length - 1 // progress shown as N/6 (excluding intro)
 
-  // Intro sits centered over a soft dim so the welcome lands with focus.
-  // Subsequent steps pin to a corner and use no backdrop, so the vendor
-  // can see the actual section the tour is describing.
-  const containerClass = isFirst
-    ? 'fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/30 p-4'
-    : 'pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center sm:inset-auto sm:bottom-6 sm:right-6 sm:justify-end p-4 sm:p-0'
-
+  // All steps — including the intro — live in the bottom-right corner
+  // (bottom full-width on mobile) with no backdrop so the vendor can see
+  // the actual UI the tour is describing from the very first frame.
   return (
     <div
       role="dialog"
-      aria-modal={isFirst}
+      aria-modal="false"
       aria-labelledby="vendor-welcome-title"
-      className={containerClass}
-      onClick={isFirst ? dismiss : undefined}
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center sm:inset-auto sm:bottom-6 sm:right-6 sm:justify-end p-4 sm:p-0"
     >
       <div
         onClick={e => e.stopPropagation()}
