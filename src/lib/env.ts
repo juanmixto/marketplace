@@ -1,8 +1,23 @@
 import { z } from 'zod'
 import { validateAuthDeploymentContract } from '@/lib/auth-env'
 
+// Placeholder DATABASE_URL used only when no value is provided at parse
+// time. Next.js `next build` on Vercel preview (and similar CI contexts)
+// loads modules that transitively import `getServerEnv()` — notably
+// `src/app/robots.ts` and other metadata routes — before the deploy
+// environment injects real vars. Parsing must not throw in that window,
+// or the entire build crashes. The `postgresql://invalid-placeholder...`
+// string fails loudly with a connection error on first use, so misuse
+// at runtime is still caught. The production-runtime gate below
+// enforces the real check once the server is actually serving traffic.
+const DATABASE_URL_BUILD_PLACEHOLDER =
+  'postgresql://invalid-placeholder-build-only:invalid@localhost:5432/none'
+
 const baseEnvSchema = z.object({
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  DATABASE_URL: z
+    .string()
+    .min(1)
+    .default(DATABASE_URL_BUILD_PLACEHOLDER),
   DATABASE_URL_TEST: z.string().min(1).optional(),
   AUTH_SECRET: z.string().min(1, 'AUTH_SECRET is required').optional(),
   AUTH_URL: z.string().url('AUTH_URL must be a valid URL').optional(),
@@ -68,6 +83,13 @@ export function parseServerEnv(env: NodeJS.ProcessEnv) {
   const isProductionRuntime =
     env.NODE_ENV === 'production' && env.NEXT_PHASE === 'phase-production-server'
   if (isProductionRuntime) {
+    // Real DATABASE_URL is required at runtime in production. The
+    // placeholder default exists only to let `next build` parse this
+    // schema before the deploy environment injects the real value.
+    if (parsed.DATABASE_URL === DATABASE_URL_BUILD_PLACEHOLDER) {
+      throw new Error('DATABASE_URL is required at runtime')
+    }
+
     // #548: refuse to boot in prod with the mock payment provider. The
     // Stripe webhook handler accepts unsigned events when provider=mock,
     // so leaving the default in prod is a free-money bug.
