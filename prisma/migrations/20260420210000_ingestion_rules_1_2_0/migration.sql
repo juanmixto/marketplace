@@ -18,5 +18,5 @@ CREATE UNIQUE INDEX "IngUnxDedupe_left_right_kind_key" ON "IngestionUnextractabl
 CREATE INDEX "IngUnxDedupe_riskClass_autoApplied_idx" ON "IngestionUnextractableDedupeCandidate"("riskClass", "autoApplied");
 CREATE INDEX "IngUnxDedupe_createdAt_idx" ON "IngestionUnextractableDedupeCandidate"("createdAt");
 
-ALTER TABLE "IngestionUnextractableDedupeCandidate" ADD CONSTRAINT "IngUnxDedupe_leftExtraction_fkey" FOREIGN KEY ("leftExtractionId") REFERENCES "IngestionExtractionResult"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "IngestionUnextractableDedupeCandidate" ADD CONSTRAINT "IngUnxDedupe_rightExtraction_fkey" FOREIGN KEY ("rightExtractionId") REFERENCES "IngestionExtractionResult"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "IngestionUnextractableDedupeCandidate" ADD CONSTRAINT "IngestionUnextractableDedupeCandidate_leftExtractionId_fkey" FOREIGN KEY ("leftExtractionId") REFERENCES "IngestionExtractionResult"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "IngestionUnextractableDedupeCandidate" ADD CONSTRAINT "IngestionUnextractableDedupeCandidate_rightExtractionId_fkey" FOREIGN KEY ("rightExtractionId") REFERENCES "IngestionExtractionResult"("id") ON DELETE CASCADE ON UPDATE CASCADE;
