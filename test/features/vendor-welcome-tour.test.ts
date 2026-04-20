@@ -20,6 +20,8 @@ const WELCOME_KEYS = [
   'vendor.welcome.step5.body',
   'vendor.welcome.step6.title',
   'vendor.welcome.step6.body',
+  'vendor.welcome.step7.title',
+  'vendor.welcome.step7.body',
   'vendor.welcome.start',
   'vendor.welcome.next',
   'vendor.welcome.back',
