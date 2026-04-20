@@ -137,7 +137,7 @@ CREATE INDEX "IngestionVendorDraft_status_idx" ON "IngestionVendorDraft"("status
 CREATE INDEX "IngestionVendorDraft_canonicalDraftId_idx" ON "IngestionVendorDraft"("canonicalDraftId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "IngestionProductDraft_sourceMessageId_extractorVersion_productOrdinal_key" ON "IngestionProductDraft"("sourceMessageId", "extractorVersion", "productOrdinal");
+CREATE UNIQUE INDEX "IngestionProductDraft_source_ver_ordinal_key" ON "IngestionProductDraft"("sourceMessageId", "extractorVersion", "productOrdinal");
 
 -- CreateIndex
 CREATE INDEX "IngestionProductDraft_status_createdAt_idx" ON "IngestionProductDraft"("status", "createdAt" DESC);

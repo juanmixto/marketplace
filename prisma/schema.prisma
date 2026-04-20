@@ -1573,7 +1573,7 @@ model IngestionProductDraft {
 
   // Idempotency key: re-running the same version on the same message
   // returns the existing row for every ordinal.
-  @@unique([sourceMessageId, extractorVersion, productOrdinal])
+  @@unique([sourceMessageId, extractorVersion, productOrdinal], map: "IngestionProductDraft_source_ver_ordinal_key")
   @@index([status, createdAt(sort: Desc)])
   @@index([vendorDraftId])
   @@index([canonicalDraftId])
