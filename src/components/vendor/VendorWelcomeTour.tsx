@@ -105,17 +105,24 @@ export function VendorWelcomeTour({ vendorId, vendorName }: Props) {
   const isLast = index === STEPS.length - 1
   const total = STEPS.length - 1 // progress shown as N/6 (excluding intro)
 
+  // Intro sits centered over a soft dim so the welcome lands with focus.
+  // Subsequent steps pin to a corner and use no backdrop, so the vendor
+  // can see the actual section the tour is describing.
+  const containerClass = isFirst
+    ? 'fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/30 p-4'
+    : 'pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center sm:inset-auto sm:bottom-6 sm:right-6 sm:justify-end p-4 sm:p-0'
+
   return (
     <div
       role="dialog"
-      aria-modal="true"
+      aria-modal={isFirst}
       aria-labelledby="vendor-welcome-title"
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-      onClick={dismiss}
+      className={containerClass}
+      onClick={isFirst ? dismiss : undefined}
     >
       <div
         onClick={e => e.stopPropagation()}
-        className="relative w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl overflow-hidden"
+        className="pointer-events-auto relative w-full max-w-sm rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl overflow-hidden"
       >
         {/* Warm gradient header */}
         <div className="relative bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-600 p-6 pb-8 text-white">
