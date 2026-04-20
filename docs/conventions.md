@@ -342,6 +342,44 @@ src/
 
 ---
 
+## Feature flags
+
+Flags live in PostHog. There are two call-sites, one per runtime:
+
+- **Server** — `isFeatureEnabled(key, ctx?)` from [`src/lib/flags.ts`](../src/lib/flags.ts). Use in server actions, route handlers, and webhooks.
+- **Client** — `useFeatureFlag(key)` from [`src/lib/flags.client.ts`](../src/lib/flags.client.ts). Use in React components.
+
+### Naming
+
+| Prefix | Purpose | UI default | Example |
+|---|---|---|---|
+| `kill-<area>` | Emergency off switch for a critical surface. Flip to `false` during an incident. | `true` | `kill-checkout`, `kill-stripe-webhook` |
+| `feat-<name>` | Work-in-progress feature gate. Target beta testers by email/role. | `false` | `feat-buyer-subscriptions` |
+
+### Fail-open (mandatory)
+
+Both evaluators return `true` if PostHog is unreachable, the SDK throws, or the flag is unknown. **A PostHog outage must never tumble checkout.** The only way to "turn off" a feature is an explicit `false` from the PostHog UI. If you need a fail-closed flag, you are probably looking at authorization, not a feature flag — use [`docs/authz-audit.md`](./authz-audit.md).
+
+### Override escape hatch
+
+`FEATURE_FLAGS_OVERRIDE='{"kill-checkout":false}'` is checked **before** PostHog. Two use cases:
+
+1. **Tests** — see `setTestFlagOverrides` / `clearTestFlagOverrides` in [`test/flags-helper.ts`](../test/flags-helper.ts).
+2. **Incidents where PostHog itself is down** — ship an env-var override and redeploy. Rare; document in the runbook when you use it.
+
+### Adding a flag
+
+1. Create it in the PostHog EU instance with the right default.
+2. Wrap the call site with `await isFeatureEnabled('kill-foo', { userId, email, role })` (pass the richest context you have — PostHog targeting depends on it).
+3. Log a `<scope>.kill_switch_active` event when the switch fires so oncall can trace which flag rejected traffic. Follow the `scope.action` pattern already used in [`docs/runbooks/payment-incidents.md`](./runbooks/payment-incidents.md).
+4. **Every `feat-*` flag needs a cleanup ticket** filed when you ship it. Flags are debt; 30 days post-GA is the soft cap.
+
+### Local eval
+
+Set `POSTHOG_PERSONAL_API_KEY` in prod to enable in-process evaluation — avoids an HTTP round-trip per `isFeatureEnabled`. Without it the SDK still works, just with ~50 ms of added latency per guarded action.
+
+---
+
 ## Related documents
 
 - [`docs/ai-guidelines.md`](./ai-guidelines.md) — contract rules, domain boundaries, and how the audit script enforces them.
