@@ -29,3 +29,35 @@ export {
   requireIngestionAdmin,
   IngestionFeatureUnavailableError,
 } from './authz'
+
+// Provider layer — types + factory + typed error taxonomy. The worker
+// imports `getTelegramProvider` to obtain the configured client;
+// business code only needs the types for DTO shapes and the error
+// classes for `instanceof` dispatch.
+export {
+  type TelegramIngestionProvider,
+  type TelegramIngestionProviderCode,
+  type RawTelegramChat,
+  type RawTelegramMessage,
+  type RawTelegramMessageMedia,
+  type FetchChatsInput,
+  type FetchChatsResult,
+  type FetchMessagesInput,
+  type FetchMessagesResult,
+  type FetchMediaInput,
+  type FetchMediaResult,
+  type MockFixture,
+  type TelethonHttpProviderConfig,
+  createMockProvider,
+  createTelethonHttpProvider,
+  getTelegramProvider,
+  resolveProviderCode,
+  TELEGRAM_PROVIDER_ENV,
+  TelegramProviderConfigError,
+  TelegramProviderError,
+  TelegramTransportError,
+  TelegramBadResponseError,
+  TelegramAuthRequiredError,
+  TelegramFloodWaitError,
+  TelegramChatGoneError,
+} from './telegram/providers'
