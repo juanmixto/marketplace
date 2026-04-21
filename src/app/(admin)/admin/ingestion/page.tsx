@@ -131,10 +131,13 @@ function humaniseReason(reason: string): string {
     case 'adminDiscardedUnextractable': return 'Descartado por admin'
     case 'adminMarkedValid': return 'Marcado como válido por admin'
     default:
-      // Auto-merges from dedupe arrive as e.g.
-      // "unextractableDedupe:sameAuthorSameNormalisedFirstLine".
-      if (reason.startsWith('unextractableDedupe:')) return 'Fusionado automático (dedupe)'
-      if (reason.startsWith('productDedupe:')) return 'Fusionado automático (dedupe)'
+      // Product-draft dedupe (scanner.ts) writes `dedupe:<rule>`:
+      if (reason === 'dedupe:identicalAcrossAllFields') return 'Duplicado exacto (auto-fusionado)'
+      if (reason.startsWith('dedupe:')) return 'Duplicado (auto-fusionado)'
+      // Unextractable dedupe (unextractable.ts) writes
+      // `unextractableDedupe:<rule>`.
+      if (reason.startsWith('unextractableDedupe:')) return 'Duplicado sin-precio (auto-fusionado)'
+      if (reason.startsWith('productDedupe:')) return 'Duplicado (auto-fusionado)'
       return reason
   }
 }
@@ -246,7 +249,7 @@ export default async function IngestionReviewQueuePage({ searchParams }: PagePro
                 <col className="w-[7rem]" />
                 <col className="w-[7.5rem]" />
                 <col className="w-[6rem]" />
-                <col className="w-[8rem]" />
+                <col className="w-[12rem]" />
               </colgroup>
               <thead className="bg-[var(--muted)]/40 text-left text-xs uppercase tracking-wider text-[var(--muted-foreground)]">
                 <tr>
@@ -315,12 +318,12 @@ export default async function IngestionReviewQueuePage({ searchParams }: PagePro
                       <td className="whitespace-nowrap px-4 py-3 align-top text-[var(--muted-foreground)]">
                         {row.messagePostedAt ? formatShortDate(row.messagePostedAt) : '—'}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 align-top">
+                      <td className="px-4 py-3 align-top">
                         <Badge variant={row.state === 'ENQUEUED' ? 'outline' : 'green'} className="whitespace-nowrap">
                           {row.state === 'ENQUEUED' ? 'Por revisar' : 'Resuelto'}
                         </Badge>
                         {row.autoResolvedReason && (
-                          <div className="mt-1 text-xs text-[var(--muted-foreground)]">
+                          <div className="mt-1 text-xs leading-tight text-[var(--muted-foreground)]">
                             {humaniseReason(row.autoResolvedReason)}
                           </div>
                         )}
