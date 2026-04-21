@@ -34,3 +34,25 @@ test('shouldApplyPaymentFailed returns true for a fresh pending snapshot', () =>
     true
   )
 })
+
+test('shouldApplyPaymentSucceeded refuses to resurrect a CANCELLED order', () => {
+  assert.equal(
+    shouldApplyPaymentSucceeded({
+      paymentStatus: 'PENDING',
+      orderPaymentStatus: 'PENDING',
+      orderStatus: 'CANCELLED',
+    }),
+    false
+  )
+})
+
+test('shouldApplyPaymentSucceeded refuses to resurrect a REFUNDED order', () => {
+  assert.equal(
+    shouldApplyPaymentSucceeded({
+      paymentStatus: 'SUCCEEDED',
+      orderPaymentStatus: 'REFUNDED',
+      orderStatus: 'REFUNDED',
+    }),
+    false
+  )
+})
