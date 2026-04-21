@@ -11,6 +11,11 @@ import {
   markUnextractableValid,
 } from '@/domains/ingestion/processing/admin/actions'
 
+type CompletionOutcome =
+  | { kind: 'published'; productId: string }
+  | { kind: 'discarded' }
+  | { kind: 'markedValid' }
+
 interface ProductDraftActionsProps {
   kind: 'PRODUCT_DRAFT'
   draftId: string
@@ -55,6 +60,32 @@ export function ReviewItemActions(props: Props) {
     })
   }
 
+  /**
+   * Terminal actions (publish / discard / mark valid) leave the admin
+   * on a resolved detail page with no obvious next step. After success
+   * we send them back to the queue with a query flag so the list can
+   * render a contextual banner ("Producto creado · siguiente item
+   * pendiente"). `router.refresh()` is kept on the fallback path so
+   * that if navigation fails we still reflect DB state locally.
+   */
+  const runTerminal = (
+    fn: () => Promise<CompletionOutcome>,
+  ) => {
+    setError(null)
+    startTransition(async () => {
+      try {
+        const outcome = await fn()
+        const params = new URLSearchParams()
+        params.set('flash', outcome.kind)
+        if (outcome.kind === 'published') params.set('productId', outcome.productId)
+        router.push(`/admin/ingestion?${params.toString()}`)
+        router.refresh()
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Error')
+      }
+    })
+  }
+
   if (props.kind === 'UNEXTRACTABLE_PRODUCT') {
     const { extractionId, canAct } = props
     return (
@@ -63,14 +94,24 @@ export function ReviewItemActions(props: Props) {
           <Button
             variant="secondary"
             disabled={!canAct || isPending}
-            onClick={() => runAction(() => markUnextractableValid({ extractionId }))}
+            onClick={() =>
+              runTerminal(async () => {
+                await markUnextractableValid({ extractionId })
+                return { kind: 'markedValid' }
+              })
+            }
           >
             Marcar como válido
           </Button>
           <Button
             variant="danger"
             disabled={!canAct || isPending}
-            onClick={() => runAction(() => discardUnextractable({ extractionId }))}
+            onClick={() =>
+              runTerminal(async () => {
+                await discardUnextractable({ extractionId })
+                return { kind: 'discarded' }
+              })
+            }
           >
             Descartar
           </Button>
@@ -209,8 +250,9 @@ export function ReviewItemActions(props: Props) {
         <Button
           disabled={!canEdit || isPending}
           onClick={() =>
-            runAction(async () => {
-              await publishApprovedDraft({ draftId })
+            runTerminal(async () => {
+              const result = await publishApprovedDraft({ draftId })
+              return { kind: 'published', productId: result.productId }
             })
           }
         >
@@ -226,7 +268,12 @@ export function ReviewItemActions(props: Props) {
         <Button
           variant="danger"
           disabled={!canEdit || isPending}
-          onClick={() => runAction(() => discardProductDraft({ draftId }))}
+          onClick={() =>
+            runTerminal(async () => {
+              await discardProductDraft({ draftId })
+              return { kind: 'discarded' }
+            })
+          }
         >
           Descartar
         </Button>
