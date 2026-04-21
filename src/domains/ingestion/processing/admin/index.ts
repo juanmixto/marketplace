@@ -9,6 +9,8 @@ export {
   type ReviewQueueDetail,
   type ReviewQueueDetailProduct,
   type ReviewQueueDetailUnextractable,
+  type ReviewQueueSortKey,
+  type ReviewQueueSortDir,
 } from './queries'
 
 export {
