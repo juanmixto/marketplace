@@ -175,7 +175,6 @@ export function scrubSentryEvent(event: Event, _hint?: EventHint): Event | null 
     // via `logger`, to avoid any risk of a re-entrant Sentry capture) so
     // operators can see the problem in server logs even when Sentry is dark.
     try {
-      // eslint-disable-next-line no-console
       console.error('[sentry-scrubber] crashed — dropping event', {
         error:
           err instanceof Error
