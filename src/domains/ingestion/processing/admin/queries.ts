@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { Prisma } from '@/generated/prisma/client'
 import type {
   IngestionDraftKind,
   IngestionReviewState,
@@ -25,11 +26,43 @@ export const REVIEW_QUEUE_PAGE_SIZE = 50
 export type ReviewQueueListKind =
   | Extract<IngestionDraftKind, 'PRODUCT_DRAFT' | 'UNEXTRACTABLE_PRODUCT'>
 
+export type ReviewQueueSortKey =
+  | 'fecha'
+  | 'tipo'
+  | 'confianza'
+  | 'precio'
+  | 'autor'
+  | 'estado'
+
+export type ReviewQueueSortDir = 'asc' | 'desc'
+
 export interface ListReviewQueueInput {
   kind?: ReviewQueueListKind | 'ALL'
   state?: IngestionReviewState | 'ALL'
   page?: number
   pageSize?: number
+  sort?: ReviewQueueSortKey
+  dir?: ReviewQueueSortDir
+}
+
+/**
+ * Column expressions for the raw ORDER BY. Only this map's keys are
+ * accepted as sort keys, so using `Prisma.raw` against these strings
+ * is safe (no caller-supplied SQL ever reaches the expression).
+ */
+const SORT_EXPR: Record<ReviewQueueSortKey, string> = {
+  // `m."postedAt"` is the real time of the message, which is what a
+  // human reviewer actually cares about. Fall back to q."createdAt"
+  // for items where the join didn't resolve (shouldn't happen in
+  // practice, but keeps the ordering total).
+  fecha: 'COALESCE(m."postedAt", q."createdAt")',
+  tipo: 'q."kind"',
+  // Confidence lives on the product draft; unextractable items are
+  // always NULL here and sort to the end regardless of direction.
+  confianza: 'd."confidenceOverall"',
+  precio: 'd."priceCents"',
+  autor: 'm."tgAuthorId"',
+  estado: 'q."state"',
 }
 
 export interface ReviewQueueListRowProduct {
@@ -94,24 +127,59 @@ export async function listReviewQueue(
       ? [input.kind]
       : ['PRODUCT_DRAFT', 'UNEXTRACTABLE_PRODUCT']
 
+  const sortKey: ReviewQueueSortKey = input.sort ?? 'fecha'
+  const dir: ReviewQueueSortDir = input.dir === 'asc' ? 'asc' : 'desc'
+  const stateFilter = input.state && input.state !== 'ALL' ? input.state : null
+  const orderExpr = SORT_EXPR[sortKey]
+  // NULLS sort stable and predictable: on asc they go last, on desc
+  // also last — reviewers want concrete data first either way.
+  const orderBy = Prisma.raw(
+    `${orderExpr} ${dir === 'asc' ? 'ASC' : 'DESC'} NULLS LAST, q."createdAt" DESC`,
+  )
+  const skip = (page - 1) * pageSize
+
+  // Raw id query — LEFT JOIN the polymorphic targets and the message
+  // row, then ORDER BY whichever field the caller asked for. The
+  // joins are 1:1 so there's no row-multiplication.
+  const kindsSql = Prisma.sql`(${Prisma.join(kindFilter.map((k) => Prisma.sql`${k}::"IngestionDraftKind"`))})`
+  const stateSql = stateFilter
+    ? Prisma.sql` AND q."state" = ${stateFilter}::"IngestionReviewState"`
+    : Prisma.empty
+
+  const idRows = await db.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    SELECT q."id"
+    FROM "IngestionReviewQueueItem" q
+    LEFT JOIN "IngestionProductDraft" d
+      ON q."kind" = 'PRODUCT_DRAFT'::"IngestionDraftKind" AND d."id" = q."targetId"
+    LEFT JOIN "IngestionExtractionResult" e
+      ON q."kind" = 'UNEXTRACTABLE_PRODUCT'::"IngestionDraftKind" AND e."id" = q."targetId"
+    LEFT JOIN "TelegramIngestionMessage" m
+      ON m."id" = COALESCE(d."sourceMessageId", e."messageId")
+    WHERE q."kind" IN ${kindsSql}${stateSql}
+    ORDER BY ${orderBy}
+    LIMIT ${pageSize} OFFSET ${skip}
+  `)
+  const orderedIds = idRows.map((r) => r.id)
+
   const where = {
     kind: { in: kindFilter },
-    ...(input.state && input.state !== 'ALL' ? { state: input.state } : {}),
+    ...(stateFilter ? { state: stateFilter } : {}),
   }
 
-  const [items, total] = await Promise.all([
-    db.ingestionReviewQueueItem.findMany({
-      where,
-      orderBy: [
-        { state: 'asc' },
-        { priority: 'desc' },
-        { createdAt: 'desc' },
-      ],
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
+  const [rawItems, total] = await Promise.all([
+    orderedIds.length
+      ? db.ingestionReviewQueueItem.findMany({ where: { id: { in: orderedIds } } })
+      : [],
     db.ingestionReviewQueueItem.count({ where }),
   ])
+
+  // Restore the raw-SQL ordering: findMany does not preserve the
+  // order of `in` arrays.
+  const itemById = new Map(rawItems.map((i) => [i.id, i]))
+  const items = orderedIds.flatMap((id) => {
+    const hit = itemById.get(id)
+    return hit ? [hit] : []
+  })
 
   const draftIds: string[] = []
   const extractionIds: string[] = []

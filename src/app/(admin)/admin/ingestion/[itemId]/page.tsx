@@ -27,6 +27,19 @@ function formatPriceCents(cents: number | null, currency: string | null): string
   return `${(cents / 100).toFixed(2)} ${currency ?? 'EUR'}`
 }
 
+function humaniseReason(reason: string): string {
+  switch (reason) {
+    case 'adminApproved': return 'Aprobado por admin'
+    case 'adminDiscarded': return 'Descartado por admin'
+    case 'adminDiscardedUnextractable': return 'Descartado por admin'
+    case 'adminMarkedValid': return 'Marcado como válido por admin'
+    default:
+      if (reason.startsWith('unextractableDedupe:')) return 'Fusionado automático (dedupe)'
+      if (reason.startsWith('productDedupe:')) return 'Fusionado automático (dedupe)'
+      return reason
+  }
+}
+
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
@@ -86,13 +99,13 @@ export default async function ReviewItemDetailPage({ params }: PageProps) {
           ← Volver a la cola
         </Link>
         <h1 className="mt-2 text-2xl font-semibold text-[var(--foreground)]">
-          {item.target.kind === 'PRODUCT_DRAFT' ? 'Product draft' : 'Sin precio extractado'}
+          {item.target.kind === 'PRODUCT_DRAFT' ? 'Draft de producto' : 'Sin precio extractado'}
         </h1>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[var(--muted-foreground)]">
           <Badge variant={item.state === 'ENQUEUED' ? 'outline' : 'green'}>
             {item.state === 'ENQUEUED' ? 'Por revisar' : 'Resuelto'}
           </Badge>
-          {item.autoResolvedReason && <span>· {item.autoResolvedReason}</span>}
+          {item.autoResolvedReason && <span>· {humaniseReason(item.autoResolvedReason)}</span>}
           <span>· Creado {formatDate(item.createdAt)}</span>
         </div>
       </div>
@@ -160,7 +173,21 @@ export default async function ReviewItemDetailPage({ params }: PageProps) {
           </CardHeader>
           <CardBody>
             <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <Field label="Display name" value={item.target.vendorDraft.displayName} />
+              <Field
+                label="Display name"
+                value={
+                  item.target.vendorDraft.displayName === 'Unknown vendor' ? (
+                    <span>
+                      <span className="text-[var(--muted-foreground)]">—</span>
+                      <span className="ml-2 text-xs text-[var(--muted-foreground)]">
+                        (fallback: el extractor no infirió el nombre)
+                      </span>
+                    </span>
+                  ) : (
+                    item.target.vendorDraft.displayName
+                  )
+                }
+              />
               <Field label="External id" value={item.target.vendorDraft.externalId ?? '—'} />
               <Field label="Draft id" value={item.target.vendorDraft.id} />
             </dl>
@@ -174,7 +201,7 @@ export default async function ReviewItemDetailPage({ params }: PageProps) {
         </CardHeader>
         <CardBody className="space-y-4">
           <Field
-            label="Rules fired"
+            label="Reglas disparadas"
             value={
               rulesFired.length ? (
                 <div className="flex flex-wrap gap-1">
@@ -184,86 +211,107 @@ export default async function ReviewItemDetailPage({ params }: PageProps) {
                     </Badge>
                   ))}
                 </div>
+              ) : item.target.kind === 'UNEXTRACTABLE_PRODUCT' ? (
+                <span className="text-xs text-[var(--muted-foreground)]">
+                  El extractor de reglas no se ejecuta cuando la clasificación es{' '}
+                  <span className="font-mono">
+                    {item.target.extraction.classification ?? 'PRODUCT_NO_PRICE'}
+                  </span>
+                  .
+                </span>
               ) : (
                 '—'
               )
             }
           />
-          {productPayload?.extractionMeta && (
-            <Field
-              label="Extraction meta"
-              value={
-                <ul className="space-y-1 text-xs">
-                  {Object.entries(productPayload.extractionMeta).map(([field, meta]) => (
-                    <li key={field}>
-                      <span className="font-mono text-[var(--muted-foreground)]">{field}</span>:{' '}
-                      <span className="font-mono">{meta.rule}</span>
-                      {meta.source && (
-                        <span className="ml-2 text-[var(--muted-foreground)]">
-                          (“{meta.source}”)
-                        </span>
+
+          <details className="group rounded border border-[var(--border)] p-3">
+            <summary className="cursor-pointer text-xs font-medium text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
+              Detalles técnicos
+            </summary>
+            <div className="mt-3 space-y-4">
+              {productPayload?.extractionMeta && (
+                <Field
+                  label="Origen de cada campo"
+                  value={
+                    <ul className="space-y-1 text-xs">
+                      {Object.entries(productPayload.extractionMeta).map(([field, meta]) => (
+                        <li key={field}>
+                          <span className="font-mono text-[var(--muted-foreground)]">{field}</span>:{' '}
+                          <span className="font-mono">{meta.rule}</span>
+                          {meta.source && (
+                            <span className="ml-2 text-[var(--muted-foreground)]">
+                              (“{meta.source}”)
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  }
+                />
+              )}
+              {productPayload?.confidenceModel && (
+                <Field
+                  label="Modelo de confianza"
+                  value={
+                    <div className="space-y-1 text-xs">
+                      <div>
+                        <span className="text-[var(--muted-foreground)]">método: </span>
+                        <span className="font-mono">{productPayload.confidenceModel.method}</span>
+                      </div>
+                      {productPayload.confidenceModel.weights && (
+                        <div>
+                          <span className="text-[var(--muted-foreground)]">pesos:</span>
+                          <ul className="ml-4 list-disc space-y-0.5">
+                            {Object.entries(productPayload.confidenceModel.weights)
+                              .sort(([, a], [, b]) => b - a)
+                              .map(([field, weight]) => (
+                                <li key={field}>
+                                  <span className="font-mono">{field}</span>
+                                  <span className="ml-2 text-[var(--muted-foreground)]">×{weight}</span>
+                                </li>
+                              ))}
+                          </ul>
+                        </div>
                       )}
-                    </li>
-                  ))}
-                </ul>
-              }
-            />
-          )}
-          {productPayload?.confidenceModel && (
-            <Field
-              label="Confidence model"
-              value={
-                <div className="space-y-1 text-xs">
-                  <div>
-                    <span className="text-[var(--muted-foreground)]">method: </span>
-                    <span className="font-mono">{productPayload.confidenceModel.method}</span>
-                  </div>
-                  {productPayload.confidenceModel.weights && (
-                    <div>
-                      <span className="text-[var(--muted-foreground)]">weights: </span>
-                      <span className="font-mono">
-                        {JSON.stringify(productPayload.confidenceModel.weights)}
-                      </span>
+                      {productPayload.confidenceModel.excludedFields?.length ? (
+                        <div>
+                          <span className="text-[var(--muted-foreground)]">excluidos: </span>
+                          <span className="font-mono">
+                            {productPayload.confidenceModel.excludedFields.join(', ')}
+                          </span>
+                        </div>
+                      ) : null}
+                      {productPayload.confidenceModel.bonus && (
+                        <div>
+                          <span className="text-[var(--muted-foreground)]">bonus: </span>
+                          <span className="font-mono">
+                            {productPayload.confidenceModel.bonus.rule} (+
+                            {productPayload.confidenceModel.bonus.amount})
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {productPayload.confidenceModel.excludedFields?.length ? (
-                    <div>
-                      <span className="text-[var(--muted-foreground)]">excluded: </span>
-                      <span className="font-mono">
-                        {productPayload.confidenceModel.excludedFields.join(', ')}
-                      </span>
-                    </div>
-                  ) : null}
-                  {productPayload.confidenceModel.bonus && (
-                    <div>
-                      <span className="text-[var(--muted-foreground)]">bonus: </span>
-                      <span className="font-mono">
-                        {productPayload.confidenceModel.bonus.rule} (+
-                        {productPayload.confidenceModel.bonus.amount})
-                      </span>
-                    </div>
-                  )}
-                </div>
-              }
-            />
-          )}
-          <Field
-            label="Correlation id"
-            value={
-              <span className="font-mono text-xs">
-                {item.target.kind === 'PRODUCT_DRAFT'
-                  ? item.target.extraction.correlationId
-                  : item.target.extraction.correlationId}
-              </span>
-            }
-          />
+                  }
+                />
+              )}
+              <Field
+                label="Correlation id"
+                value={
+                  <span className="font-mono text-xs">
+                    {item.target.extraction.correlationId}
+                  </span>
+                }
+              />
+            </div>
+          </details>
         </CardBody>
       </Card>
 
       {item.target.kind === 'UNEXTRACTABLE_PRODUCT' && item.target.dedupeCandidates.length > 0 && (
         <Card>
           <CardHeader>
-            <h2 className="text-sm font-semibold">Dedupe candidates</h2>
+            <h2 className="text-sm font-semibold">Posibles duplicados</h2>
           </CardHeader>
           <CardBody>
             <ul className="space-y-2 text-sm">
@@ -278,7 +326,7 @@ export default async function ReviewItemDetailPage({ params }: PageProps) {
                       <Badge variant={c.riskClass === 'LOW' ? 'green' : c.riskClass === 'MEDIUM' ? 'amber' : 'red'}>
                         riesgo {c.riskClass}
                       </Badge>
-                      {c.autoApplied && <Badge variant="blue">auto-merged</Badge>}
+                      {c.autoApplied && <Badge variant="blue">fusión automática</Badge>}
                     </div>
                     <p className="mt-1 truncate text-xs text-[var(--muted-foreground)]">
                       {c.otherMessageText ?? '(sin texto)'}

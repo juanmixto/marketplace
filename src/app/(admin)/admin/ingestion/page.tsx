@@ -5,12 +5,14 @@ import {
   listReviewQueue,
   REVIEW_QUEUE_PAGE_SIZE,
   type ReviewQueueListKind,
+  type ReviewQueueSortKey,
+  type ReviewQueueSortDir,
 } from '@/domains/ingestion'
 import { requireIngestionAdmin } from '@/domains/ingestion/authz'
 import { IngestionFeatureUnavailableError } from '@/domains/ingestion/authz'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { cn, formatDate } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Ingestion · Review queue | Admin' }
 export const dynamic = 'force-dynamic'
@@ -20,12 +22,46 @@ interface PageProps {
     kind?: string
     state?: string
     page?: string
+    sort?: string
+    dir?: string
   }>
+}
+
+type SortKey = ReviewQueueSortKey
+type SortDir = ReviewQueueSortDir
+
+const SORT_KEYS: readonly SortKey[] = [
+  'fecha',
+  'tipo',
+  'confianza',
+  'precio',
+  'autor',
+  'estado',
+]
+
+function parseSort(v: string | undefined): SortKey {
+  return (SORT_KEYS as readonly string[]).includes(v ?? '') ? (v as SortKey) : 'fecha'
+}
+
+function parseDir(v: string | undefined): SortDir {
+  return v === 'asc' ? 'asc' : 'desc'
+}
+
+const DATE_FORMATTER = new Intl.DateTimeFormat('es-ES', {
+  day: '2-digit',
+  month: 'short',
+  year: '2-digit',
+})
+
+function formatShortDate(d: Date): string {
+  // "28 mar 26" — Intl gives "28 mar. 26" on some runtimes, strip the
+  // trailing dot off the month abbreviation for consistency.
+  return DATE_FORMATTER.format(d).replace('.', '')
 }
 
 const KIND_OPTIONS: Array<{ value: ReviewQueueListKind | 'ALL'; label: string }> = [
   { value: 'ALL', label: 'Todo' },
-  { value: 'PRODUCT_DRAFT', label: 'Product drafts' },
+  { value: 'PRODUCT_DRAFT', label: 'Drafts de producto' },
   { value: 'UNEXTRACTABLE_PRODUCT', label: 'Sin precio' },
 ]
 
@@ -45,11 +81,23 @@ function parseState(v: string | undefined): 'ENQUEUED' | 'AUTO_RESOLVED' | 'ALL'
   return 'ENQUEUED'
 }
 
-function buildHref(base: { kind: string; state: string }, overrides: { kind?: string; state?: string; page?: number } = {}) {
+interface HrefBase {
+  kind: string
+  state: string
+  sort: SortKey
+  dir: SortDir
+}
+
+function buildHref(
+  base: HrefBase,
+  overrides: Partial<HrefBase> & { page?: number } = {},
+) {
   const next = { ...base, ...overrides }
   const params = new URLSearchParams()
   if (next.kind && next.kind !== 'ALL') params.set('kind', next.kind)
   if (next.state && next.state !== 'ENQUEUED') params.set('state', next.state)
+  if (next.sort !== 'fecha') params.set('sort', next.sort)
+  if (next.dir !== 'desc') params.set('dir', next.dir)
   if (overrides.page && overrides.page > 1) params.set('page', String(overrides.page))
   const qs = params.toString()
   return qs ? `/admin/ingestion?${qs}` : '/admin/ingestion'
@@ -67,6 +115,21 @@ function formatPriceCents(cents: number | null, currency: string | null): string
   return `${(cents / 100).toFixed(2)} ${currency ?? 'EUR'}`
 }
 
+function humaniseReason(reason: string): string {
+  switch (reason) {
+    case 'adminApproved': return 'Aprobado por admin'
+    case 'adminDiscarded': return 'Descartado por admin'
+    case 'adminDiscardedUnextractable': return 'Descartado por admin'
+    case 'adminMarkedValid': return 'Marcado como válido por admin'
+    default:
+      // Auto-merges from dedupe arrive as e.g.
+      // "unextractableDedupe:sameAuthorSameNormalisedFirstLine".
+      if (reason.startsWith('unextractableDedupe:')) return 'Fusionado automático (dedupe)'
+      if (reason.startsWith('productDedupe:')) return 'Fusionado automático (dedupe)'
+      return reason
+  }
+}
+
 export default async function IngestionReviewQueuePage({ searchParams }: PageProps) {
   try {
     await requireIngestionAdmin()
@@ -79,19 +142,21 @@ export default async function IngestionReviewQueuePage({ searchParams }: PagePro
   const kind = parseKind(sp.kind)
   const state = parseState(sp.state)
   const page = Math.max(1, Number.parseInt(sp.page ?? '1', 10) || 1)
-  const result = await listReviewQueue({ kind, state, page, pageSize: REVIEW_QUEUE_PAGE_SIZE })
+  const sort = parseSort(sp.sort)
+  const dir = parseDir(sp.dir)
+  const result = await listReviewQueue({ kind, state, page, pageSize: REVIEW_QUEUE_PAGE_SIZE, sort, dir })
   const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize))
 
-  const baseParams = { kind, state }
+  const baseParams: HrefBase = { kind, state, sort, dir }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-[var(--foreground)]">
-          Ingestion · Review queue
+          Ingesta · Cola de revisión
         </h1>
         <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-          Drafts and unextractable producer messages queued for human review. Nothing here touches the public catalog yet.
+          Drafts y mensajes de productor sin precio pendientes de revisión humana. Nada de lo que haya aquí toca todavía el catálogo público.
         </p>
       </div>
 
@@ -132,17 +197,26 @@ export default async function IngestionReviewQueuePage({ searchParams }: PagePro
         </CardHeader>
 
         <CardBody className="p-0">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+          <div>
+            <table className="w-full table-fixed text-sm">
+              <colgroup>
+                <col />
+                <col className="w-[7rem]" />
+                <col className="w-[8rem]" />
+                <col className="w-[7rem]" />
+                <col className="w-[7.5rem]" />
+                <col className="w-[6rem]" />
+                <col className="w-[8rem]" />
+              </colgroup>
               <thead className="bg-[var(--muted)]/40 text-left text-xs uppercase tracking-wider text-[var(--muted-foreground)]">
                 <tr>
                   <th className="px-4 py-3 font-medium">Texto</th>
-                  <th className="px-4 py-3 font-medium">Tipo</th>
-                  <th className="px-4 py-3 font-medium">Confianza</th>
-                  <th className="px-4 py-3 font-medium">Precio</th>
-                  <th className="px-4 py-3 font-medium">Autor</th>
-                  <th className="px-4 py-3 font-medium">Fecha</th>
-                  <th className="px-4 py-3 font-medium">Estado</th>
+                  <SortableTh label="Tipo" sortKey="tipo" current={sort} dir={dir} base={baseParams} />
+                  <SortableTh label="Confianza" sortKey="confianza" current={sort} dir={dir} base={baseParams} />
+                  <SortableTh label="Precio" sortKey="precio" current={sort} dir={dir} base={baseParams} />
+                  <SortableTh label="Autor" sortKey="autor" current={sort} dir={dir} base={baseParams} />
+                  <SortableTh label="Fecha" sortKey="fecha" current={sort} dir={dir} base={baseParams} />
+                  <SortableTh label="Estado" sortKey="estado" current={sort} dir={dir} base={baseParams} />
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
@@ -169,41 +243,45 @@ export default async function IngestionReviewQueuePage({ searchParams }: PagePro
                       <td className="px-4 py-3 align-top">
                         <Link
                           href={`/admin/ingestion/${row.itemId}`}
-                          className="block max-w-[32rem] truncate text-[var(--foreground)] hover:underline"
+                          className="block truncate text-[var(--foreground)] hover:underline"
                           title={row.messageText ?? ''}
                         >
                           {productName ?? row.messageText ?? '(sin texto)'}
                         </Link>
                         {productName && row.messageText && (
-                          <div className="mt-0.5 max-w-[32rem] truncate text-xs text-[var(--muted-foreground)]">
+                          <div className="mt-0.5 truncate text-xs text-[var(--muted-foreground)]">
                             {row.messageText}
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-3 align-top">
-                        <Badge variant={isProduct ? 'blue' : 'amber'}>
+                      <td className="whitespace-nowrap px-4 py-3 align-top">
+                        <Badge variant={isProduct ? 'blue' : 'amber'} className="whitespace-nowrap">
                           {isProduct ? 'PRODUCT' : 'SIN PRECIO'}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 align-top">
-                        <Badge variant={bandVariant(band)}>
-                          {band} · {confidenceOverall}
-                        </Badge>
+                      <td className="whitespace-nowrap px-4 py-3 align-top">
+                        {isProduct ? (
+                          <Badge variant={bandVariant(band)} className="whitespace-nowrap">
+                            {band} · {confidenceOverall}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-[var(--muted-foreground)]">—</span>
+                        )}
                       </td>
-                      <td className="px-4 py-3 align-top text-[var(--muted-foreground)]">{priceLabel}</td>
-                      <td className="px-4 py-3 align-top text-[var(--muted-foreground)]">
+                      <td className="whitespace-nowrap px-4 py-3 align-top text-[var(--muted-foreground)]">{priceLabel}</td>
+                      <td className="whitespace-nowrap px-4 py-3 align-top text-[var(--muted-foreground)]">
                         {row.authorId ?? '—'}
                       </td>
-                      <td className="px-4 py-3 align-top text-[var(--muted-foreground)]">
-                        {row.messagePostedAt ? formatDate(row.messagePostedAt) : '—'}
+                      <td className="whitespace-nowrap px-4 py-3 align-top text-[var(--muted-foreground)]">
+                        {row.messagePostedAt ? formatShortDate(row.messagePostedAt) : '—'}
                       </td>
-                      <td className="px-4 py-3 align-top">
-                        <Badge variant={row.state === 'ENQUEUED' ? 'outline' : 'green'}>
+                      <td className="whitespace-nowrap px-4 py-3 align-top">
+                        <Badge variant={row.state === 'ENQUEUED' ? 'outline' : 'green'} className="whitespace-nowrap">
                           {row.state === 'ENQUEUED' ? 'Por revisar' : 'Resuelto'}
                         </Badge>
                         {row.autoResolvedReason && (
                           <div className="mt-1 text-xs text-[var(--muted-foreground)]">
-                            {row.autoResolvedReason}
+                            {humaniseReason(row.autoResolvedReason)}
                           </div>
                         )}
                       </td>
@@ -246,5 +324,33 @@ export default async function IngestionReviewQueuePage({ searchParams }: PagePro
         )}
       </Card>
     </div>
+  )
+}
+
+interface SortableThProps {
+  label: string
+  sortKey: SortKey
+  current: SortKey
+  dir: SortDir
+  base: HrefBase
+}
+
+function SortableTh({ label, sortKey, current, dir, base }: SortableThProps) {
+  const active = current === sortKey
+  const nextDir: SortDir = active && dir === 'desc' ? 'asc' : 'desc'
+  const arrow = active ? (dir === 'asc' ? '↑' : '↓') : '↕'
+  return (
+    <th className="whitespace-nowrap px-4 py-3 font-medium">
+      <Link
+        href={buildHref(base, { sort: sortKey, dir: nextDir, page: 1 })}
+        className={cn(
+          'inline-flex items-center gap-1 hover:text-[var(--foreground)]',
+          active && 'text-[var(--foreground)]',
+        )}
+      >
+        {label}
+        <span className={cn('text-[10px]', !active && 'opacity-40')}>{arrow}</span>
+      </Link>
+    </th>
   )
 }
