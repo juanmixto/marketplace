@@ -7,7 +7,7 @@ import {
   INGESTION_PUBLISH_FEATURE_FLAG,
   publishApprovedDraft,
 } from '@/domains/ingestion'
-import { IngestionPublishValidationError } from '@/domains/ingestion/processing/admin/actions'
+import { IngestionPublishValidationError } from '@/domains/ingestion/processing/admin/errors'
 import {
   buildSession,
   clearTestSession,

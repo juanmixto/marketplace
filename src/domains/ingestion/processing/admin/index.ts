@@ -13,9 +13,10 @@ export {
 
 export {
   publishApprovedDraft,
-  IngestionPublishValidationError,
   editProductDraft,
   discardProductDraft,
   discardUnextractable,
   markUnextractableValid,
 } from './actions'
+
+export { IngestionPublishValidationError } from './errors'

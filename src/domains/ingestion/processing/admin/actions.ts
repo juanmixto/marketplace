@@ -8,6 +8,7 @@ import { logger } from '@/lib/logger'
 import { slugify } from '@/lib/utils'
 import { requireIngestionAdmin } from '@/domains/ingestion/authz'
 import { isIngestionPublishEnabled } from '@/domains/ingestion/flags'
+import { IngestionPublishValidationError } from './errors'
 
 /**
  * Phase 3 admin mutations for the ingestion review queue.
@@ -31,15 +32,6 @@ const REVALIDATE_PATH = '/admin/ingestion'
 const publishSchema = z.object({
   draftId: z.string().min(1),
 })
-
-export class IngestionPublishValidationError extends Error {
-  readonly reason: string
-  constructor(reason: string, message: string) {
-    super(message)
-    this.name = 'IngestionPublishValidationError'
-    this.reason = reason
-  }
-}
 
 const UNIT_MAP: Record<string, string> = {
   KG: 'kg',
