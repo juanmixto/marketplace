@@ -45,22 +45,6 @@ import { clearTestFlagOverrides, setTestFlagOverrides } from '../flags-helper'
  * unique constraint + seeded category) landed.
  */
 
-async function insertActiveCategoryIfMissing() {
-  // `uncategorized` is seeded by migration but tests that truncate
-  // the DB lose it; re-insert defensively.
-  await db.category.upsert({
-    where: { slug: 'uncategorized' },
-    create: {
-      id: 'cat_uncategorized',
-      name: 'Sin categoría',
-      slug: 'uncategorized',
-      isActive: true,
-      sortOrder: 999,
-    },
-    update: {},
-  })
-}
-
 async function createGhostUserVendor(tgAuthorId: string) {
   const email = `tg-${tgAuthorId}@ingestion.ghost.local`
   const user = await db.user.create({
@@ -126,7 +110,6 @@ async function createActiveProduct(vendorId: string, name: string) {
 
 beforeEach(async () => {
   await resetIntegrationDatabase()
-  await insertActiveCategoryIfMissing()
 })
 
 afterEach(() => {
@@ -186,8 +169,9 @@ test('migration: Product.sourceIngestionDraftId UNIQUE is enforced (idempotent p
 })
 
 test('migration: uncategorized Category row is present with stable id', async () => {
-  // The migration seeds this; resetIntegrationDatabase truncates; the
-  // beforeEach re-inserts via upsert to keep tests independent.
+  // The migration seeds this once per environment; the shared test
+  // helper re-seeds after every TRUNCATE so the invariant holds
+  // across cross-file beforeEach hook ordering.
   const row = await db.category.findUnique({ where: { slug: 'uncategorized' } })
   assert.ok(row)
   assert.equal(row!.id, 'cat_uncategorized')
