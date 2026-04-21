@@ -124,8 +124,15 @@ test('integration: end-to-end cycle produces coherent aggregates across stages',
   // PRODUCT with no extractable price — expected skip (bias).
   await ingest(chat.id, 6, 'Hoy tengo manzanas disponibles', '42')
 
-  const from = new Date('2026-04-19T00:00:00Z')
-  const to = new Date('2026-04-21T00:00:00Z')
+  // The aggregator filters by the `createdAt` of Ingestion* rows
+  // (not `postedAt`), so the window has to cover whatever wall-clock
+  // moment these writes happen. Anchoring to `new Date()` ± a day
+  // lets this test keep working after the calendar ticks past the
+  // fixture date — the previous hard-coded 2026-04-21 ceiling
+  // silently dropped every row once the runner passed that moment.
+  const now = new Date()
+  const from = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+  const to = new Date(now.getTime() + 24 * 60 * 60 * 1000)
   const aggregates = await computeProcessingAggregates(
     db as unknown as ObservabilityDb,
     { from, to },
