@@ -33,10 +33,12 @@ test('isMockWebhookAllowed: returns false when provider is stripe (not mock)', (
 })
 
 test('isMockWebhookAllowed: treats unknown environments as production-safe (deny)', () => {
-  // An unrecognised NODE_ENV should not accidentally allow mock processing
-  assert.equal(isMockWebhookAllowed('mock', 'staging'), true)
-  // staging is not 'production' so it is currently allowed — document this:
-  // if stricter control is needed, add 'staging' to the blocklist
+  // Any NODE_ENV outside the dev/test allowlist must fail closed. A
+  // custom 'staging' deploy was previously allowed (bypassed Stripe
+  // signature verification) — the allowlist shuts that path.
+  assert.equal(isMockWebhookAllowed('mock', 'staging'), false)
+  assert.equal(isMockWebhookAllowed('mock', 'preview'), false)
+  assert.equal(isMockWebhookAllowed('mock', ''), false)
 })
 
 // ─── getWebhookIdempotencyKey ─────────────────────────────────────────────────

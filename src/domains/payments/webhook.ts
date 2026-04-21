@@ -81,11 +81,16 @@ function getWebhookErrorMessage(error: unknown) {
 
 /**
  * Returns true if the mock webhook path is safe to use.
- * In production, mock processing must be blocked to prevent spoofed events.
+ *
+ * Mock mode bypasses Stripe signature verification, so it must only be
+ * active in the dev/test harness. The previous `!== 'production'` check
+ * silently allowed any custom NODE_ENV (eg. 'staging', 'preview') to
+ * process unsigned webhook events. Switch to an explicit allowlist so
+ * an unfamiliar deploy environment fails closed.
  */
 export function isMockWebhookAllowed(paymentProvider: string, nodeEnv: string): boolean {
   if (paymentProvider !== 'mock') return false
-  return nodeEnv !== 'production'
+  return nodeEnv === 'development' || nodeEnv === 'test'
 }
 
 /**
