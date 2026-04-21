@@ -7,7 +7,8 @@ import {
   INGESTION_PUBLISH_FEATURE_FLAG,
   publishApprovedDraft,
 } from '@/domains/ingestion'
-import { claimGhostVendor, VendorClaimError } from '@/domains/vendors/claim'
+import { claimGhostVendor } from '@/domains/vendors/claim'
+import { VendorClaimError } from '@/domains/vendors/claim-errors'
 import {
   buildSession,
   clearTestSession,

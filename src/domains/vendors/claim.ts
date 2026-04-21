@@ -7,6 +7,7 @@ import { getActionSession } from '@/lib/action-session'
 import { createAuditLog, getAuditRequestIp } from '@/lib/audit'
 import { safeRevalidatePath } from '@/lib/revalidate'
 import { logger } from '@/lib/logger'
+import { VendorClaimError } from './claim-errors'
 
 /**
  * Phase 4 PR-E — ghost vendor claim flow.
@@ -28,15 +29,6 @@ import { logger } from '@/lib/logger'
  * Stripe at `/vendor/perfil`, and admin approves → ACTIVE. That path
  * is Phase 1/2 vendor lifecycle and untouched here.
  */
-
-export class VendorClaimError extends Error {
-  readonly reason: string
-  constructor(reason: string, message: string) {
-    super(message)
-    this.name = 'VendorClaimError'
-    this.reason = reason
-  }
-}
 
 const claimSchema = z.object({
   code: z
