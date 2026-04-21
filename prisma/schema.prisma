@@ -277,6 +277,16 @@ model Vendor {
   bankAccountName String?
   stripeAccountId String?         @unique
   stripeOnboarded Boolean         @default(false)
+
+  // Phase 4 PR-E — ghost-vendor claim. Populated only when this
+  // Vendor was created by Telegram ingestion (owned by a ghost
+  // User). A real producer enters this code to take ownership;
+  // once claimed, both columns are cleared and the Vendor looks
+  // like any other self-serve vendor. Null for all vendors that
+  // were created through `applyAsVendor`.
+  claimCode          String?   @unique
+  claimCodeExpiresAt DateTime?
+
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 

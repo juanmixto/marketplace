@@ -72,6 +72,42 @@ async function resolveUniqueSlug(base: string): Promise<string> {
   return candidate
 }
 
+/**
+ * Alphanumeric code without ambiguous glyphs (0/O, 1/I/L) so the
+ * operator can dictate it over Telegram without the producer asking
+ * "is that a zero or an o". 8 chars = 32^8 ≈ 1.1 × 10¹² permutations
+ * which is plenty for the audit volumes we expect while keeping the
+ * code short enough to type by hand.
+ */
+const CLAIM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+const CLAIM_CODE_LENGTH = 8
+const CLAIM_CODE_TTL_MS = 365 * 24 * 60 * 60 * 1000
+
+function generateClaimCode(): string {
+  let out = ''
+  const { randomInt } = globalThis.crypto
+    ? { randomInt: (n: number) => {
+        const buf = new Uint32Array(1)
+        crypto.getRandomValues(buf)
+        return buf[0]! % n
+      } }
+    : { randomInt: (n: number) => Math.floor(Math.random() * n) }
+  for (let i = 0; i < CLAIM_CODE_LENGTH; i++) {
+    out += CLAIM_CODE_ALPHABET[randomInt(CLAIM_CODE_ALPHABET.length)]
+  }
+  return out
+}
+
+async function issueUniqueClaimCode(): Promise<string> {
+  // Retry on the ~0% chance of a collision against the UNIQUE index.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = generateClaimCode()
+    const hit = await db.vendor.findUnique({ where: { claimCode: code }, select: { id: true } })
+    if (!hit) return code
+  }
+  throw new Error('Failed to issue unique claim code after 5 attempts')
+}
+
 async function resolveUniqueVendorSlug(base: string): Promise<string> {
   const root = slugify(base) || 'productor'
   let candidate = root
@@ -293,6 +329,8 @@ export async function publishApprovedDraft(
           displayName: `Productor Telegram ${tgAuthorId.slice(-4)}`,
           status: 'APPLYING',
           stripeOnboarded: false,
+          claimCode: await issueUniqueClaimCode(),
+          claimCodeExpiresAt: new Date(Date.now() + CLAIM_CODE_TTL_MS),
         },
       })
       vendorId = vendor.id
@@ -320,6 +358,8 @@ export async function publishApprovedDraft(
         displayName: `Productor Telegram ${tgAuthorId.slice(-4)}`,
         status: 'APPLYING',
         stripeOnboarded: false,
+        claimCode: await issueUniqueClaimCode(),
+        claimCodeExpiresAt: new Date(Date.now() + CLAIM_CODE_TTL_MS),
       },
     })
     vendorId = vendor.id
