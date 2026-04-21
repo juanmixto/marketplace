@@ -16,7 +16,7 @@ import {
 } from '@/lib/auth-guard'
 import { resetTestActionSession, setTestActionSession } from '@/lib/action-session'
 
-process.env.NODE_ENV = 'test'
+Object.assign(process.env, { NODE_ENV: 'test' })
 
 const ALLOWED_READ: UserRole[] = ['ADMIN_SUPPORT', 'ADMIN_OPS', 'SUPERADMIN']
 const ALLOWED_RESET: UserRole[] = ['ADMIN_SUPPORT', 'ADMIN_OPS', 'SUPERADMIN']
