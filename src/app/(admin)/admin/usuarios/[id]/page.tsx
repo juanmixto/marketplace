@@ -5,7 +5,9 @@ import { ArrowLeftIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
 import { AdminStatusBadge } from '@/components/admin/AdminStatusBadge'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { getAdminUserDetailData } from '@/domains/admin'
+import { createAuditLog, getAuditRequestIp } from '@/lib/audit'
 import { db } from '@/lib/db'
+import { auth } from '@/lib/auth'
 import { formatDate } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Detalle de usuario | Admin' }
@@ -43,6 +45,22 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
   const detail = await getAdminUserDetailData(id).catch(() => null)
   if (!detail) {
     notFound()
+  }
+
+  const session = await auth()
+  if (session?.user) {
+    const ip = await getAuditRequestIp()
+    await createAuditLog({
+      action: 'ADMIN_USER_DETAIL_VIEWED',
+      entityType: 'User',
+      entityId: detail.user.id,
+      after: { view: 'detail' },
+      actorId: session.user.id,
+      actorRole: session.user.role,
+      ip,
+    }).catch(error => {
+      console.error('[admin-users][audit] detail view log failed', error)
+    })
   }
 
   const auditLogs = await db.auditLog.findMany({
