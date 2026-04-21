@@ -51,6 +51,26 @@ export const CATALOG_ADMIN_ROLES: readonly UserRole[] = [
 
 export const SUPERADMIN_ROLES: readonly UserRole[] = [UserRole.SUPERADMIN]
 
+// Admin users is a support/ops surface. Catalog admin does not need
+// access by default, and finance only needs it if a future ticket
+// introduces a concrete support use case.
+export const ADMIN_USERS_READ_ROLES: readonly UserRole[] = [
+  UserRole.ADMIN_SUPPORT,
+  UserRole.ADMIN_OPS,
+  UserRole.SUPERADMIN,
+]
+
+export const ADMIN_USERS_PASSWORD_RESET_ROLES: readonly UserRole[] = [
+  UserRole.ADMIN_SUPPORT,
+  UserRole.ADMIN_OPS,
+  UserRole.SUPERADMIN,
+]
+
+export const ADMIN_USERS_STATE_CHANGE_ROLES: readonly UserRole[] = [
+  UserRole.ADMIN_OPS,
+  UserRole.SUPERADMIN,
+]
+
 export function hasRole<Role extends UserRole>(
   role: UserRole | null | undefined,
   allowedRoles: readonly Role[]
@@ -84,3 +104,15 @@ export function isSuperadminRole(role?: UserRole | null): role is typeof UserRol
 
 export const isAdmin = isAdminRole
 export const isVendor = isVendorRole
+
+export function canAccessAdminUsers(role?: UserRole | null): boolean {
+  return hasRole(role, ADMIN_USERS_READ_ROLES)
+}
+
+export function canResetAdminUserPassword(role?: UserRole | null): boolean {
+  return hasRole(role, ADMIN_USERS_PASSWORD_RESET_ROLES)
+}
+
+export function canChangeAdminUserState(role?: UserRole | null): boolean {
+  return hasRole(role, ADMIN_USERS_STATE_CHANGE_ROLES)
+}

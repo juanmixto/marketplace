@@ -6,6 +6,9 @@ import {
   isAdmin,
   hasRole,
   CATALOG_ADMIN_ROLES,
+  canAccessAdminUsers,
+  canChangeAdminUserState,
+  canResetAdminUserPassword,
   FINANCE_ADMIN_ROLES,
   OPS_ADMIN_ROLES,
   SUPERADMIN_ROLES,
@@ -65,5 +68,23 @@ export async function requireFinanceAdmin() {
 export async function requireOpsAdmin() {
   const session = await requireAuth()
   if (!hasRole(session.user.role, OPS_ADMIN_ROLES)) redirect('/')
+  return session
+}
+
+export async function requireAdminUsersRead() {
+  const session = await requireAuth()
+  if (!canAccessAdminUsers(session.user.role)) redirect('/admin/dashboard')
+  return session
+}
+
+export async function requireAdminUsersResetPassword() {
+  const session = await requireAuth()
+  if (!canResetAdminUserPassword(session.user.role)) redirect('/admin/dashboard')
+  return session
+}
+
+export async function requireAdminUsersStateChange() {
+  const session = await requireAuth()
+  if (!canChangeAdminUserState(session.user.role)) redirect('/admin/dashboard')
   return session
 }

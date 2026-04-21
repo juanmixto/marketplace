@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
-import { isAdmin, isVendor } from '@/lib/roles'
+import { canAccessAdminUsers, isAdmin, isVendor } from '@/lib/roles'
 import { type UserRole } from '@/generated/prisma/enums'
 import { getPrimaryPortalHref, sanitizeCallbackUrl } from '@/lib/portals'
 import { isRequestOnAdminHost, hostMatchesAdmin, ADMIN_HOST_ENV_VAR } from '@/lib/admin-host'
@@ -211,6 +211,12 @@ export async function proxy(request: NextRequest) {
   if (pathname.startsWith('/admin') && !isAdmin(role)) {
     return finalizeResponse(
       NextResponse.redirect(new URL(getPrimaryPortalHref(role), request.url))
+    )
+  }
+
+  if (pathname.startsWith('/admin/usuarios') && !canAccessAdminUsers(role)) {
+    return finalizeResponse(
+      NextResponse.redirect(new URL('/admin/dashboard', request.url))
     )
   }
 
