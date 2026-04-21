@@ -2,7 +2,6 @@ import test, { beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { db } from '@/lib/db'
 import {
-  approveProductDraft,
   discardProductDraft,
   editProductDraft,
   discardUnextractable,
@@ -170,22 +169,6 @@ afterEach(() => {
   clearTestSession()
 })
 
-test('admin: approve draft flips status to APPROVED + review item to AUTO_RESOLVED + audit row written', async () => {
-  const { draft, queueItem } = await seedProductDraft()
-  await withAdminSession(() => approveProductDraft({ draftId: draft.id }))
-
-  const updated = await db.ingestionProductDraft.findUniqueOrThrow({ where: { id: draft.id } })
-  assert.equal(updated.status, 'APPROVED')
-  const qi = await db.ingestionReviewQueueItem.findUniqueOrThrow({ where: { id: queueItem.id } })
-  assert.equal(qi.state, 'AUTO_RESOLVED')
-  assert.equal(qi.autoResolvedReason, 'adminApproved')
-  const auditRows = await db.auditLog.findMany({
-    where: { entityType: 'IngestionProductDraft', entityId: draft.id },
-  })
-  assert.equal(auditRows.length, 1)
-  assert.equal(auditRows[0]!.action, 'INGESTION_DRAFT_APPROVED')
-})
-
 test('admin: discard draft flips status to REJECTED + review item to AUTO_RESOLVED', async () => {
   const { draft, queueItem } = await seedProductDraft()
   await withAdminSession(() => discardProductDraft({ draftId: draft.id }))
@@ -218,11 +201,11 @@ test('admin: edit draft patches whitelisted fields only + writes before/after au
   assert.equal(auditRows.length, 1)
 })
 
-test('admin: approve refuses when draft is already resolved', async () => {
+test('admin: discard refuses when draft is already resolved', async () => {
   const { draft } = await seedProductDraft()
-  await withAdminSession(() => approveProductDraft({ draftId: draft.id }))
+  await withAdminSession(() => discardProductDraft({ draftId: draft.id }))
   await assert.rejects(
-    () => withAdminSession(() => approveProductDraft({ draftId: draft.id })),
+    () => withAdminSession(() => discardProductDraft({ draftId: draft.id })),
     /already resolved/,
   )
 })
@@ -250,7 +233,7 @@ test('admin: actions refuse when feat-ingestion-admin flag is off (pre-GA isolat
   const { draft } = await seedProductDraft()
   setTestFlagOverrides({ [INGESTION_ADMIN_FEATURE_FLAG]: false })
   await assert.rejects(
-    () => withAdminSession(() => approveProductDraft({ draftId: draft.id })),
+    () => withAdminSession(() => discardProductDraft({ draftId: draft.id })),
     /not currently available/i,
   )
   // State must be untouched.

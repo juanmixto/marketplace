@@ -12,7 +12,8 @@ export {
 } from './queries'
 
 export {
-  approveProductDraft,
+  publishApprovedDraft,
+  IngestionPublishValidationError,
   editProductDraft,
   discardProductDraft,
   discardUnextractable,
