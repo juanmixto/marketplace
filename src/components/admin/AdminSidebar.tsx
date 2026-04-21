@@ -43,9 +43,11 @@ export function AdminSidebar() {
   const pathname = usePathname()
   const { collapsed, toggleCollapsed, mobileOpen, closeMobile } = useSidebar()
   const ingestionAdminEnabled = useFeatureFlagStrict('feat-ingestion-admin')
+  const adminUsersEnabled = useFeatureFlagStrict('feat-admin-user-management')
   const visibleNavItems = adminNavItems.filter((item) => {
     if (!item.flag) return true
     if (item.flag === 'feat-ingestion-admin') return ingestionAdminEnabled
+    if (item.flag === 'feat-admin-user-management') return adminUsersEnabled
     return false
   })
 

@@ -13,7 +13,7 @@ test('navigation helpers split available and upcoming sections correctly', () =>
   assert.equal(getAvailableNavItems(vendorNavItems).length, 9)
   assert.equal(getUpcomingNavItems(vendorNavItems).length, 0)
   assert.equal(getAvailableNavItems(adminNavItems).length, 16)
-  assert.equal(getUpcomingNavItems(adminNavItems).length, 0)
+  assert.equal(getUpcomingNavItems(adminNavItems).length, 1)
 })
 
 test('buyer account only exposes implemented links as available', () => {
@@ -39,6 +39,14 @@ test('buyer account metadata covers every account link to avoid runtime crashes 
     Object.keys(buyerAccountMeta).sort(),
     buyerAccountItems.map(item => item.href).sort()
   )
+})
+
+test('admin nav includes the admin users rollout item but keeps it upcoming by default', () => {
+  const usersItem = adminNavItems.find(item => item.href === '/admin/usuarios')
+  assert.ok(usersItem)
+  assert.equal(usersItem?.available, false)
+  assert.equal(usersItem?.flag, 'feat-admin-user-management')
+  assert.ok(getUpcomingNavItems(adminNavItems).some(item => item.href === '/admin/usuarios'))
 })
 
 test('buyer account metadata exposes labelKey and descKey for every entry', () => {
