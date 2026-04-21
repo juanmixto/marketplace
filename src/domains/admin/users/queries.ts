@@ -39,6 +39,14 @@ export interface AdminUsersListResult {
   }
 }
 
+export interface AdminUserDetailResult {
+  user: AdminUserSupportView
+  activity: {
+    lastLoginAt: Date | null
+    lastActivityAt: Date | null
+  }
+}
+
 function buildUserWhere(filters: AdminUsersListFilters): Prisma.UserWhereInput {
   const where: Prisma.UserWhereInput = {}
   const q = filters.q?.trim()
@@ -150,6 +158,23 @@ export async function getAdminUsersListData(
       pageSize,
       totalUsers,
       totalPages: Math.max(1, Math.ceil(totalUsers / pageSize)),
+    },
+  }
+}
+
+export async function getAdminUserDetailData(userId: string): Promise<AdminUserDetailResult> {
+  await requireAdminUsersRead()
+
+  const user = await db.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: ADMIN_USER_SUPPORT_USER_SELECT,
+  })
+
+  return {
+    user: buildAdminUserSupportView(user),
+    activity: {
+      lastLoginAt: null,
+      lastActivityAt: null,
     },
   }
 }
