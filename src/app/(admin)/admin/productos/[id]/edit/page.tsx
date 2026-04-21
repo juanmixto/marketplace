@@ -19,7 +19,18 @@ export default async function AdminProductEditPage({ params }: Props) {
   const [product, categories] = await Promise.all([
     db.product.findUnique({
       where: { id },
-      include: { vendor: { select: { id: true, displayName: true } } },
+      include: {
+        vendor: {
+          select: {
+            id: true,
+            displayName: true,
+            status: true,
+            stripeOnboarded: true,
+            claimCode: true,
+            claimCodeExpiresAt: true,
+          },
+        },
+      },
     }),
     getCategories(),
   ])
@@ -61,6 +72,12 @@ export default async function AdminProductEditPage({ params }: Props) {
           draftId={product.sourceIngestionDraftId}
           sourceMessageId={product.sourceTelegramMessageId}
           reviewItemId={reviewItemId}
+          vendor={{
+            status: product.vendor.status,
+            stripeOnboarded: product.vendor.stripeOnboarded,
+            claimCode: product.vendor.claimCode,
+            claimCodeExpiresAt: product.vendor.claimCodeExpiresAt,
+          }}
         />
       )}
 

@@ -70,6 +70,8 @@ const ALLOWLIST_FILES: ReadonlySet<string> = new Set([
   'src/app/(admin)/admin/ingestion/page.tsx', // Phase 3 ingestion review queue — feat-ingestion-admin gated, not localized yet.
   'src/app/(admin)/admin/ingestion/[itemId]/page.tsx', // Phase 3 ingestion review item detail — feat-ingestion-admin gated, not localized yet.
   'src/components/admin/ingestion/ReviewItemActions.tsx', // Phase 3 ingestion review actions — feat-ingestion-admin gated, not localized yet.
+  'src/app/(buyer)/cuenta/reclamar-productor/page.tsx', // Phase 4 PR-E ghost-vendor claim — operator-facing via out-of-band code, not localized yet.
+  'src/app/(buyer)/cuenta/reclamar-productor/ClaimVendorForm.tsx', // Phase 4 PR-E claim form — operator-facing, not localized yet.
   // Auth flows — pending dedicated i18n PR.
   'src/app/(auth)/forgot-password/page.tsx',
   'src/app/(auth)/recuperar-contrasena/nueva/ResetForm.tsx',
