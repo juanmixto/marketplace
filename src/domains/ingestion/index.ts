@@ -21,8 +21,10 @@ export {
 export {
   INGESTION_KILL_FLAG,
   INGESTION_ADMIN_FEATURE_FLAG,
+  INGESTION_PUBLISH_FEATURE_FLAG,
   isIngestionKilled,
   isIngestionAdminEnabled,
+  isIngestionPublishEnabled,
 } from './flags'
 
 export {

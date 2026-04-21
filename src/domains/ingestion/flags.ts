@@ -1,4 +1,4 @@
-import { isFeatureEnabled, type FlagContext } from '@/lib/flags'
+import { isFeatureEnabled, isFeatureEnabledStrict, type FlagContext } from '@/lib/flags'
 import { logger } from '@/lib/logger'
 
 /**
@@ -22,6 +22,7 @@ import { logger } from '@/lib/logger'
 
 export const INGESTION_KILL_FLAG = 'kill-ingestion-telegram'
 export const INGESTION_ADMIN_FEATURE_FLAG = 'feat-ingestion-admin'
+export const INGESTION_PUBLISH_FEATURE_FLAG = 'feat-ingestion-publish'
 
 export interface KillSwitchLogFields {
   correlationId?: string
@@ -63,4 +64,22 @@ export async function isIngestionAdminEnabled(
   ctx?: FlagContext,
 ): Promise<boolean> {
   return isFeatureEnabled(INGESTION_ADMIN_FEATURE_FLAG, ctx)
+}
+
+/**
+ * Phase 4 — returns `true` when the publish-to-catalog action is
+ * enabled for the given caller. Orthogonal to the admin UI flag:
+ * operators may want to preview the review queue without arming the
+ * publish path. Default off until Phase 4 PR-B lands the action.
+ *
+ * Unlike `isIngestionAdminEnabled`, this gate uses the **strict**
+ * evaluator: a PostHog outage, a missing key, or an `undefined` flag
+ * value all resolve to `false`. Spinning up Product + Vendor rows
+ * during an ops incident would be harder to roll back than simply
+ * waiting, so fail-closed is the right default for this path.
+ */
+export async function isIngestionPublishEnabled(
+  ctx?: FlagContext,
+): Promise<boolean> {
+  return isFeatureEnabledStrict(INGESTION_PUBLISH_FEATURE_FLAG, ctx)
 }

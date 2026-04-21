@@ -366,6 +366,18 @@ model Product {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
+  // Phase 4 — ingestion provenance. Set when this Product was created
+  // by publishing an approved IngestionProductDraft. The UNIQUE
+  // constraint on `sourceIngestionDraftId` is the sole mechanism that
+  // prevents the "approve the same draft twice" race from inserting
+  // duplicate products. `sourceTelegramMessageId` is kept as a
+  // convenience for cross-references from Product back to the raw
+  // Telegram message; it is a secondary handle and NOT unique (a
+  // single message can theoretically yield several product drafts
+  // when the extractor detects multiple products in one post).
+  sourceIngestionDraftId  String? @unique
+  sourceTelegramMessageId String?
+
   vendor            Vendor             @relation(fields: [vendorId], references: [id])
   category          Category?          @relation(fields: [categoryId], references: [id])
   variants          ProductVariant[]
@@ -387,6 +399,7 @@ model Product {
   // filtered by status. Composite index keeps page N constant-time
   // regardless of N. See #89.
   @@index([status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([sourceTelegramMessageId])
 }
 
 model ProductVariant {
