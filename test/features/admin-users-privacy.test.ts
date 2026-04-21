@@ -25,6 +25,7 @@ test('admin users privacy policy only exposes whitelisted user fields', () => {
       'isActive',
       'deletedAt',
       'consentAcceptedAt',
+      'twoFactor',
       'createdAt',
       'updatedAt',
     ],
@@ -61,6 +62,7 @@ test('admin users privacy policy only exposes whitelisted user fields', () => {
     'lastName',
     'role',
     'updatedAt',
+    'twoFactor',
     'vendor',
     'id',
   ].sort())
@@ -131,6 +133,9 @@ test('buildAdminUserSupportView strips sensitive fields and keeps email masked',
     isActive: true,
     deletedAt: null,
     consentAcceptedAt: new Date('2026-01-10T12:00:00.000Z'),
+    twoFactor: {
+      enabledAt: new Date('2026-02-01T10:00:00.000Z'),
+    },
     createdAt: new Date('2026-01-10T12:00:00.000Z'),
     updatedAt: new Date('2026-04-21T10:00:00.000Z'),
     passwordHash: 'super-secret-hash',
@@ -158,6 +163,7 @@ test('buildAdminUserSupportView strips sensitive fields and keeps email masked',
   assert.equal((safe as unknown as Record<string, unknown>).passwordHash, undefined)
   assert.equal((safe as unknown as Record<string, unknown>).passwordResetToken, undefined)
   assert.equal((safe as unknown as Record<string, unknown>).stripeCustomerId, undefined)
+  assert.ok(safe.twoFactorEnabledAt)
   assert.ok(safe.vendor)
   assert.equal(safe.vendor?.displayName, 'Fresh Producer')
   assert.equal((safe.vendor as unknown as Record<string, unknown>).iban, undefined)
