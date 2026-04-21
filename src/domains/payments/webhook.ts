@@ -105,6 +105,16 @@ export function getWebhookIdempotencyKey(eventId: string | undefined): string | 
 }
 
 export function shouldApplyPaymentSucceeded(snapshot: PaymentSnapshot) {
+  // Terminal orders must never transition back to PAYMENT_CONFIRMED. A late
+  // or retried webhook arriving after a vendor-initiated cancellation or a
+  // refund would otherwise silently resurrect the order — charging the buyer
+  // with no fulfillment intent, no stock decrement, and a stale cancellation
+  // notification already delivered. Fail closed here and let the DB-level
+  // `where: status: 'PLACED'` guard be the second line of defence.
+  if (snapshot.orderStatus === 'CANCELLED' || snapshot.orderStatus === 'REFUNDED') {
+    return false
+  }
+
   return !(
     snapshot.paymentStatus === 'SUCCEEDED' &&
     snapshot.orderPaymentStatus === 'SUCCEEDED' &&
