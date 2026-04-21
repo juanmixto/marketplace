@@ -12,9 +12,11 @@ export {
 } from './queries'
 
 export {
-  approveProductDraft,
+  publishApprovedDraft,
   editProductDraft,
   discardProductDraft,
   discardUnextractable,
   markUnextractableValid,
 } from './actions'
+
+export { IngestionPublishValidationError } from './errors'

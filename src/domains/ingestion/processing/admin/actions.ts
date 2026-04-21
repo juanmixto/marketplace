@@ -5,7 +5,10 @@ import { db } from '@/lib/db'
 import { getAuditRequestIp, mutateWithAudit } from '@/lib/audit'
 import { safeRevalidatePath } from '@/lib/revalidate'
 import { logger } from '@/lib/logger'
+import { slugify } from '@/lib/utils'
 import { requireIngestionAdmin } from '@/domains/ingestion/authz'
+import { isIngestionPublishEnabled } from '@/domains/ingestion/flags'
+import { IngestionPublishValidationError } from './errors'
 
 /**
  * Phase 3 admin mutations for the ingestion review queue.
@@ -26,9 +29,70 @@ import { requireIngestionAdmin } from '@/domains/ingestion/authz'
 
 const REVALIDATE_PATH = '/admin/ingestion'
 
-const approveSchema = z.object({
+const publishSchema = z.object({
   draftId: z.string().min(1),
 })
+
+const UNIT_MAP: Record<string, string> = {
+  KG: 'kg',
+  G: 'g',
+  L: 'l',
+  ML: 'ml',
+  UNIT: 'unit',
+}
+
+/**
+ * Collapse whitespace, strip control chars, cap at 200 characters,
+ * and trim. Keeps emojis — they're load-bearing brand signal in
+ * Telegram producer posts. Returns empty string if nothing useful is
+ * left; the caller raises a validation error in that case.
+ */
+function sanitiseProductName(raw: string | null | undefined): string {
+  if (!raw) return ''
+  const cleaned = raw.replace(/[\u0000-\u001F\u007F]/g, ' ').replace(/\s+/g, ' ').trim()
+  return cleaned.slice(0, 200)
+}
+
+function ghostUserEmail(tgAuthorId: string): string {
+  return `tg-${tgAuthorId}@ingestion.ghost.local`
+}
+
+async function resolveUniqueSlug(base: string): Promise<string> {
+  const root = slugify(base) || 'producto'
+  let candidate = root
+  let suffix = 0
+  while (await db.product.findUnique({ where: { slug: candidate }, select: { id: true } })) {
+    suffix += 1
+    candidate = `${root}-${suffix}`
+    if (suffix > 50) {
+      candidate = `${root}-${Date.now()}`
+      break
+    }
+  }
+  return candidate
+}
+
+async function resolveUniqueVendorSlug(base: string): Promise<string> {
+  const root = slugify(base) || 'productor'
+  let candidate = root
+  let suffix = 0
+  while (await db.vendor.findUnique({ where: { slug: candidate }, select: { id: true } })) {
+    suffix += 1
+    candidate = `${root}-${suffix}`
+    if (suffix > 50) {
+      candidate = `${root}-${Date.now()}`
+      break
+    }
+  }
+  return candidate
+}
+
+interface PublishResult {
+  status: 'CREATED' | 'IDEMPOTENT'
+  productId: string
+  vendorId: string
+  ghostUserId: string
+}
 
 const editFieldsSchema = z.object({
   productName: z.string().trim().max(120).nullable().optional(),
@@ -84,27 +148,223 @@ function draftAuditSnapshot(draft: {
 }
 
 /**
- * Operator marks a product draft as approved. The draft row flips to
- * `APPROVED` and the review queue item transitions `ENQUEUED →
- * AUTO_RESOLVED` with a reason tag so subsequent audits can tell
- * manual approvals apart from LOW-risk dedupe auto-merges.
+ * Phase 4 — promote an ingested `IngestionProductDraft` into a real
+ * `Product` row. "Aprobar y crear producto" is what this action
+ * represents; there is no longer a simbolic "approve without
+ * publishing" step.
+ *
+ * Identity model — producers observed in Telegram do not have a
+ * platform `User`. To keep `Vendor.userId` non-nullable, we upsert a
+ * *ghost* User/Vendor pair keyed deterministically by `tgAuthorId`:
+ *
+ *   User.email   = `tg-<authorId>@ingestion.ghost.local`
+ *   User fields  = { isActive:false, emailVerified:null, passwordHash:null, role:VENDOR }
+ *   Vendor      = { userId → ghost user, status:'APPLYING', stripeOnboarded:false }
+ *
+ * The three independent blockers on the User row prevent the ghost
+ * from ever passing `authorizeCredentials`, and the Vendor status +
+ * `stripeOnboarded=false` combination is already filtered out of the
+ * public catalog by `getAvailableProductWhere` (hardened in PR-A).
+ *
+ * Idempotency is guaranteed by `Product.sourceIngestionDraftId`'s
+ * UNIQUE constraint. Re-running the action against the same draft
+ * returns the existing Product unchanged.
+ *
+ * Hard validations (raise `IngestionPublishValidationError`):
+ *   - Source message must carry a `tgAuthorId`. Without a stable
+ *     producer identity we refuse to create the ghost pair.
+ *   - `priceCents` must be present and strictly positive.
+ *   - `productName` must be non-empty after sanitisation.
+ *   - `currencyCode` must be EUR (or null → assumed EUR). Anything
+ *     else is refused until multi-currency lands.
  */
-export async function approveProductDraft(input: z.infer<typeof approveSchema>) {
+export async function publishApprovedDraft(
+  input: z.infer<typeof publishSchema>,
+): Promise<PublishResult> {
   const session = await requireIngestionAdmin()
-  const { draftId } = approveSchema.parse(input)
-  const ip = await getAuditRequestIp()
+  const { draftId } = publishSchema.parse(input)
 
-  const existing = await db.ingestionProductDraft.findUnique({ where: { id: draftId } })
-  if (!existing) throw new Error('Draft not found')
-  if (existing.status !== 'PENDING') {
-    throw new Error(`Draft already resolved (status=${existing.status})`)
+  // Strict publish-flag gate is separate from the admin UI flag —
+  // operators can have review access without the publish path armed.
+  const publishEnabled = await isIngestionPublishEnabled({
+    userId: session.user.id,
+    email: session.user.email ?? undefined,
+    role: session.user.role,
+  })
+  if (!publishEnabled) {
+    throw new IngestionPublishValidationError(
+      'flagOff',
+      'Publicación desactivada: flag feat-ingestion-publish no está habilitada para este operador.',
+    )
   }
 
-  await mutateWithAudit(async (tx) => {
-    const updated = await tx.ingestionProductDraft.update({
+  const ip = await getAuditRequestIp()
+
+  const draft = await db.ingestionProductDraft.findUnique({
+    where: { id: draftId },
+    include: {
+      sourceMessage: { select: { id: true, tgAuthorId: true } },
+    },
+  })
+  if (!draft) throw new IngestionPublishValidationError('notFound', 'Draft no encontrado')
+
+  // Idempotent short-circuit before touching anything else: if a
+  // Product already exists pointing at this draft, surface it and
+  // return. Callers cannot tell a first-time publish apart from a
+  // re-publish unless they inspect `status`.
+  const existingProduct = await db.product.findUnique({
+    where: { sourceIngestionDraftId: draftId },
+    select: { id: true, vendorId: true, vendor: { select: { userId: true } } },
+  })
+  if (existingProduct) {
+    logger.info('ingestion.admin.publish_idempotent', {
+      draftId,
+      productId: existingProduct.id,
+      actorId: session.user.id,
+    })
+    return {
+      status: 'IDEMPOTENT',
+      productId: existingProduct.id,
+      vendorId: existingProduct.vendorId,
+      ghostUserId: existingProduct.vendor.userId,
+    }
+  }
+
+  if (draft.status !== 'PENDING') {
+    throw new IngestionPublishValidationError(
+      'alreadyResolved',
+      `Draft ya resuelto (status=${draft.status}). Re-publicar un rechazado no está permitido.`,
+    )
+  }
+
+  // ── Hard validations ────────────────────────────────────────────
+  const tgAuthorId = draft.sourceMessage.tgAuthorId?.toString() ?? null
+  if (!tgAuthorId) {
+    throw new IngestionPublishValidationError(
+      'missingAuthor',
+      'El mensaje origen no tiene tgAuthorId — no se puede crear un vendor ghost estable.',
+    )
+  }
+  if (draft.priceCents == null || draft.priceCents <= 0) {
+    throw new IngestionPublishValidationError(
+      'invalidPrice',
+      'El draft no tiene priceCents > 0. Edita el draft antes de publicar.',
+    )
+  }
+  const productName = sanitiseProductName(draft.productName)
+  if (productName.length === 0) {
+    throw new IngestionPublishValidationError(
+      'emptyName',
+      'El nombre de producto queda vacío tras sanitizar. Edita el draft antes de publicar.',
+    )
+  }
+  const currencyCode = (draft.currencyCode ?? 'EUR').toUpperCase()
+  if (currencyCode !== 'EUR') {
+    throw new IngestionPublishValidationError(
+      'unsupportedCurrency',
+      `Solo EUR está soportado (draft usa ${currencyCode}).`,
+    )
+  }
+
+  // ── Ghost identity: upsert User + Vendor ────────────────────────
+  const email = ghostUserEmail(tgAuthorId)
+  const existingGhostUser = await db.user.findUnique({
+    where: { email },
+    select: { id: true, vendor: { select: { id: true } } },
+  })
+
+  let ghostUserId: string
+  let vendorId: string
+  if (existingGhostUser) {
+    ghostUserId = existingGhostUser.id
+    if (existingGhostUser.vendor) {
+      vendorId = existingGhostUser.vendor.id
+    } else {
+      // Defensive: a ghost user without its vendor row should not
+      // exist in practice, but nothing stops an operator from
+      // deleting one manually. Re-create the vendor if so.
+      const vendorSlug = await resolveUniqueVendorSlug(
+        `productor-tg-${tgAuthorId.slice(-4)}`,
+      )
+      const vendor = await db.vendor.create({
+        data: {
+          userId: ghostUserId,
+          slug: vendorSlug,
+          displayName: `Productor Telegram ${tgAuthorId.slice(-4)}`,
+          status: 'APPLYING',
+          stripeOnboarded: false,
+        },
+      })
+      vendorId = vendor.id
+    }
+  } else {
+    const ghostUser = await db.user.create({
+      data: {
+        email,
+        firstName: 'Productor',
+        lastName: `tg-${tgAuthorId.slice(0, 6)}`,
+        role: 'VENDOR',
+        isActive: false,
+        emailVerified: null,
+        passwordHash: null,
+      },
+    })
+    ghostUserId = ghostUser.id
+    const vendorSlug = await resolveUniqueVendorSlug(
+      `productor-tg-${tgAuthorId.slice(-4)}`,
+    )
+    const vendor = await db.vendor.create({
+      data: {
+        userId: ghostUserId,
+        slug: vendorSlug,
+        displayName: `Productor Telegram ${tgAuthorId.slice(-4)}`,
+        status: 'APPLYING',
+        stripeOnboarded: false,
+      },
+    })
+    vendorId = vendor.id
+  }
+
+  // ── Category: slug → id, fallback to cat_uncategorized ──────────
+  let categoryId = 'cat_uncategorized'
+  if (draft.categorySlug) {
+    const cat = await db.category.findUnique({
+      where: { slug: draft.categorySlug },
+      select: { id: true },
+    })
+    if (cat) categoryId = cat.id
+  }
+
+  // ── Product row + state transition + audit, one transaction ─────
+  const productSlug = await resolveUniqueSlug(productName)
+  const basePrice = (draft.priceCents / 100).toFixed(2)
+  const unit = UNIT_MAP[draft.unit ?? 'UNIT'] ?? 'unit'
+  const availability = draft.availability ?? 'UNKNOWN'
+  const stock = availability === 'AVAILABLE' ? 1 : 0
+
+  const { productId } = await mutateWithAudit(async (tx) => {
+    const product = await tx.product.create({
+      data: {
+        vendorId,
+        categoryId,
+        name: productName,
+        slug: productSlug,
+        status: 'PENDING_REVIEW',
+        basePrice,
+        unit,
+        stock,
+        trackStock: false,
+        weightGrams: draft.weightGrams,
+        sourceIngestionDraftId: draftId,
+        sourceTelegramMessageId: draft.sourceMessageId,
+      },
+    })
+
+    await tx.ingestionProductDraft.update({
       where: { id: draftId },
       data: { status: 'APPROVED' },
     })
+
     await tx.ingestionReviewQueueItem.updateMany({
       where: { kind: 'PRODUCT_DRAFT', targetId: draftId, state: 'ENQUEUED' },
       data: {
@@ -113,14 +373,26 @@ export async function approveProductDraft(input: z.infer<typeof approveSchema>) 
         autoResolvedAt: new Date(),
       },
     })
+
     return {
-      result: updated,
+      result: { productId: product.id },
       audit: {
-        action: 'INGESTION_DRAFT_APPROVED',
+        action: 'INGESTION_DRAFT_PUBLISHED',
         entityType: 'IngestionProductDraft',
         entityId: draftId,
-        before: draftAuditSnapshot(existing),
-        after: draftAuditSnapshot(updated),
+        before: draftAuditSnapshot(draft),
+        after: {
+          draftId,
+          productId: product.id,
+          vendorId,
+          ghostUserId,
+          sourceMessageId: draft.sourceMessageId,
+          productSlug,
+          productStatus: product.status,
+          basePriceEur: basePrice,
+          unit,
+          categoryId,
+        },
         actorId: session.user.id,
         actorRole: session.user.role,
         ip,
@@ -128,8 +400,17 @@ export async function approveProductDraft(input: z.infer<typeof approveSchema>) 
     }
   })
 
-  logger.info('ingestion.admin.draft_approved', { draftId, actorId: session.user.id })
+  logger.info('ingestion.admin.draft_published', {
+    draftId,
+    productId,
+    vendorId,
+    ghostUserId,
+    actorId: session.user.id,
+  })
   safeRevalidatePath(REVALIDATE_PATH)
+  safeRevalidatePath('/admin/productos')
+
+  return { status: 'CREATED', productId, vendorId, ghostUserId }
 }
 
 /**

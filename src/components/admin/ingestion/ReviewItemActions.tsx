@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import {
-  approveProductDraft,
+  publishApprovedDraft,
   editProductDraft,
   discardProductDraft,
   discardUnextractable,
@@ -208,9 +208,13 @@ export function ReviewItemActions(props: Props) {
       <div className="flex flex-wrap gap-2">
         <Button
           disabled={!canEdit || isPending}
-          onClick={() => runAction(() => approveProductDraft({ draftId }))}
+          onClick={() =>
+            runAction(async () => {
+              await publishApprovedDraft({ draftId })
+            })
+          }
         >
-          Aprobar
+          Aprobar y crear producto
         </Button>
         <Button
           variant="secondary"
