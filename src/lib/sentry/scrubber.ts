@@ -165,9 +165,26 @@ export function scrubSentryEvent(event: Event, _hint?: EventHint): Event | null 
     if (cleaned.message) cleaned.message = scrubString(cleaned.message)
 
     return cleaned
-  } catch {
+  } catch (err) {
     // Paranoid: if scrubbing itself crashes, drop the event rather than
     // leaking un-scrubbed data. A missing event is a better failure mode.
+    //
+    // But don't crash silently — a scrubber that keeps throwing means every
+    // error in the app is being swallowed on its way to Sentry, which is an
+    // observability dead-zone that is itself invisible. Log to stderr (not
+    // via `logger`, to avoid any risk of a re-entrant Sentry capture) so
+    // operators can see the problem in server logs even when Sentry is dark.
+    try {
+      // eslint-disable-next-line no-console
+      console.error('[sentry-scrubber] crashed — dropping event', {
+        error:
+          err instanceof Error
+            ? { name: err.name, message: err.message, stack: err.stack }
+            : String(err),
+      })
+    } catch {
+      // Absolute last resort: never let console.error itself kill the app.
+    }
     return null
   }
 }
