@@ -7,5 +7,4 @@
 export * from './actions'
 export * from './overview'
 export * from './writes'
-export * from './users/privacy'
-export * from './users/queries'
+export * from './users'
