@@ -123,15 +123,43 @@ export default async function ReviewItemDetailPage({ params }: PageProps) {
       )}
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold">Mensaje original</h2>
+          {(item.telegramLink.messageUrl || item.telegramLink.profileUrl) && (
+            <div className="flex flex-wrap gap-2">
+              {item.telegramLink.messageUrl && (
+                <a
+                  href={item.telegramLink.messageUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="inline-flex items-center gap-1 rounded-md bg-sky-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm hover:bg-sky-700 dark:bg-sky-500 dark:text-sky-950 dark:hover:bg-sky-400"
+                >
+                  Abrir en Telegram →
+                </a>
+              )}
+              {item.telegramLink.profileUrl && (
+                <a
+                  href={item.telegramLink.profileUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="inline-flex items-center gap-1 rounded-md border border-sky-500/40 px-2.5 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100 dark:text-sky-300 dark:hover:bg-sky-900/40"
+                  title="Solo funciona si ya tienes contacto o compartes grupo con el autor"
+                >
+                  Chat con autor →
+                </a>
+              )}
+            </div>
+          )}
         </CardHeader>
         <CardBody>
           <pre className="whitespace-pre-wrap break-words rounded bg-[var(--muted)]/40 p-3 text-sm text-[var(--foreground)]">
             {item.message.text ?? '(sin texto)'}
           </pre>
           <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <Field label="Autor" value={item.message.authorId ?? '—'} />
+            <Field
+              label="Autor"
+              value={item.telegramLink.authorDisplayName ?? item.message.authorId ?? '—'}
+            />
             <Field label="Publicado" value={formatDate(item.message.postedAt)} />
             <Field label="Chat" value={item.message.chatId} />
             <Field label="Mensaje id" value={item.message.id} />

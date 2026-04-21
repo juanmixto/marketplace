@@ -41,6 +41,11 @@ export default async function AdminProductEditPage({ params }: Props) {
   // admin ingestion detail. One targeted lookup by the
   // (kind, targetId) unique — no join on Product needed.
   let reviewItemId: string | null = null
+  let telegramLink: {
+    messageUrl: string | null
+    profileUrl: string
+    authorDisplayName: string | null
+  } | null = null
   if (product.sourceIngestionDraftId) {
     const item = await db.ingestionReviewQueueItem.findUnique({
       where: {
@@ -52,6 +57,41 @@ export default async function AdminProductEditPage({ params }: Props) {
       select: { id: true },
     })
     reviewItemId = item?.id ?? null
+
+    // Resolve the original Telegram message + author handles so the
+    // admin can jump straight into Telegram to talk to the producer.
+    // The supergroup URL `https://t.me/c/{chatId}/{messageId}` lands
+    // on the exact message; from there Telegram's native UX opens a
+    // DM with the author in one tap.
+    if (product.sourceTelegramMessageId) {
+      const message = await db.telegramIngestionMessage.findUnique({
+        where: { id: product.sourceTelegramMessageId },
+        select: {
+          tgMessageId: true,
+          tgAuthorId: true,
+          rawJson: true,
+          chat: { select: { tgChatId: true } },
+        },
+      })
+      if (message) {
+        // Supergroup ids come as -100xxxxxxxxxx; the web URL format
+        // needs the id without the -100 prefix.
+        const rawChatId = message.chat.tgChatId.toString()
+        const chatSlug = rawChatId.startsWith('-100') ? rawChatId.slice(4) : rawChatId.replace(/^-/, '')
+        const messageUrl = chatSlug
+          ? `https://t.me/c/${chatSlug}/${message.tgMessageId.toString()}`
+          : null
+        const profileUrl = message.tgAuthorId
+          ? `tg://user?id=${message.tgAuthorId.toString()}`
+          : 'tg://'
+        const raw = message.rawJson as Record<string, unknown> | null
+        const authorDisplayName =
+          raw && typeof raw.authorDisplayName === 'string'
+            ? (raw.authorDisplayName as string)
+            : null
+        telegramLink = { messageUrl, profileUrl, authorDisplayName }
+      }
+    }
   }
 
   return (
@@ -78,6 +118,7 @@ export default async function AdminProductEditPage({ params }: Props) {
             claimCode: product.vendor.claimCode,
             claimCodeExpiresAt: product.vendor.claimCodeExpiresAt,
           }}
+          telegramLink={telegramLink}
         />
       )}
 
