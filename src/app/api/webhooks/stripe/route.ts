@@ -41,7 +41,7 @@ type WebhookEvent = {
   }
 }
 
-function logInvalidWebhookPayload(event: Stripe.Event | WebhookEvent) {
+async function handleInvalidWebhookPayload(event: Stripe.Event | WebhookEvent) {
   logger.error('stripe.webhook.invalid_payload', {
     eventId: event.id ?? null,
     eventType: event.type,
@@ -49,6 +49,19 @@ function logInvalidWebhookPayload(event: Stripe.Event | WebhookEvent) {
       event.data.object && typeof event.data.object === 'object'
         ? Object.prototype.toString.call(event.data.object)
         : typeof event.data.object,
+  })
+  // A signature-verified event with an unparseable payload means Stripe sent
+  // us something that passed HMAC but doesn't match our schema — either a
+  // genuine provider bug, a new field shape we don't support yet, or a test
+  // fixture slipping through. Either way: returning 200 and logging is a
+  // silent drop. Capture the event in the dead-letter queue so oncall can
+  // replay it after we fix the parser. DLQ write failures are already logged
+  // to Sentry by `recordWebhookDeadLetter` (see PR #706).
+  await recordWebhookDeadLetter(db, {
+    eventId: event.id,
+    eventType: event.type,
+    reason: 'invalid_payload',
+    payload: event.data.object ?? null,
   })
 }
 
@@ -164,7 +177,7 @@ export async function POST(req: NextRequest) {
       case 'payment_intent.succeeded': {
         const pi = parseWebhookPaymentIntent(event.data.object)
         if (!pi) {
-          logInvalidWebhookPayload(event)
+          await handleInvalidWebhookPayload(event)
           break
         }
         await handlePaymentSucceeded(pi.id, pi.amount, pi.currency, event.id)
@@ -173,7 +186,7 @@ export async function POST(req: NextRequest) {
       case 'payment_intent.payment_failed': {
         const pi = parseWebhookPaymentIntent(event.data.object)
         if (!pi) {
-          logInvalidWebhookPayload(event)
+          await handleInvalidWebhookPayload(event)
           break
         }
         await handlePaymentFailed(pi.id, event.id)
@@ -188,7 +201,7 @@ export async function POST(req: NextRequest) {
       case 'customer.subscription.created': {
         const parsed = parseStripeSubscriptionEvent(event.data.object)
         if (!parsed) {
-          logInvalidWebhookPayload(event)
+          await handleInvalidWebhookPayload(event)
           break
         }
         await handleSubscriptionCreated(parsed, eventCreatedAt(event))
@@ -198,7 +211,7 @@ export async function POST(req: NextRequest) {
       case 'customer.subscription.deleted': {
         const parsed = parseStripeSubscriptionEvent(event.data.object)
         if (!parsed) {
-          logInvalidWebhookPayload(event)
+          await handleInvalidWebhookPayload(event)
           break
         }
         await handleSubscriptionSync(parsed, event.type, eventCreatedAt(event))
@@ -211,7 +224,7 @@ export async function POST(req: NextRequest) {
       case 'invoice.paid': {
         const invoice = parseStripeInvoiceEvent(event.data.object)
         if (!invoice || !invoice.subscription) {
-          logInvalidWebhookPayload(event)
+          await handleInvalidWebhookPayload(event)
           break
         }
         await handleInvoicePaid(invoice, eventCreatedAt(event))
@@ -220,7 +233,7 @@ export async function POST(req: NextRequest) {
       case 'invoice.payment_failed': {
         const invoice = parseStripeInvoiceEvent(event.data.object)
         if (!invoice || !invoice.subscription) {
-          logInvalidWebhookPayload(event)
+          await handleInvalidWebhookPayload(event)
           break
         }
         await handleInvoicePaymentFailed(invoice, eventCreatedAt(event))
