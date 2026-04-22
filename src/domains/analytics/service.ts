@@ -16,6 +16,7 @@ import type {
 } from './types'
 
 const EXCLUDED_STATUSES: OrderStatus[] = ['CANCELLED']
+const DAY_MS = 24 * 60 * 60 * 1000
 
 function toNumber(value: Prisma.Decimal | number | null | undefined): number {
   if (value == null) return 0
@@ -25,6 +26,21 @@ function toNumber(value: Prisma.Decimal | number | null | undefined): number {
 function delta(current: number, previous: number): DeltaMetric {
   const deltaPct = previous === 0 ? (current === 0 ? 0 : null) : ((current - previous) / previous) * 100
   return { current, previous, deltaPct }
+}
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  const value =
+    sorted.length % 2 === 0
+      ? (sorted[mid - 1]! + sorted[mid]!) / 2
+      : sorted[mid]!
+  return Math.round(value * 10) / 10
+}
+
+function daysBetween(start: Date, end: Date): number {
+  return Math.round(((end.getTime() - start.getTime()) / DAY_MS) * 10) / 10
 }
 
 function buildOrderWhere(filters: AnalyticsFilters, from: Date, to: Date): Prisma.OrderWhereInput {
@@ -72,6 +88,87 @@ async function computeRepeatRate(where: Prisma.OrderWhereInput): Promise<number>
   return (repeat / grouped.length) * 100
 }
 
+async function computeBuyerActivation(where: Prisma.OrderWhereInput): Promise<{
+  firstOrders: number
+  activationLagDays: number
+}> {
+  const grouped = await db.order.groupBy({
+    by: ['customerId'],
+    where,
+    _min: { placedAt: true },
+  })
+  if (grouped.length === 0) {
+    return { firstOrders: 0, activationLagDays: 0 }
+  }
+
+  const firstOrderByCustomer = new Map(
+    grouped.flatMap(row => {
+      const placedAt = row._min.placedAt
+      return placedAt ? [[row.customerId, placedAt] as const] : []
+    }),
+  )
+  const users = await db.user.findMany({
+    where: { id: { in: Array.from(firstOrderByCustomer.keys()) } },
+    select: { id: true, createdAt: true },
+  })
+  const userCreatedAt = new Map(users.map(user => [user.id, user.createdAt]))
+
+  const lags: number[] = []
+  for (const [customerId, firstPlacedAt] of firstOrderByCustomer.entries()) {
+    const createdAt = userCreatedAt.get(customerId)
+    if (!createdAt) continue
+    lags.push(daysBetween(createdAt, firstPlacedAt))
+  }
+
+  return {
+    firstOrders: firstOrderByCustomer.size,
+    activationLagDays: median(lags),
+  }
+}
+
+async function computeVendorActivation(filters: AnalyticsFilters): Promise<{
+  firstProducts: number
+  activationLagDays: number
+}> {
+  const where: Prisma.ProductWhereInput = {
+    createdAt: { gte: filters.from, lte: filters.to },
+    ...(filters.vendorId ? { vendorId: filters.vendorId } : {}),
+    ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
+  }
+  const grouped = await db.product.groupBy({
+    by: ['vendorId'],
+    where,
+    _min: { createdAt: true },
+  })
+  if (grouped.length === 0) {
+    return { firstProducts: 0, activationLagDays: 0 }
+  }
+
+  const firstProductByVendor = new Map(
+    grouped.flatMap(row => {
+      const createdAt = row._min.createdAt
+      return createdAt ? [[row.vendorId, createdAt] as const] : []
+    }),
+  )
+  const vendors = await db.vendor.findMany({
+    where: { id: { in: Array.from(firstProductByVendor.keys()) } },
+    select: { id: true, user: { select: { createdAt: true } } },
+  })
+  const vendorCreatedAt = new Map(vendors.map(vendor => [vendor.id, vendor.user.createdAt]))
+
+  const lags: number[] = []
+  for (const [vendorId, firstCreatedAt] of firstProductByVendor.entries()) {
+    const createdAt = vendorCreatedAt.get(vendorId)
+    if (!createdAt) continue
+    lags.push(daysBetween(createdAt, firstCreatedAt))
+  }
+
+  return {
+    firstProducts: firstProductByVendor.size,
+    activationLagDays: median(lags),
+  }
+}
+
 async function computeIncidentRate(orderCount: number, from: Date, to: Date, filters: AnalyticsFilters): Promise<number> {
   if (orderCount === 0) return 0
   const incidentWhere: Prisma.IncidentWhereInput = { createdAt: { gte: from, lte: to } }
@@ -112,6 +209,14 @@ async function computeKpis(filters: AnalyticsFilters): Promise<Kpis> {
     computeRepeatRate(currentWhere),
     computeRepeatRate(previousWhere),
   ])
+  const [currBuyerActivation, prvBuyerActivation] = await Promise.all([
+    computeBuyerActivation(currentWhere),
+    computeBuyerActivation(previousWhere),
+  ])
+  const [currVendorActivation, prvVendorActivation] = await Promise.all([
+    computeVendorActivation(filters),
+    computeVendorActivation({ ...filters, from: prev.from, to: prev.to }),
+  ])
   const [currIncident, prvIncident] = await Promise.all([
     computeIncidentRate(curr.orders, filters.from, filters.to, filters),
     computeIncidentRate(prv.orders, prev.from, prev.to, filters),
@@ -130,6 +235,16 @@ async function computeKpis(filters: AnalyticsFilters): Promise<Kpis> {
     aov: delta(currAov, prvAov),
     uniqueCustomers: delta(curr.uniqueCustomers, prv.uniqueCustomers),
     repeatRatePct: delta(currRepeat, prvRepeat),
+    firstOrders: delta(currBuyerActivation.firstOrders, prvBuyerActivation.firstOrders),
+    buyerActivationLagDays: delta(
+      currBuyerActivation.activationLagDays,
+      prvBuyerActivation.activationLagDays,
+    ),
+    firstProducts: delta(currVendorActivation.firstProducts, prvVendorActivation.firstProducts),
+    vendorActivationLagDays: delta(
+      currVendorActivation.activationLagDays,
+      prvVendorActivation.activationLagDays,
+    ),
     incidentRatePct: delta(currIncident, prvIncident),
     commission: delta(currCommission, prvCommission),
     tax: delta(curr.tax, prv.tax),

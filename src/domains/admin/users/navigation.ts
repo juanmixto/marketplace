@@ -1,5 +1,34 @@
-import { UserRole } from '@/generated/prisma/enums'
 import type {
+  AdminUsersEmailVerificationFilter,
+  AdminUsersListFilters,
+  AdminUsersListStateFilter,
+  AdminUsersRoleFilter,
+  AdminUsersVendorFilter,
+} from './queries'
+import {
+  ADMIN_USERS_EMAIL_VERIFICATION_LABELS,
+  ADMIN_USERS_EMAIL_VERIFICATION_OPTIONS,
+  ADMIN_USERS_ROLE_LABELS,
+  ADMIN_USERS_ROLE_OPTIONS,
+  ADMIN_USERS_STATE_LABELS,
+  ADMIN_USERS_STATE_OPTIONS,
+  ADMIN_USERS_VENDOR_LABELS,
+  ADMIN_USERS_VENDOR_OPTIONS,
+} from './labels'
+export {
+  ADMIN_USERS_EMAIL_VERIFICATION_LABELS,
+  ADMIN_USERS_ROLE_LABELS,
+  ADMIN_USERS_STATE_LABELS,
+  ADMIN_USERS_VENDOR_LABELS,
+}
+export {
+  ADMIN_USERS_EMAIL_VERIFICATION_OPTIONS,
+  ADMIN_USERS_ROLE_OPTIONS,
+  ADMIN_USERS_STATE_OPTIONS,
+  ADMIN_USERS_VENDOR_OPTIONS,
+}
+
+export type {
   AdminUsersEmailVerificationFilter,
   AdminUsersListFilters,
   AdminUsersListStateFilter,
@@ -15,36 +44,6 @@ export interface AdminUsersSearchParamsInput {
   emailVerification?: string | null
   page?: string | null
 }
-
-export const ADMIN_USERS_ROLE_OPTIONS: readonly AdminUsersRoleFilter[] = [
-  'all',
-  UserRole.CUSTOMER,
-  UserRole.VENDOR,
-  UserRole.ADMIN_SUPPORT,
-  UserRole.ADMIN_CATALOG,
-  UserRole.ADMIN_FINANCE,
-  UserRole.ADMIN_OPS,
-  UserRole.SUPERADMIN,
-]
-
-export const ADMIN_USERS_STATE_OPTIONS: readonly AdminUsersListStateFilter[] = [
-  'all',
-  'active',
-  'inactive',
-  'deleted',
-]
-
-export const ADMIN_USERS_VENDOR_OPTIONS: readonly AdminUsersVendorFilter[] = [
-  'all',
-  'with-vendor',
-  'without-vendor',
-]
-
-export const ADMIN_USERS_EMAIL_VERIFICATION_OPTIONS: readonly AdminUsersEmailVerificationFilter[] = [
-  'all',
-  'verified',
-  'unverified',
-]
 
 function normalizePage(value: string | null | undefined) {
   const parsed = Number(value)

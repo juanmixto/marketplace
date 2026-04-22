@@ -11,12 +11,16 @@ import {
 import { logger } from '@/lib/logger'
 
 interface Props {
-  searchParams: Promise<{ callbackUrl?: string }>
+  searchParams: Promise<{ callbackUrl?: string; error?: string }>
 }
 
 export default async function LoginPage({ searchParams }: Props) {
   const params = await searchParams
   const session = await auth()
+  const initialError =
+    params.error === 'CredentialsSignin'
+      ? 'Email o contraseña incorrectos'
+      : null
 
   if (params.callbackUrl) {
     const rejection = describeCallbackRejection(params.callbackUrl)
@@ -50,5 +54,5 @@ export default async function LoginPage({ searchParams }: Props) {
     )
   }
 
-  return <LoginForm callbackUrl={params.callbackUrl ?? '/'} />
+  return <LoginForm callbackUrl={params.callbackUrl ?? '/'} initialError={initialError} />
 }

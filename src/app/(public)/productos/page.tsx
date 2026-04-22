@@ -12,7 +12,34 @@ import { translateCategoryLabel } from '@/lib/portals'
 import { buildPageMetadata } from '@/lib/seo'
 import { serializeProductForCard } from '@/lib/catalog-serialization'
 
-export async function generateMetadata(): Promise<Metadata> {
+function hasFacetedQuery(searchParams?: {
+  q?: string
+  categoria?: string
+  cert?: string | string[]
+  orden?: string
+  cursor?: string
+}): boolean {
+  if (!searchParams) return false
+  return Boolean(
+    searchParams.q ||
+      searchParams.categoria ||
+      searchParams.cert ||
+      searchParams.orden ||
+      searchParams.cursor,
+  )
+}
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams?: {
+    q?: string
+    categoria?: string
+    cert?: string | string[]
+    orden?: string
+    cursor?: string
+  }
+}): Promise<Metadata> {
   const locale = await getServerLocale()
   const copy = getCatalogCopy(locale)
 
@@ -20,6 +47,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: copy.page.title,
     description: copy.page.description,
     path: '/productos',
+    noindex: hasFacetedQuery(searchParams),
   })
 }
 

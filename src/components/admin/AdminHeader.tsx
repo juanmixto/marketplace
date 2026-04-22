@@ -13,9 +13,10 @@ import { signOutAndClearCart } from '@/components/buyer/cart-session'
 interface Props {
   user: { name?: string | null; email?: string | null; role: string }
   portals?: AvailablePortal[]
+  adminUsersEnabled?: boolean
 }
 
-export function AdminHeader({ user, portals = [] }: Props) {
+export function AdminHeader({ user, portals = [], adminUsersEnabled = false }: Props) {
   const [open, setOpen] = useState(false)
   const { openMobile } = useSidebar()
 
@@ -65,6 +66,27 @@ export function AdminHeader({ user, portals = [] }: Props) {
             <div className="fixed inset-0" onClick={() => setOpen(false)} />
             <div className="absolute right-0 top-full z-10 mt-2 w-52 rounded-2xl border border-[var(--border)] bg-[var(--surface)] py-1.5 shadow-2xl ring-1 ring-black/5 backdrop-blur dark:ring-white/10">
               <p className="px-3 py-2 text-xs text-[var(--muted)] border-b border-[var(--border)] mb-1 truncate">{user.email}</p>
+              <div className="px-1 pb-1">
+                <p className="px-3 py-2 text-[11px] uppercase tracking-wide text-[var(--muted)]">
+                  Acceso rápido
+                </p>
+                <Link
+                  href="/admin/pedidos"
+                  onClick={() => setOpen(false)}
+                  className="block rounded-lg px-3 py-2.5 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] mx-1"
+                >
+                  Pedidos
+                </Link>
+                {adminUsersEnabled && (
+                  <Link
+                    href="/admin/usuarios"
+                    onClick={() => setOpen(false)}
+                    className="block rounded-lg px-3 py-2.5 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] mx-1"
+                  >
+                    Usuarios
+                  </Link>
+                )}
+              </div>
               <Link
                 href="/"
                 onClick={() => setOpen(false)}

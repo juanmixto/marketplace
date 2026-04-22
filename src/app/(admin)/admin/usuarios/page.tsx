@@ -1,54 +1,22 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowPathIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 import { AdminStatusBadge } from '@/components/admin/AdminStatusBadge'
-import { Button } from '@/components/ui/button'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
+import { AdminUsersFilters } from '@/components/admin/AdminUsersFilters'
 import { getAdminUsersListData } from '@/domains/admin'
 import {
-  ADMIN_USERS_EMAIL_VERIFICATION_OPTIONS,
-  ADMIN_USERS_ROLE_OPTIONS,
-  ADMIN_USERS_STATE_OPTIONS,
-  ADMIN_USERS_VENDOR_OPTIONS,
+  ADMIN_USERS_EMAIL_VERIFICATION_LABELS,
+  ADMIN_USERS_ROLE_LABELS,
+  ADMIN_USERS_STATE_LABELS,
+  ADMIN_USERS_VENDOR_LABELS,
   buildAdminUsersListHref,
   parseAdminUsersSearchParams,
 } from '@/domains/admin/users/navigation'
 import { UserRole } from '@/generated/prisma/enums'
-import { cn, formatDate } from '@/lib/utils'
+import { cn, formatMadridDate } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Usuarios | Admin' }
 export const revalidate = 30
-
-const ROLE_LABELS: Record<string, string> = {
-  all: 'Todos',
-  CUSTOMER: 'Cliente',
-  VENDOR: 'Productor',
-  ADMIN_SUPPORT: 'Admin soporte',
-  ADMIN_CATALOG: 'Admin catálogo',
-  ADMIN_FINANCE: 'Admin finanzas',
-  ADMIN_OPS: 'Admin operaciones',
-  SUPERADMIN: 'Superadmin',
-}
-
-const STATE_LABELS: Record<string, string> = {
-  all: 'Todos',
-  active: 'Activo',
-  inactive: 'Inactivo',
-  deleted: 'Eliminado',
-}
-
-const VENDOR_LABELS: Record<string, string> = {
-  all: 'Todos',
-  'with-vendor': 'Con productor',
-  'without-vendor': 'Sin productor',
-}
-
-const EMAIL_VERIFICATION_LABELS: Record<string, string> = {
-  all: 'Todos',
-  verified: 'Verificado',
-  unverified: 'Pendiente',
-}
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>
@@ -89,10 +57,10 @@ function vendorTone(hasVendor: boolean): 'amber' | 'blue' | 'emerald' | 'red' | 
 
 function activityLabel(lastLoginAt: Date | null, lastActivityAt: Date | null) {
   if (lastLoginAt) {
-    return `Último login ${formatDate(lastLoginAt, { dateStyle: 'medium', timeStyle: 'short' })}`
+    return `Último login ${formatMadridDate(lastLoginAt, { dateStyle: 'medium', timeStyle: 'short' })}`
   }
   if (lastActivityAt) {
-    return `Última actividad ${formatDate(lastActivityAt, { dateStyle: 'medium', timeStyle: 'short' })}`
+    return `Última actividad ${formatMadridDate(lastActivityAt, { dateStyle: 'medium', timeStyle: 'short' })}`
   }
   return 'Sin dato fiable todavía'
 }
@@ -149,81 +117,13 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
           </div>
         </CardHeader>
         <CardBody>
-          <form className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,0.85fr))_auto_auto] lg:items-end">
-            <Input
-              name="q"
-              label="Buscar"
-              defaultValue={data.filters.q ?? ''}
-              placeholder="Email, nombre, productor o ID"
-            />
-            <label className="space-y-1.5">
-              <span className="block text-sm font-medium text-[var(--foreground-soft)]">Rol</span>
-              <select
-                name="role"
-                defaultValue={data.filters.role}
-                className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--foreground)] shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              >
-                {ADMIN_USERS_ROLE_OPTIONS.map(option => (
-                  <option key={option} value={option}>
-                    {ROLE_LABELS[option] ?? option}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1.5">
-              <span className="block text-sm font-medium text-[var(--foreground-soft)]">Estado</span>
-              <select
-                name="state"
-                defaultValue={data.filters.state}
-                className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--foreground)] shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              >
-                {ADMIN_USERS_STATE_OPTIONS.map(option => (
-                  <option key={option} value={option}>
-                    {STATE_LABELS[option] ?? option}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1.5">
-              <span className="block text-sm font-medium text-[var(--foreground-soft)]">Productor</span>
-              <select
-                name="vendor"
-                defaultValue={data.filters.vendor}
-                className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--foreground)] shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              >
-                {ADMIN_USERS_VENDOR_OPTIONS.map(option => (
-                  <option key={option} value={option}>
-                    {VENDOR_LABELS[option] ?? option}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1.5">
-              <span className="block text-sm font-medium text-[var(--foreground-soft)]">Email</span>
-              <select
-                name="emailVerification"
-                defaultValue={data.filters.emailVerification}
-                className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--foreground)] shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              >
-                {ADMIN_USERS_EMAIL_VERIFICATION_OPTIONS.map(option => (
-                  <option key={option} value={option}>
-                    {EMAIL_VERIFICATION_LABELS[option] ?? option}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Button type="submit" variant="primary" size="md">
-              <MagnifyingGlassIcon className="h-4 w-4" />
-              Aplicar
-            </Button>
-            <Link
-              href="/admin/usuarios"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--foreground-soft)] shadow-sm transition-all duration-200 hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)]"
-            >
-              <ArrowPathIcon className="h-4 w-4" />
-              Limpiar
-            </Link>
-          </form>
+          <AdminUsersFilters
+            q={data.filters.q}
+            role={data.filters.role}
+            state={data.filters.state}
+            vendor={data.filters.vendor}
+            emailVerification={data.filters.emailVerification}
+          />
         </CardBody>
       </Card>
 
@@ -254,16 +154,16 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <AdminStatusBadge label={ROLE_LABELS[user.role] ?? user.role} tone={roleTone(user.role)} />
+                    <AdminStatusBadge label={ADMIN_USERS_ROLE_LABELS[user.role] ?? user.role} tone={roleTone(user.role)} />
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
                       <AdminStatusBadge
-                        label={user.deletedAt ? STATE_LABELS.deleted : user.isActive ? STATE_LABELS.active : STATE_LABELS.inactive}
+                        label={user.deletedAt ? ADMIN_USERS_STATE_LABELS.deleted : user.isActive ? ADMIN_USERS_STATE_LABELS.active : ADMIN_USERS_STATE_LABELS.inactive}
                         tone={stateTone(user.isActive, user.deletedAt)}
                       />
                       <AdminStatusBadge
-                        label={user.emailVerified ? 'Email verificado' : 'Email pendiente'}
+                        label={user.emailVerified ? ADMIN_USERS_EMAIL_VERIFICATION_LABELS.verified : ADMIN_USERS_EMAIL_VERIFICATION_LABELS.unverified}
                         tone={verificationTone(user.emailVerified)}
                       />
                     </div>
@@ -275,7 +175,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-[var(--foreground-soft)]">
-                    {formatDate(user.createdAt, { dateStyle: 'medium' })}
+                    {formatMadridDate(user.createdAt, { dateStyle: 'medium' })}
                   </td>
                   <td className="px-4 py-3">
                     <p className="text-[var(--foreground-soft)]">
@@ -291,7 +191,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
                         </p>
                       </div>
                     ) : (
-                      <AdminStatusBadge label="Sin productor" tone={vendorTone(false)} />
+                      <AdminStatusBadge label={ADMIN_USERS_VENDOR_LABELS['without-vendor']} tone={vendorTone(false)} />
                     )}
                   </td>
                   <td className="px-4 py-3 text-right">

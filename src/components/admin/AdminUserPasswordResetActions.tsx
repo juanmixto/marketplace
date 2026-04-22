@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
-import { requestAdminUserPasswordReset } from '@/domains/admin'
+import { requestAdminUserPasswordReset } from '@/domains/admin/users/actions'
 
 interface Props {
   userId: string
@@ -109,11 +109,11 @@ export function AdminUserPasswordResetActions({ userId, email, canReset, isDelet
 
           {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
-          <div className="flex items-center justify-end gap-3">
-            <Button variant="secondary" size="sm" onClick={() => setOpen(false)}>
+          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
+            <Button variant="secondary" size="sm" onClick={() => setOpen(false)} className="sm:min-w-28">
               Cancelar
             </Button>
-            <Button variant="primary" size="sm" isLoading={loading} onClick={handleSubmit}>
+            <Button variant="primary" size="sm" isLoading={loading} onClick={handleSubmit} className="sm:min-w-36">
               Enviar reset
             </Button>
           </div>

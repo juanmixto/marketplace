@@ -59,6 +59,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function VendorPublicPage({ params }: Props) {
   const { slug } = await params
+  const sessionPromise = auth()
   const locale = await getServerLocale()
   const copy = getCatalogCopy(locale)
   const t = await getServerT()
@@ -92,7 +93,7 @@ export default async function VendorPublicPage({ params }: Props) {
   const avgRating = aggregate._avg.rating ? Number(aggregate._avg.rating) : null
   const totalReviews = aggregate._count._all
 
-  const session = await auth()
+  const session = await sessionPromise
   const pendingForVendor = session?.user?.id
     ? await getVendorPendingReviews(session.user.id, vendor.id)
     : { total: 0, firstPendingOrderId: null }
@@ -263,8 +264,20 @@ export default async function VendorPublicPage({ params }: Props) {
         </div>
       </section>
 
+      {totalReviews === 0 && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-950 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-100">
+          <p>{copy.vendor.noReviews}</p>
+          <Link
+            href="#vendor-products"
+            className="inline-flex items-center rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700"
+          >
+            {copy.page.browseAllProducts}
+          </Link>
+        </div>
+      )}
+
       {/* ── Products ── */}
-      <section className="mt-10">
+      <section id="vendor-products" className="mt-10">
         <h2 className="mb-5 text-xl font-bold text-[var(--foreground)]">
           {copy.vendor.productsTitle(vendor.products.length)}
         </h2>

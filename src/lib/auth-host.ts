@@ -37,6 +37,26 @@ function getPreferredDevAuthUrl(env: NodeJS.ProcessEnv) {
   }
 }
 
+function getPreferredProtocolForHost(host: string | null, env: NodeJS.ProcessEnv) {
+  if (!host) return null
+
+  const candidates = [env.AUTH_URL, env.NEXTAUTH_URL, env.NEXT_PUBLIC_APP_URL]
+  for (const candidate of candidates) {
+    if (typeof candidate !== 'string' || candidate.length === 0) continue
+    try {
+      const parsed = new URL(candidate)
+      if (parsed.host !== host) continue
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        return parsed.protocol.replace(/:$/, '')
+      }
+    } catch {
+      continue
+    }
+  }
+
+  return null
+}
+
 export function shouldUseDynamicAuthUrl(env: NodeJS.ProcessEnv) {
   const authUrl = env.AUTH_URL ?? env.NEXTAUTH_URL
 
@@ -78,7 +98,10 @@ export function normalizeAuthHostEnv(env: NodeJS.ProcessEnv) {
 export function reqWithHostHeader<T extends Request>(req: T): T {
   const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host')
   if (!host) return req
-  const proto = req.headers.get('x-forwarded-proto') ?? new URL(req.url).protocol.replace(/:$/, '')
+  const proto =
+    req.headers.get('x-forwarded-proto') ??
+    getPreferredProtocolForHost(host, process.env) ??
+    new URL(req.url).protocol.replace(/:$/, '')
   const url = new URL(req.url)
   if (url.host === host && url.protocol === `${proto}:`) return req
   url.host = host

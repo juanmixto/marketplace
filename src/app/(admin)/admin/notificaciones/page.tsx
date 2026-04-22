@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { db } from '@/lib/db'
 import { requireRole } from '@/lib/auth-guard'
 import { ADMIN_ROLES } from '@/lib/roles'
-import { formatDate } from '@/lib/utils'
+import { formatMadridDate } from '@/lib/utils'
 import { NotificationChannel, NotificationDeliveryStatus } from '@/generated/prisma/enums'
 
 export const metadata: Metadata = { title: 'Notificaciones | Admin' }
@@ -153,7 +153,7 @@ export default async function AdminNotificationsPage({ searchParams }: PageProps
                 const user = userMap.get(row.userId)
                 return (
                   <tr key={row.id} className="border-t border-[var(--border)]">
-                    <td className="px-3 py-2 whitespace-nowrap">{formatDate(row.createdAt)}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">{formatMadridDate(row.createdAt)}</td>
                     <td className="px-3 py-2">
                       {user ? `${user.firstName} ${user.lastName}` : row.userId}
                       {user && <div className="text-xs text-[var(--muted)]">{user.email}</div>}
@@ -203,7 +203,7 @@ export default async function AdminNotificationsPage({ searchParams }: PageProps
                 const user = row.userId ? userMap.get(row.userId) : null
                 return (
                   <tr key={row.id} className="border-t border-[var(--border)]">
-                    <td className="px-3 py-2 whitespace-nowrap">{formatDate(row.createdAt)}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">{formatMadridDate(row.createdAt)}</td>
                     <td className="px-3 py-2">
                       {user ? `${user.firstName} ${user.lastName}` : row.userId ?? '—'}
                     </td>

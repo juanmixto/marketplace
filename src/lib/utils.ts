@@ -20,6 +20,14 @@ export function formatDate(date: Date | string, options?: Intl.DateTimeFormatOpt
   }).format(new Date(date))
 }
 
+export function formatMadridDate(date: Date | string, options?: Intl.DateTimeFormatOptions): string {
+  return new Intl.DateTimeFormat('es-ES', {
+    dateStyle: 'medium',
+    timeZone: 'Europe/Madrid',
+    ...options,
+  }).format(new Date(date))
+}
+
 export function slugify(text: string): string {
   return text
     .toLowerCase()

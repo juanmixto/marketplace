@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { TagIcon } from '@heroicons/react/24/outline'
 import { Badge } from '@/components/ui/badge'
-import { formatPrice } from '@/lib/utils'
+import { formatMadridDate, formatPrice } from '@/lib/utils'
 import { useT } from '@/i18n'
 import type { PromotionsOverview, PromotionRow } from '@/domains/admin/promotions'
 import type { BadgeVariant } from '@/domains/catalog/types'
@@ -156,7 +156,7 @@ function PromoRow({ row, now }: { row: PromotionRow; now: Date }) {
         <Badge variant="default">{kindLabel}</Badge>
       </td>
       <td className="px-4 py-3 text-xs text-[var(--muted)]">
-        {formatDate(row.startsAt)} → {formatDate(row.endsAt)}
+        {formatMadridDate(row.startsAt)} → {formatMadridDate(row.endsAt)}
       </td>
       <td className="px-4 py-3">
         <Badge variant={stateVariant}>{t(stateKey)}</Badge>
@@ -187,8 +187,4 @@ function getPromotionState(row: PromotionRow, now: Date): PromotionState {
   if (t < row.startsAt.getTime()) return 'scheduled'
   if (t > row.endsAt.getTime()) return 'expired'
   return 'active'
-}
-
-function formatDate(value: Date | string): string {
-  return new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium' }).format(new Date(value))
 }

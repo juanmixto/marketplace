@@ -134,6 +134,7 @@ export function CheckoutPageClient({
   const [promoPreview, setPromoPreview] = useState<PromotionPreviewResult | null>(null)
   const [promoError, setPromoError] = useState<string | null>(null)
   const [promoPending, setPromoPending] = useState(false)
+  const [showPromoCode, setShowPromoCode] = useState(false)
 
   const subtotalDiscount = promoPreview?.subtotalDiscount ?? 0
   const shippingDiscount = promoPreview?.shippingDiscount ?? 0
@@ -662,45 +663,68 @@ export function CheckoutPageClient({
 
               {/* Coupon code input */}
               <div className="mt-3 border-t border-[var(--border)] pt-3">
-                <label className="block text-xs font-medium text-[var(--foreground-soft)]">
-                  {t('checkout.promo.label')}
-                </label>
-                {appliedCode ? (
-                  <div className="mt-1 flex items-center justify-between gap-2 rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs dark:border-emerald-800 dark:bg-emerald-950/40">
-                    <span className="font-mono font-semibold text-emerald-800 dark:text-emerald-300">
-                      {appliedCode}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleClearPromoCode}
-                      className="text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300"
-                    >
-                      {t('checkout.promo.remove')}
-                    </button>
-                  </div>
+                {!appliedCode && !showPromoCode ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowPromoCode(true)}
+                    className="text-xs font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-400"
+                  >
+                    {t('checkout.promo.show')}
+                  </button>
                 ) : (
-                  <div className="mt-1 flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={promoCodeInput}
-                      onChange={e => setPromoCodeInput(e.target.value.toUpperCase())}
-                      placeholder={t('checkout.promo.placeholder')}
-                      className="h-9 flex-1 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 font-mono text-xs uppercase text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleApplyPromoCode}
-                      disabled={!promoCodeInput.trim() || promoPending}
-                      className="h-9 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-xs font-semibold text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] disabled:opacity-60"
-                    >
-                      {t('checkout.promo.apply')}
-                    </button>
-                  </div>
-                )}
-                {promoError && (
-                  <p className="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">
-                    {promoError}
-                  </p>
+                  <>
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="block text-xs font-medium text-[var(--foreground-soft)]">
+                        {t('checkout.promo.label')}
+                      </label>
+                      {!appliedCode && (
+                        <button
+                          type="button"
+                          onClick={() => setShowPromoCode(false)}
+                          className="text-xs text-[var(--muted)] hover:text-[var(--foreground)]"
+                        >
+                          {t('checkout.promo.hide')}
+                        </button>
+                      )}
+                    </div>
+                    {appliedCode ? (
+                      <div className="mt-1 flex items-center justify-between gap-2 rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs dark:border-emerald-800 dark:bg-emerald-950/40">
+                        <span className="font-mono font-semibold text-emerald-800 dark:text-emerald-300">
+                          {appliedCode}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleClearPromoCode}
+                          className="text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300"
+                        >
+                          {t('checkout.promo.remove')}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mt-1 flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={promoCodeInput}
+                          onChange={e => setPromoCodeInput(e.target.value.toUpperCase())}
+                          placeholder={t('checkout.promo.placeholder')}
+                          className="h-9 flex-1 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 font-mono text-xs uppercase text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleApplyPromoCode}
+                          disabled={!promoCodeInput.trim() || promoPending}
+                          className="h-9 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-xs font-semibold text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] disabled:opacity-60"
+                        >
+                          {t('checkout.promo.apply')}
+                        </button>
+                      </div>
+                    )}
+                    {promoError && (
+                      <p className="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">
+                        {promoError}
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
 

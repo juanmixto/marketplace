@@ -11,7 +11,7 @@ import { createAuditLog, getAuditRequestIp } from '@/lib/audit'
 import { db } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { canChangeAdminUserState, canResetAdminUserPassword } from '@/lib/roles'
-import { formatDate } from '@/lib/utils'
+import { formatMadridDate } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Detalle de usuario | Admin' }
 export const revalidate = 30
@@ -30,7 +30,7 @@ function toneForAvailability(value: boolean) {
 
 function formatActivity(value: Date | null) {
   return value
-    ? formatDate(value, { dateStyle: 'medium', timeStyle: 'short' })
+    ? formatMadridDate(value, { dateStyle: 'medium', timeStyle: 'short' })
     : 'Sin dato fiable todavía'
 }
 
@@ -142,16 +142,16 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
             <DetailRow label="Nombre" value={`${detail.user.firstName} ${detail.user.lastName}`} />
             <DetailRow label="Rol" value={detail.user.role} />
             <DetailRow label="Email" value={detail.user.email} secondary={detail.user.emailMasked} />
-            <DetailRow label="Email verificado" value={detail.user.emailVerified ? formatDate(detail.user.emailVerified, { dateStyle: 'medium', timeStyle: 'short' }) : 'No verificado'} />
-            <DetailRow label="Alta" value={formatDate(detail.user.createdAt, { dateStyle: 'medium', timeStyle: 'short' })} />
-            <DetailRow label="Actualización" value={formatDate(detail.user.updatedAt, { dateStyle: 'medium', timeStyle: 'short' })} />
+            <DetailRow label="Email verificado" value={detail.user.emailVerified ? formatMadridDate(detail.user.emailVerified, { dateStyle: 'medium', timeStyle: 'short' }) : 'No verificado'} />
+            <DetailRow label="Alta" value={formatMadridDate(detail.user.createdAt, { dateStyle: 'medium', timeStyle: 'short' })} />
+            <DetailRow label="Actualización" value={formatMadridDate(detail.user.updatedAt, { dateStyle: 'medium', timeStyle: 'short' })} />
             <DetailRow label="Último login" value={formatActivity(detail.user.lastLoginAt)} />
             <DetailRow label="Última actividad" value={formatActivity(detail.activity.lastActivityAt)} />
             <DetailRow label="Estado de la cuenta" value={detail.user.deletedAt ? 'Eliminada' : detail.user.isActive ? 'Activa' : 'Inactiva'} />
             <DetailRow
               label="2FA"
               value={detail.user.twoFactorEnabledAt ? 'Activada' : 'No activada'}
-              secondary={detail.user.twoFactorEnabledAt ? `Desde ${formatDate(detail.user.twoFactorEnabledAt, { dateStyle: 'medium', timeStyle: 'short' })}` : undefined}
+              secondary={detail.user.twoFactorEnabledAt ? `Desde ${formatMadridDate(detail.user.twoFactorEnabledAt, { dateStyle: 'medium', timeStyle: 'short' })}` : undefined}
             />
           </CardBody>
         </Card>
@@ -168,6 +168,43 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
             </div>
           </CardHeader>
           <CardBody className="space-y-3">
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)]/40 p-4">
+              <p className="text-sm font-medium text-[var(--foreground)]">Acceso rápido</p>
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                Saltos directos para revisar la actividad más útil sin perder el contexto de la ficha.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link
+                  href={`/admin/pedidos?q=${encodeURIComponent(detail.user.email)}`}
+                  className="inline-flex items-center rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] shadow-sm transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
+                >
+                  Ver pedidos del usuario
+                </Link>
+                <Link
+                  href={`/admin/auditoria?entityType=User`}
+                  className="inline-flex items-center rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] shadow-sm transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
+                >
+                  Ver auditoría del usuario
+                </Link>
+                {detail.user.vendor && (
+                  <>
+                    <Link
+                      href="/admin/productores"
+                      className="inline-flex items-center rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] shadow-sm transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
+                    >
+                      Ver productores
+                    </Link>
+                    <Link
+                      href={`/admin/auditoria?entityType=Vendor`}
+                      className="inline-flex items-center rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] shadow-sm transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
+                    >
+                      Ver auditoría del productor
+                    </Link>
+                  </>
+                )}
+              </div>
+            </div>
+
             {canResetPassword ? (
               <AdminUserPasswordResetActions
                 userId={detail.user.id}
@@ -261,7 +298,7 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
                     <div>
                       <p className="font-semibold text-[var(--foreground)]">{log.action}</p>
                       <p className="text-xs text-[var(--muted)]">
-                        {log.entityType} · {formatDate(log.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}
+                        {log.entityType} · {formatMadridDate(log.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}
                       </p>
                     </div>
                     <div className="text-right text-xs text-[var(--muted)]">

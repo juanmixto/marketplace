@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/auth-guard'
 import { redirect } from 'next/navigation'
-import { formatDate, formatPrice } from '@/lib/utils'
+import { formatMadridDate, formatPrice } from '@/lib/utils'
 import { AdminStatusBadge } from '@/components/admin/AdminStatusBadge'
 import { getIncidentStatusTone } from '@/domains/admin/overview'
 import { IncidentDetailClient } from '@/components/admin/IncidentDetailClient'
@@ -71,11 +71,11 @@ export default async function AdminIncidentDetailPage({ params }: Props) {
         </div>
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
           <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">Creada</p>
-          <p className="mt-3 font-semibold text-[var(--foreground)]">{formatDate(incident.createdAt)}</p>
+          <p className="mt-3 font-semibold text-[var(--foreground)]">{formatMadridDate(incident.createdAt)}</p>
         </div>
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
           <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">SLA</p>
-          <p className="mt-3 font-semibold text-[var(--foreground)]">{formatDate(incident.slaDeadline)}</p>
+          <p className="mt-3 font-semibold text-[var(--foreground)]">{formatMadridDate(incident.slaDeadline)}</p>
         </div>
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
           <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">Mensajes</p>

@@ -1,11 +1,9 @@
 'use client'
 
-import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useT } from '@/i18n'
 import {
   ArrowLeftIcon,
@@ -15,9 +13,9 @@ import {
   ShieldCheckIcon,
   ShoppingBagIcon,
 } from '@heroicons/react/24/outline'
+import { submitCredentialsLogin } from '@/domains/auth/login-actions'
 import {
   getLoginPortalMode,
-  normalizeAuthRedirectUrl,
   publicPortalLinks,
   sanitizeCallbackUrl,
   STOREFRONT_PATH,
@@ -25,17 +23,18 @@ import {
 
 interface LoginFormProps {
   callbackUrl?: string
+  initialError?: string | null
 }
 
 type Step = 'credentials' | 'totp'
 
-export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
-  const router = useRouter()
+export function LoginForm({ callbackUrl = '/', initialError = null }: LoginFormProps) {
   const safeCallbackUrl = sanitizeCallbackUrl(callbackUrl) ?? STOREFRONT_PATH
   const portalMode = getLoginPortalMode(safeCallbackUrl)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(initialError)
   const [loading, setLoading] = useState(false)
   const [showPass, setShowPass] = useState(false)
+  const finalLoginFormRef = useRef<HTMLFormElement>(null)
   // Admin-only two-step flow (#: two-step admin login). Step 1 collects
   // email+password and pings /api/auth/login-precheck to learn whether
   // 2FA is required (false when the trusted-device cookie is valid or
@@ -85,29 +84,8 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
   const PortalIcon = currentPortal.icon
   const isAdminPortal = portalMode === 'admin'
 
-  async function completeSignIn(opts: { totp?: string; remember?: boolean }) {
-    const credentials: Record<string, string> = { email, password }
-    if (opts.totp) credentials.totpCode = opts.totp
-    if (opts.remember) credentials.rememberDevice = '1'
-
-    const result = await signIn('credentials', {
-      ...credentials,
-      redirect: false,
-      callbackUrl: safeCallbackUrl,
-    })
-
-    if (result?.error) {
-      setError(t('login.error.invalidCredentials'))
-      setLoading(false)
-      return
-    }
-
-    const destination = normalizeAuthRedirectUrl(result?.url) ?? safeCallbackUrl
-    const nextUrl = destination.startsWith('/')
-      ? new URL(destination, window.location.origin).toString()
-      : destination
-    window.location.assign(nextUrl)
-    router.refresh()
+  function submitFinalLogin() {
+    finalLoginFormRef.current?.requestSubmit()
   }
 
   async function handleCredentialsSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -116,9 +94,9 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
     setLoading(true)
 
     // Buyer / vendor portals have no 2FA surface — go straight to
-    // signIn and let authorize() do its thing.
+    // the server action and let authorize() do its thing.
     if (!isAdminPortal) {
-      await completeSignIn({})
+      submitFinalLogin()
       return
     }
 
@@ -155,7 +133,7 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
       // admin hasn't enrolled yet — in which case the proxy will
       // redirect to /admin/security/enroll — or a trusted-device
       // cookie is still valid).
-      await completeSignIn({})
+      submitFinalLogin()
     } catch {
       setError(t('login.error.generic'))
       setLoading(false)
@@ -166,7 +144,7 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
     e.preventDefault()
     setError(null)
     setLoading(true)
-    await completeSignIn({ totp: totpCode, remember: rememberDevice })
+    submitFinalLogin()
   }
 
   function backToCredentials() {
@@ -191,6 +169,19 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
           </div>
         </div>
       </div>
+
+      <form
+        ref={finalLoginFormRef}
+        action={submitCredentialsLogin}
+        className="hidden"
+        aria-hidden="true"
+      >
+        <input type="hidden" name="email" value={email} readOnly />
+        <input type="hidden" name="password" value={password} readOnly />
+        <input type="hidden" name="callbackUrl" value={safeCallbackUrl} readOnly />
+        <input type="hidden" name="totpCode" value={totpCode} readOnly />
+        <input type="hidden" name="rememberDevice" value={rememberDevice ? '1' : ''} readOnly />
+      </form>
 
       {step === 'credentials' && (
         <form onSubmit={handleCredentialsSubmit} className="mt-6 space-y-4">

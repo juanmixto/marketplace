@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { db } from '@/lib/db'
 import { createCommissionRule } from '@/domains/admin/actions'
 import { CommissionRuleActions } from '@/components/admin/CommissionRuleActions'
-import { formatDate } from '@/lib/utils'
+import { formatMadridDate } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Comisiones | Admin' }
 export const revalidate = 30
@@ -160,7 +160,7 @@ export default async function AdminCommissionRulesPage() {
                     {rule.isActive ? 'Activa' : 'Inactiva'}
                   </span>
                 </div>
-                <div className="text-[var(--muted)]">{formatDate(rule.createdAt)}</div>
+                <div className="text-[var(--muted)]">{formatMadridDate(rule.createdAt)}</div>
                 <div>
                   <CommissionRuleActions ruleId={rule.id} isActive={rule.isActive} />
                 </div>

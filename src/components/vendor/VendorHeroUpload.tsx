@@ -9,7 +9,7 @@ import {
   LinkIcon,
 } from '@heroicons/react/24/outline'
 import { isAllowedImageUrl } from '@/lib/image-validation'
-import { compressImage } from '@/lib/image-compress'
+import { ImageCompressionError, compressImage } from '@/lib/image-compress'
 import { useT } from '@/i18n'
 
 const MAX_BYTES = 5 * 1024 * 1024
@@ -37,8 +37,12 @@ export function VendorHeroUpload({
   const t = useT()
   const coverInputRef = useRef<HTMLInputElement>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
+  const coverSlowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const logoSlowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [coverUploading, setCoverUploading] = useState(false)
   const [logoUploading, setLogoUploading] = useState(false)
+  const [coverSlow, setCoverSlow] = useState(false)
+  const [logoSlow, setLogoSlow] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showUrls, setShowUrls] = useState(false)
   const [coverUrlDraft, setCoverUrlDraft] = useState(coverValue)
@@ -54,7 +58,12 @@ export function VendorHeroUpload({
       return
     }
     const setUploading = slot === 'cover' ? setCoverUploading : setLogoUploading
+    const setSlow = slot === 'cover' ? setCoverSlow : setLogoSlow
+    const slowTimerRef = slot === 'cover' ? coverSlowTimerRef : logoSlowTimerRef
     setUploading(true)
+    setSlow(false)
+    if (slowTimerRef.current) clearTimeout(slowTimerRef.current)
+    slowTimerRef.current = setTimeout(() => setSlow(true), 1200)
     try {
       const file = await compressImage(rawFile, slot === 'cover' ? 'cover' : 'avatar')
       if (file.size > MAX_BYTES) {
@@ -77,8 +86,19 @@ export function VendorHeroUpload({
         setLogoUrlDraft(data.url)
       }
     } catch (err) {
+      if (err instanceof ImageCompressionError) {
+        setError(
+          err.code === 'heic-unsupported'
+            ? t('vendor.heroUpload.heicUnsupported')
+            : t('vendor.heroUpload.uploadError'),
+        )
+        return
+      }
       setError(err instanceof Error ? err.message : t('vendor.heroUpload.uploadError'))
     } finally {
+      if (slowTimerRef.current) clearTimeout(slowTimerRef.current)
+      slowTimerRef.current = null
+      setSlow(false)
       setUploading(false)
     }
   }
@@ -116,6 +136,10 @@ export function VendorHeroUpload({
           {showUrls ? t('vendor.heroUpload.toggleUrlsHide') : t('vendor.heroUpload.toggleUrls')}
         </button>
       </div>
+
+      {(coverSlow || logoSlow) && (
+        <p className="text-xs text-[var(--muted)]">{t('vendor.heroUpload.processing')}</p>
+      )}
 
       <div className="relative aspect-[16/5] w-full overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)]">
         {/* Cover fills the frame */}
@@ -210,7 +234,7 @@ export function VendorHeroUpload({
       <input
         ref={coverInputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
         className="hidden"
         onChange={e => {
           const f = e.target.files?.[0]
@@ -220,7 +244,7 @@ export function VendorHeroUpload({
       <input
         ref={logoInputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
         className="hidden"
         onChange={e => {
           const f = e.target.files?.[0]

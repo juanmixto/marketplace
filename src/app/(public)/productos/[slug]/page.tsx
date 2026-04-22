@@ -7,7 +7,7 @@ import { ProductPurchasePanel } from '@/components/catalog/ProductPurchasePanel'
 import { AutoTranslatedBadge } from '@/components/catalog/AutoTranslatedBadge'
 import { StarRating } from '@/components/reviews/StarRating'
 import { ReportReviewButton } from '@/components/reviews/ReportReviewButton'
-import { MapPinIcon, StarIcon, CheckBadgeIcon, TruckIcon, ShieldCheckIcon } from '@heroicons/react/24/solid'
+import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import { ProductImageGallery } from '@/components/catalog/ProductImageGallery'
 import { FavoriteToggleButton } from '@/components/catalog/FavoriteToggleButton'
 import { ProductCard } from '@/components/catalog/ProductCard'
@@ -101,16 +101,18 @@ export default async function ProductDetailPage({ params }: Props) {
   const localizedProduct = getLocalizedProductCopy(product, locale)
   const taxRate = Number(product.taxRate)
 
-  const related = await getProducts({
-    categorySlug: product.category?.slug,
-    limit: 4,
-  }).then(r => r.products.filter(p => p.id !== product.id).slice(0, 4))
-  const reviewSummary = await getProductReviews(product.id)
-  const activePromotions = await getActivePromotionsForProduct({
-    productId: product.id,
-    vendorId: product.vendor.id,
-    categoryId: product.categoryId ?? null,
-  })
+  const [related, reviewSummary, activePromotions] = await Promise.all([
+    getProducts({
+      categorySlug: product.category?.slug,
+      limit: 4,
+    }).then(r => r.products.filter(p => p.id !== product.id).slice(0, 4)),
+    getProductReviews(product.id),
+    getActivePromotionsForProduct({
+      productId: product.id,
+      vendorId: product.vendor.id,
+      categoryId: product.categoryId ?? null,
+    }),
+  ])
 
   // An "auto-applied" promo is one that a buyer gets without typing a
   // code and without needing to reach a minimum subtotal — i.e. it
@@ -130,6 +132,31 @@ export default async function ProductDetailPage({ params }: Props) {
   const informationalPromotions = activePromotions.filter(
     promo => promo.id !== autoAppliedPromotion?.id,
   )
+  const trustRating =
+    reviewSummary.averageRating != null && reviewSummary.totalReviews > 0
+      ? {
+          label: copy.product.ratingLabel(
+            reviewSummary.averageRating.toFixed(1),
+            reviewSummary.totalReviews,
+          ),
+        }
+      : product.vendor.avgRating && product.vendor.totalReviews > 0
+        ? {
+            label: copy.product.ratingLabel(
+              Number(product.vendor.avgRating).toFixed(1),
+              product.vendor.totalReviews,
+            ),
+          }
+        : null
+  const trustSignals = [
+    trustRating,
+    product.vendor.preparationDays != null
+      ? { label: copy.vendor.preparationDays(product.vendor.preparationDays) }
+      : null,
+    product.vendor.orderCutoffTime
+      ? { label: copy.vendor.orderCutoff(product.vendor.orderCutoffTime) }
+      : null,
+  ].filter((signal): signal is { label: string } => Boolean(signal))
 
   // Phase 4b-β: show the "Subscribe" CTA when the vendor has published
   // at least one active, Stripe-provisioned plan for this product. The
@@ -291,6 +318,21 @@ export default async function ProductDetailPage({ params }: Props) {
             <p className="mt-5 text-[var(--foreground-soft)] leading-relaxed">{localizedProduct.description}</p>
           )}
 
+          {trustSignals.length > 0 && (
+            <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 text-sm text-emerald-950 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-100">
+              <div className="flex flex-wrap gap-2">
+                {trustSignals.map(signal => (
+                  <span
+                    key={signal.label}
+                    className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-medium text-emerald-900 shadow-sm ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-100 dark:ring-emerald-900/50"
+                  >
+                    {signal.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           <ProductPurchasePanel
             productId={product.id}
             productName={localizedProduct.name}
@@ -327,22 +369,6 @@ export default async function ProductDetailPage({ params }: Props) {
           {showSubscribeCta && (
             <SubscribeToBoxButton productId={product.id} />
           )}
-
-          {/* Trust strip */}
-          <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs text-[var(--muted)]">
-            <div className="flex flex-col items-center gap-1">
-              <TruckIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              <span>{copy.product.trustDirectPurchase}</span>
-            </div>
-            <div className="flex flex-col items-center gap-1">
-              <ShieldCheckIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              <span>{copy.product.trustQuality}</span>
-            </div>
-            <div className="flex flex-col items-center gap-1">
-              <CheckBadgeIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              <span>{copy.product.trustNoIntermediaries}</span>
-            </div>
-          </div>
 
           {/* Vendor card — "Conoce al productor" */}
           <div className="mt-8 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] shadow-sm">

@@ -32,6 +32,10 @@ export interface Kpis {
   aov: DeltaMetric
   uniqueCustomers: DeltaMetric
   repeatRatePct: DeltaMetric
+  firstOrders: DeltaMetric
+  buyerActivationLagDays: DeltaMetric
+  firstProducts: DeltaMetric
+  vendorActivationLagDays: DeltaMetric
   incidentRatePct: DeltaMetric
   commission: DeltaMetric
   tax: DeltaMetric

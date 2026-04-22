@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { UserCircleIcon } from '@heroicons/react/24/outline'
-import { formatDate } from '@/lib/utils'
+import { formatMadridDate } from '@/lib/utils'
 import { useT } from '@/i18n'
 
 // Mirror the Prisma IncidentResolution enum values
@@ -131,7 +131,7 @@ export function IncidentDetailClient({ incidentId, status, messages: initial }: 
                           </span>
                         ) : null}
                       </span>
-                      <time className="text-xs text-[var(--muted)]">{formatDate(msg.createdAt)}</time>
+                      <time className="text-xs text-[var(--muted)]">{formatMadridDate(msg.createdAt)}</time>
                     </div>
                     <p className="mt-2 whitespace-pre-wrap break-words text-sm text-[var(--foreground-soft)]">
                       {msg.body}

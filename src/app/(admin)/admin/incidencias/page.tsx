@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { db } from '@/lib/db'
-import { formatDate, formatPrice } from '@/lib/utils'
+import { formatMadridDate, formatPrice } from '@/lib/utils'
 import { AdminStatusBadge } from '@/components/admin/AdminStatusBadge'
 import { getIncidentStatusTone } from '@/domains/admin/overview'
 
@@ -48,8 +48,8 @@ export default async function AdminIncidentsPage() {
                 </p>
               </div>
               <div className="text-right text-sm text-[var(--muted)]">
-                <p>Creada {formatDate(incident.createdAt)}</p>
-                <p>SLA {formatDate(incident.slaDeadline)}</p>
+                <p>Creada {formatMadridDate(incident.createdAt)}</p>
+                <p>SLA {formatMadridDate(incident.slaDeadline)}</p>
               </div>
             </div>
             <p className="mt-4 text-sm leading-6 text-[var(--foreground-soft)]">{incident.description}</p>

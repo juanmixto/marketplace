@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { after, before, describe, test } from 'node:test'
+import { diff } from 'jest-diff'
 
 type Matcher = {
   toBe: (expected: unknown) => void
@@ -84,6 +85,29 @@ export const it = test
 
 export function expect(actual: unknown): Matcher {
   return createMatchers(actual)
+}
+
+// Keep deep-equality failures readable without changing the test runner.
+export function expectEqual<T>(actual: T, expected: T, message?: string): void {
+  try {
+    assert.deepStrictEqual(actual, expected)
+  } catch (error) {
+    if (!(error instanceof assert.AssertionError)) {
+      throw error
+    }
+
+    const renderedDiff = diff(expected, actual, { expand: false })
+    const diffMessage = renderedDiff ?? 'Compared values have no visual difference.'
+    const fullMessage = message ? `${message}\n\n${diffMessage}` : diffMessage
+
+    throw new assert.AssertionError({
+      message: fullMessage,
+      actual,
+      expected,
+      operator: 'deepStrictEqual',
+      stackStartFn: expectEqual,
+    })
+  }
 }
 
 export { describe }

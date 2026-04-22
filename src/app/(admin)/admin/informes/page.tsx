@@ -48,6 +48,20 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
         <KpiCard label="Comisiones" metric={data.kpis.commission} format="currency" />
         <KpiCard label="Clientes únicos" metric={data.kpis.uniqueCustomers} format="number" />
         <KpiCard label="% Repiten compra" metric={data.kpis.repeatRatePct} format="percent" />
+        <KpiCard label="Primeros pedidos" metric={data.kpis.firstOrders} format="number" />
+        <KpiCard
+          label="Activación buyer"
+          metric={data.kpis.buyerActivationLagDays}
+          format="decimal"
+          hint="Días hasta primer pedido"
+        />
+        <KpiCard label="Primeros productos" metric={data.kpis.firstProducts} format="number" />
+        <KpiCard
+          label="Activación vendor"
+          metric={data.kpis.vendorActivationLagDays}
+          format="decimal"
+          hint="Días hasta primer producto"
+        />
         <KpiCard label="% Incidencias" metric={data.kpis.incidentRatePct} format="percent" />
         <KpiCard label="Impuestos" metric={data.kpis.tax} format="currency" />
       </section>

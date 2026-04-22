@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useTransition } from 'react'
+import { useEffect, useMemo } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import type { PresetRange, FilterOptionSet } from '@/domains/analytics/types'
 import { useAnalyticsFiltersStore } from './useAnalyticsFiltersStore'
@@ -39,7 +39,6 @@ export function AnalyticsFilters({ options, initial }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [isPending, startTransition] = useTransition()
 
   const draft = useAnalyticsFiltersStore(s => s.draft)
   const setPreset = useAnalyticsFiltersStore(s => s.setPreset)
@@ -51,28 +50,20 @@ export function AnalyticsFilters({ options, initial }: Props) {
   }, [reset, initial])
 
   const currentQuery = useMemo(() => searchParams.toString(), [searchParams])
+  const nextQuery = useMemo(() => buildAnalyticsQuery(draft), [draft])
 
-  const apply = () => {
-    const params = new URLSearchParams()
-    params.set('preset', draft.preset)
-    if (draft.preset === 'custom') {
-      if (draft.from) params.set('from', draft.from)
-      if (draft.to) params.set('to', draft.to)
-    }
-    if (draft.vendorId) params.set('vendor', draft.vendorId)
-    if (draft.categoryId) params.set('category', draft.categoryId)
-    if (draft.status) params.set('status', draft.status)
-    const next = params.toString()
-    if (next === currentQuery) return
-    startTransition(() => {
-      router.push(`${pathname}?${next}`)
-    })
-  }
+  useEffect(() => {
+    if (nextQuery === currentQuery) return
+
+    const timer = window.setTimeout(() => {
+      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false })
+    }, 300)
+
+    return () => window.clearTimeout(timer)
+  }, [currentQuery, draft, nextQuery, pathname, router])
 
   const clear = () => {
-    startTransition(() => {
-      router.push(pathname)
-    })
+    router.replace(pathname, { scroll: false })
   }
 
   return (
@@ -176,16 +167,28 @@ export function AnalyticsFilters({ options, initial }: Props) {
           >
             Limpiar
           </button>
-          <button
-            type="button"
-            onClick={apply}
-            disabled={isPending}
-            className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-          >
-            {isPending ? 'Aplicando…' : 'Aplicar filtros'}
-          </button>
         </div>
       </div>
     </div>
   )
+}
+
+function buildAnalyticsQuery(draft: {
+  preset: PresetRange
+  from: string
+  to: string
+  vendorId: string
+  categoryId: string
+  status: string
+}) {
+  const params = new URLSearchParams()
+  params.set('preset', draft.preset)
+  if (draft.preset === 'custom') {
+    if (draft.from) params.set('from', draft.from)
+    if (draft.to) params.set('to', draft.to)
+  }
+  if (draft.vendorId) params.set('vendor', draft.vendorId)
+  if (draft.categoryId) params.set('category', draft.categoryId)
+  if (draft.status) params.set('status', draft.status)
+  return params.toString()
 }

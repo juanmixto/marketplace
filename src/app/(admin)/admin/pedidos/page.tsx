@@ -2,11 +2,10 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
-import { ArrowPathIcon, ExclamationTriangleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import { AdminOrdersFilters } from '@/components/admin/AdminOrdersFilters'
 import { AdminStatusBadge } from '@/components/admin/AdminStatusBadge'
-import { Button } from '@/components/ui/button'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import {
   FULFILLMENT_STATUS_LABELS_ADMIN,
   PAYMENT_STATUS_LABELS,
@@ -16,7 +15,7 @@ import { getOrderStatusTone } from '@/domains/admin/overview'
 import { parseOrderLineSnapshot } from '@/lib/order-line-snapshot'
 import { parseOrderAddressSnapshot } from '@/types/order'
 import { ORDER_STATUS_LABELS } from '@/lib/constants'
-import { cn, formatDate, formatPrice, truncate } from '@/lib/utils'
+import { cn, formatMadridDate, formatPrice, truncate } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Pedidos | Admin' }
 export const revalidate = 30
@@ -219,55 +218,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
           </div>
         </CardHeader>
         <CardBody>
-          <form className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_auto_auto] lg:items-end">
-            <Input
-              name="q"
-              label="Buscar"
-              defaultValue={q}
-              placeholder="MP-2026, email, ciudad, producto o productor"
-            />
-            <label className="space-y-1.5">
-              <span className="block text-sm font-medium text-[var(--foreground-soft)]">Estado del pedido</span>
-              <select
-                name="status"
-                defaultValue={status ?? 'all'}
-                className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--foreground)] shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              >
-                <option value="all">Todos</option>
-                {ORDER_STATUS_OPTIONS.map(option => (
-                  <option key={option} value={option}>
-                    {ORDER_STATUS_LABELS[option] ?? option}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1.5">
-              <span className="block text-sm font-medium text-[var(--foreground-soft)]">Estado del pago</span>
-              <select
-                name="payment"
-                defaultValue={payment ?? 'all'}
-                className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--foreground)] shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              >
-                <option value="all">Todos</option>
-                {PAYMENT_STATUS_OPTIONS.map(option => (
-                  <option key={option} value={option}>
-                    {PAYMENT_STATUS_LABELS[option]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Button type="submit" className="gap-2">
-              <MagnifyingGlassIcon className="h-4 w-4" />
-              Aplicar
-            </Button>
-            <Link
-              href="/admin/pedidos"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--foreground-soft)] shadow-sm transition-all duration-200 hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)]"
-            >
-              <ArrowPathIcon className="h-4 w-4" />
-              Limpiar
-            </Link>
-          </form>
+          <AdminOrdersFilters q={q} status={status} payment={payment} incidents={incidents} />
         </CardBody>
       </Card>
 
@@ -310,7 +261,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
                         )}
                       </div>
                       <p className="mt-1 text-sm text-[var(--muted)]">
-                        {formatDate(order.placedAt, { dateStyle: 'medium', timeStyle: 'short' })} · {order.customer.firstName} {order.customer.lastName}
+                        {formatMadridDate(order.placedAt, { dateStyle: 'medium', timeStyle: 'short' })} · {order.customer.firstName} {order.customer.lastName}
                       </p>
                       <p className="mt-0.5 text-xs text-[var(--muted)]">{order.customer.email}</p>
                     </div>
@@ -417,7 +368,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted-light)]">Detalle del pedido</p>
                     <h2 className="mt-1 text-2xl font-bold text-[var(--foreground)]">{selectedOrder.orderNumber}</h2>
                     <p className="mt-1 text-sm text-[var(--muted)]">
-                      Alta {formatDate(selectedOrder.placedAt, { dateStyle: 'medium', timeStyle: 'short' })} · Actualizado {formatDate(selectedOrder.updatedAt, { dateStyle: 'medium', timeStyle: 'short' })}
+                      Alta {formatMadridDate(selectedOrder.placedAt, { dateStyle: 'medium', timeStyle: 'short' })} · Actualizado {formatMadridDate(selectedOrder.updatedAt, { dateStyle: 'medium', timeStyle: 'short' })}
                     </p>
                   </div>
                   <div className="flex flex-wrap justify-end gap-2">
@@ -529,9 +480,9 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
                           />
                         </div>
                         <div className="mt-3 grid gap-2 text-xs text-[var(--muted)] sm:grid-cols-2">
-                          <p>Creado {formatDate(fulfillment.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}</p>
-                          <p>{fulfillment.shippedAt ? `Enviado ${formatDate(fulfillment.shippedAt, { dateStyle: 'medium', timeStyle: 'short' })}` : 'Todavía no enviado'}</p>
-                          <p>{fulfillment.deliveredAt ? `Entregado ${formatDate(fulfillment.deliveredAt, { dateStyle: 'medium', timeStyle: 'short' })}` : 'Entrega no confirmada'}</p>
+                          <p>Creado {formatMadridDate(fulfillment.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                          <p>{fulfillment.shippedAt ? `Enviado ${formatMadridDate(fulfillment.shippedAt, { dateStyle: 'medium', timeStyle: 'short' })}` : 'Todavía no enviado'}</p>
+                          <p>{fulfillment.deliveredAt ? `Entregado ${formatMadridDate(fulfillment.deliveredAt, { dateStyle: 'medium', timeStyle: 'short' })}` : 'Entrega no confirmada'}</p>
                         </div>
                       </div>
                     ))}
@@ -553,7 +504,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
                           </div>
                         </div>
                         <p className="mt-3 text-xs text-[var(--muted)]">
-                          Creado {formatDate(paymentRecord.createdAt, { dateStyle: 'medium', timeStyle: 'short' })} · Actualizado {formatDate(paymentRecord.updatedAt, { dateStyle: 'medium', timeStyle: 'short' })}
+                          Creado {formatMadridDate(paymentRecord.createdAt, { dateStyle: 'medium', timeStyle: 'short' })} · Actualizado {formatMadridDate(paymentRecord.updatedAt, { dateStyle: 'medium', timeStyle: 'short' })}
                         </p>
                       </div>
                     ))}
@@ -571,7 +522,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
                               <div>
                                 <p className="font-medium text-red-900 dark:text-red-300">{incident.type}</p>
                                 <p className="mt-1 text-sm text-red-800/80 dark:text-red-300/90">
-                                  SLA {formatDate(incident.slaDeadline, { dateStyle: 'medium', timeStyle: 'short' })}
+                                  SLA {formatMadridDate(incident.slaDeadline, { dateStyle: 'medium', timeStyle: 'short' })}
                                 </p>
                               </div>
                             </div>
@@ -602,7 +553,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
                             </p>
                           </div>
                           <p className="text-right text-xs text-[var(--muted)]">
-                            {formatDate(event.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}
+                            {formatMadridDate(event.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}
                           </p>
                         </div>
                       ))}

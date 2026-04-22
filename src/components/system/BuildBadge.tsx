@@ -20,12 +20,7 @@ export function BuildBadge() {
   const branch = process.env.NEXT_PUBLIC_GIT_BRANCH ?? null
 
   const shortTime = buildTime
-    ? new Date(buildTime).toLocaleString(undefined, {
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
+    ? new Date(buildTime).toISOString().slice(5, 16).replace('T', ' ')
     : null
 
   return (

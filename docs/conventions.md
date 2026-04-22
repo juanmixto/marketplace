@@ -63,6 +63,10 @@ import { auth } from '@/auth'           // → use @/lib/auth
 
 ## Server Action pattern (domain logic)
 
+### Auth upgrade boundary
+
+All NextAuth logic must stay inside `src/lib/auth*`. If an auth upgrade or refactor reaches into pages, domains, or components, that is a signal the abstraction boundary is wrong and should be tightened before merging.
+
 Server Actions live under `src/domains/<domain>/actions.ts`. Standard shape:
 
 ```ts

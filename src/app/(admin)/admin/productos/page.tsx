@@ -1,14 +1,11 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowPathIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { AdminProductsFilters } from '@/components/admin/AdminProductsFilters'
 import { db } from '@/lib/db'
-import { cn, formatDate, formatPrice } from '@/lib/utils'
+import { cn, formatMadridDate, formatPrice } from '@/lib/utils'
 import { AdminStatusBadge } from '@/components/admin/AdminStatusBadge'
 import { ProductModerationActions } from '@/components/admin/ProductModerationActions'
-import { Button } from '@/components/ui/button'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { ProductStatusFilterSelect } from '@/components/admin/ProductStatusFilterSelect'
 import { getProductStatusTone } from '@/domains/admin/overview'
 import type { Prisma } from '@/generated/prisma/client'
 import type { ProductStatus } from '@/generated/prisma/enums'
@@ -28,14 +25,6 @@ const PRODUCT_STATUS_LABELS: Record<ProductStatus, string> = {
 
 const STOCK_OPTIONS = ['all', 'out', 'low', 'in', 'untracked'] as const
 type StockFilter = (typeof STOCK_OPTIONS)[number]
-
-const STOCK_LABELS: Record<StockFilter, string> = {
-  all: 'Todo el stock',
-  out: 'Sin stock',
-  low: 'Stock bajo (≤5)',
-  in: 'Con stock',
-  untracked: 'Sin control de stock',
-}
 
 const PAGE_SIZE = 24
 
@@ -183,58 +172,7 @@ export default async function AdminProductsPage({ searchParams }: Props) {
           <p className="mt-1 text-sm text-[var(--muted)]">Encuentra productos por nombre, productor, categoría o stock.</p>
         </CardHeader>
         <CardBody>
-          <form className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_auto_auto] lg:items-end">
-            <Input
-              name="q"
-              label="Buscar"
-              defaultValue={q}
-              placeholder="Nombre, slug o productor"
-            />
-            <label className="space-y-1.5">
-              <span className="block text-sm font-medium text-[var(--foreground-soft)]">Estado</span>
-              <ProductStatusFilterSelect
-                name="status"
-                defaultValue={status}
-                options={PRODUCT_STATUS_OPTIONS.map(option => ({ value: option, label: PRODUCT_STATUS_LABELS[option] }))}
-              />
-            </label>
-            <label className="space-y-1.5">
-              <span className="block text-sm font-medium text-[var(--foreground-soft)]">Categoría</span>
-              <select
-                name="category"
-                defaultValue={category}
-                className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--foreground)] shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              >
-                <option value="">Todas</option>
-                {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1.5">
-              <span className="block text-sm font-medium text-[var(--foreground-soft)]">Stock</span>
-              <select
-                name="stock"
-                defaultValue={stock}
-                className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--foreground)] shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              >
-                {STOCK_OPTIONS.map(option => (
-                  <option key={option} value={option}>{STOCK_LABELS[option]}</option>
-                ))}
-              </select>
-            </label>
-            <Button type="submit" className="gap-2">
-              <MagnifyingGlassIcon className="h-4 w-4" />
-              Aplicar
-            </Button>
-            <Link
-              href="/admin/productos"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--foreground-soft)] shadow-sm transition-all duration-200 hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)]"
-            >
-              <ArrowPathIcon className="h-4 w-4" />
-              Limpiar
-            </Link>
-          </form>
+          <AdminProductsFilters q={q} status={status} category={category} stock={stock} categories={categories} />
         </CardBody>
       </Card>
 
@@ -256,7 +194,7 @@ export default async function AdminProductsPage({ searchParams }: Props) {
               <tr key={product.id} className="transition-colors hover:bg-[var(--surface-raised)]/80">
                 <td className="px-5 py-4 align-middle">
                   <p className="font-semibold text-[var(--foreground)]">{product.name}</p>
-                  <p className="text-xs text-[var(--muted)]">Actualizado {formatDate(product.updatedAt)}</p>
+                  <p className="text-xs text-[var(--muted)]">Actualizado {formatMadridDate(product.updatedAt)}</p>
                 </td>
                 <td className="px-5 py-4 align-middle font-medium text-[var(--foreground)]">{product.vendor.displayName}</td>
                 <td className="px-5 py-4 align-middle text-[var(--foreground-soft)]">{product.category?.name ?? 'Sin categoría'}</td>

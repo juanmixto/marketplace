@@ -22,11 +22,17 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { useT } from '@/i18n'
-import { compressImage } from '@/lib/image-compress'
+import { ImageCompressionError, compressImage } from '@/lib/image-compress'
 
 const MAX_IMAGES = 6
 const MAX_BYTES = 5 * 1024 * 1024
-const ACCEPTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const ACCEPTED_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+])
 
 interface UploadingItem {
   id: string
@@ -43,9 +49,11 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
   const t = useT()
   const inputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
+  const slowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [dragActive, setDragActive] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [uploading, setUploading] = useState<UploadingItem[]>([])
+  const [slowProcessing, setSlowProcessing] = useState(false)
 
   const remainingSlots = Math.max(0, MAX_IMAGES - urls.length - uploading.length)
 
@@ -53,6 +61,9 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
     async (rawFile: File): Promise<string | null> => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       setUploading(prev => [...prev, { id, name: rawFile.name }])
+      setSlowProcessing(false)
+      if (slowTimerRef.current) clearTimeout(slowTimerRef.current)
+      slowTimerRef.current = setTimeout(() => setSlowProcessing(true), 1200)
       try {
         const file = await compressImage(rawFile, 'product')
         if (file.size > MAX_BYTES) {
@@ -71,6 +82,14 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
         const data = (await response.json()) as { url: string }
         return data.url
       } catch (uploadError) {
+        if (uploadError instanceof ImageCompressionError) {
+          setError(
+            uploadError.code === 'heic-unsupported'
+              ? t('vendor.upload.heicUnsupported')
+              : t('vendor.upload.error'),
+          )
+          return null
+        }
         setError(
           uploadError instanceof Error
             ? `${rawFile.name}: ${uploadError.message}`
@@ -78,6 +97,9 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
         )
         return null
       } finally {
+        if (slowTimerRef.current) clearTimeout(slowTimerRef.current)
+        slowTimerRef.current = null
+        setSlowProcessing(false)
         setUploading(prev => prev.filter(item => item.id !== id))
       }
     },
@@ -169,7 +191,7 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
           ref={inputRef}
           id="product-image-upload"
           type="file"
-          accept="image/jpeg,image/png,image/webp"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
           multiple
           className="hidden"
           disabled={dropZoneDisabled}
@@ -213,6 +235,10 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
           <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{error}</span>
         </div>
+      )}
+
+      {slowProcessing && uploading.length > 0 && (
+        <p className="text-xs text-[var(--muted)]">{t('vendor.upload.processing')}</p>
       )}
 
       {(urls.length > 0 || uploading.length > 0) && (

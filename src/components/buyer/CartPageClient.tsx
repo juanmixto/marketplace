@@ -142,6 +142,7 @@ export function CartPageClient({ shippingSettings }: Props) {
   const shippingDiscount = promoPreview?.shippingDiscount ?? 0
   const effectiveShipping = Math.max(0, shipping - shippingDiscount)
   const total = discountedSub + effectiveShipping
+  const remainingToFreeShipping = Math.max(0, shippingSettings.FREE_SHIPPING_THRESHOLD - discountedSub)
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 pb-28 sm:px-6 lg:px-8 lg:pb-10">
@@ -358,7 +359,7 @@ export function CartPageClient({ shippingSettings }: Props) {
               </div>
               {effectiveShipping > 0 && (
                 <p className="text-xs text-[var(--muted-light)]">
-                  {t('cart.shippingFrom')} {formatPrice(shippingSettings.FREE_SHIPPING_THRESHOLD)}
+                  {t('cart.shippingProgress').replace('{amount}', formatPrice(remainingToFreeShipping))}
                 </p>
               )}
               <div className="flex justify-between border-t border-[var(--border)] pt-2 text-base font-bold text-[var(--foreground)]">

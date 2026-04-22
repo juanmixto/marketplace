@@ -30,6 +30,7 @@ test('public pages expose canonical metadata and social cards', () => {
   }
 
   assert.match(readSource('../../src/app/(public)/buscar/page.tsx'), /noindex: true/)
+  assert.match(readSource('../../src/app/(public)/productos/page.tsx'), /noindex: hasFacetedQuery\(searchParams\)/)
   assert.match(readSource('../../src/app/(public)/page.tsx'), /JsonLd/)
   assert.match(readSource('../../src/app/(public)/productos/[slug]/page.tsx'), /JsonLd/)
   assert.match(readSource('../../src/app/(public)/productores/[slug]/page.tsx'), /JsonLd/)

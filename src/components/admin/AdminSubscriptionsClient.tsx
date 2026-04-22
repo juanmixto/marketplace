@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { ArrowPathIcon } from '@heroicons/react/24/outline'
 import { Badge } from '@/components/ui/badge'
-import { formatPrice } from '@/lib/utils'
+import { formatMadridDate, formatPrice } from '@/lib/utils'
 import { useT } from '@/i18n'
 import type {
   SubscriptionsOverview,
@@ -229,12 +229,8 @@ function SubRow({ sub }: { sub: ActiveSubscriptionRow }) {
         <Badge variant={statusVariant}>{t(statusKey)}</Badge>
       </td>
       <td className="px-4 py-3 text-xs text-[var(--muted)]">
-        {formatDate(sub.nextDeliveryAt)}
+        {formatMadridDate(sub.nextDeliveryAt)}
       </td>
     </tr>
   )
-}
-
-function formatDate(value: Date | string): string {
-  return new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium' }).format(new Date(value))
 }

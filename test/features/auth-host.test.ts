@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { applyNormalizedAuthHostEnv, normalizeAuthHostEnv, shouldUseDynamicAuthUrl } from '@/lib/auth-host'
+import { applyNormalizedAuthHostEnv, normalizeAuthHostEnv, reqWithHostHeader, shouldUseDynamicAuthUrl } from '@/lib/auth-host'
 
 test('shouldUseDynamicAuthUrl is true in development when AUTH_URL points to localhost', () => {
   assert.equal(
@@ -100,4 +100,28 @@ test('applyNormalizedAuthHostEnv removes localhost auth urls from process env', 
   assert.equal('AUTH_URL' in env, false)
   assert.equal('NEXTAUTH_URL' in env, false)
   assert.equal(env.AUTH_SECRET, 'secret')
+})
+
+test('reqWithHostHeader prefers the public https origin when host matches and x-forwarded-proto is absent', () => {
+  const previousAuthUrl = process.env.AUTH_URL
+  const previousNextPublicAppUrl = process.env.NEXT_PUBLIC_APP_URL
+
+  delete process.env.AUTH_URL
+  process.env.NEXT_PUBLIC_APP_URL = 'https://dev.feldescloud.com'
+
+  try {
+    const req = new Request('http://localhost:3001/api/auth/session', {
+      headers: {
+        host: 'dev.feldescloud.com',
+      },
+    })
+    const nextReq = reqWithHostHeader(req)
+    assert.equal(new URL(nextReq.url).protocol, 'https:')
+    assert.equal(new URL(nextReq.url).hostname, 'dev.feldescloud.com')
+  } finally {
+    if (previousAuthUrl === undefined) delete process.env.AUTH_URL
+    else process.env.AUTH_URL = previousAuthUrl
+    if (previousNextPublicAppUrl === undefined) delete process.env.NEXT_PUBLIC_APP_URL
+    else process.env.NEXT_PUBLIC_APP_URL = previousNextPublicAppUrl
+  }
 })

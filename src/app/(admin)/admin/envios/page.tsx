@@ -4,7 +4,7 @@ import { addShippingRate, createShippingZone } from '@/domains/admin/actions'
 import { ShippingRateActions } from '@/components/admin/ShippingRateActions'
 import { AdminShipmentRowActions } from '@/components/admin/AdminShipmentRowActions'
 import { listShipmentsForAdmin } from '@/domains/shipping/admin-actions'
-import { formatPrice, formatDate } from '@/lib/utils'
+import { formatPrice, formatMadridDate } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Envios | Admin' }
 export const revalidate = 30
@@ -188,7 +188,7 @@ export default async function AdminShippingPage() {
                     <span className="text-xs text-[var(--muted)]">—</span>
                   )}
                 </div>
-                <span className="text-xs text-[var(--muted)]">{formatDate(s.createdAt)}</span>
+                <span className="text-xs text-[var(--muted)]">{formatMadridDate(s.createdAt)}</span>
                 <AdminShipmentRowActions
                   shipmentId={s.id}
                   canRetry={FAILED_STATUSES.includes(s.status)}

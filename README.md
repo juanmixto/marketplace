@@ -32,6 +32,10 @@ Una vez ejecutado `./dev.sh`, accede a **http://localhost:3000** con estas crede
 | 🌾 **Productor** | `productor@test.com` | `vendor1234` | http://localhost:3000/vendor/dashboard |
 | 👤 **Comprador** | `cliente@test.com` | `cliente1234` | http://localhost:3000/cuenta/pedidos |
 
+> Nota: el acceso admin puede pedir un segundo paso TOTP si la cuenta tiene 2FA
+> activado. En ese caso, después de la contraseña aparece el formulario de
+> código temporal antes de entrar a `/admin/dashboard`.
+
 ---
 
 ## 🛑 Parar la aplicación

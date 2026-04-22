@@ -5,7 +5,7 @@ import { getReviewQueueItem } from '@/domains/ingestion'
 import { requireIngestionAdmin, IngestionFeatureUnavailableError } from '@/domains/ingestion/authz'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { formatDate } from '@/lib/utils'
+import { formatMadridDate } from '@/lib/utils'
 import { ReviewItemActions } from '@/components/admin/ingestion/ReviewItemActions'
 
 export const metadata: Metadata = { title: 'Review item | Admin' }
@@ -106,7 +106,7 @@ export default async function ReviewItemDetailPage({ params }: PageProps) {
             {item.state === 'ENQUEUED' ? 'Por revisar' : 'Resuelto'}
           </Badge>
           {item.autoResolvedReason && <span>· {humaniseReason(item.autoResolvedReason)}</span>}
-          <span>· Creado {formatDate(item.createdAt)}</span>
+          <span>· Creado {formatMadridDate(item.createdAt)}</span>
         </div>
       </div>
 
@@ -132,7 +132,7 @@ export default async function ReviewItemDetailPage({ params }: PageProps) {
           </pre>
           <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Field label="Autor" value={item.message.authorId ?? '—'} />
-            <Field label="Publicado" value={formatDate(item.message.postedAt)} />
+            <Field label="Publicado" value={formatMadridDate(item.message.postedAt)} />
             <Field label="Chat" value={item.message.chatId} />
             <Field label="Mensaje id" value={item.message.id} />
           </dl>
@@ -333,7 +333,7 @@ export default async function ReviewItemDetailPage({ params }: PageProps) {
                     </p>
                   </div>
                   <span className="shrink-0 text-xs text-[var(--muted-foreground)]">
-                    {formatDate(c.createdAt)}
+                    {formatMadridDate(c.createdAt)}
                   </span>
                 </li>
               ))}

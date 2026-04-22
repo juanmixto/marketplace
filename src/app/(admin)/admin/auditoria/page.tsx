@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
+import { AdminAuditFilters } from '@/components/admin/AdminAuditFilters'
 import { db } from '@/lib/db'
-import { formatDate } from '@/lib/utils'
+import { formatMadridDate } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Auditoria | Admin' }
 export const revalidate = 30
@@ -46,8 +47,6 @@ export default async function AdminAuditPage({ searchParams }: PageProps) {
     : []
   const usersById = new Map(users.map(user => [user.id, user]))
 
-  const inputCls = 'w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
-
   return (
     <div className="space-y-6">
       <div>
@@ -56,46 +55,12 @@ export default async function AdminAuditPage({ searchParams }: PageProps) {
         <p className="mt-1 text-sm text-[var(--muted)]">Historial de acciones administrativas y cambios sensibles.</p>
       </div>
 
-      <form className="grid gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 md:grid-cols-[1fr_1fr_auto]">
-        <label className="space-y-1.5">
-          <span className="text-sm font-medium text-[var(--foreground)]">Accion</span>
-          <select
-            name="action"
-            defaultValue={actionFilter ?? ''}
-            className={inputCls}
-          >
-            <option value="">Todas</option>
-            {actionGroups.map(group => (
-              <option key={group.action} value={group.action}>
-                {group.action} ({group._count._all})
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="space-y-1.5">
-          <span className="text-sm font-medium text-[var(--foreground)]">Entidad</span>
-          <select
-            name="entityType"
-            defaultValue={entityTypeFilter ?? ''}
-            className={inputCls}
-          >
-            <option value="">Todas</option>
-            {entityGroups.map(group => (
-              <option key={group.entityType} value={group.entityType}>
-                {group.entityType} ({group._count._all})
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="flex items-end gap-2">
-          <button type="submit" className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400">
-            Filtrar
-          </button>
-          <a href="/admin/auditoria" className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]">
-            Limpiar
-          </a>
-        </div>
-      </form>
+      <AdminAuditFilters
+        action={actionFilter}
+        entityType={entityTypeFilter}
+        actionGroups={actionGroups}
+        entityGroups={entityGroups}
+      />
 
       <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
         <div className="grid grid-cols-[1.1fr_0.9fr_0.8fr_1fr_0.9fr_1.2fr] gap-4 border-b border-[var(--border)] px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
@@ -113,7 +78,7 @@ export default async function AdminAuditPage({ searchParams }: PageProps) {
             return (
               <div key={log.id} className="grid grid-cols-[1.1fr_0.9fr_0.8fr_1fr_0.9fr_1.2fr] gap-4 px-5 py-4 text-sm">
                 <div>
-                  <p className="font-medium text-[var(--foreground)]">{formatDate(log.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                  <p className="font-medium text-[var(--foreground)]">{formatMadridDate(log.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}</p>
                   <p className="text-xs text-[var(--muted)]">{log.entityId}</p>
                 </div>
                 <div className="font-medium text-[var(--foreground)]">{log.action}</div>

@@ -18,6 +18,11 @@ const SIZES = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-lg' }
 export function Modal({ open, onClose, title, children, size = 'md', className }: ModalProps) {
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
+
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
 
   useEffect(() => {
     if (!open) return
@@ -41,7 +46,13 @@ export function Modal({ open, onClose, title, children, size = 'md', className }
         'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
       )
 
-      if (focusables.length > 0) {
+      const preferred = dialog.querySelector<HTMLElement>(
+        'input:not([disabled]), select:not([disabled]), textarea:not([disabled])'
+      )
+
+      if (preferred) {
+        preferred.focus()
+      } else if (focusables.length > 0) {
         focusables[0]!.focus()
       } else {
         dialog.focus()
@@ -53,7 +64,7 @@ export function Modal({ open, onClose, title, children, size = 'md', className }
       window.clearTimeout(frame)
       body.style.overflow = previousOverflow
     }
-  }, [open, onClose])
+  }, [open])
 
   function trapFocus(event: React.KeyboardEvent<HTMLDivElement>) {
     if (event.key !== 'Tab') return
@@ -94,7 +105,9 @@ export function Modal({ open, onClose, title, children, size = 'md', className }
       aria-labelledby={title ? titleId : undefined}
       aria-label={title ? undefined : 'Diálogo'}
       className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/70 backdrop-blur-md p-4 sm:items-center"
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      onClick={e => {
+        if (e.target === e.currentTarget) onCloseRef.current()
+      }}
     >
       <div
         ref={dialogRef}
@@ -112,7 +125,7 @@ export function Modal({ open, onClose, title, children, size = 'md', className }
             <h2 id={titleId} className="font-semibold text-[var(--foreground)]">{title}</h2>
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => onCloseRef.current()}
               aria-label="Cerrar modal"
               className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2.5 text-[var(--muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
             >

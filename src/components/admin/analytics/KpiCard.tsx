@@ -4,13 +4,14 @@ import { formatPrice } from '@/lib/utils'
 interface Props {
   label: string
   metric: DeltaMetric
-  format?: 'currency' | 'number' | 'percent'
+  format?: 'currency' | 'number' | 'decimal' | 'percent'
   hint?: string
 }
 
 function formatValue(value: number, format: Props['format']): string {
   if (format === 'currency') return formatPrice(value)
   if (format === 'percent') return `${value.toFixed(1)}%`
+  if (format === 'decimal') return value.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
   return Math.round(value).toLocaleString('es-ES')
 }
 

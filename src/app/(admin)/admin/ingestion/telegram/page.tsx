@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { TelegramAuthForm } from '@/components/admin/ingestion/TelegramAuthForm'
 import { TelegramChatPicker } from '@/components/admin/ingestion/TelegramChatPicker'
 import { TelegramSyncButton } from '@/components/admin/ingestion/TelegramSyncButton'
-import { cn, formatDate } from '@/lib/utils'
+import { cn, formatMadridDate } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Ingestión · Telegram | Admin' }
 export const dynamic = 'force-dynamic'
@@ -107,7 +107,7 @@ export default async function IngestionTelegramPage() {
                     {conn.label}
                   </p>
                   <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
-                    Creada {formatDate(conn.createdAt)} · {conn._count.chats} chat(s)
+                    Creada {formatMadridDate(conn.createdAt)} · {conn._count.chats} chat(s)
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

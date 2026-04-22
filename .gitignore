@@ -54,3 +54,8 @@ next-env.d.ts
 # Local wiki source is published to the GitHub wiki repo separately
 docs/wiki/
 .claude/
+
+# Local sidecar runtime artifacts
+services/telegram-sidecar/.venv/
+services/telegram-sidecar/app/__pycache__/
+services/telegram-sidecar/sessions/
