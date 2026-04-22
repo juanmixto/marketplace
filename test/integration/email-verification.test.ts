@@ -30,7 +30,7 @@ function tokenPepper(): string {
 const sha256 = (token: string) =>
   crypto.createHmac('sha256', tokenPepper()).update(token).digest('hex')
 
-describe('Email Verification and Password Reset (#77)', () => {
+describe('Email Verification and Password Reset (#77)', { concurrency: false }, () => {
   let testUserId: string
   let testEmail: string
 

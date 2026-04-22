@@ -131,18 +131,19 @@ const sharedIsolationFlag =
 
 function runCohort(cohortName, cohortFiles) {
   if (cohortFiles.length === 0) return
-  const extraFlags = []
-  // Both cohorts use shared-process isolation when the runtime
-  // supports it. Safe because:
-  //   - shared cohort: every file truncates in its own top-level
-  //     beforeEach, so cross-file state leakage is impossible.
-  //   - isolated cohort: no file registers a top-level beforeEach,
-  //     so the shared cohort's globally-registered reset hooks are
-  //     NOT present in this invocation (it's a separate process),
-  //     and the isolated files use disjoint fixture tables with
-  //     Date.now()-suffixed identifiers to avoid collision.
-  if (sharedIsolationFlag) {
-    extraFlags.push(sharedIsolationFlag)
+  const extraFlags = sharedIsolationFlag ? [sharedIsolationFlag] : []
+  if (cohortName === 'isolated') {
+    for (const file of cohortFiles) {
+      console.log(
+        `[integration] cohort=${cohortName} files=1${extraFlags.length ? ` flags=${extraFlags.join(',')}` : ''}`,
+      )
+      execFileSync(
+        process.execPath,
+        ['--import', 'tsx', '--test-concurrency=1', ...extraFlags, '--test', file],
+        { cwd: process.cwd(), env, stdio: 'inherit' },
+      )
+    }
+    return
   }
   console.log(
     `[integration] cohort=${cohortName} files=${cohortFiles.length}${
