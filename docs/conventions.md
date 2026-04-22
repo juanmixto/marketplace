@@ -200,11 +200,11 @@ What is missing is the **UI** for displaying and creating reviews from product/o
 
 ## Route middleware — partially wired
 
-`src/lib/auth-config.ts` already implements the `authorized` callback that gates admin/vendor/buyer areas. The only missing piece is the `middleware.ts` file at the project root re-exporting `auth`:
+`src/lib/auth-config.ts` already implements the `authorized` callback that gates admin/vendor/buyer areas. The edge entrypoint lives at `proxy.ts` in the project root and re-exports the auth gate:
 
 ```ts
-// middleware.ts (at project root, next to package.json)
-export { auth as middleware } from '@/lib/auth'
+// proxy.ts (at project root, next to package.json)
+export { proxy } from './src/proxy'
 
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|api/auth).*)'],

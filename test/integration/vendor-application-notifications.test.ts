@@ -28,8 +28,17 @@ function mockTelegramFetch() {
 }
 
 async function flushNotifications() {
-  for (let i = 0; i < 80; i++) {
+  for (let i = 0; i < 120; i++) {
     await new Promise(resolve => setTimeout(resolve, 25))
+    const pending = await db.notificationDelivery.count({
+      where: {
+        channel: 'TELEGRAM',
+        eventType: {
+          in: ['BUYER_VENDOR_APPLICATION_APPROVED', 'BUYER_VENDOR_APPLICATION_REJECTED'],
+        },
+      },
+    })
+    if (pending > 0) return
   }
 }
 

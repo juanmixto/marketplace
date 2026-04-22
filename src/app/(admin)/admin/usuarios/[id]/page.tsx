@@ -11,10 +11,20 @@ import { createAuditLog, getAuditRequestIp } from '@/lib/audit'
 import { db } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { canChangeAdminUserState, canResetAdminUserPassword } from '@/lib/roles'
+import { getAdminUsersCopy } from '@/i18n/admin-users-copy'
+import { getServerLocale } from '@/i18n/server'
 import { formatMadridDate } from '@/lib/utils'
 
-export const metadata: Metadata = { title: 'Detalle de usuario | Admin' }
 export const revalidate = 30
+
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale()
+  const copy = getAdminUsersCopy(locale).detail
+  return {
+    title: copy.metadataTitle,
+    description: copy.metadataDescription,
+  }
+}
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -28,10 +38,10 @@ function toneForAvailability(value: boolean) {
   return value ? ('emerald' as const) : ('amber' as const)
 }
 
-function formatActivity(value: Date | null) {
+function formatActivity(value: Date | null, noData: string) {
   return value
     ? formatMadridDate(value, { dateStyle: 'medium', timeStyle: 'short' })
-    : 'Sin dato fiable todavía'
+    : noData
 }
 
 function formatAuditPayload(value: unknown) {
@@ -44,6 +54,8 @@ function formatAuditPayload(value: unknown) {
 }
 
 export default async function AdminUserDetailPage({ params }: PageProps) {
+  const locale = await getServerLocale()
+  const copy = getAdminUsersCopy(locale).detail
   const { id } = await params
   const detail = await getAdminUserDetailData(id).catch(() => null)
   if (!detail) {
@@ -98,16 +110,14 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
             className="inline-flex items-center gap-2 text-sm font-medium text-emerald-700 transition hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
           >
             <ArrowLeftIcon className="h-4 w-4" />
-            Volver al listado
+            {copy.backToList}
           </Link>
           <div>
-            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Ficha de soporte</p>
+            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">{copy.eyebrow}</p>
             <h1 className="text-2xl font-bold text-[var(--foreground)]">
               {detail.user.firstName} {detail.user.lastName}
             </h1>
-            <p className="mt-1 max-w-3xl text-sm text-[var(--muted)]">
-              Vista consolidada de cuenta, productor, actividad y auditoría relevante para decisiones de soporte y operaciones.
-            </p>
+            <p className="mt-1 max-w-3xl text-sm text-[var(--muted)]">{copy.titleBody}</p>
           </div>
         </div>
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-right text-sm text-[var(--muted)] shadow-sm">
@@ -120,38 +130,38 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
         <Card className="rounded-2xl">
           <CardHeader className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-[var(--foreground)]">Cuenta</h2>
-              <p className="mt-1 text-sm text-[var(--muted)]">Identidad, verificación, 2FA y actividad visible para soporte.</p>
+              <h2 className="text-lg font-semibold text-[var(--foreground)]">{copy.accountTitle}</h2>
+              <p className="mt-1 text-sm text-[var(--muted)]">{copy.accountBody}</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <AdminStatusBadge
-                label={detail.user.deletedAt ? 'Eliminado' : detail.user.isActive ? 'Activa' : 'Inactiva'}
+                label={detail.user.deletedAt ? copy.badges.deleted : detail.user.isActive ? copy.badges.active : copy.badges.inactive}
                 tone={detail.user.deletedAt ? 'red' : detail.user.isActive ? 'emerald' : 'amber'}
               />
               <AdminStatusBadge
-                label={detail.user.emailVerified ? 'Email verificado' : 'Email pendiente'}
+                label={detail.user.emailVerified ? copy.badges.emailVerified : copy.badges.emailPending}
                 tone={detail.user.emailVerified ? 'emerald' : 'amber'}
               />
               <AdminStatusBadge
-                label={detail.user.twoFactorEnabledAt ? '2FA activa' : '2FA no activada'}
+                label={detail.user.twoFactorEnabledAt ? copy.badges.twoFactorActive : copy.badges.twoFactorInactive}
                 tone={toneForFlag(!!detail.user.twoFactorEnabledAt)}
               />
             </div>
           </CardHeader>
           <CardBody className="grid gap-4 md:grid-cols-2">
-            <DetailRow label="Nombre" value={`${detail.user.firstName} ${detail.user.lastName}`} />
-            <DetailRow label="Rol" value={detail.user.role} />
-            <DetailRow label="Email" value={detail.user.email} secondary={detail.user.emailMasked} />
-            <DetailRow label="Email verificado" value={detail.user.emailVerified ? formatMadridDate(detail.user.emailVerified, { dateStyle: 'medium', timeStyle: 'short' }) : 'No verificado'} />
-            <DetailRow label="Alta" value={formatMadridDate(detail.user.createdAt, { dateStyle: 'medium', timeStyle: 'short' })} />
-            <DetailRow label="Actualización" value={formatMadridDate(detail.user.updatedAt, { dateStyle: 'medium', timeStyle: 'short' })} />
-            <DetailRow label="Último login" value={formatActivity(detail.user.lastLoginAt)} />
-            <DetailRow label="Última actividad" value={formatActivity(detail.activity.lastActivityAt)} />
-            <DetailRow label="Estado de la cuenta" value={detail.user.deletedAt ? 'Eliminada' : detail.user.isActive ? 'Activa' : 'Inactiva'} />
+            <DetailRow label={copy.fields.name} value={`${detail.user.firstName} ${detail.user.lastName}`} />
+            <DetailRow label={copy.fields.role} value={detail.user.role} />
+            <DetailRow label={copy.fields.email} value={detail.user.email} secondary={detail.user.emailMasked} />
+            <DetailRow label={copy.fields.emailVerified} value={detail.user.emailVerified ? formatMadridDate(detail.user.emailVerified, { dateStyle: 'medium', timeStyle: 'short' }) : copy.badges.emailPending} />
+            <DetailRow label={copy.fields.joined} value={formatMadridDate(detail.user.createdAt, { dateStyle: 'medium', timeStyle: 'short' })} />
+            <DetailRow label={copy.fields.updated} value={formatMadridDate(detail.user.updatedAt, { dateStyle: 'medium', timeStyle: 'short' })} />
+            <DetailRow label={copy.fields.lastLogin} value={formatActivity(detail.user.lastLoginAt, copy.activity.noData)} />
+            <DetailRow label={copy.fields.lastActivity} value={formatActivity(detail.activity.lastActivityAt, copy.activity.noData)} />
+            <DetailRow label={copy.fields.accountStatus} value={detail.user.deletedAt ? copy.badges.deleted : detail.user.isActive ? copy.badges.active : copy.badges.inactive} />
             <DetailRow
-              label="2FA"
-              value={detail.user.twoFactorEnabledAt ? 'Activada' : 'No activada'}
-              secondary={detail.user.twoFactorEnabledAt ? `Desde ${formatMadridDate(detail.user.twoFactorEnabledAt, { dateStyle: 'medium', timeStyle: 'short' })}` : undefined}
+              label={copy.fields.twoFactor}
+              value={detail.user.twoFactorEnabledAt ? copy.badges.twoFactorActive : copy.badges.twoFactorInactive}
+              secondary={detail.user.twoFactorEnabledAt ? `${copy.since} ${formatMadridDate(detail.user.twoFactorEnabledAt, { dateStyle: 'medium', timeStyle: 'short' })}` : undefined}
             />
           </CardBody>
         </Card>
@@ -159,32 +169,30 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
         <Card className="rounded-2xl">
           <CardHeader className="space-y-3">
             <div>
-              <h2 className="text-lg font-semibold text-[var(--foreground)]">Acciones</h2>
-              <p className="mt-1 text-sm text-[var(--muted)]">Esta vista es solo lectura. Las acciones sensibles se habilitan en tickets posteriores.</p>
+              <h2 className="text-lg font-semibold text-[var(--foreground)]">{copy.actionsTitle}</h2>
+              <p className="mt-1 text-sm text-[var(--muted)]">{copy.actionsBody}</p>
             </div>
             <div className="flex items-center gap-2">
               <ShieldCheckIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              <span className="text-sm font-medium text-[var(--foreground-soft)]">Sin mutaciones en V1</span>
+              <span className="text-sm font-medium text-[var(--foreground-soft)]">{copy.actionsStatus}</span>
             </div>
           </CardHeader>
           <CardBody className="space-y-3">
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)]/40 p-4">
-              <p className="text-sm font-medium text-[var(--foreground)]">Acceso rápido</p>
-              <p className="mt-1 text-sm text-[var(--muted)]">
-                Saltos directos para revisar la actividad más útil sin perder el contexto de la ficha.
-              </p>
+              <p className="text-sm font-medium text-[var(--foreground)]">{copy.quickAccessTitle}</p>
+              <p className="mt-1 text-sm text-[var(--muted)]">{copy.quickAccessBody}</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link
                   href={`/admin/pedidos?q=${encodeURIComponent(detail.user.email)}`}
                   className="inline-flex items-center rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] shadow-sm transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
                 >
-                  Ver pedidos del usuario
+                  {copy.quickAccess.orders}
                 </Link>
                 <Link
                   href={`/admin/auditoria?entityType=User`}
                   className="inline-flex items-center rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] shadow-sm transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
                 >
-                  Ver auditoría del usuario
+                  {copy.quickAccess.auditUser}
                 </Link>
                 {detail.user.vendor && (
                   <>
@@ -192,13 +200,13 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
                       href="/admin/productores"
                       className="inline-flex items-center rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] shadow-sm transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
                     >
-                      Ver productores
+                      {copy.quickAccess.producers}
                     </Link>
                     <Link
                       href={`/admin/auditoria?entityType=Vendor`}
                       className="inline-flex items-center rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] shadow-sm transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
                     >
-                      Ver auditoría del productor
+                      {copy.quickAccess.auditVendor}
                     </Link>
                   </>
                 )}
@@ -214,21 +222,23 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
               />
             ) : (
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)]/40 p-4">
-                <p className="text-sm font-medium text-[var(--foreground)]">Reset password</p>
-                <p className="mt-1 text-sm text-[var(--muted)]">
-                  Solo `ADMIN_SUPPORT`, `ADMIN_OPS` y `SUPERADMIN` pueden solicitar el reset.
-                </p>
+                <p className="text-sm font-medium text-[var(--foreground)]">{copy.hiddenResetPasswordTitle}</p>
+                <p className="mt-1 text-sm text-[var(--muted)]">{copy.hiddenResetPasswordBody}</p>
               </div>
             )}
             <ActionAvailability
-              label="Invalidar sesiones"
+              label={copy.sessionsTitle}
               available={true}
-              description="Se revoca en servidor con authVersion cuando se bloquea o reestablece la cuenta."
+              description={copy.sessionsBody}
+              availableLabel={copy.availability.available}
+              unavailableLabel={copy.availability.unavailable}
             />
             <ActionAvailability
-              label="Edición inline"
+              label={copy.inlineEditTitle}
               available={false}
-              description="Fuera de alcance para esta V1: la ficha es read-only."
+              description={copy.inlineEditBody}
+              availableLabel={copy.availability.available}
+              unavailableLabel={copy.availability.unavailable}
             />
             {canChangeState ? (
               <AdminUserStateActions
@@ -241,10 +251,8 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
               />
             ) : (
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)]/40 p-4">
-                <p className="text-sm font-medium text-[var(--foreground)]">Bloquear / desbloquear</p>
-                <p className="mt-1 text-sm text-[var(--muted)]">
-                  Solo `ADMIN_OPS` y `SUPERADMIN` pueden cambiar el estado de esta cuenta.
-                </p>
+                <p className="text-sm font-medium text-[var(--foreground)]">{copy.hiddenStateTitle}</p>
+                <p className="mt-1 text-sm text-[var(--muted)]">{copy.hiddenStateBody}</p>
               </div>
             )}
           </CardBody>
@@ -255,18 +263,18 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
         <Card className="rounded-2xl">
           <CardHeader>
             <div>
-              <h2 className="text-lg font-semibold text-[var(--foreground)]">Productor</h2>
-              <p className="mt-1 text-sm text-[var(--muted)]">Contexto operativo del productor asociado a esta cuenta.</p>
+              <h2 className="text-lg font-semibold text-[var(--foreground)]">{copy.producerTitle}</h2>
+              <p className="mt-1 text-sm text-[var(--muted)]">{copy.producerBody}</p>
             </div>
           </CardHeader>
           <CardBody className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <DetailRow label="Nombre comercial" value={detail.user.vendor.displayName} />
-            <DetailRow label="Slug" value={detail.user.vendor.slug} />
-            <DetailRow label="Estado" value={detail.user.vendor.status} />
+            <DetailRow label={copy.producerFields.displayName} value={detail.user.vendor.displayName} />
+            <DetailRow label={copy.producerFields.slug} value={detail.user.vendor.slug} />
+            <DetailRow label={copy.producerFields.status} value={detail.user.vendor.status} />
             <DetailRow
-              label="En Stripe"
-              value={detail.user.vendor.stripeOnboarded ? 'Sí' : 'No'}
-              secondary={detail.user.vendor.preferredShippingProvider ?? 'Proveedor de envío no definido'}
+              label={copy.producerFields.stripe}
+              value={detail.user.vendor.stripeOnboarded ? copy.producerFields.yes : copy.producerFields.no}
+              secondary={detail.user.vendor.preferredShippingProvider ?? copy.producerFields.noShippingProvider}
             />
           </CardBody>
         </Card>
@@ -275,14 +283,14 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
       <Card className="rounded-2xl">
         <CardHeader className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-[var(--foreground)]">Auditoría relevante</h2>
-            <p className="mt-1 text-sm text-[var(--muted)]">Últimos eventos vinculados a esta cuenta o al productor asociado.</p>
+            <h2 className="text-lg font-semibold text-[var(--foreground)]">{copy.auditTitle}</h2>
+            <p className="mt-1 text-sm text-[var(--muted)]">{copy.auditBody}</p>
           </div>
           <Link
             href="/admin/auditoria"
             className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-semibold text-[var(--foreground-soft)] shadow-sm transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
           >
-            Ver auditoría completa
+            {copy.openAudit}
           </Link>
         </CardHeader>
         <CardBody className="space-y-3">
@@ -307,14 +315,14 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
                     </div>
                   </div>
                   <div className="mt-3 grid gap-2 md:grid-cols-2">
-                    <AuditPayload label="Antes" value={log.before} />
-                    <AuditPayload label="Después" value={log.after} />
+                    <AuditPayload label={copy.auditLabels.before} value={log.before} />
+                    <AuditPayload label={copy.auditLabels.after} value={log.after} />
                   </div>
                 </div>
               )
             })
           ) : (
-            <p className="text-sm text-[var(--muted)]">No hay eventos de auditoría recientes para esta cuenta.</p>
+            <p className="text-sm text-[var(--muted)]">{copy.auditEmptyBody}</p>
           )}
         </CardBody>
       </Card>
@@ -344,16 +352,23 @@ function ActionAvailability({
   label,
   available,
   description,
+  availableLabel,
+  unavailableLabel,
 }: {
   label: string
   available: boolean
   description: string
+  availableLabel: string
+  unavailableLabel: string
 }) {
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)]/50 p-4">
       <div className="flex items-center justify-between gap-3">
         <p className="font-medium text-[var(--foreground)]">{label}</p>
-        <AdminStatusBadge label={available ? 'Disponible' : 'No disponible'} tone={toneForAvailability(available)} />
+        <AdminStatusBadge
+          label={available ? availableLabel : unavailableLabel}
+          tone={toneForAvailability(available)}
+        />
       </div>
       <p className="mt-2 text-sm text-[var(--muted)]">{description}</p>
     </div>

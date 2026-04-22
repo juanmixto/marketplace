@@ -1,4 +1,4 @@
-export { proxy as middleware } from '@/proxy'
+export { proxy } from './src/proxy'
 
 export const config = {
   matcher: [

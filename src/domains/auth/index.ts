@@ -2,3 +2,4 @@
 // server modules without 'use server'. Auth wiring (src/lib/auth.ts)
 // deep-imports them.
 export * from './address-defaults'
+export * from './email-verification'

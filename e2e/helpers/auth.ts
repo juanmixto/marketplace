@@ -18,8 +18,8 @@ export const TEST_USERS = {
  */
 export async function loginAs(page: Page, user: TestUser) {
   await page.goto('/login')
-  await page.locator('input[name="email"]').fill(user.email)
-  await page.locator('input[name="password"]').fill(user.password)
+  await page.getByLabel('Email').fill(user.email)
+  await page.getByLabel('Contraseña').fill(user.password)
   await page.getByRole('button', { name: 'Iniciar sesión' }).click()
   // Successful login bounces away from /login. Wait until the URL changes
   // so callers can immediately assert against the destination.

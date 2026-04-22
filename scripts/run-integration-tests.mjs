@@ -110,7 +110,8 @@ function classifyFile(filePath) {
   const src = readFileSync(filePath, 'utf8')
   const usesDescribe = /^describe\(/m.test(src)
   const usesBeforeAll = /^\s*(beforeAll|before)\(/m.test(src)
-  return usesDescribe && usesBeforeAll ? 'isolated' : 'shared'
+  const mutatesAuthEnv = /process\.env\.(AUTH_URL|NEXTAUTH_URL)\s*=/.test(src)
+  return (usesDescribe && usesBeforeAll) || mutatesAuthEnv ? 'isolated' : 'shared'
 }
 
 const cohorts = { shared: [], isolated: [] }

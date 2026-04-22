@@ -13,10 +13,20 @@ import {
   parseAdminUsersSearchParams,
 } from '@/domains/admin/users/navigation'
 import { UserRole } from '@/generated/prisma/enums'
+import { getAdminUsersCopy } from '@/i18n/admin-users-copy'
+import { getServerLocale } from '@/i18n/server'
 import { cn, formatMadridDate } from '@/lib/utils'
 
-export const metadata: Metadata = { title: 'Usuarios | Admin' }
 export const revalidate = 30
+
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale()
+  const copy = getAdminUsersCopy(locale).list
+  return {
+    title: copy.metadataTitle,
+    description: copy.metadataDescription,
+  }
+}
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>
@@ -55,17 +65,29 @@ function vendorTone(hasVendor: boolean): 'amber' | 'blue' | 'emerald' | 'red' | 
   return hasVendor ? 'blue' : 'slate'
 }
 
-function activityLabel(lastLoginAt: Date | null, lastActivityAt: Date | null) {
+function activityLabel(
+  copy: {
+    activity: {
+      lastLogin: (date: string) => string
+      lastActivity: (date: string) => string
+      noData: string
+    }
+  },
+  lastLoginAt: Date | null,
+  lastActivityAt: Date | null
+) {
   if (lastLoginAt) {
-    return `Último login ${formatMadridDate(lastLoginAt, { dateStyle: 'medium', timeStyle: 'short' })}`
+    return copy.activity.lastLogin(formatMadridDate(lastLoginAt, { dateStyle: 'medium', timeStyle: 'short' }))
   }
   if (lastActivityAt) {
-    return `Última actividad ${formatMadridDate(lastActivityAt, { dateStyle: 'medium', timeStyle: 'short' })}`
+    return copy.activity.lastActivity(formatMadridDate(lastActivityAt, { dateStyle: 'medium', timeStyle: 'short' }))
   }
-  return 'Sin dato fiable todavía'
+  return copy.activity.noData
 }
 
 export default async function AdminUsersPage({ searchParams }: PageProps) {
+  const locale = await getServerLocale()
+  const copy = getAdminUsersCopy(locale).list
   const params = await searchParams
   const filters = parseAdminUsersSearchParams({
     q: firstValue(params.q),
@@ -85,34 +107,28 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Soporte y seguridad</p>
-          <h1 className="text-2xl font-bold text-[var(--foreground)]">Usuarios</h1>
-          <p className="mt-1 max-w-3xl text-sm text-[var(--muted)]">
-            Listado operativo de clientes y productores con filtros, estados y contexto útil para soporte sin exponer datos innecesarios.
-          </p>
+          <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">{copy.eyebrow}</p>
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">{copy.title}</h1>
+          <p className="mt-1 max-w-3xl text-sm text-[var(--muted)]">{copy.body}</p>
         </div>
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-right text-sm text-[var(--muted)] shadow-sm">
-          <p>{data.pagination.totalUsers} usuarios en el resultado</p>
-          <p>
-            Página {data.pagination.page} de {data.pagination.totalPages}
-          </p>
+          <p>{copy.resultSummary(data.pagination.totalUsers)}</p>
+          <p>{copy.pageSummary(data.pagination.page, data.pagination.totalPages)}</p>
         </div>
       </div>
 
       <Card className="rounded-2xl">
         <CardHeader className="flex flex-col gap-3 border-b border-[var(--border)] lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-[var(--foreground)]">Buscar y filtrar</h2>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              Encuentra usuarios por email, nombre, productor asociado o rol y acota por estado o verificación.
-            </p>
+            <h2 className="text-lg font-semibold text-[var(--foreground)]">{copy.filtersTitle}</h2>
+            <p className="mt-1 text-sm text-[var(--muted)]">{copy.filtersBody}</p>
           </div>
           <div className="flex flex-wrap gap-2 text-xs text-[var(--muted)]">
             <span className="rounded-full border border-[var(--border)] bg-[var(--surface-raised)] px-2.5 py-1">
-              {data.pagination.totalUsers} coincidencias
+              {copy.matches(data.pagination.totalUsers)}
             </span>
             <span className="rounded-full border border-[var(--border)] bg-[var(--surface-raised)] px-2.5 py-1">
-              {rangeStart}-{pageEnd}
+              {copy.range(rangeStart, pageEnd)}
             </span>
           </div>
         </CardHeader>
@@ -132,14 +148,14 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
           <table className="w-full min-w-[1180px] text-sm">
             <thead className="bg-[var(--background)] text-left text-xs font-medium uppercase tracking-wide text-[var(--muted-light)]">
               <tr>
-                <th className="px-4 py-3">Usuario</th>
-                <th className="px-4 py-3">Rol</th>
-                <th className="px-4 py-3">Estado</th>
-                <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3">Alta</th>
-                <th className="px-4 py-3">Actividad</th>
-                <th className="px-4 py-3">Productor</th>
-                <th className="px-4 py-3 text-right">Acciones</th>
+                <th className="px-4 py-3">{copy.headers.user}</th>
+                <th className="px-4 py-3">{copy.headers.role}</th>
+                <th className="px-4 py-3">{copy.headers.status}</th>
+                <th className="px-4 py-3">{copy.headers.email}</th>
+                <th className="px-4 py-3">{copy.headers.joined}</th>
+                <th className="px-4 py-3">{copy.headers.activity}</th>
+                <th className="px-4 py-3">{copy.headers.producer}</th>
+                <th className="px-4 py-3 text-right">{copy.headers.actions}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
@@ -179,7 +195,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
                   </td>
                   <td className="px-4 py-3">
                     <p className="text-[var(--foreground-soft)]">
-                      {activityLabel(user.lastLoginAt, user.lastActivityAt)}
+                      {activityLabel(copy, user.lastLoginAt, user.lastActivityAt)}
                     </p>
                   </td>
                   <td className="px-4 py-3">
@@ -199,7 +215,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
                       href={`/admin/usuarios/${user.id}`}
                       className="inline-flex rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-semibold text-[var(--foreground-soft)] shadow-sm transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
                     >
-                      Ver ficha
+                      {copy.viewSheet}
                     </Link>
                   </td>
                 </tr>
@@ -207,10 +223,8 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
               {data.users.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-4 py-14 text-center">
-                    <p className="font-medium text-[var(--foreground)]">No hay usuarios para este filtro.</p>
-                    <p className="mt-1 text-sm text-[var(--muted)]">
-                      Ajusta la búsqueda o limpia los filtros para ver más resultados.
-                    </p>
+                    <p className="font-medium text-[var(--foreground)]">{copy.emptyTitle}</p>
+                    <p className="mt-1 text-sm text-[var(--muted)]">{copy.emptyBody}</p>
                   </td>
                 </tr>
               )}
@@ -220,9 +234,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
 
         {data.pagination.totalPages > 1 && (
           <div className="flex items-center justify-between gap-3 border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
-            <span>
-              Mostrando {rangeStart}-{pageEnd} de {data.pagination.totalUsers} usuarios.
-            </span>
+            <span>{copy.pagination.showing(rangeStart, pageEnd, data.pagination.totalUsers)}</span>
             <div className="flex items-center gap-2">
               <Link
                 href={buildAdminUsersListHref(data.filters, data.pagination.page - 1)}
@@ -234,10 +246,10 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
                     : 'bg-[var(--surface)] text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]'
                 )}
               >
-                Anterior
+                {copy.pagination.previous}
               </Link>
               <span>
-                Página {data.pagination.page} de {data.pagination.totalPages}
+                {copy.pagination.page(data.pagination.page, data.pagination.totalPages)}
               </span>
               <Link
                 href={buildAdminUsersListHref(data.filters, data.pagination.page + 1)}
@@ -249,7 +261,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
                     : 'bg-[var(--surface)] text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]'
                 )}
               >
-                Siguiente
+                {copy.pagination.next}
               </Link>
             </div>
           </div>
