@@ -34,9 +34,22 @@ test('admin users password reset action uses the secure token flow and audit log
   assert.match(source, /sendEmail\(/)
 })
 
+test('admin users detail page exposes the secure reset password control', () => {
+  const source = read('src/app/(admin)/admin/usuarios/\[id\]/page.tsx')
+  assert.match(source, /AdminUserPasswordResetActions/)
+  assert.match(source, /Reset password/)
+})
+
 test('admin users state change action requires explicit confirmation and audit-backed revocation', () => {
   const source = read('src/components/admin/AdminUserStateActions.tsx')
   assert.match(source, /Escribe el email exacto para confirmar/)
   assert.match(source, /setAdminUserActiveState/)
   assert.match(source, /invalidaci[oó]n de sesi[oó]n|revocada en servidor/)
+})
+
+test('admin users reset password action requires explicit confirmation and keeps the token hidden', () => {
+  const source = read('src/components/admin/AdminUserPasswordResetActions.tsx')
+  assert.match(source, /Escribe el email exacto para confirmar/)
+  assert.match(source, /requestAdminUserPasswordReset/)
+  assert.match(source, /enlace seguro por email/)
 })

@@ -3,13 +3,14 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeftIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
 import { AdminStatusBadge } from '@/components/admin/AdminStatusBadge'
+import { AdminUserPasswordResetActions } from '@/components/admin/AdminUserPasswordResetActions'
 import { AdminUserStateActions } from '@/components/admin/AdminUserStateActions'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { getAdminUserDetailData } from '@/domains/admin'
 import { createAuditLog, getAuditRequestIp } from '@/lib/audit'
 import { db } from '@/lib/db'
 import { auth } from '@/lib/auth'
-import { canChangeAdminUserState } from '@/lib/roles'
+import { canChangeAdminUserState, canResetAdminUserPassword } from '@/lib/roles'
 import { formatDate } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Detalle de usuario | Admin' }
@@ -51,6 +52,7 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
 
   const session = await auth()
   const canChangeState = session?.user ? canChangeAdminUserState(session.user.role) : false
+  const canResetPassword = session?.user ? canResetAdminUserPassword(session.user.role) : false
   if (session?.user) {
     const ip = await getAuditRequestIp()
     await createAuditLog({
@@ -166,11 +168,21 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
             </div>
           </CardHeader>
           <CardBody className="space-y-3">
-            <ActionAvailability
-              label="Reset password"
-              available={false}
-              description="Se habilita en el siguiente issue; siempre mediante flujo seguro y auditable."
-            />
+            {canResetPassword ? (
+              <AdminUserPasswordResetActions
+                userId={detail.user.id}
+                email={detail.user.email}
+                canReset={canResetPassword}
+                isDeleted={!!detail.user.deletedAt}
+              />
+            ) : (
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)]/40 p-4">
+                <p className="text-sm font-medium text-[var(--foreground)]">Reset password</p>
+                <p className="mt-1 text-sm text-[var(--muted)]">
+                  Solo `ADMIN_SUPPORT`, `ADMIN_OPS` y `SUPERADMIN` pueden solicitar el reset.
+                </p>
+              </div>
+            )}
             <ActionAvailability
               label="Invalidar sesiones"
               available={true}
