@@ -1,17 +1,39 @@
-import { resolveAuthUrl, resolvePublicAppUrl } from '@/lib/auth-env'
-
 export interface SecurityHeader {
   key: string
   value: string
 }
 
+function toAbsoluteUrl(value: string | undefined): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+
+  try {
+    const parsed = trimmed.includes('://') ? new URL(trimmed) : new URL(`https://${trimmed}`)
+    const pathname = parsed.pathname === '/' ? '' : parsed.pathname.replace(/\/+$/, '')
+    return `${parsed.origin}${pathname}${parsed.search}${parsed.hash}`
+  } catch {
+    return null
+  }
+}
+
 function shouldEnforceHttpsHeaders() {
   const candidateUrls = [
-    resolvePublicAppUrl(process.env),
-    resolveAuthUrl(process.env),
+    process.env.AUTH_URL,
+    process.env.NEXTAUTH_URL,
+    process.env.NEXT_PUBLIC_APP_URL,
   ]
 
-  return candidateUrls.some(value => value?.startsWith('https://') ?? false)
+  if (process.env.VERCEL === '1' || typeof process.env.VERCEL_ENV === 'string') {
+    candidateUrls.unshift(
+      process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL,
+      process.env.VERCEL_URL,
+    )
+  }
+
+  return candidateUrls
+    .map(value => toAbsoluteUrl(value))
+    .some(value => value?.startsWith('https://') ?? false)
 }
 
 export interface BuildCspOptions {
