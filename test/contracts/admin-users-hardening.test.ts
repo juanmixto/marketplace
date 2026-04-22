@@ -23,6 +23,8 @@ test('admin users detail page consumes the domain detail query and remains read-
   const source = read('src/app/(admin)/admin/usuarios/\[id\]/page.tsx')
   assert.match(source, /getAdminUserDetailData/)
   assert.match(source, /Esta vista es solo lectura/)
+  assert.match(source, /AdminUserStateActions/)
+  assert.match(source, /Bloquear \/ desbloquear/)
 })
 
 test('admin users password reset action uses the secure token flow and audit log', () => {
@@ -30,4 +32,11 @@ test('admin users password reset action uses the secure token flow and audit log
   assert.match(source, /createPasswordResetToken/)
   assert.match(source, /createAuditLog\(/)
   assert.match(source, /sendEmail\(/)
+})
+
+test('admin users state change action requires explicit confirmation and audit-backed revocation', () => {
+  const source = read('src/components/admin/AdminUserStateActions.tsx')
+  assert.match(source, /Escribe el email exacto para confirmar/)
+  assert.match(source, /setAdminUserActiveState/)
+  assert.match(source, /invalidaci[oó]n de sesi[oó]n|revocada en servidor/)
 })

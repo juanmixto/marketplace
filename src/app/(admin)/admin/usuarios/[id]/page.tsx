@@ -3,11 +3,13 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeftIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
 import { AdminStatusBadge } from '@/components/admin/AdminStatusBadge'
+import { AdminUserStateActions } from '@/components/admin/AdminUserStateActions'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { getAdminUserDetailData } from '@/domains/admin'
 import { createAuditLog, getAuditRequestIp } from '@/lib/audit'
 import { db } from '@/lib/db'
 import { auth } from '@/lib/auth'
+import { canChangeAdminUserState } from '@/lib/roles'
 import { formatDate } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Detalle de usuario | Admin' }
@@ -48,6 +50,7 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
   }
 
   const session = await auth()
+  const canChangeState = session?.user ? canChangeAdminUserState(session.user.role) : false
   if (session?.user) {
     const ip = await getAuditRequestIp()
     await createAuditLog({
@@ -169,20 +172,32 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
               description="Se habilita en el siguiente issue; siempre mediante flujo seguro y auditable."
             />
             <ActionAvailability
-              label="Bloquear / desbloquear"
-              available={false}
-              description="Bloqueado hasta resolver la estrategia segura de revocación de sesiones."
-            />
-            <ActionAvailability
               label="Invalidar sesiones"
-              available={false}
-              description="Depende de la estrategia de autenticación y del spike de sesiones."
+              available={true}
+              description="Se revoca en servidor con authVersion cuando se bloquea o reestablece la cuenta."
             />
             <ActionAvailability
               label="Edición inline"
               available={false}
               description="Fuera de alcance para esta V1: la ficha es read-only."
             />
+            {canChangeState ? (
+              <AdminUserStateActions
+                userId={detail.user.id}
+                email={detail.user.email}
+                isActive={detail.user.isActive}
+                isDeleted={!!detail.user.deletedAt}
+                vendorStatus={detail.user.vendor?.status ?? null}
+                canChangeState={canChangeState}
+              />
+            ) : (
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)]/40 p-4">
+                <p className="text-sm font-medium text-[var(--foreground)]">Bloquear / desbloquear</p>
+                <p className="mt-1 text-sm text-[var(--muted)]">
+                  Solo `ADMIN_OPS` y `SUPERADMIN` pueden cambiar el estado de esta cuenta.
+                </p>
+              </div>
+            )}
           </CardBody>
         </Card>
       </div>
