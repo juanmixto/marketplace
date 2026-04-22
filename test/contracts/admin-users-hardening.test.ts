@@ -22,9 +22,9 @@ test('admin users list page consumes the domain query layer', () => {
 test('admin users detail page consumes the domain detail query and remains read-only', () => {
   const source = read('src/app/(admin)/admin/usuarios/\[id\]/page.tsx')
   assert.match(source, /getAdminUserDetailData/)
-  assert.match(source, /Esta vista es solo lectura/)
+  assert.match(source, /copy\.inlineEditBody/)
   assert.match(source, /AdminUserStateActions/)
-  assert.match(source, /Bloquear \/ desbloquear/)
+  assert.match(source, /copy\.hiddenStateTitle/)
 })
 
 test('admin users password reset action uses the secure token flow and audit log', () => {
@@ -37,7 +37,7 @@ test('admin users password reset action uses the secure token flow and audit log
 test('admin users detail page exposes the secure reset password control', () => {
   const source = read('src/app/(admin)/admin/usuarios/\[id\]/page.tsx')
   assert.match(source, /AdminUserPasswordResetActions/)
-  assert.match(source, /Reset password/)
+  assert.match(source, /hiddenResetPasswordTitle|copy\.hiddenResetPasswordTitle/)
 })
 
 test('admin users state change action requires explicit confirmation and audit-backed revocation', () => {

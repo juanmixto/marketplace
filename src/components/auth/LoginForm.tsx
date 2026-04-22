@@ -216,7 +216,10 @@ export function LoginForm({ callbackUrl = '/', initialError = null }: LoginFormP
           </div>
 
           {error && (
-            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/35 dark:text-red-300">
+            <p
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/35 dark:text-red-300"
+            >
               {error}
             </p>
           )}
@@ -283,7 +286,10 @@ export function LoginForm({ callbackUrl = '/', initialError = null }: LoginFormP
           </label>
 
           {error && (
-            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/35 dark:text-red-300">
+            <p
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/35 dark:text-red-300"
+            >
               {error}
             </p>
           )}
