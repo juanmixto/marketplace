@@ -1,4 +1,4 @@
-export { proxy } from './src/proxy'
+export { proxy as default } from './src/proxy'
 
 export const config = {
   matcher: [

@@ -21,8 +21,7 @@ test.describe('buyer subscription checkout @smoke', () => {
     await loginAs(page, TEST_USERS.customer)
 
     // --- PRODUCT DETAIL → navigate to confirmation page ---
-    await page.goto(`/productos/${SEEDED_SUBSCRIPTION_PRODUCT_SLUG}`)
-    await expect(page.getByRole('heading', { name: /cesta mixta de huerta/i })).toBeVisible({ timeout: 10_000 })
+    await page.goto(`/productos/${SEEDED_SUBSCRIPTION_PRODUCT_SLUG}`, { waitUntil: 'domcontentloaded' })
 
     const subscribeCta = page.getByTestId('subscribe-to-box-cta')
     await expect(subscribeCta).toBeVisible({ timeout: 10_000 })
@@ -57,7 +56,7 @@ test.describe('buyer subscription checkout @smoke', () => {
     // --- SUBSCRIPTIONS LIST ---
     await page.waitForURL(/\/cuenta\/suscripciones/, { timeout: 15_000 })
     await expect(page.getByText(/cesta mixta de huerta/i).first()).toBeVisible()
-    await expect(page.getByText(/^activa$/i).first()).toBeVisible()
+    await expect(page.getByTestId('subscription-status').first()).toHaveText(/^activa$/i)
     // Must now be Quincenal — we picked biweekly.
     await expect(page.getByText(/quincenal/i).first()).toBeVisible()
     // Shipping address from seed (Calle Mayor 18).

@@ -220,7 +220,9 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-medium text-[var(--foreground)] truncate">{product.name}</p>
-            <Badge variant={statusVariant}>{t(statusKey)}</Badge>
+            <Badge variant={statusVariant} data-testid="subscription-status">
+              {t(statusKey)}
+            </Badge>
             <Badge variant="blue">{t(cadenceKey)}</Badge>
           </div>
           <p className="mt-0.5 text-sm text-[var(--muted)]">

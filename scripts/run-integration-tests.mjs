@@ -111,7 +111,9 @@ function classifyFile(filePath) {
   const usesDescribe = /^describe\(/m.test(src)
   const usesBeforeAll = /^\s*(beforeAll|before)\(/m.test(src)
   const mutatesAuthEnv = /process\.env\.(AUTH_URL|NEXTAUTH_URL)\s*=/.test(src)
-  return (usesDescribe && usesBeforeAll) || mutatesAuthEnv ? 'isolated' : 'shared'
+  const mutatesGlobalFetch = /globalThis\.fetch\s*=/.test(src)
+  const mutatesTelegramEnv = /process\.env\.(TELEGRAM_BOT_TOKEN|TELEGRAM_WEBHOOK_SECRET|TELEGRAM_BOT_USERNAME|TELEGRAM_SIDECAR_URL|TELEGRAM_SIDECAR_TOKEN)\s*=/.test(src)
+  return (usesDescribe && usesBeforeAll) || mutatesAuthEnv || mutatesGlobalFetch || mutatesTelegramEnv ? 'isolated' : 'shared'
 }
 
 const cohorts = { shared: [], isolated: [] }

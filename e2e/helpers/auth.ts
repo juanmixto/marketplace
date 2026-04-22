@@ -17,7 +17,8 @@ export const TEST_USERS = {
  * real auth flow including the redirect after a successful submit.
  */
 export async function loginAs(page: Page, user: TestUser) {
-  await page.goto('/login')
+  await page.goto('/login', { waitUntil: 'domcontentloaded' })
+  await page.getByLabel('Email').waitFor({ state: 'visible' })
   await page.getByLabel('Email').fill(user.email)
   await page.getByLabel('Contraseña').fill(user.password)
   await page.getByRole('button', { name: 'Iniciar sesión' }).click()
