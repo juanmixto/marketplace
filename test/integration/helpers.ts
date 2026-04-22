@@ -28,6 +28,18 @@ export async function resetIntegrationDatabase() {
     VALUES ('cat_uncategorized', 'Sin categoría', 'uncategorized', true, 999, NOW(), NOW())
     ON CONFLICT ("slug") DO NOTHING
   `)
+
+  // Several ingestion fixtures refer to fixed creator ids in raw
+  // rows. Seed matching users here so the FK contract stays stable
+  // across test resets without having to duplicate boilerplate in
+  // every fixture file.
+  await db.$executeRawUnsafe(`
+    INSERT INTO "User" ("id", "email", "firstName", "lastName", "role", "isActive", "createdAt", "updatedAt")
+    VALUES
+      ('u1', 'u1@example.com', 'System', 'U1', 'SUPERADMIN', true, NOW(), NOW()),
+      ('admin', 'admin@example.com', 'System', 'Admin', 'ADMIN_OPS', true, NOW(), NOW())
+    ON CONFLICT ("id") DO NOTHING
+  `)
 }
 
 export function useTestSession(session: ActionSession | null) {
