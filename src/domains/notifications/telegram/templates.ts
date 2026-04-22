@@ -11,6 +11,8 @@ import type {
   OrderStatusChangedPayload,
   FavoriteBackInStockPayload,
   FavoritePriceDropPayload,
+  VendorApplicationApprovedPayload,
+  VendorApplicationRejectedPayload,
 } from '../events'
 import type { InlineKeyboardButton, OutboundMessage } from './service'
 
@@ -481,5 +483,41 @@ export function favoritePriceDropTemplate(
       `💸 ${greeting}<b>${product}</b>${vendor} ha bajado de precio.\n` +
       `<s>${oldPrice}</s> → <b>${newPrice}</b> (−${pct}%)${scarcity}`,
     inline_keyboard: buttons.length > 0 ? [buttons] : undefined,
+  }
+}
+
+export interface VendorApplicationView {
+  firstName?: string
+}
+
+export function vendorApplicationApprovedTemplate(
+  payload: VendorApplicationApprovedPayload,
+  view?: VendorApplicationView,
+): OutboundMessage {
+  const firstName = firstWord(view?.firstName)
+  const vendor = escapeHtml(payload.displayName)
+  return {
+    text: firstName
+      ? `🎉 ¡Enhorabuena, ${escapeHtml(firstName)}! Tu solicitud para <b>${vendor}</b> ha sido aprobada.\nYa puedes entrar a tu panel de productor.`
+      : `🎉 ¡Enhorabuena! Tu solicitud para <b>${vendor}</b> ha sido aprobada.\nYa puedes entrar a tu panel de productor.`,
+    inline_keyboard: [[
+      { text: 'Ir al panel', url: `${appUrl()}/vendor/dashboard` },
+    ]],
+  }
+}
+
+export function vendorApplicationRejectedTemplate(
+  payload: VendorApplicationRejectedPayload,
+  view?: VendorApplicationView,
+): OutboundMessage {
+  const firstName = firstWord(view?.firstName)
+  const vendor = escapeHtml(payload.displayName)
+  return {
+    text: firstName
+      ? `Gracias, ${escapeHtml(firstName)}. Tu solicitud para <b>${vendor}</b> no ha podido aprobarse en este momento.\nSi quieres, puedes escribirnos y te contamos los siguientes pasos.`
+      : `Gracias. Tu solicitud para <b>${vendor}</b> no ha podido aprobarse en este momento.\nSi quieres, puedes escribirnos y te contamos los siguientes pasos.`,
+    inline_keyboard: [[
+      { text: 'Contactar soporte', url: `${appUrl()}/contacto` },
+    ]],
   }
 }

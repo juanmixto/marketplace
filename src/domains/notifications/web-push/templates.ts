@@ -11,6 +11,8 @@ import type {
   OrderStatusChangedPayload,
   FavoriteBackInStockPayload,
   FavoritePriceDropPayload,
+  VendorApplicationApprovedPayload,
+  VendorApplicationRejectedPayload,
 } from '../events'
 import type { WebPushMessage } from './service'
 
@@ -353,5 +355,35 @@ export function favoritePriceDropPush(
     body: `${payload.productName}${vendor} · ${oldPrice} → ${newPrice} (−${pct}%)${scarcity}`,
     url: slugUrl,
     tag: `favorite-pricedrop-${payload.productId}`,
+  }
+}
+
+export interface VendorApplicationPushView {
+  firstName?: string
+}
+
+export function vendorApplicationApprovedPush(
+  payload: VendorApplicationApprovedPayload,
+  view?: VendorApplicationPushView,
+): WebPushMessage {
+  const firstName = firstWord(view?.firstName)
+  return {
+    title: firstName ? `🎉 ${firstName}, tu solicitud ha sido aprobada` : '🎉 Tu solicitud ha sido aprobada',
+    body: `${payload.displayName} ya puede entrar al panel de productor.`,
+    url: '/vendor/dashboard',
+    tag: `vendor-application-approved-${payload.vendorId}`,
+  }
+}
+
+export function vendorApplicationRejectedPush(
+  payload: VendorApplicationRejectedPayload,
+  view?: VendorApplicationPushView,
+): WebPushMessage {
+  const firstName = firstWord(view?.firstName)
+  return {
+    title: firstName ? `📝 ${firstName}, tu solicitud no se ha aprobado` : '📝 Tu solicitud no se ha aprobado',
+    body: `${payload.displayName}. Si quieres, escríbenos desde contacto.`,
+    url: '/contacto',
+    tag: `vendor-application-rejected-${payload.vendorId}`,
   }
 }
