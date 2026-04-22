@@ -24,7 +24,6 @@ export interface AdminUsersListFilters {
 }
 
 export interface AdminUsersListRow extends AdminUserSupportView {
-  lastLoginAt: Date | null
   lastActivityAt: Date | null
 }
 
@@ -42,7 +41,6 @@ export interface AdminUsersListResult {
 export interface AdminUserDetailResult {
   user: AdminUserSupportView
   activity: {
-    lastLoginAt: Date | null
     lastActivityAt: Date | null
   }
 }
@@ -150,7 +148,6 @@ export async function getAdminUsersListData(
     },
     users: users.map(user => ({
       ...buildAdminUserSupportView(user),
-      lastLoginAt: null,
       lastActivityAt: null,
     })),
     pagination: {
@@ -173,7 +170,6 @@ export async function getAdminUserDetailData(userId: string): Promise<AdminUserD
   return {
     user: buildAdminUserSupportView(user),
     activity: {
-      lastLoginAt: null,
       lastActivityAt: null,
     },
   }

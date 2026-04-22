@@ -140,7 +140,7 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
             <DetailRow label="Email verificado" value={detail.user.emailVerified ? formatDate(detail.user.emailVerified, { dateStyle: 'medium', timeStyle: 'short' }) : 'No verificado'} />
             <DetailRow label="Alta" value={formatDate(detail.user.createdAt, { dateStyle: 'medium', timeStyle: 'short' })} />
             <DetailRow label="Actualización" value={formatDate(detail.user.updatedAt, { dateStyle: 'medium', timeStyle: 'short' })} />
-            <DetailRow label="Último login" value={formatActivity(detail.activity.lastLoginAt)} />
+            <DetailRow label="Último login" value={formatActivity(detail.user.lastLoginAt)} />
             <DetailRow label="Última actividad" value={formatActivity(detail.activity.lastActivityAt)} />
             <DetailRow label="Estado de la cuenta" value={detail.user.deletedAt ? 'Eliminada' : detail.user.isActive ? 'Activa' : 'Inactiva'} />
             <DetailRow

@@ -198,6 +198,12 @@ describe('Email Verification and Password Reset (#77)', () => {
         const allowedLogin = await authorizeCredentials({ email, password })
         expect(allowedLogin).toBeDefined()
         expect(allowedLogin?.email).toBe(email)
+
+        const loggedInUser = await db.user.findUnique({
+          where: { id: createdUser!.id },
+          select: { lastLoginAt: true },
+        })
+        expect(loggedInUser?.lastLoginAt).not.toBeNull()
       } finally {
         if (originalResendKey === undefined) {
           delete process.env.RESEND_API_KEY
@@ -530,11 +536,21 @@ describe('Email Verification and Password Reset (#77)', () => {
 
   describe('Security validations', () => {
     it('should not verify email for non-existent user', async () => {
+      const user = await db.user.create({
+        data: {
+          email: `non-existent-${Date.now()}@example.com`,
+          firstName: 'Ghost',
+          lastName: 'User',
+          passwordHash: 'test',
+          emailVerified: null,
+        },
+      })
+
       // Create token with valid user
-      const token = await createEmailVerificationToken(testUserId)
+      const token = await createEmailVerificationToken(user.id)
 
       // Delete user
-      await db.user.delete({ where: { id: testUserId } })
+      await db.user.delete({ where: { id: user.id } })
 
       // Try to verify - should fail gracefully
       const result = await verifyEmailToken(token)

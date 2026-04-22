@@ -118,7 +118,7 @@ test('getAdminUserDetailData returns a safe detail contract for a customer', asy
   assert.equal(detail.user.email, customer.email)
   assert.equal(detail.user.emailMasked.includes('@'), true)
   assert.equal(detail.user.vendor, null)
-  assert.equal(detail.activity.lastLoginAt, null)
+  assert.equal(detail.user.lastLoginAt, null)
   assert.equal(detail.activity.lastActivityAt, null)
   assert.equal('passwordHash' in detail.user, false)
   assert.equal('sessions' in detail.user, false)
@@ -136,7 +136,7 @@ test('getAdminUserDetailData includes vendor context when the user is a producer
   assert.equal(detail.user.vendor?.id, vendor.id)
   assert.equal(detail.user.vendor?.displayName, 'Vendor Support')
   assert.equal(detail.user.vendor?.stripeOnboarded, true)
-  assert.equal(detail.activity.lastLoginAt, null)
+  assert.equal(detail.user.lastLoginAt, null)
 })
 
 test('getAdminUserDetailData rejects unsupported admin sub-roles', async () => {

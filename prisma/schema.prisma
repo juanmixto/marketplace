@@ -185,6 +185,7 @@ model User {
   isActive             Boolean   @default(true)
   deletedAt            DateTime?
   consentAcceptedAt    DateTime?
+  lastLoginAt          DateTime?
   passwordResetToken   String?   @unique
   passwordResetExpires DateTime?
   // Phase 4b-β: created lazily on the first subscription checkout so we

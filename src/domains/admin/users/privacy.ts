@@ -11,6 +11,7 @@ export const ADMIN_USER_SUPPORT_USER_FIELDS = [
   'isActive',
   'deletedAt',
   'consentAcceptedAt',
+  'lastLoginAt',
   'twoFactor',
   'createdAt',
   'updatedAt',
@@ -88,6 +89,7 @@ export const ADMIN_USER_SUPPORT_USER_SELECT = {
   isActive: true,
   deletedAt: true,
   consentAcceptedAt: true,
+  lastLoginAt: true,
   createdAt: true,
   updatedAt: true,
   twoFactor: {
@@ -124,6 +126,7 @@ export type AdminUserSupportUserSource = Pick<
   | 'isActive'
   | 'deletedAt'
   | 'consentAcceptedAt'
+  | 'lastLoginAt'
   | 'createdAt'
   | 'updatedAt'
 > & {
@@ -154,6 +157,7 @@ export interface AdminUserSupportView {
   isActive: boolean
   deletedAt: Date | null
   consentAcceptedAt: Date | null
+  lastLoginAt: Date | null
   twoFactorEnabledAt: Date | null
   createdAt: Date
   updatedAt: Date
@@ -199,6 +203,7 @@ export function buildAdminUserSupportView(
     isActive: user.isActive,
     deletedAt: user.deletedAt,
     consentAcceptedAt: user.consentAcceptedAt,
+    lastLoginAt: user.lastLoginAt,
     twoFactorEnabledAt: user.twoFactor?.enabledAt ?? null,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,

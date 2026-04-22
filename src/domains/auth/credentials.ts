@@ -82,6 +82,19 @@ export async function authorizeCredentials(credentials: unknown): Promise<Authen
   const valid = await bcrypt.compare(parsed.data.password, user.passwordHash)
   if (!valid) return null
 
+  // Persist the last successful login for support/operations. This is the
+  // only activity metric we can derive with high confidence in the current
+  // auth stack without inventing session-level telemetry.
+  await db.user.updateMany({
+    where: { id: user.id },
+    data: { lastLoginAt: new Date() },
+  }).catch(error => {
+    console.error('[auth][credentials] failed to persist lastLoginAt', {
+      userId: user.id,
+      error,
+    })
+  })
+
   // Second factor gate. If the user has 2FA enabled (admin or future
   // buyer opt-in), the code is required at login — unless a valid
   // trusted-device cookie proves this browser completed TOTP within
