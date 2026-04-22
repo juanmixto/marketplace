@@ -185,6 +185,7 @@ model User {
   isActive             Boolean   @default(true)
   deletedAt            DateTime?
   consentAcceptedAt    DateTime?
+  authVersion          Int       @default(0)
   lastLoginAt          DateTime?
   passwordResetToken   String?   @unique
   passwordResetExpires DateTime?

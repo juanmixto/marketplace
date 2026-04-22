@@ -76,6 +76,7 @@ export async function DELETE(request: NextRequest) {
         data: {
           email: `deleted_${userId}@anon.invalid`,
           passwordHash: null,
+          authVersion: { increment: 1 },
           deletedAt: new Date(),
           emailVerified: null,
           firstName: 'Usuario',

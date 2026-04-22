@@ -186,6 +186,7 @@ describe('GDPR Compliance (#95)', () => {
         data: {
           email: `deleted_${userId}@anon.invalid`,
           passwordHash: null,
+          authVersion: { increment: 1 },
           deletedAt: new Date(),
           firstName: 'Usuario',
           lastName: 'Eliminado',

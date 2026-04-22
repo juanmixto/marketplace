@@ -31,6 +31,8 @@ export interface AuthenticatedUser {
   name: string
   image: string | null
   role: UserRole
+  isActive: boolean
+  authVersion: number
   /** Whether the user has completed TOTP enrollment. Propagates to the
    * JWT so the proxy can force enrollment without a DB round-trip. */
   has2fa: boolean
@@ -127,6 +129,8 @@ export async function authorizeCredentials(credentials: unknown): Promise<Authen
     name: `${user.firstName} ${user.lastName}`,
     image: user.image,
     role: user.role,
+    isActive: user.isActive,
+    authVersion: user.authVersion,
     has2fa,
   }
 }

@@ -26,6 +26,7 @@ export async function requireAuth(): Promise<Session> {
   }
   const session = await auth()
   if (!session?.user) redirect('/login')
+  if (session.user.isActive === false) redirect('/login')
   return session
 }
 

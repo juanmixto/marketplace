@@ -67,12 +67,16 @@ test('jwt callback persists id and role onto the token', async () => {
       email: 'admin@marketplace.com',
       name: 'Admin',
       role: 'SUPERADMIN',
+      isActive: true,
+      authVersion: 7,
     } as JwtParams['user'],
   })
 
   assert.ok(token)
   assert.equal(token.id, 'user_123')
   assert.equal(token.role, 'SUPERADMIN')
+  assert.equal(token.isActive, true)
+  assert.equal(token.authVersion, 7)
 })
 
 // Regression (auth enroll 403 behind Cloudflare Tunnel): in Route Handlers
@@ -102,16 +106,22 @@ test('session callback copies token identity onto the session user', async () =>
         email: 'admin@marketplace.com',
         name: 'Admin',
         role: 'CUSTOMER',
+        isActive: false,
+        authVersion: 0,
       },
       expires: new Date('2026-04-08').toISOString(),
     } as SessionParams['session'],
     token: {
       id: 'user_123',
       role: 'ADMIN_OPS',
+      isActive: false,
+      authVersion: 12,
     } as SessionParams['token'],
   } as SessionParams)
 
   assert.ok(session.user)
   assert.equal(session.user.id, 'user_123')
   assert.equal(session.user.role, 'ADMIN_OPS')
+  assert.equal(session.user.isActive, false)
+  assert.equal(session.user.authVersion, 12)
 })

@@ -209,6 +209,7 @@ export async function completePasswordReset(
       passwordHash: newPasswordHash,
       passwordResetToken: null,
       passwordResetExpires: null,
+      authVersion: { increment: 1 },
     },
   })
 

@@ -53,6 +53,8 @@ export const authConfig: NextAuthConfig = {
       if (user) {
         token.id = user.id ?? ''
         token.role = coerceUserRole(user.role)
+        token.isActive = (user as { isActive?: boolean }).isActive ?? true
+        token.authVersion = (user as { authVersion?: number }).authVersion ?? 0
         // 2FA claim — set on initial login, consumed by src/proxy.ts
         // to force admins without 2FA to /admin/security/enroll.
         token.has2fa = (user as { has2fa?: boolean }).has2fa ?? false
@@ -63,6 +65,8 @@ export const authConfig: NextAuthConfig = {
       if (session.user) {
         session.user.id = token.id as string
         session.user.role = coerceUserRole(token.role)
+        session.user.isActive = token.isActive ?? true
+        session.user.authVersion = token.authVersion ?? 0
         ;(session.user as { has2fa?: boolean }).has2fa = Boolean(token.has2fa)
       }
       return session

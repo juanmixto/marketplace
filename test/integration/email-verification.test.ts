@@ -508,6 +508,10 @@ describe('Email Verification and Password Reset (#77)', () => {
 
     it('should reset the password through the modern reset-password route', async () => {
       const { token } = await createPasswordResetToken(resetTestEmail)
+      const beforeReset = await db.user.findUnique({
+        where: { id: resetTestUserId },
+        select: { authVersion: true },
+      })
 
       const response = await resetPassword(
         new Request('http://localhost:3000/api/auth/reset-password', {
@@ -526,6 +530,7 @@ describe('Email Verification and Password Reset (#77)', () => {
       const user = await db.user.findUnique({ where: { id: resetTestUserId } })
       const passwordValid = await bcrypt.compare('route-new-password-123', user?.passwordHash || '')
       expect(passwordValid).toBe(true)
+      expect(user?.authVersion).toBe((beforeReset?.authVersion ?? 0) + 1)
 
       const tokenRecord = await db.passwordResetToken.findUnique({
         where: { tokenHash: sha256(token!) },

@@ -1,6 +1,7 @@
 import NextAuth from 'next-auth'
 import { PrismaAdapter } from '@auth/prisma-adapter'
 import type { Adapter } from 'next-auth/adapters'
+import type { JWT } from 'next-auth/jwt'
 import Credentials from 'next-auth/providers/credentials'
 import { db } from '@/lib/db'
 import { authConfig } from './auth-config'
@@ -12,6 +13,41 @@ import { authorizeCredentials } from '@/domains/auth/credentials'
 applyNormalizedAuthHostEnv(process.env)
 
 const ROLE_REFRESH_INTERVAL_MS = 60_000
+
+export async function refreshSessionClaimsFromDb(token: JWT, trigger?: string): Promise<JWT> {
+  const id = typeof token.id === 'string' ? token.id : null
+  if (!id) return token
+
+  const now = Date.now()
+  const fresh = await db.user.findUnique({
+    where: { id },
+    select: { role: true, isActive: true, authVersion: true },
+  })
+  if (!fresh) return token
+
+  const tokenAuthVersion = typeof token.authVersion === 'number' ? token.authVersion : null
+  if (tokenAuthVersion === null) {
+    token.authVersion = fresh.authVersion
+  } else if (tokenAuthVersion !== fresh.authVersion) {
+    token.isActive = false
+    return token
+  }
+
+  if (!fresh.isActive) {
+    token.isActive = false
+    return token
+  }
+
+  token.isActive = true
+  const lastCheck = typeof token.roleCheckedAt === 'number' ? token.roleCheckedAt : 0
+  if (trigger !== 'update' && now - lastCheck < ROLE_REFRESH_INTERVAL_MS) {
+    return token
+  }
+
+  token.role = coerceUserRole(fresh.role)
+  token.roleCheckedAt = now
+  return token
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -25,29 +61,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const base = await authConfig.callbacks?.jwt?.({ token, user, trigger })
       const next = base ?? token
       if (user) return next
-
-      // Refresh the role from the DB at most once per interval so an admin
-      // promotion (CUSTOMER → VENDOR via approveVendor) lands in the JWT on
-      // the next poll instead of requiring a sign-out. Sessions with no id
-      // (anonymous) are skipped. This is the only place in the stack where
-      // a role can change mid-session without a credentials flow.
-      const id = typeof next.id === 'string' ? next.id : null
-      if (!id) return next
-
-      const lastCheck = typeof next.roleCheckedAt === 'number' ? next.roleCheckedAt : 0
-      const now = Date.now()
-      if (trigger !== 'update' && now - lastCheck < ROLE_REFRESH_INTERVAL_MS) {
-        return next
-      }
-
-      const fresh = await db.user.findUnique({
-        where: { id },
-        select: { role: true, isActive: true },
-      })
-      if (!fresh || !fresh.isActive) return next
-      next.role = coerceUserRole(fresh.role)
-      next.roleCheckedAt = now
-      return next
+      return refreshSessionClaimsFromDb(next, trigger)
     },
   },
   providers: [
