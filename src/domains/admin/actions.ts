@@ -9,23 +9,16 @@ import { requireAdmin, requireFinanceAdmin, requireOpsAdmin } from '@/lib/auth-g
 import { hasRole, ADMIN_ROLES as ADMIN_ROLE_LIST } from '@/lib/roles'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { assertVendorOnboarded } from '@/domains/vendors'
-
-/**
- * Dynamic import to avoid closing a notifications → admin cycle at module
- * load. Handlers are fire-and-forget via the dispatcher's queueMicrotask.
- */
-async function emitNotification<E extends string>(event: E, payload: unknown): Promise<void> {
-  const { ensureTelegramHandlersRegistered } = await import(
-    '@/domains/notifications/telegram/ensure-registered'
-  )
-  const { ensureWebPushHandlersRegistered } = await import(
-    '@/domains/notifications/web-push/ensure-registered'
-  )
-  ensureTelegramHandlersRegistered()
-  ensureWebPushHandlersRegistered()
-  const mod = await import('@/domains/notifications/dispatcher')
-  ;(mod.emit as (e: E, p: unknown) => void)(event, payload)
-}
+import { sendToUser } from '@/domains/notifications/telegram/service'
+import { sendWebPushToUser } from '@/domains/notifications/web-push/service'
+import {
+  vendorApplicationApprovedTemplate,
+  vendorApplicationRejectedTemplate,
+} from '@/domains/notifications/telegram/templates'
+import {
+  vendorApplicationApprovedPush,
+  vendorApplicationRejectedPush,
+} from '@/domains/notifications/web-push/templates'
 
 function getVendorAuditSnapshot(vendor: {
   id: string
@@ -95,6 +88,63 @@ function getSettlementAuditSnapshot(settlement: {
   }
 }
 
+async function notifyVendorApplicationDecision(
+  userId: string,
+  vendor: {
+    id: string
+    displayName: string
+    slug: string
+  },
+  decision: 'approved' | 'rejected',
+): Promise<void> {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { firstName: true },
+  })
+  const firstName = user?.firstName ?? undefined
+
+  const telegramPayload =
+    decision === 'approved'
+      ? vendorApplicationApprovedTemplate(
+          { userId, vendorId: vendor.id, displayName: vendor.displayName, vendorSlug: vendor.slug },
+          { firstName },
+        )
+      : vendorApplicationRejectedTemplate(
+          { userId, vendorId: vendor.id, displayName: vendor.displayName },
+          { firstName },
+        )
+
+  const webPushPayload =
+    decision === 'approved'
+      ? vendorApplicationApprovedPush(
+          { userId, vendorId: vendor.id, displayName: vendor.displayName, vendorSlug: vendor.slug },
+          { firstName },
+        )
+      : vendorApplicationRejectedPush(
+          { userId, vendorId: vendor.id, displayName: vendor.displayName },
+          { firstName },
+        )
+
+  await Promise.allSettled([
+    sendToUser(
+      userId,
+      decision === 'approved'
+        ? 'BUYER_VENDOR_APPLICATION_APPROVED'
+        : 'BUYER_VENDOR_APPLICATION_REJECTED',
+      telegramPayload,
+      { payloadRef: `vendor:${vendor.id}` },
+    ),
+    sendWebPushToUser(
+      userId,
+      decision === 'approved'
+        ? 'BUYER_VENDOR_APPLICATION_APPROVED'
+        : 'BUYER_VENDOR_APPLICATION_REJECTED',
+      webPushPayload,
+      { payloadRef: `vendor:${vendor.id}` },
+    ),
+  ])
+}
+
 // ─── Vendor moderation ────────────────────────────────────────────────────────
 
 /**
@@ -153,12 +203,7 @@ export async function approveVendor(vendorId: string) {
   safeRevalidatePath('/admin/productores')
   safeRevalidatePath('/admin/auditoria')
 
-  void emitNotification('vendor.application.approved', {
-    userId: vendor.user.id,
-    vendorId: vendor.id,
-    displayName: vendor.displayName,
-    vendorSlug: vendor.slug,
-  })
+  await notifyVendorApplicationDecision(vendor.user.id, vendor, 'approved')
 }
 
 /**
@@ -198,11 +243,7 @@ export async function rejectVendor(vendorId: string) {
   safeRevalidatePath('/admin/productores')
   safeRevalidatePath('/admin/auditoria')
 
-  void emitNotification('vendor.application.rejected', {
-    userId: vendor.user.id,
-    vendorId: vendor.id,
-    displayName: vendor.displayName,
-  })
+  await notifyVendorApplicationDecision(vendor.user.id, vendor, 'rejected')
 }
 
 /**
