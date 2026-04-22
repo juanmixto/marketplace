@@ -7,10 +7,18 @@ test('getSecurityHeaders exposes the core browser hardening headers', () => {
   const previousAppUrl = process.env.NEXT_PUBLIC_APP_URL
   const previousAuthUrl = process.env.AUTH_URL
   const previousNextAuthUrl = process.env.NEXTAUTH_URL
+  const previousVercel = process.env.VERCEL
+  const previousVercelEnv = process.env.VERCEL_ENV
+  const previousVercelProductionUrl = process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL
+  const previousVercelUrl = process.env.VERCEL_URL
 
   delete process.env.NEXT_PUBLIC_APP_URL
   delete process.env.AUTH_URL
   delete process.env.NEXTAUTH_URL
+  delete process.env.VERCEL
+  delete process.env.VERCEL_ENV
+  delete process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL
+  delete process.env.VERCEL_URL
 
   const headers = getSecurityHeaders()
   const keys = headers.map(header => header.key)
@@ -28,11 +36,19 @@ test('getSecurityHeaders exposes the core browser hardening headers', () => {
   process.env.NEXT_PUBLIC_APP_URL = previousAppUrl
   process.env.AUTH_URL = previousAuthUrl
   process.env.NEXTAUTH_URL = previousNextAuthUrl
+  process.env.VERCEL = previousVercel
+  process.env.VERCEL_ENV = previousVercelEnv
+  process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL = previousVercelProductionUrl
+  process.env.VERCEL_URL = previousVercelUrl
 })
 
 test('getSecurityHeaders adds HSTS when the app is configured behind HTTPS', () => {
   const previousAppUrl = process.env.NEXT_PUBLIC_APP_URL
+  const previousVercel = process.env.VERCEL
+  const previousVercelEnv = process.env.VERCEL_ENV
   process.env.NEXT_PUBLIC_APP_URL = 'https://marketplace.example.com'
+  delete process.env.VERCEL
+  delete process.env.VERCEL_ENV
 
   const headers = getSecurityHeaders()
   const keys = headers.map(header => header.key)
@@ -40,6 +56,8 @@ test('getSecurityHeaders adds HSTS when the app is configured behind HTTPS', () 
   assert.ok(keys.includes('Strict-Transport-Security'))
 
   process.env.NEXT_PUBLIC_APP_URL = previousAppUrl
+  process.env.VERCEL = previousVercel
+  process.env.VERCEL_ENV = previousVercelEnv
 })
 
 test('buildContentSecurityPolicy with nonce enforces strict script-src (#537)', () => {
@@ -66,7 +84,19 @@ test('buildContentSecurityPolicy with nonce enforces strict script-src (#537)', 
 
 test('buildContentSecurityPolicy without nonce falls back to permissive script-src (test/legacy path)', () => {
   const previousAppUrl = process.env.NEXT_PUBLIC_APP_URL
+  const previousAuthUrl = process.env.AUTH_URL
+  const previousNextAuthUrl = process.env.NEXTAUTH_URL
+  const previousVercel = process.env.VERCEL
+  const previousVercelEnv = process.env.VERCEL_ENV
+  const previousVercelProductionUrl = process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL
+  const previousVercelUrl = process.env.VERCEL_URL
   delete process.env.NEXT_PUBLIC_APP_URL
+  delete process.env.AUTH_URL
+  delete process.env.NEXTAUTH_URL
+  delete process.env.VERCEL
+  delete process.env.VERCEL_ENV
+  delete process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL
+  delete process.env.VERCEL_URL
 
   const csp = buildContentSecurityPolicy()
 
@@ -78,6 +108,12 @@ test('buildContentSecurityPolicy without nonce falls back to permissive script-s
   assert.doesNotMatch(csp, /upgrade-insecure-requests/)
 
   process.env.NEXT_PUBLIC_APP_URL = previousAppUrl
+  process.env.AUTH_URL = previousAuthUrl
+  process.env.NEXTAUTH_URL = previousNextAuthUrl
+  process.env.VERCEL = previousVercel
+  process.env.VERCEL_ENV = previousVercelEnv
+  process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL = previousVercelProductionUrl
+  process.env.VERCEL_URL = previousVercelUrl
 })
 
 test('buildContentSecurityPolicy upgrades insecure requests only for HTTPS deployments', () => {

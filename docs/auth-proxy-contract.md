@@ -18,9 +18,9 @@ browser  ──HTTPS──▶  Cloudflare  ──HTTP──▶  Next.js origin
 
 | Variable | Required | Notes |
 | --- | --- | --- |
-| `AUTH_URL` | yes | Public HTTPS URL (e.g. `https://app.example`). Drives cookie prefix + callback URL. |
+| `AUTH_URL` | preferred | Public HTTPS URL (e.g. `https://app.example`). Drives cookie prefix + callback URL. On Vercel we can fall back to the platform's production/deployment URL when this is absent. |
 | `NEXTAUTH_URL` | fallback | Accepted as an alias for `AUTH_URL` (NextAuth v5 beta still reads it). If both are set they must match. |
-| `NEXT_PUBLIC_APP_URL` | yes | Must resolve to the same `origin` as `AUTH_URL`. A split-brain drops the session cookie on redirect. |
+| `NEXT_PUBLIC_APP_URL` | preferred | Must resolve to the same `origin` as `AUTH_URL`. A split-brain drops the session cookie on redirect. |
 | `AUTH_SECRET` | yes | JWT signing secret. Accepted as `NEXTAUTH_SECRET` alias. |
 
 `validateAuthDeploymentContract()` in [`src/lib/auth-env.ts`](../src/lib/auth-env.ts) enforces the invariants above and is wired into the boot path. Tests live at [`test/features/auth-env.test.ts`](../test/features/auth-env.test.ts).

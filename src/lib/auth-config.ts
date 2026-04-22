@@ -2,6 +2,7 @@
 // Must NOT import Prisma or any Node.js-only module.
 import type { NextAuthConfig } from 'next-auth'
 import { coerceUserRole, isAdmin, isVendor } from '@/lib/roles'
+import { resolveAuthUrl } from '@/lib/auth-env'
 
 // Behind the Cloudflare Tunnel (dev) / HTTPS terminator (prod), the
 // Next.js server sees requests as http://localhost internally. Auth.js
@@ -16,7 +17,7 @@ import { coerceUserRole, isAdmin, isVendor } from '@/lib/roles'
 export function resolveUseSecureCookies(
   env: Record<string, string | undefined> = process.env
 ): boolean {
-  const authUrl = env.AUTH_URL ?? env.NEXTAUTH_URL
+  const authUrl = resolveAuthUrl(env)
   return authUrl?.startsWith('https://') ?? false
 }
 

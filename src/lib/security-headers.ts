@@ -1,3 +1,5 @@
+import { resolveAuthUrl, resolvePublicAppUrl } from '@/lib/auth-env'
+
 export interface SecurityHeader {
   key: string
   value: string
@@ -5,18 +7,11 @@ export interface SecurityHeader {
 
 function shouldEnforceHttpsHeaders() {
   const candidateUrls = [
-    process.env.NEXT_PUBLIC_APP_URL,
-    process.env.AUTH_URL,
-    process.env.NEXTAUTH_URL,
-  ].filter((value): value is string => Boolean(value))
+    resolvePublicAppUrl(process.env),
+    resolveAuthUrl(process.env),
+  ]
 
-  return candidateUrls.some(value => {
-    try {
-      return new URL(value).protocol === 'https:'
-    } catch {
-      return false
-    }
-  })
+  return candidateUrls.some(value => value?.startsWith('https://') ?? false)
 }
 
 export interface BuildCspOptions {

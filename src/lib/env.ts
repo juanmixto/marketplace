@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { validateAuthDeploymentContract } from '@/lib/auth-env'
+import { resolveAuthUrl, resolvePublicAppUrl, validateAuthDeploymentContract } from '@/lib/auth-env'
 
 // Placeholder DATABASE_URL used only when no value is provided at parse
 // time. Next.js `next build` on Vercel preview (and similar CI contexts)
@@ -177,8 +177,8 @@ export function parseServerEnv(env: NodeJS.ProcessEnv) {
       ? parsed.DATABASE_URL_TEST
       : parsed.DATABASE_URL,
     authSecret: parsed.AUTH_SECRET,
-    authUrl: parsed.AUTH_URL,
-    appUrl: parsed.NEXT_PUBLIC_APP_URL,
+    authUrl: resolveAuthUrl(env),
+    appUrl: resolvePublicAppUrl(env) ?? parsed.NEXT_PUBLIC_APP_URL,
     paymentProvider: parsed.PAYMENT_PROVIDER,
     stripeSecretKey: parsed.STRIPE_SECRET_KEY,
     stripeWebhookSecret: parsed.STRIPE_WEBHOOK_SECRET,

@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import { SITE_DESCRIPTION, SITE_NAME } from '@/lib/constants'
+import { resolvePublicAppUrl } from '@/lib/auth-env'
 
-export const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+export const SITE_URL = resolvePublicAppUrl(process.env) || 'http://localhost:3000'
 export const SITE_METADATA_BASE = new URL(SITE_URL)
 
 export interface PageMetadataInput {

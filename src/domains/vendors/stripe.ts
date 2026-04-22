@@ -1,6 +1,7 @@
 'use server'
 
 import { requireVendor } from '@/lib/auth-guard'
+import { getServerEnv } from '@/lib/env'
 import { db } from '@/lib/db'
 import Stripe from 'stripe'
 
@@ -42,11 +43,7 @@ export async function createStripeConnectLink(): Promise<string> {
   }
 
   // Crear link de onboarding
-  const baseUrl =
-    process.env.AUTH_URL ||
-    process.env.NEXTAUTH_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    'http://localhost:3000'
+  const baseUrl = getServerEnv().appUrl
   const accountLink = await getStripe().accountLinks.create({
     account: accountId,
     refresh_url: `${baseUrl}/vendor/perfil?stripe=refresh`,

@@ -91,6 +91,14 @@ test('useSecureCookies follows AUTH_URL / NEXTAUTH_URL scheme', () => {
   assert.equal(resolveUseSecureCookies({ AUTH_URL: 'http://localhost:3001' }), false)
   assert.equal(resolveUseSecureCookies({}), false)
   assert.equal(resolveUseSecureCookies({ NEXTAUTH_URL: 'https://prod.example.com' }), true)
+  assert.equal(
+    resolveUseSecureCookies({
+      VERCEL: '1',
+      VERCEL_ENV: 'production',
+      NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL: 'dev.feldescloud.com',
+    }),
+    true
+  )
   // AUTH_URL takes precedence over NEXTAUTH_URL.
   assert.equal(
     resolveUseSecureCookies({ AUTH_URL: 'http://a', NEXTAUTH_URL: 'https://b' }),

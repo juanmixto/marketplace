@@ -25,14 +25,77 @@
  * imported by the contract test without pulling the Prisma client.
  */
 
+function isPrivateNetworkHost(hostname: string) {
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '0.0.0.0' ||
+    hostname === '::1' ||
+    /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+    /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname)
+  )
+}
+
+function toAbsoluteUrl(value: string | undefined): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+
+  try {
+    const parsed = trimmed.includes('://') ? new URL(trimmed) : new URL(`https://${trimmed}`)
+    const pathname = parsed.pathname === '/' ? '' : parsed.pathname.replace(/\/+$/, '')
+    return `${parsed.origin}${pathname}${parsed.search}${parsed.hash}`
+  } catch {
+    return null
+  }
+}
+
+function resolveVercelUrl(env: Partial<NodeJS.ProcessEnv>): string | null {
+  const productionUrl = toAbsoluteUrl(env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL)
+  const runtimeUrl = toAbsoluteUrl(env.VERCEL_URL)
+
+  if (env.VERCEL_ENV === 'production') {
+    return productionUrl ?? runtimeUrl
+  }
+
+  return runtimeUrl ?? productionUrl
+}
+
+export function resolvePublicAppUrl(env: Partial<NodeJS.ProcessEnv>): string | null {
+  const explicitUrl = toAbsoluteUrl(env.NEXT_PUBLIC_APP_URL)
+  const vercelUrl = resolveVercelUrl(env)
+
+  if (env.VERCEL === '1' || typeof env.VERCEL_ENV === 'string') {
+    if (vercelUrl) return vercelUrl
+    if (explicitUrl) {
+      try {
+        if (isPrivateNetworkHost(new URL(explicitUrl).hostname)) return null
+      } catch {
+        return null
+      }
+      return explicitUrl
+    }
+    return null
+  }
+
+  return explicitUrl ?? vercelUrl
+}
+
 export function resolveAuthUrl(env: Partial<NodeJS.ProcessEnv>): string | null {
   // Fall through on undefined AND empty string — a deployment that
   // sets AUTH_URL="" should be treated as unset so NEXTAUTH_URL can
   // cover it, not as a pin to an empty origin.
-  const candidates = [env.AUTH_URL, env.NEXTAUTH_URL]
-  for (const value of candidates) {
-    if (typeof value === 'string' && value.length > 0) return value
+  const explicitCandidates = [env.AUTH_URL, env.NEXTAUTH_URL]
+  for (const value of explicitCandidates) {
+    const url = toAbsoluteUrl(value)
+    if (url) return url
   }
+
+  if (env.VERCEL === '1' || typeof env.VERCEL_ENV === 'string') {
+    return resolvePublicAppUrl(env)
+  }
+
   return null
 }
 
@@ -52,13 +115,13 @@ export function isSecureAuthDeployment(env: Partial<NodeJS.ProcessEnv>): boolean
  */
 export function validateAuthDeploymentContract(env: Partial<NodeJS.ProcessEnv>): string[] {
   const errors: string[] = []
-  const authUrl = env.AUTH_URL ?? env.NEXTAUTH_URL
-  const appUrl = env.NEXT_PUBLIC_APP_URL
+  const authUrl = resolveAuthUrl(env)
+  const appUrl = resolvePublicAppUrl(env)
 
   if (env.NODE_ENV !== 'production') return errors
 
   if (!authUrl) {
-    errors.push('AUTH_URL (or NEXTAUTH_URL) must be set in production so NextAuth emits the correct cookie prefix and callback URLs.')
+    errors.push('A public app URL must be available in production so NextAuth emits the correct cookie prefix and callback URLs.')
     return errors
   }
 

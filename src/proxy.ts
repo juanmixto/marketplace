@@ -6,7 +6,7 @@ import { getPrimaryPortalHref, sanitizeCallbackUrl } from '@/lib/portals'
 import { isRequestOnAdminHost, hostMatchesAdmin, ADMIN_HOST_ENV_VAR } from '@/lib/admin-host'
 import { buildContentSecurityPolicy } from '@/lib/security-headers'
 import { isDevRoute } from '@/lib/dev-routes'
-import { isSecureAuthDeployment } from '@/lib/auth-env'
+import { isSecureAuthDeployment, resolveAuthUrl, resolvePublicAppUrl } from '@/lib/auth-env'
 export { DEV_ROUTES_ALLOWLIST } from '@/lib/dev-routes'
 
 // Exported so test/integration/proxy-protected-prefixes.test.ts can
@@ -85,11 +85,11 @@ function getExpectedHosts(request: NextRequest): Set<string> {
   if (hostHeader) hosts.add(hostHeader)
   const fwdHost = request.headers.get('x-forwarded-host')
   if (fwdHost) hosts.add(fwdHost)
-  const authUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL
+  const authUrl = resolveAuthUrl(process.env)
   if (authUrl) {
     try { hosts.add(new URL(authUrl).host) } catch { /* ignore */ }
   }
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+  const appUrl = resolvePublicAppUrl(process.env)
   if (appUrl) {
     try { hosts.add(new URL(appUrl).host) } catch { /* ignore */ }
   }

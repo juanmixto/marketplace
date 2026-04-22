@@ -54,6 +54,24 @@ test('parseServerEnv falls back to localhost app url by default', () => {
   assert.equal(env.paymentProvider, 'mock')
 })
 
+test('parseServerEnv prefers the Vercel production URL when running on Vercel', () => {
+  const env = parseServerEnv({
+    DATABASE_URL: 'postgresql://user:pass@localhost:5432/marketplace',
+    NODE_ENV: 'production',
+    VERCEL: '1',
+    VERCEL_ENV: 'production',
+    AUTH_SECRET: 'secret',
+    NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL: 'dev.feldescloud.com',
+    PAYMENT_PROVIDER: 'stripe',
+    STRIPE_SECRET_KEY: 'sk_test_123',
+    STRIPE_WEBHOOK_SECRET: 'whsec_123',
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'pk_test_123',
+  })
+
+  assert.equal(env.appUrl, 'https://dev.feldescloud.com')
+  assert.equal(env.authUrl, 'https://dev.feldescloud.com')
+})
+
 test('parseServerEnv rejects invalid public app urls', () => {
   assert.throws(
     () =>
