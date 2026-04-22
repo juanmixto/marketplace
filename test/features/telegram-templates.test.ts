@@ -7,6 +7,8 @@ import {
   orderStatusChangedTemplate,
   favoriteBackInStockTemplate,
   favoritePriceDropTemplate,
+  vendorApplicationApprovedTemplate,
+  vendorApplicationRejectedTemplate,
   orderDeliveredTemplate,
   labelFailedTemplate,
   incidentOpenedTemplate,
@@ -224,6 +226,37 @@ test('favoriteBackInStockTemplate renders name + vendor and skips button without
   assert.equal(withoutSlug.inline_keyboard, undefined)
   assert.ok(!withoutSlug.text.includes('<curado>'))
   assert.ok(withoutSlug.text.includes('&lt;curado&gt;'))
+})
+
+test('vendorApplicationApprovedTemplate renders panel CTA and greeting', () => {
+  process.env.NEXT_PUBLIC_APP_URL = 'https://example.com'
+  const msg = vendorApplicationApprovedTemplate(
+    {
+      userId: 'usr_1',
+      vendorId: 'vnd_1',
+      displayName: 'Quesería Los Olmos',
+      vendorSlug: 'queseria-los-olmos',
+    },
+    { firstName: 'Ana' },
+  )
+  assert.ok(msg.text.includes('Ana'))
+  assert.ok(msg.text.includes('Quesería Los Olmos'))
+  const buttons = (msg.inline_keyboard ?? []).flat()
+  assert.equal(buttons.length, 1)
+  assert.equal('url' in buttons[0]! ? buttons[0]!.url : '', 'https://example.com/vendor/dashboard')
+})
+
+test('vendorApplicationRejectedTemplate renders support CTA and fallback copy', () => {
+  process.env.NEXT_PUBLIC_APP_URL = 'https://example.com'
+  const msg = vendorApplicationRejectedTemplate({
+    userId: 'usr_1',
+    vendorId: 'vnd_1',
+    displayName: 'Quesería Los Olmos',
+  })
+  assert.ok(msg.text.includes('Quesería Los Olmos'))
+  const buttons = (msg.inline_keyboard ?? []).flat()
+  assert.equal(buttons.length, 1)
+  assert.equal('url' in buttons[0]! ? buttons[0]!.url : '', 'https://example.com/contacto')
 })
 
 test('orderCreatedTemplate greets vendor by first name when view is provided', () => {

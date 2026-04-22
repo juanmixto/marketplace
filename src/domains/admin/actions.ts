@@ -15,6 +15,14 @@ import { assertVendorOnboarded } from '@/domains/vendors'
  * load. Handlers are fire-and-forget via the dispatcher's queueMicrotask.
  */
 async function emitNotification<E extends string>(event: E, payload: unknown): Promise<void> {
+  const { ensureTelegramHandlersRegistered } = await import(
+    '@/domains/notifications/telegram/ensure-registered'
+  )
+  const { ensureWebPushHandlersRegistered } = await import(
+    '@/domains/notifications/web-push/ensure-registered'
+  )
+  ensureTelegramHandlersRegistered()
+  ensureWebPushHandlersRegistered()
   const mod = await import('@/domains/notifications/dispatcher')
   ;(mod.emit as (e: E, p: unknown) => void)(event, payload)
 }

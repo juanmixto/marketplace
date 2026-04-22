@@ -13,6 +13,8 @@ const BUYER_EVENT_LABEL_KEYS: Partial<Record<NotificationEventType, TranslationK
   BUYER_ORDER_STATUS: 'account.notifications.event.BUYER_ORDER_STATUS',
   BUYER_FAVORITE_RESTOCK: 'account.notifications.event.BUYER_FAVORITE_RESTOCK',
   BUYER_FAVORITE_PRICE_DROP: 'account.notifications.event.BUYER_FAVORITE_PRICE_DROP',
+  BUYER_VENDOR_APPLICATION_APPROVED: 'account.notifications.event.BUYER_VENDOR_APPLICATION_APPROVED',
+  BUYER_VENDOR_APPLICATION_REJECTED: 'account.notifications.event.BUYER_VENDOR_APPLICATION_REJECTED',
 }
 
 const CHANNEL_LABEL_KEYS: Record<NotificationChannel, TranslationKeys> = {

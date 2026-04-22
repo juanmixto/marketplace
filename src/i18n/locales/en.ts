@@ -1127,6 +1127,8 @@ const en: Record<TranslationKeys, string> = {
   'account.notifications.event.BUYER_ORDER_STATUS': 'My order status (shipped, out for delivery, delivered)',
   'account.notifications.event.BUYER_FAVORITE_RESTOCK': 'When a favourite is back in stock',
   'account.notifications.event.BUYER_FAVORITE_PRICE_DROP': 'When a favourite drops in price',
+  'account.notifications.event.BUYER_VENDOR_APPLICATION_APPROVED': 'When my producer application is approved',
+  'account.notifications.event.BUYER_VENDOR_APPLICATION_REJECTED': 'When my producer application is rejected',
   'account.telegram.title': 'Telegram',
   'account.telegram.subtitle': 'Link your account to receive alerts in the bot chat.',
   'account.telegram.connect': 'Connect Telegram',

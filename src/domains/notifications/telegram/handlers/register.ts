@@ -14,6 +14,7 @@ import {
   onPayoutPaid,
   onStockLow,
 } from './on-vendor-alerts'
+import { onVendorApplicationApproved, onVendorApplicationRejected } from './on-vendor-application'
 import { registerAction } from '../actions/registry'
 import { confirmFulfillmentAction } from '../actions/confirm-fulfillment'
 import { markShippedAction } from '../actions/mark-shipped'
@@ -41,6 +42,8 @@ export function registerTelegramHandlers(): void {
   on('order.status_changed', onBuyerOrderStatus)
   on('favorite.back_in_stock', onFavoriteBackInStock)
   on('favorite.price_drop', onFavoritePriceDrop)
+  on('vendor.application.approved', onVendorApplicationApproved)
+  on('vendor.application.rejected', onVendorApplicationRejected)
 
   registerAction('confirmFulfillment', confirmFulfillmentAction)
   registerAction('markShipped', markShippedAction)

@@ -1126,6 +1126,8 @@ const es = {
   'account.notifications.event.BUYER_ORDER_STATUS': 'Estado de mis pedidos (envío, reparto, entrega)',
   'account.notifications.event.BUYER_FAVORITE_RESTOCK': 'Cuando un favorito vuelve a estar disponible',
   'account.notifications.event.BUYER_FAVORITE_PRICE_DROP': 'Cuando un favorito baja de precio',
+  'account.notifications.event.BUYER_VENDOR_APPLICATION_APPROVED': 'Cuando aprueban mi solicitud de productor',
+  'account.notifications.event.BUYER_VENDOR_APPLICATION_REJECTED': 'Cuando rechazan mi solicitud de productor',
   'account.telegram.title': 'Telegram',
   'account.telegram.subtitle': 'Vincula tu cuenta para recibir avisos en el chat del bot.',
   'account.telegram.connect': 'Conectar Telegram',
