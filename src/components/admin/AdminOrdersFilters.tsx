@@ -5,12 +5,19 @@ import { usePathname, useRouter } from 'next/navigation'
 import { ArrowPathIcon } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { PAYMENT_STATUS_LABELS } from '@/domains/admin/orders'
 import { ORDER_STATUS_LABELS } from '@/lib/constants'
 
 const ORDER_STATUS_OPTIONS = ['all', 'PLACED', 'PAYMENT_CONFIRMED', 'PROCESSING', 'PARTIALLY_SHIPPED', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'] as const
 const PAYMENT_STATUS_OPTIONS = ['all', 'PENDING', 'SUCCEEDED', 'FAILED', 'PARTIALLY_REFUNDED', 'REFUNDED'] as const
 const INCIDENT_OPTIONS = ['all', 'open'] as const
+const PAYMENT_STATUS_LABELS: Record<(typeof PAYMENT_STATUS_OPTIONS)[number] & string, string> = {
+  all: 'Todos',
+  PENDING: 'Pendiente',
+  SUCCEEDED: 'Pagado',
+  FAILED: 'Fallido',
+  PARTIALLY_REFUNDED: 'Reembolso parcial',
+  REFUNDED: 'Reembolsado',
+}
 
 type OrderStatusFilter = (typeof ORDER_STATUS_OPTIONS)[number]
 type PaymentStatusFilter = (typeof PAYMENT_STATUS_OPTIONS)[number]
