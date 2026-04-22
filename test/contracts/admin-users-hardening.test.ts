@@ -42,14 +42,14 @@ test('admin users detail page exposes the secure reset password control', () => 
 
 test('admin users state change action requires explicit confirmation and audit-backed revocation', () => {
   const source = read('src/components/admin/AdminUserStateActions.tsx')
-  assert.match(source, /Escribe el email exacto para confirmar/)
+  assert.match(source, /Type the email to confirm/)
   assert.match(source, /setAdminUserActiveState/)
-  assert.match(source, /invalidaci[oó]n de sesi[oó]n|revocada en servidor/)
+  assert.match(source, /session invalidation recorded|revoked on the server/)
 })
 
 test('admin users reset password action requires explicit confirmation and keeps the token hidden', () => {
   const source = read('src/components/admin/AdminUserPasswordResetActions.tsx')
-  assert.match(source, /Escribe el email exacto para confirmar/)
+  assert.match(source, /Type the email to confirm/)
   assert.match(source, /requestAdminUserPasswordReset/)
-  assert.match(source, /enlace seguro por email/)
+  assert.match(source, /secure email link|sent by email/)
 })

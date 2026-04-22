@@ -86,6 +86,6 @@ test('requestAdminUserPasswordReset rejects deleted accounts', async () => {
 
   await assert.rejects(
     () => requestAdminUserPasswordReset(user.id),
-    /eliminada/i,
+    /deleted account/i,
   )
 })

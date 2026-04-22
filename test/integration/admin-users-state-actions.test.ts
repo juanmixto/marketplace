@@ -109,6 +109,6 @@ test('setAdminUserActiveState refuses self-deactivation', async () => {
 
   await assert.rejects(
     () => setAdminUserActiveState(admin.id, false),
-    /propia cuenta/i,
+    /own account/i,
   )
 })

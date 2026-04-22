@@ -36,6 +36,15 @@ export const ADMIN_USERS_EMAIL_VERIFICATION_LABELS: Record<AdminUsersEmailVerifi
   unverified: 'Pending',
 }
 
+export const ADMIN_USERS_VENDOR_STATUS_LABELS: Record<string, string> = {
+  APPLYING: 'Applying',
+  PENDING_DOCS: 'Pending documents',
+  ACTIVE: 'Active',
+  REJECTED: 'Rejected',
+  SUSPENDED_TEMP: 'Temporarily suspended',
+  SUSPENDED_PERM: 'Permanently suspended',
+}
+
 export const ADMIN_USERS_ROLE_OPTIONS: readonly AdminUsersRoleFilter[] = [
   'all',
   UserRole.CUSTOMER,

@@ -9,6 +9,7 @@ import {
   ADMIN_USERS_ROLE_LABELS,
   ADMIN_USERS_STATE_LABELS,
   ADMIN_USERS_VENDOR_LABELS,
+  ADMIN_USERS_VENDOR_STATUS_LABELS,
   buildAdminUsersListHref,
   parseAdminUsersSearchParams,
 } from '@/domains/admin/users/navigation'
@@ -200,7 +201,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
                       <div className="space-y-1">
                         <AdminStatusBadge label={user.vendor.displayName} tone={vendorTone(true)} />
                         <p className="text-xs text-[var(--muted)]">
-                          {user.vendor.status} · {user.vendor.slug}
+                          {ADMIN_USERS_VENDOR_STATUS_LABELS[user.vendor.status] ?? user.vendor.status} · {user.vendor.slug}
                         </p>
                       </div>
                     ) : (

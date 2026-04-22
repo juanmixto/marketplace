@@ -39,16 +39,16 @@ export async function requestAdminUserPasswordReset(
   })
 
   if (!user) {
-    throw new Error('Usuario no encontrado')
+    throw new Error('User not found')
   }
 
   if (user.deletedAt) {
-    throw new Error('No se puede solicitar un reset para una cuenta eliminada')
+    throw new Error('Cannot request a reset for a deleted account')
   }
 
   const { token } = await createPasswordResetToken(user.email)
   if (!token) {
-    throw new Error('No se pudo crear el token de reset')
+    throw new Error('Could not create the reset token')
   }
 
   const resetLink = new URL(`/reset-password/${token}`, getServerEnv().appUrl).toString()
@@ -74,7 +74,7 @@ export async function requestAdminUserPasswordReset(
 
   await sendEmail({
     to: user.email,
-    subject: 'Restablece tu contraseña de Marketplace',
+    subject: 'Reset your Marketplace password',
     react: AdminPasswordResetEmail({
       userName: `${user.firstName} ${user.lastName}`.trim() || user.email,
       resetLink,
@@ -113,15 +113,15 @@ export async function setAdminUserActiveState(
   })
 
   if (!user) {
-    throw new Error('Usuario no encontrado')
+    throw new Error('User not found')
   }
 
   if (user.deletedAt) {
-    throw new Error('No se puede cambiar el estado de una cuenta eliminada')
+    throw new Error('Cannot change the state of a deleted account')
   }
 
   if (session.user.id === user.id && !isActive) {
-    throw new Error('No puedes desactivar tu propia cuenta')
+    throw new Error('You cannot deactivate your own account')
   }
 
   if (user.isActive === isActive) {

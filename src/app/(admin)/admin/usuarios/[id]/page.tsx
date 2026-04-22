@@ -13,6 +13,7 @@ import { auth } from '@/lib/auth'
 import { canChangeAdminUserState, canResetAdminUserPassword } from '@/lib/roles'
 import { getAdminUsersCopy } from '@/i18n/admin-users-copy'
 import { formatMadridDate } from '@/lib/utils'
+import { ADMIN_USERS_ROLE_LABELS, ADMIN_USERS_VENDOR_STATUS_LABELS } from '@/domains/admin/users/navigation'
 
 export const revalidate = 30
 
@@ -147,7 +148,7 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
           </CardHeader>
           <CardBody className="grid gap-4 md:grid-cols-2">
             <DetailRow label={copy.fields.name} value={`${detail.user.firstName} ${detail.user.lastName}`} />
-            <DetailRow label={copy.fields.role} value={detail.user.role} />
+            <DetailRow label={copy.fields.role} value={ADMIN_USERS_ROLE_LABELS[detail.user.role] ?? detail.user.role} />
             <DetailRow label={copy.fields.email} value={detail.user.email} secondary={detail.user.emailMasked} />
             <DetailRow label={copy.fields.emailVerified} value={detail.user.emailVerified ? formatMadridDate(detail.user.emailVerified, { dateStyle: 'medium', timeStyle: 'short' }) : copy.badges.emailPending} />
             <DetailRow label={copy.fields.joined} value={formatMadridDate(detail.user.createdAt, { dateStyle: 'medium', timeStyle: 'short' })} />
@@ -267,7 +268,10 @@ export default async function AdminUserDetailPage({ params }: PageProps) {
           <CardBody className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <DetailRow label={copy.producerFields.displayName} value={detail.user.vendor.displayName} />
             <DetailRow label={copy.producerFields.slug} value={detail.user.vendor.slug} />
-            <DetailRow label={copy.producerFields.status} value={detail.user.vendor.status} />
+            <DetailRow
+              label={copy.producerFields.status}
+              value={ADMIN_USERS_VENDOR_STATUS_LABELS[detail.user.vendor.status] ?? detail.user.vendor.status}
+            />
             <DetailRow
               label={copy.producerFields.stripe}
               value={detail.user.vendor.stripeOnboarded ? copy.producerFields.yes : copy.producerFields.no}

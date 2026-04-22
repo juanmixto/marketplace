@@ -9,14 +9,22 @@ import { requireAdmin, requireFinanceAdmin, requireOpsAdmin } from '@/lib/auth-g
 import { hasRole, ADMIN_ROLES as ADMIN_ROLE_LIST } from '@/lib/roles'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { assertVendorOnboarded } from '@/domains/vendors'
+// These notification transports are server-only and must stay out of the
+// public notifications barrel, which is imported by client components.
+// eslint-disable-next-line no-restricted-imports
+import { sendToUser } from '@/domains/notifications/telegram/service'
+// eslint-disable-next-line no-restricted-imports
+import { sendWebPushToUser } from '@/domains/notifications/web-push/service'
+// eslint-disable-next-line no-restricted-imports
 import {
-  sendToUser,
-  sendWebPushToUser,
-  vendorApplicationApprovedPush,
   vendorApplicationApprovedTemplate,
-  vendorApplicationRejectedPush,
   vendorApplicationRejectedTemplate,
-} from '@/domains/notifications'
+} from '@/domains/notifications/telegram/templates'
+// eslint-disable-next-line no-restricted-imports
+import {
+  vendorApplicationApprovedPush,
+  vendorApplicationRejectedPush,
+} from '@/domains/notifications/web-push/templates'
 
 function getVendorAuditSnapshot(vendor: {
   id: string

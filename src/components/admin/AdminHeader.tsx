@@ -9,6 +9,7 @@ import { useSidebar } from '@/components/layout/SidebarProvider'
 import { PortalSwitcher } from '@/components/layout/PortalSwitcher'
 import type { AvailablePortal } from '@/lib/portals'
 import { signOutAndClearCart } from '@/components/buyer/cart-session'
+import { ADMIN_USERS_ROLE_LABELS } from '@/domains/admin/users/navigation'
 
 interface Props {
   user: { name?: string | null; email?: string | null; role: string }
@@ -55,7 +56,7 @@ export function AdminHeader({ user, portals = [] }: Props) {
           <UserCircleIcon className="h-5 w-5" />
           <span className="max-w-[120px] truncate">{user.name ?? user.email}</span>
           <span className="rounded-full bg-[var(--surface-raised)] border border-[var(--border)] px-2 py-0.5 text-[10px] font-medium text-[var(--muted)]">
-            {user.role.replace('ADMIN_', '')}
+            {ADMIN_USERS_ROLE_LABELS[user.role as keyof typeof ADMIN_USERS_ROLE_LABELS] ?? user.role}
           </span>
           <ChevronDownIcon className={cn('h-3.5 w-3.5 text-[var(--muted)] transition-transform', open && 'rotate-180')} />
         </button>
