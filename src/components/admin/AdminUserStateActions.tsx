@@ -38,14 +38,14 @@ export function AdminUserStateActions({
   }, [open])
 
   const targetActive = !isActive
-  const actionLabel = targetActive ? 'Desbloquear cuenta' : 'Bloquear cuenta'
-  const verb = targetActive ? 'desbloquear' : 'bloquear'
+  const actionLabel = targetActive ? 'Unblock account' : 'Block account'
+  const verb = targetActive ? 'unblock' : 'block'
   const vendorHint = useMemo(() => {
     if (targetActive && vendorStatus === 'SUSPENDED_TEMP') {
-      return 'El productor volverá a ACTIVE si la cuenta se reactiva.'
+      return 'The linked producer will return to ACTIVE if the account is reactivated.'
     }
     if (!targetActive && vendorStatus === 'ACTIVE') {
-      return 'El productor asociado pasará a SUSPENDED_TEMP para mantener coherencia operativa.'
+      return 'The linked producer will move to SUSPENDED_TEMP to keep the operational state consistent.'
     }
     return null
   }, [targetActive, vendorStatus])
@@ -56,7 +56,7 @@ export function AdminUserStateActions({
     setError(null)
     setSuccess(null)
     if (confirmation.trim().toLowerCase() !== email.trim().toLowerCase()) {
-      setError('Escribe el email exacto para confirmar.')
+      setError('Type the exact email to confirm.')
       return
     }
 
@@ -65,13 +65,13 @@ export function AdminUserStateActions({
       const result = await setAdminUserActiveState(userId, targetActive)
       setSuccess(
         result.isActive
-          ? 'Cuenta reactivada y sesión invalidada para tokens viejos.'
-          : 'Cuenta bloqueada e invalidación de sesión registrada.'
+          ? 'Account reactivated and old tokens invalidated on the server.'
+          : 'Account blocked and session invalidation recorded.'
       )
       setOpen(false)
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo actualizar el estado')
+      setError(err instanceof Error ? err.message : 'Could not update account state')
     } finally {
       setLoading(false)
     }
@@ -97,24 +97,24 @@ export function AdminUserStateActions({
         </Button>
         <p className="text-xs text-[var(--muted)]">
           {isActive
-            ? 'Bloquea la cuenta y marca la sesión como revocada en servidor.'
-            : 'Reactiva la cuenta si el caso de soporte ya está resuelto.'}
+            ? 'Blocks the account and marks the session as revoked on the server.'
+            : 'Reactivates the account once the support case is resolved.'}
         </p>
       </div>
 
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title={`${actionLabel} de forma segura`}
+        title={`${actionLabel} securely`}
         size="sm"
       >
         <div className="space-y-4 p-5">
           <div className="space-y-2">
             <p className="text-sm text-[var(--foreground-soft)]">
-              Vas a <strong>{verb}</strong> la cuenta de <strong>{email}</strong>.
+              You are about to <strong>{verb}</strong> the account for <strong>{email}</strong>.
             </p>
             <p className="text-sm text-[var(--muted)]">
-              Esta acción queda auditada y puede invalidar la sesión actual en servidor.
+              This action is audited and may invalidate the current server-side session.
             </p>
             {vendorHint && (
               <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
@@ -125,7 +125,7 @@ export function AdminUserStateActions({
 
           <label className="space-y-1.5">
             <span className="block text-sm font-medium text-[var(--foreground-soft)]">
-              Escribe el email para confirmar
+              Type the email to confirm
             </span>
             <input
               value={confirmation}
@@ -143,7 +143,7 @@ export function AdminUserStateActions({
 
           <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
             <Button variant="secondary" size="sm" onClick={() => setOpen(false)} className="sm:min-w-28">
-              Cancelar
+              Cancel
             </Button>
             <Button variant="danger" size="sm" isLoading={loading} onClick={handleSubmit} className="sm:min-w-40">
               {actionLabel}

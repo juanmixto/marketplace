@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getReviewQueueItem } from '@/domains/ingestion'
-import { requireIngestionAdmin, IngestionFeatureUnavailableError } from '@/domains/ingestion/authz'
+import { requireIngestionAdmin } from '@/domains/ingestion/authz'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatMadridDate } from '@/lib/utils'
@@ -68,12 +68,7 @@ interface ExtractionPayloadShape {
 }
 
 export default async function ReviewItemDetailPage({ params }: PageProps) {
-  try {
-    await requireIngestionAdmin()
-  } catch (err) {
-    if (err instanceof IngestionFeatureUnavailableError) notFound()
-    throw err
-  }
+  await requireIngestionAdmin()
 
   const { itemId } = await params
   const item = await getReviewQueueItem(itemId)

@@ -117,13 +117,13 @@ export function AdminUsersFilters({ q, role, state, vendor, emailVerification }:
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,0.85fr))_auto] lg:items-end">
         <Input
           name="q"
-          label="Buscar"
+          label="Search"
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder="Email, nombre, productor o ID"
+          placeholder="Email, name, producer, or ID"
         />
         <label className="space-y-1.5">
-          <span className="block text-sm font-medium text-[var(--foreground-soft)]">Rol</span>
+          <span className="block text-sm font-medium text-[var(--foreground-soft)]">Role</span>
           <select
             name="role"
             value={roleValue}
@@ -138,7 +138,7 @@ export function AdminUsersFilters({ q, role, state, vendor, emailVerification }:
           </select>
         </label>
         <label className="space-y-1.5">
-          <span className="block text-sm font-medium text-[var(--foreground-soft)]">Estado</span>
+          <span className="block text-sm font-medium text-[var(--foreground-soft)]">Status</span>
           <select
             name="state"
             value={stateValue}
@@ -153,7 +153,7 @@ export function AdminUsersFilters({ q, role, state, vendor, emailVerification }:
           </select>
         </label>
         <label className="space-y-1.5">
-          <span className="block text-sm font-medium text-[var(--foreground-soft)]">Productor</span>
+          <span className="block text-sm font-medium text-[var(--foreground-soft)]">Producer</span>
           <select
             name="vendor"
             value={vendorValue}
@@ -168,7 +168,7 @@ export function AdminUsersFilters({ q, role, state, vendor, emailVerification }:
           </select>
         </label>
         <label className="space-y-1.5">
-          <span className="block text-sm font-medium text-[var(--foreground-soft)]">Email</span>
+          <span className="block text-sm font-medium text-[var(--foreground-soft)]">Email verification</span>
           <select
             name="emailVerification"
             value={emailVerificationValue}
@@ -184,11 +184,11 @@ export function AdminUsersFilters({ q, role, state, vendor, emailVerification }:
         </label>
         <Button type="button" variant="secondary" size="md" onClick={clearFilters} disabled={isPending}>
           <ArrowPathIcon className="h-4 w-4" />
-          Limpiar
+          Clear
         </Button>
       </div>
       <p className="text-xs text-[var(--muted)]">
-        Se aplica automáticamente al escribir o cambiar filtros. El resultado se actualiza sin recargar toda la página.
+        Filters apply automatically as you type or change options. The result updates without reloading the whole page.
       </p>
     </div>
   )

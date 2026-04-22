@@ -25,7 +25,7 @@ import { setTestFlagOverrides, clearTestFlagOverrides } from '../flags-helper'
  * shell over these two surfaces, so if both work here the page works.
  *
  * Every action guard is exercised:
- *   - `requireIngestionAdmin` fails when the flag is off.
+ *   - `requireIngestionAdmin` enforces the admin role boundary.
  *   - Audit rows are written in the same transaction as the state
  *     change.
  *   - Review queue items flip `ENQUEUED → AUTO_RESOLVED` with a
@@ -229,16 +229,16 @@ test('admin: markUnextractableValid resolves review item with adminMarkedValid r
   assert.equal(qi.autoResolvedReason, 'adminMarkedValid')
 })
 
-test('admin: actions refuse when feat-ingestion-admin flag is off (pre-GA isolation)', async () => {
+test('admin: actions still work when feat-ingestion-admin flag is off', async () => {
   const { draft } = await seedProductDraft()
   setTestFlagOverrides({ [INGESTION_ADMIN_FEATURE_FLAG]: false })
-  await assert.rejects(
-    () => withAdminSession(() => discardProductDraft({ draftId: draft.id })),
-    /not currently available/i,
-  )
-  // State must be untouched.
-  const unchanged = await db.ingestionProductDraft.findUniqueOrThrow({ where: { id: draft.id } })
-  assert.equal(unchanged.status, 'PENDING')
+  try {
+    await withAdminSession(() => discardProductDraft({ draftId: draft.id }))
+    const updated = await db.ingestionProductDraft.findUniqueOrThrow({ where: { id: draft.id } })
+    assert.equal(updated.status, 'REJECTED')
+  } finally {
+    clearTestFlagOverrides()
+  }
 })
 
 test('query: listReviewQueue returns both PRODUCT_DRAFT and UNEXTRACTABLE_PRODUCT rows with truncated text', async () => {

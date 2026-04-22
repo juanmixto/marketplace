@@ -43,7 +43,7 @@ test('feat-ingestion-admin is OFF by default', async () => {
   }
 })
 
-test('feat-ingestion-admin=true exposes the admin surface', async () => {
+test('feat-ingestion-admin=true still reads as enabled', async () => {
   setTestFlagOverrides({ [INGESTION_ADMIN_FEATURE_FLAG]: true })
   try {
     const enabled = await isIngestionAdminEnabled({ role: 'ADMIN_OPS' })

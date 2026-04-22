@@ -9,16 +9,14 @@ import { requireAdmin, requireFinanceAdmin, requireOpsAdmin } from '@/lib/auth-g
 import { hasRole, ADMIN_ROLES as ADMIN_ROLE_LIST } from '@/lib/roles'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { assertVendorOnboarded } from '@/domains/vendors'
-import { sendToUser } from '@/domains/notifications/telegram/service'
-import { sendWebPushToUser } from '@/domains/notifications/web-push/service'
 import {
-  vendorApplicationApprovedTemplate,
-  vendorApplicationRejectedTemplate,
-} from '@/domains/notifications/telegram/templates'
-import {
+  sendToUser,
+  sendWebPushToUser,
   vendorApplicationApprovedPush,
+  vendorApplicationApprovedTemplate,
   vendorApplicationRejectedPush,
-} from '@/domains/notifications/web-push/templates'
+  vendorApplicationRejectedTemplate,
+} from '@/domains/notifications'
 
 function getVendorAuditSnapshot(vendor: {
   id: string

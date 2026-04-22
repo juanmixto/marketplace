@@ -14,7 +14,6 @@ import {
 import { cn } from '@/lib/utils'
 import { adminNavItems } from '@/lib/navigation'
 import { useSidebar } from '@/components/layout/SidebarProvider'
-import { useFeatureFlagStrict } from '@/lib/flags.client'
 import { ArchiveBoxArrowDownIcon } from '@heroicons/react/24/outline'
 
 const NAV_META = {
@@ -42,14 +41,7 @@ const SIDEBAR_DURATION_MS = 320
 export function AdminSidebar() {
   const pathname = usePathname()
   const { collapsed, toggleCollapsed, mobileOpen, closeMobile } = useSidebar()
-  const ingestionAdminEnabled = useFeatureFlagStrict('feat-ingestion-admin')
-  const adminUsersEnabled = useFeatureFlagStrict('feat-admin-user-management')
-  const visibleNavItems = adminNavItems.filter((item) => {
-    if (!item.flag) return true
-    if (item.flag === 'feat-ingestion-admin') return ingestionAdminEnabled
-    if (item.flag === 'feat-admin-user-management') return adminUsersEnabled
-    return false
-  })
+  const visibleNavItems = adminNavItems
 
   const labelCls = cn(
     'overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] ease-out',
@@ -81,7 +73,7 @@ export function AdminSidebar() {
           collapsed ? 'md:w-16' : 'md:w-56',
           mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
         )}
-        aria-label="Panel Admin"
+        aria-label="Admin panel"
       >
         <div className="relative flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] px-4">
           <div
@@ -90,7 +82,7 @@ export function AdminSidebar() {
               collapsed && 'md:invisible md:opacity-0',
             )}
           >
-            <p className="text-[9px] font-semibold uppercase leading-none tracking-widest text-[var(--muted)]">Panel Admin</p>
+            <p className="text-[9px] font-semibold uppercase leading-none tracking-widest text-[var(--muted)]">Admin panel</p>
             <p className="mt-1 text-sm font-bold leading-none text-[var(--foreground)] truncate">Mercado Productor</p>
           </div>
           {collapsed && (
@@ -107,8 +99,8 @@ export function AdminSidebar() {
             type="button"
             onClick={closeMobile}
             className="md:hidden inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2.5 text-[var(--muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
-            aria-label="Cerrar menú"
-            title="Cerrar menú"
+            aria-label="Close menu"
+            title="Close menu"
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
@@ -170,8 +162,8 @@ export function AdminSidebar() {
           <Link
             href="/"
             target="_blank"
-            title={collapsed ? 'Ver tienda' : undefined}
-            aria-label="Ver tienda"
+            title={collapsed ? 'View store' : undefined}
+            aria-label="View store"
             style={labelStyle}
             className={cn(
               'flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[var(--muted)] transition-[width,height,padding,margin] ease-out hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]',
@@ -179,7 +171,7 @@ export function AdminSidebar() {
             )}
           >
             <ArrowTopRightOnSquareIcon className="h-4 w-4 shrink-0" />
-            <span className={labelCls} style={labelStyle}>Ver tienda</span>
+            <span className={labelCls} style={labelStyle}>View store</span>
           </Link>
           <button
             type="button"
@@ -189,9 +181,9 @@ export function AdminSidebar() {
               'hidden md:flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-[var(--muted)] transition-[width,height,padding,margin] ease-out hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]',
               collapsed && 'md:h-10 md:justify-center md:gap-0 md:px-0 md:py-0',
             )}
-            aria-label={collapsed ? 'Expandir menú' : 'Contraer menú'}
+            aria-label={collapsed ? 'Expand menu' : 'Collapse menu'}
             aria-pressed={collapsed}
-            title={collapsed ? 'Expandir menú' : 'Contraer menú'}
+            title={collapsed ? 'Expand menu' : 'Collapse menu'}
           >
             <span
               className={cn(
@@ -201,7 +193,7 @@ export function AdminSidebar() {
             >
               <ChevronDoubleLeftIcon className="h-4 w-4" />
             </span>
-            <span className={labelCls} style={labelStyle}>Contraer</span>
+            <span className={labelCls} style={labelStyle}>Collapse</span>
           </button>
         </div>
       </aside>

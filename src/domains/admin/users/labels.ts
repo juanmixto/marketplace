@@ -7,33 +7,33 @@ import type {
 } from './queries'
 
 export const ADMIN_USERS_ROLE_LABELS: Record<AdminUsersRoleFilter, string> = {
-  all: 'Todos',
-  CUSTOMER: 'Cliente',
-  VENDOR: 'Productor',
-  ADMIN_SUPPORT: 'Admin soporte',
-  ADMIN_CATALOG: 'Admin catálogo',
-  ADMIN_FINANCE: 'Admin finanzas',
-  ADMIN_OPS: 'Admin operaciones',
+  all: 'All',
+  CUSTOMER: 'Customer',
+  VENDOR: 'Producer',
+  ADMIN_SUPPORT: 'Support admin',
+  ADMIN_CATALOG: 'Catalog admin',
+  ADMIN_FINANCE: 'Finance admin',
+  ADMIN_OPS: 'Operations admin',
   SUPERADMIN: 'Superadmin',
 }
 
 export const ADMIN_USERS_STATE_LABELS: Record<AdminUsersListStateFilter, string> = {
-  all: 'Todos',
-  active: 'Activo',
-  inactive: 'Inactivo',
-  deleted: 'Eliminado',
+  all: 'All',
+  active: 'Active',
+  inactive: 'Inactive',
+  deleted: 'Deleted',
 }
 
 export const ADMIN_USERS_VENDOR_LABELS: Record<AdminUsersVendorFilter, string> = {
-  all: 'Todos',
-  'with-vendor': 'Con productor',
-  'without-vendor': 'Sin productor',
+  all: 'All',
+  'with-vendor': 'With producer',
+  'without-vendor': 'Without producer',
 }
 
 export const ADMIN_USERS_EMAIL_VERIFICATION_LABELS: Record<AdminUsersEmailVerificationFilter, string> = {
-  all: 'Todos',
-  verified: 'Verificado',
-  unverified: 'Pendiente',
+  all: 'All',
+  verified: 'Verified',
+  unverified: 'Pending',
 }
 
 export const ADMIN_USERS_ROLE_OPTIONS: readonly AdminUsersRoleFilter[] = [

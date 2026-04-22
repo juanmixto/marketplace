@@ -13,10 +13,9 @@ import { signOutAndClearCart } from '@/components/buyer/cart-session'
 interface Props {
   user: { name?: string | null; email?: string | null; role: string }
   portals?: AvailablePortal[]
-  adminUsersEnabled?: boolean
 }
 
-export function AdminHeader({ user, portals = [], adminUsersEnabled = false }: Props) {
+export function AdminHeader({ user, portals = [] }: Props) {
   const [open, setOpen] = useState(false)
   const { openMobile } = useSidebar()
 
@@ -27,20 +26,20 @@ export function AdminHeader({ user, portals = [], adminUsersEnabled = false }: P
           type="button"
           onClick={openMobile}
           className="md:hidden inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2.5 text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
-          aria-label="Abrir menú"
-          title="Abrir menú"
+          aria-label="Open menu"
+          title="Open menu"
         >
           <Bars3Icon className="h-5 w-5" />
         </button>
         <span className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-[var(--muted)]">
           <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          En vivo
+          Live
         </span>
         <Link
           href="/"
           className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
         >
-          Ver tienda
+          View store
         </Link>
       </div>
 
@@ -65,40 +64,45 @@ export function AdminHeader({ user, portals = [], adminUsersEnabled = false }: P
           <>
             <div className="fixed inset-0" onClick={() => setOpen(false)} />
             <div className="absolute right-0 top-full z-10 mt-2 w-52 rounded-2xl border border-[var(--border)] bg-[var(--surface)] py-1.5 shadow-2xl ring-1 ring-black/5 backdrop-blur dark:ring-white/10">
-              <p className="px-3 py-2 text-xs text-[var(--muted)] border-b border-[var(--border)] mb-1 truncate">{user.email}</p>
-              <div className="px-1 pb-1">
+                <p className="px-3 py-2 text-xs text-[var(--muted)] border-b border-[var(--border)] mb-1 truncate">{user.email}</p>
+                <div className="px-1 pb-1">
                 <p className="px-3 py-2 text-[11px] uppercase tracking-wide text-[var(--muted)]">
-                  Acceso rápido
+                  Quick access
                 </p>
                 <Link
                   href="/admin/pedidos"
                   onClick={() => setOpen(false)}
                   className="block rounded-lg px-3 py-2.5 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] mx-1"
                 >
-                  Pedidos
+                  Orders
                 </Link>
-                {adminUsersEnabled && (
-                  <Link
-                    href="/admin/usuarios"
-                    onClick={() => setOpen(false)}
-                    className="block rounded-lg px-3 py-2.5 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] mx-1"
-                  >
-                    Usuarios
-                  </Link>
-                )}
+                <Link
+                  href="/admin/usuarios"
+                  onClick={() => setOpen(false)}
+                  className="block rounded-lg px-3 py-2.5 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] mx-1"
+                >
+                  Users
+                </Link>
+                <Link
+                  href="/admin/ingestion"
+                  onClick={() => setOpen(false)}
+                  className="block rounded-lg px-3 py-2.5 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] mx-1"
+                >
+                  Telegram ingestion
+                </Link>
               </div>
               <Link
                 href="/"
                 onClick={() => setOpen(false)}
                 className="block rounded-lg px-3 py-2.5 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] mx-1"
               >
-                Ir a la tienda
+                Go to store
               </Link>
               <button
                 onClick={() => void signOutAndClearCart('/login')}
                 className="mt-1 w-full rounded-lg border-t border-[var(--border)] px-3 py-2.5 text-left text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40 mx-1 pt-2"
               >
-                Cerrar sesión
+                Sign out
               </button>
             </div>
           </>

@@ -12,14 +12,12 @@ import { db } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { canChangeAdminUserState, canResetAdminUserPassword } from '@/lib/roles'
 import { getAdminUsersCopy } from '@/i18n/admin-users-copy'
-import { getServerLocale } from '@/i18n/server'
 import { formatMadridDate } from '@/lib/utils'
 
 export const revalidate = 30
 
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = await getServerLocale()
-  const copy = getAdminUsersCopy(locale).detail
+  const copy = getAdminUsersCopy().detail
   return {
     title: copy.metadataTitle,
     description: copy.metadataDescription,
@@ -54,8 +52,7 @@ function formatAuditPayload(value: unknown) {
 }
 
 export default async function AdminUserDetailPage({ params }: PageProps) {
-  const locale = await getServerLocale()
-  const copy = getAdminUsersCopy(locale).detail
+  const copy = getAdminUsersCopy().detail
   const { id } = await params
   const detail = await getAdminUserDetailData(id).catch(() => null)
   if (!detail) {

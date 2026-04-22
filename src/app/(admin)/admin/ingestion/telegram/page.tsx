@@ -1,9 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
 import { db } from '@/lib/db'
 import {
-  IngestionFeatureUnavailableError,
   requireIngestionAdmin,
 } from '@/domains/ingestion/authz'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
@@ -17,12 +15,7 @@ export const metadata: Metadata = { title: 'Ingestión · Telegram | Admin' }
 export const dynamic = 'force-dynamic'
 
 export default async function IngestionTelegramPage() {
-  try {
-    await requireIngestionAdmin()
-  } catch (err) {
-    if (err instanceof IngestionFeatureUnavailableError) notFound()
-    throw err
-  }
+  await requireIngestionAdmin()
 
   const [connections, chats] = await Promise.all([
     db.telegramIngestionConnection.findMany({

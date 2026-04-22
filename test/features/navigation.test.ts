@@ -12,8 +12,8 @@ import {
 test('navigation helpers split available and upcoming sections correctly', () => {
   assert.equal(getAvailableNavItems(vendorNavItems).length, 9)
   assert.equal(getUpcomingNavItems(vendorNavItems).length, 0)
-  assert.equal(getAvailableNavItems(adminNavItems).length, 16)
-  assert.equal(getUpcomingNavItems(adminNavItems).length, 1)
+  assert.equal(getAvailableNavItems(adminNavItems).length, 17)
+  assert.equal(getUpcomingNavItems(adminNavItems).length, 0)
 })
 
 test('buyer account only exposes implemented links as available', () => {
@@ -41,12 +41,18 @@ test('buyer account metadata covers every account link to avoid runtime crashes 
   )
 })
 
-test('admin nav includes the admin users rollout item but keeps it upcoming by default', () => {
+test('admin nav exposes the admin users and ingestion entries by default', () => {
   const usersItem = adminNavItems.find(item => item.href === '/admin/usuarios')
   assert.ok(usersItem)
-  assert.equal(usersItem?.available, false)
-  assert.equal(usersItem?.flag, 'feat-admin-user-management')
-  assert.ok(getUpcomingNavItems(adminNavItems).some(item => item.href === '/admin/usuarios'))
+  assert.equal(usersItem?.available, true)
+  assert.equal(usersItem?.flag, undefined)
+  assert.ok(getAvailableNavItems(adminNavItems).some(item => item.href === '/admin/usuarios'))
+
+  const ingestionItem = adminNavItems.find(item => item.href === '/admin/ingestion')
+  assert.ok(ingestionItem)
+  assert.equal(ingestionItem?.available, true)
+  assert.equal(ingestionItem?.flag, undefined)
+  assert.ok(getAvailableNavItems(adminNavItems).some(item => item.href === '/admin/ingestion'))
 })
 
 test('buyer account metadata exposes labelKey and descKey for every entry', () => {

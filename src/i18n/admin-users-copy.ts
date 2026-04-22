@@ -375,6 +375,6 @@ const copy: Record<Locale, AdminUsersCopy> = {
   },
 }
 
-export function getAdminUsersCopy(locale: Locale): AdminUsersCopy {
-  return copy[locale] ?? copy.es
+export function getAdminUsersCopy(): AdminUsersCopy {
+  return copy.en
 }

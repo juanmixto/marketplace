@@ -14,14 +14,12 @@ import {
 } from '@/domains/admin/users/navigation'
 import { UserRole } from '@/generated/prisma/enums'
 import { getAdminUsersCopy } from '@/i18n/admin-users-copy'
-import { getServerLocale } from '@/i18n/server'
 import { cn, formatMadridDate } from '@/lib/utils'
 
 export const revalidate = 30
 
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = await getServerLocale()
-  const copy = getAdminUsersCopy(locale).list
+  const copy = getAdminUsersCopy().list
   return {
     title: copy.metadataTitle,
     description: copy.metadataDescription,
@@ -86,8 +84,7 @@ function activityLabel(
 }
 
 export default async function AdminUsersPage({ searchParams }: PageProps) {
-  const locale = await getServerLocale()
-  const copy = getAdminUsersCopy(locale).list
+  const copy = getAdminUsersCopy().list
   const params = await searchParams
   const filters = parseAdminUsersSearchParams({
     q: firstValue(params.q),

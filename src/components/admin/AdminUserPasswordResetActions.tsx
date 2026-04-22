@@ -35,18 +35,18 @@ export function AdminUserPasswordResetActions({ userId, email, canReset, isDelet
     setSuccess(null)
 
     if (confirmation.trim().toLowerCase() !== email.trim().toLowerCase()) {
-      setError('Escribe el email exacto para confirmar.')
+      setError('Type the exact email to confirm.')
       return
     }
 
     setLoading(true)
     try {
       const result = await requestAdminUserPasswordReset(userId)
-      setSuccess(`Reset solicitado para ${result.emailMasked}. El enlace se envió por email.`)
+      setSuccess(`Password reset requested for ${result.emailMasked}. The link was sent by email.`)
       setOpen(false)
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo solicitar el reset')
+      setError(err instanceof Error ? err.message : 'Could not request the password reset')
     } finally {
       setLoading(false)
     }
@@ -68,32 +68,32 @@ export function AdminUserPasswordResetActions({ userId, email, canReset, isDelet
           disabled={loading}
           className="w-full"
         >
-          Enviar reset password
+          Send password reset
         </Button>
         <p className="text-xs text-[var(--muted)]">
-          Genera un enlace seguro y auditable sin revelar la contraseña actual.
+          Generates a secure, auditable link without revealing the current password.
         </p>
       </div>
 
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title="Enviar reset password"
+        title="Send password reset"
         size="sm"
       >
         <div className="space-y-4 p-5">
           <div className="space-y-2">
             <p className="text-sm text-[var(--foreground-soft)]">
-              Vas a enviar un reset password para <strong>{email}</strong>.
+              You are about to send a password reset for <strong>{email}</strong>.
             </p>
             <p className="text-sm text-[var(--muted)]">
-              La acción queda auditada y el usuario recibirá un enlace seguro por email.
+              The action is audited and the user will receive a secure email link.
             </p>
           </div>
 
           <label className="space-y-1.5">
             <span className="block text-sm font-medium text-[var(--foreground-soft)]">
-              Escribe el email para confirmar
+              Type the email to confirm
             </span>
             <input
               value={confirmation}
@@ -111,10 +111,10 @@ export function AdminUserPasswordResetActions({ userId, email, canReset, isDelet
 
           <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
             <Button variant="secondary" size="sm" onClick={() => setOpen(false)} className="sm:min-w-28">
-              Cancelar
+              Cancel
             </Button>
             <Button variant="primary" size="sm" isLoading={loading} onClick={handleSubmit} className="sm:min-w-36">
-              Enviar reset
+              Send reset
             </Button>
           </div>
         </div>

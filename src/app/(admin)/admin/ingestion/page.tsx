@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
 import {
   listReviewQueue,
   REVIEW_QUEUE_PAGE_SIZE,
@@ -9,7 +8,6 @@ import {
   type ReviewQueueSortDir,
 } from '@/domains/ingestion'
 import { requireIngestionAdmin } from '@/domains/ingestion/authz'
-import { IngestionFeatureUnavailableError } from '@/domains/ingestion/authz'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -143,12 +141,7 @@ function humaniseReason(reason: string): string {
 }
 
 export default async function IngestionReviewQueuePage({ searchParams }: PageProps) {
-  try {
-    await requireIngestionAdmin()
-  } catch (err) {
-    if (err instanceof IngestionFeatureUnavailableError) notFound()
-    throw err
-  }
+  await requireIngestionAdmin()
 
   const sp = await searchParams
   const kind = parseKind(sp.kind)
