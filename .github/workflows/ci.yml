@@ -46,6 +46,7 @@ jobs:
           mkdir -p .ci-logs
           npm run lint             > .ci-logs/lint.log             2>&1 & PID_LINT=$!
           npm run audit:contracts  > .ci-logs/audit-contracts.log  2>&1 & PID_AUDIT=$!
+          npm run audit:flags-cleanup > .ci-logs/audit-flags.log   2>&1 & PID_AUDIT_FLAGS=$!
           npm run typecheck:app    > .ci-logs/typecheck-app.log    2>&1 & PID_TC_APP=$!
           npm run typecheck:test   > .ci-logs/typecheck-test.log   2>&1 & PID_TC_TEST=$!
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
@@ -57,6 +58,7 @@ jobs:
           STATUS=0
           wait $PID_LINT    || { echo "::group::lint FAILED";             cat .ci-logs/lint.log;             echo "::endgroup::"; STATUS=1; }
           wait $PID_AUDIT   || { echo "::group::audit:contracts FAILED";  cat .ci-logs/audit-contracts.log;  echo "::endgroup::"; STATUS=1; }
+          wait $PID_AUDIT_FLAGS || { echo "::group::audit:flags-cleanup FAILED"; cat .ci-logs/audit-flags.log; echo "::endgroup::"; STATUS=1; }
           wait $PID_TC_APP  || { echo "::group::typecheck:app FAILED";    cat .ci-logs/typecheck-app.log;    echo "::endgroup::"; STATUS=1; }
           wait $PID_TC_TEST || { echo "::group::typecheck:test FAILED";   cat .ci-logs/typecheck-test.log;   echo "::endgroup::"; STATUS=1; }
           wait $PID_TESTS   || { echo "::group::tests FAILED";            cat .ci-logs/tests.log;            echo "::endgroup::"; STATUS=1; }
@@ -64,6 +66,7 @@ jobs:
           if [ $STATUS -eq 0 ]; then
             echo "::group::lint";            cat .ci-logs/lint.log;             echo "::endgroup::"
             echo "::group::audit:contracts"; cat .ci-logs/audit-contracts.log;  echo "::endgroup::"
+            echo "::group::audit:flags-cleanup"; cat .ci-logs/audit-flags.log;   echo "::endgroup::"
             echo "::group::typecheck:app";   cat .ci-logs/typecheck-app.log;    echo "::endgroup::"
             echo "::group::typecheck:test";  cat .ci-logs/typecheck-test.log;   echo "::endgroup::"
             echo "::group::tests";           cat .ci-logs/tests.log;            echo "::endgroup::"
