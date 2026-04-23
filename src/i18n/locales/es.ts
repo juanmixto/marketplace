@@ -236,7 +236,7 @@ const es = {
   'checkout.provincePlaceholder': 'Selecciona una provincia',
   'checkout.phone': 'Teléfono (opcional)',
   'checkout.saveAddress': 'Guardar esta dirección para futuros pedidos',
-  'checkout.flowLabel': 'Checkout',
+  'checkout.flowLabel': 'Proceso de compra',
   'checkout.flowSubtitle': 'Tus datos y el pago siguen el mismo recorrido hasta la confirmación.',
   'checkout.flowStepAddress': 'Dirección',
   'checkout.flowStepAddressDesc': 'Confirma dónde quieres recibir el pedido.',
