@@ -373,6 +373,7 @@ Both evaluators return `true` if PostHog is unreachable, the SDK throws, or the 
 2. Wrap the call site with `await isFeatureEnabled('kill-foo', { userId, email, role })` (pass the richest context you have — PostHog targeting depends on it).
 3. Log a `<scope>.kill_switch_active` event when the switch fires so oncall can trace which flag rejected traffic. Follow the `scope.action` pattern already used in [`docs/runbooks/payment-incidents.md`](./runbooks/payment-incidents.md).
 4. **Every `feat-*` flag needs a cleanup ticket** filed when you ship it. Flags are debt; 30 days post-GA is the soft cap.
+5. Add or update the flag metadata in `config/feature-flag-cleanup.json` (`issue`, `owner`, `dueDate`). `npm run audit:flags-cleanup` is enforced by CI and fails if any active `feat-*` is missing metadata.
 
 ### Local eval
 
