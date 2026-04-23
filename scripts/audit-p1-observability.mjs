@@ -51,7 +51,8 @@ function checkFlagsPolicy() {
 	const namingPresent =
 		flagsSource.includes('kill-<area>') && flagsSource.includes('feat-<name>')
 	const failOpenPresent = flagsSource.includes('Fail-open policy') || flagsSource.includes('Fail-open')
-	const cleanupRulePresent = conventions.includes('30-day cleanup ticket')
+	const cleanupRulePresent =
+		conventions.includes('cleanup ticket') && conventions.includes('30 days')
 
 	return {
 		ok: namingPresent && failOpenPresent && cleanupRulePresent,
@@ -63,17 +64,23 @@ function checkFlagsPolicy() {
 	}
 }
 
+function checkCfBeforeXffInFunction(source, functionName) {
+	const fnStart = source.indexOf(`function ${functionName}`)
+	if (fnStart === -1) return false
+
+	const fnBody = source.slice(fnStart, fnStart + 2000)
+	const cfVarIndex = fnBody.indexOf("const cfConnectingIp =")
+	const xffVarIndex = fnBody.indexOf("const forwarded")
+
+	return cfVarIndex !== -1 && xffVarIndex !== -1 && cfVarIndex < xffVarIndex
+}
+
 function checkIpPrecedence() {
 	const ratelimit = readText('src/lib/ratelimit.ts')
 	const audit = readText('src/lib/audit.ts')
 
-	const rlCfIndex = ratelimit.indexOf('cf-connecting-ip')
-	const rlXffIndex = ratelimit.indexOf('x-forwarded-for')
-	const auditCfIndex = audit.indexOf('cf-connecting-ip')
-	const auditXffIndex = audit.indexOf('x-forwarded-for')
-
-	const ratelimitCfFirst = rlCfIndex !== -1 && rlXffIndex !== -1 && rlCfIndex < rlXffIndex
-	const auditCfFirst = auditCfIndex !== -1 && auditXffIndex !== -1 && auditCfIndex < auditXffIndex
+	const ratelimitCfFirst = checkCfBeforeXffInFunction(ratelimit, 'getClientIP')
+	const auditCfFirst = checkCfBeforeXffInFunction(audit, 'extractAuditIp')
 
 	return {
 		ok: ratelimitCfFirst && auditCfFirst,
