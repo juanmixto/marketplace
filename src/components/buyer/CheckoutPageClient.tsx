@@ -28,6 +28,7 @@ import {
 } from '@/domains/shipping/spain-provinces'
 import { useT } from '@/i18n'
 import { createAnalyticsItem, trackAnalyticsEvent } from '@/lib/analytics'
+import { CheckoutProgress } from '@/components/checkout/CheckoutProgress'
 
 function sanitizePhoneChar(input: string): string {
   return input.replace(/[^+\d\s()\-]/g, '')
@@ -410,8 +411,19 @@ export function CheckoutPageClient({
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="mb-8 text-2xl font-bold text-[var(--foreground)]">{t('checkout.title')}</h1>
+      <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+      <div className="mb-6 space-y-4">
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">{t('checkout.title')}</h1>
+        <CheckoutProgress
+          title={t('checkout.flowLabel')}
+          subtitle={t('checkout.flowSubtitle')}
+          currentStep={1}
+          steps={[
+            { label: t('checkout.flowStepAddress'), description: t('checkout.flowStepAddressDesc') },
+            { label: t('checkout.flowStepPayment'), description: t('checkout.flowStepPaymentDesc') },
+          ]}
+        />
+      </div>
 
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
