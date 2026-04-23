@@ -161,6 +161,8 @@ export async function POST(req: NextRequest) {
 
   try {
     switch (event.type) {
+      // Canonical lifecycle reference:
+      // docs/order-payment-state-machine.md
       case 'payment_intent.succeeded': {
         const pi = parseWebhookPaymentIntent(event.data.object)
         if (!pi) {

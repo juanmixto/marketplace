@@ -15,6 +15,8 @@ const ROLE_REFRESH_INTERVAL_MS = 60_000
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
+  // See docs/adr/001-nextauth-prismaadapter-jwt.md for the rationale behind
+  // keeping the Prisma adapter with JWT sessions for the current product stage.
   adapter: PrismaAdapter(db) as Adapter,
   trustHost: true,
   session: { strategy: 'jwt' },
