@@ -1,4 +1,5 @@
 import type { Prisma } from '@/generated/prisma/client'
+import { Prisma as PrismaSql } from '@/generated/prisma/client'
 import {
   InsufficientStockError,
   ProductUnavailableError,
@@ -39,12 +40,11 @@ export async function reserveTrackedOrderLineStock(
       id: string
       stock: number | null
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma $queryRaw tagged-template typing requires cast
-    const [variant] = await (tx.$queryRaw as any)`
+    const [variant] = await tx.$queryRaw<VariantRow[]>(PrismaSql.sql`
       SELECT id, stock FROM "ProductVariant"
       WHERE id = ${line.variantId}
       FOR UPDATE
-    ` as VariantRow[]
+    `)
 
     if (!variant) {
       throw new VariantUnavailableError(line.productName, false)
@@ -67,12 +67,11 @@ export async function reserveTrackedOrderLineStock(
     id: string
     stock: number
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma $queryRaw tagged-template typing requires cast
-  const [lockedProduct] = await (tx.$queryRaw as any)`
+  const [lockedProduct] = await tx.$queryRaw<ProductRow[]>(PrismaSql.sql`
     SELECT id, stock FROM "Product"
     WHERE id = ${line.productId}
     FOR UPDATE
-  ` as ProductRow[]
+  `)
 
   if (!lockedProduct) {
     throw new ProductUnavailableError(line.productName, true)

@@ -1,10 +1,10 @@
 import type { Prisma } from '@/generated/prisma/client'
 import { db } from '@/lib/db'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
-import { emit as emitNotification } from '@/domains/notifications/dispatcher'
+import { emit as emitNotification } from '@/domains/notifications'
 import { createPaymentMismatchEventPayload } from './order-event-payload'
 import type { StockLowCandidate } from './inventory'
-import type { NotificationEventMap } from '@/domains/notifications/events'
+import type { NotificationEventMap } from '@/domains/notifications'
 
 export type OrderSideEffects = {
   shouldRevalidateCatalogExperience: boolean

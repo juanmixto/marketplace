@@ -1,4 +1,5 @@
 import type { Prisma } from '@/generated/prisma/client'
+import { Prisma as PrismaSql } from '@/generated/prisma/client'
 import { PromotionAlreadyClaimedError } from './errors'
 
 export interface AppliedPromotionClaim {
@@ -17,18 +18,17 @@ export async function claimPromotionRedemptions(
   appliedPromotions: Iterable<AppliedPromotionClaim>,
 ): Promise<void> {
   for (const applied of appliedPromotions) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma $executeRaw tagged-template typing requires cast
-    const updated = await (tx.$executeRaw as any)`
+    const updated = await tx.$executeRaw(PrismaSql.sql`
       UPDATE "Promotion"
       SET "redemptionCount" = "redemptionCount" + 1,
           "updatedAt" = NOW()
       WHERE id = ${applied.promotionId}
         AND "archivedAt" IS NULL
         AND (
-          "maxRedemptions" IS NULL
+        "maxRedemptions" IS NULL
           OR "redemptionCount" < "maxRedemptions"
-        )
-    `
+      )
+    `)
     if (updated === 0) {
       throw new PromotionAlreadyClaimedError()
     }
