@@ -26,7 +26,7 @@ Three PR-blocking checks in `ci.yml`, plus heavier post-merge auditors:
 
 | Workflow | Trigger | Jobs | PR blocker? |
 |---|---|---|---|
-| `ci.yml` | push to `main`, PRs | `verify`, `build`, `integration`, `e2e-smoke` | Yes (`Verify`, `Build And Migrate`, `E2E Smoke`) |
+| `ci.yml` | push to `main`, PRs | `verify`, `build`, `e2e-smoke`, `integration` (push-to-main only) | Yes (`Verify`, `Build And Migrate`, `E2E Smoke`) |
 | `doctor.yml` | push to `main`, manual | `doctor` | No, post-merge tripwire |
 | `security-scan.yml` | push to `main`, manual | `npm audit`, `gitleaks`, `semgrep` | No, post-merge scanner |
 | `lighthouse.yml` | push to `main`, manual | `lighthouse` | No, post-merge perf audit |
@@ -37,8 +37,9 @@ Three PR-blocking checks in `ci.yml`, plus heavier post-merge auditors:
 
 The PR fast gate is intentionally narrow: if a change can be merged
 without needing the heavier auditors to finish, it should not wait on
-them. Those jobs still run on `main` or nightly so regressions are
-caught shortly after merge, just not in the critical path for every PR.
+them. `integration` now runs only after push to `main`, so PRs get
+faster feedback while we still keep DB-backed coverage on the merge
+result itself.
 
 ### Why no per-node matrix?
 
@@ -224,6 +225,7 @@ Rough, qualitative, pre/post this redesign (cold cache):
 | Docs-only PR | ~10 min (full CI) | **~0 min** (skipped by `paths-ignore`) |
 | Normal PR (merge gate) | ~10 min (longest job) | ~10 min (required checks only) |
 | Normal PR + auditors | queued behind merge gate | no longer on the critical path |
+| Merge to `main` | PR gate + post-merge integration | integration runs after merge, not before |
 | Nightly full suite | not run | ~25 min |
 | Confidence in merge | _low for end-to-end flows_ | _high for the 5 critical flows_ |
 
