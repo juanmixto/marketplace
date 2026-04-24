@@ -376,8 +376,11 @@ export function CartPageClient({ shippingSettings }: Props) {
                 </p>
               </>
             ) : (
-              <Link href="/checkout">
-                <Button className="mt-4 w-full" size="lg">{t('cart.toCheckout')}</Button>
+              <Link
+                href="/checkout"
+                className="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm shadow-emerald-950/10 transition hover:bg-emerald-700 active:scale-[0.98] dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400"
+              >
+                {t('cart.toCheckout')}
               </Link>
             )}
             {checkingStock && (
@@ -407,8 +410,11 @@ export function CartPageClient({ shippingSettings }: Props) {
               {t('cart.toCheckout')}
             </Button>
           ) : (
-            <Link href="/checkout" className="shrink-0">
-              <Button size="md" className="min-w-[10rem]">{t('cart.toCheckout')}</Button>
+            <Link
+              href="/checkout"
+              className="inline-flex min-w-[10rem] shrink-0 items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-emerald-950/10 transition hover:bg-emerald-700 active:scale-[0.98] dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400"
+            >
+              {t('cart.toCheckout')}
             </Link>
           )}
         </div>
