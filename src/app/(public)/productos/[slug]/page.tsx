@@ -66,14 +66,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export async function generateStaticParams() {
-  const products = await db.product.findMany({
-    where: getAvailableProductWhere(),
-    orderBy: { createdAt: 'desc' },
-    take: 100,
-    select: { slug: true },
-  })
-
-  return products.map(product => ({ slug: product.slug }))
+  // Route is `force-dynamic` above — the slugs returned here are only
+  // a build-time warm-up. If the DB isn't reachable during `next build`
+  // (e.g. Vercel preview without DATABASE_URL injected), fall back to
+  // an empty list. Real requests will still hit the SSR path.
+  try {
+    const products = await db.product.findMany({
+      where: getAvailableProductWhere(),
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      select: { slug: true },
+    })
+    return products.map(product => ({ slug: product.slug }))
+  } catch {
+    return []
+  }
 }
 
 const CERT_COLORS: Record<string, 'green' | 'blue' | 'purple' | 'amber'> = {

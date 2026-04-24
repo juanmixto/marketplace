@@ -68,19 +68,36 @@ export async function createPaymentIntent(
   const Stripe = (await import('stripe')).default
   const stripe = new Stripe(env.stripeSecretKey!)
 
+  // Idempotency key derived from our own order id so a retry (whether
+  // from the internal loop below, a request-level retry, or a network
+  // blip that cost us the first response) re-uses the same PaymentIntent
+  // instead of creating a duplicate. Stripe treats the key as unique per
+  // secret key for 24h — wider than any user-driven retry window we care
+  // about. Without this, attempt #1 timing out AFTER Stripe committed
+  // server-side would make attempt #2 open a second PI with the same
+  // orderId metadata: two live PIs, either could capture, two charges
+  // for one cart.
+  //
+  // Fallback to correlationId when orderId is absent (defensive; today's
+  // caller always sets it).
+  const idempotencyKey = metadata.orderId ?? metadata.correlationId ?? undefined
+
   let lastError: unknown = null
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
-      const intent = await stripe.paymentIntents.create({
-        amount: amountCents,
-        currency: 'eur',
-        metadata,
-        automatic_payment_methods: { enabled: true },
-        ...(options?.connect && {
-          application_fee_amount: options.connect.applicationFeeAmountCents,
-          transfer_data: { destination: options.connect.vendorAccountId },
-        }),
-      })
+      const intent = await stripe.paymentIntents.create(
+        {
+          amount: amountCents,
+          currency: 'eur',
+          metadata,
+          automatic_payment_methods: { enabled: true },
+          ...(options?.connect && {
+            application_fee_amount: options.connect.applicationFeeAmountCents,
+            transfer_data: { destination: options.connect.vendorAccountId },
+          }),
+        },
+        idempotencyKey ? { idempotencyKey } : undefined
+      )
 
       return {
         id: intent.id,
@@ -95,6 +112,7 @@ export async function createPaymentIntent(
         connectDestination: options?.connect?.vendorAccountId ?? null,
         orderId: metadata.orderId ?? null,
         correlationId: metadata.correlationId ?? null,
+        idempotencyKey: idempotencyKey ?? null,
         error,
       })
     }

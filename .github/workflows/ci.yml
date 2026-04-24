@@ -6,14 +6,11 @@ on:
       - main
     paths-ignore:
       - '**/*.md'
-      - 'docs/**'
       - '.vscode/**'
       - 'LICENSE'
       - '.gitignore'
   pull_request:
     paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
       - '.vscode/**'
       - 'LICENSE'
       - '.gitignore'
@@ -31,6 +28,7 @@ env:
   AUTH_SECRET: ci-secret-please-change
   NEXT_PUBLIC_APP_URL: http://localhost:3000
   PAYMENT_PROVIDER: mock
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   verify:
@@ -49,6 +47,7 @@ jobs:
           mkdir -p .ci-logs
           npm run lint             > .ci-logs/lint.log             2>&1 & PID_LINT=$!
           npm run audit:contracts  > .ci-logs/audit-contracts.log  2>&1 & PID_AUDIT=$!
+          npm run audit:flags-cleanup > .ci-logs/audit-flags.log   2>&1 & PID_AUDIT_FLAGS=$!
           npm run typecheck:app    > .ci-logs/typecheck-app.log    2>&1 & PID_TC_APP=$!
           npm run typecheck:test   > .ci-logs/typecheck-test.log   2>&1 & PID_TC_TEST=$!
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
@@ -60,6 +59,7 @@ jobs:
           STATUS=0
           wait $PID_LINT    || { echo "::group::lint FAILED";             cat .ci-logs/lint.log;             echo "::endgroup::"; STATUS=1; }
           wait $PID_AUDIT   || { echo "::group::audit:contracts FAILED";  cat .ci-logs/audit-contracts.log;  echo "::endgroup::"; STATUS=1; }
+          wait $PID_AUDIT_FLAGS || { echo "::group::audit:flags-cleanup FAILED"; cat .ci-logs/audit-flags.log; echo "::endgroup::"; STATUS=1; }
           wait $PID_TC_APP  || { echo "::group::typecheck:app FAILED";    cat .ci-logs/typecheck-app.log;    echo "::endgroup::"; STATUS=1; }
           wait $PID_TC_TEST || { echo "::group::typecheck:test FAILED";   cat .ci-logs/typecheck-test.log;   echo "::endgroup::"; STATUS=1; }
           wait $PID_TESTS   || { echo "::group::tests FAILED";            cat .ci-logs/tests.log;            echo "::endgroup::"; STATUS=1; }
@@ -67,6 +67,7 @@ jobs:
           if [ $STATUS -eq 0 ]; then
             echo "::group::lint";            cat .ci-logs/lint.log;             echo "::endgroup::"
             echo "::group::audit:contracts"; cat .ci-logs/audit-contracts.log;  echo "::endgroup::"
+            echo "::group::audit:flags-cleanup"; cat .ci-logs/audit-flags.log;   echo "::endgroup::"
             echo "::group::typecheck:app";   cat .ci-logs/typecheck-app.log;    echo "::endgroup::"
             echo "::group::typecheck:test";  cat .ci-logs/typecheck-test.log;   echo "::endgroup::"
             echo "::group::tests";           cat .ci-logs/tests.log;            echo "::endgroup::"
@@ -136,13 +137,14 @@ jobs:
 
   integration-shard:
     name: Integration shard ${{ matrix.shard }}
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
     services:
       postgres:
@@ -163,7 +165,7 @@ jobs:
       DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
       DATABASE_URL_TEST: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
       TEST_SHARD_INDEX: ${{ matrix.shard }}
-      TEST_SHARD_TOTAL: "6"
+      TEST_SHARD_TOTAL: "16"
 
     steps:
       - uses: actions/checkout@v5
@@ -178,12 +180,13 @@ jobs:
       # any global seed data would be wiped before the first test
       # ever runs. Skipping saves ~5-8s per shard.
 
-      - name: Integration tests (shard ${{ matrix.shard }} of 6)
+      - name: Integration tests (shard ${{ matrix.shard }} of 16)
         run: npm run test:integration
         timeout-minutes: 10
 
   integration:
     name: Integration
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     needs: integration-shard
     # Aggregates the matrix shards into a single status check that
@@ -200,7 +203,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     # Runs in parallel with verify/build/integration against `next dev`.
     # Playwright's native --shard splits specs across runners.
     # Prod-mode coverage (`next start` + DYNAMIC_SERVER_USAGE etc.) runs
@@ -264,14 +267,14 @@ jobs:
       - name: Seed database
         run: npm run db:seed
 
-      - name: Run E2E smoke suite (shard ${{ matrix.shard }}/2)
+      - name: Run E2E smoke suite (shard ${{ matrix.shard }}/8)
         # DISABLE_LOGIN_RATELIMIT=1 exempts the suite from the
         # (IP+email) login throttle from #592. CI shares a single
         # seeded credential and easily exhausts the bucket within a
         # run; the route guard only honours the flag when
         # NODE_ENV !== 'production', so a prod deploy cannot bypass
         # the limit even if this env leaks into another workflow.
-        run: npx playwright test --grep @smoke --workers=1 --shard=${{ matrix.shard }}/2
+        run: npx playwright test --grep @smoke --workers=1 --shard=${{ matrix.shard }}/8
         env:
           DISABLE_LOGIN_RATELIMIT: '1'
 

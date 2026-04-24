@@ -274,7 +274,17 @@ export default async function AdminProductsPage({ searchParams }: Props) {
                   {product.trackStock ? product.stock : 'Sin control'}
                 </td>
                 <td className="px-5 py-4 align-middle">
-                  <AdminStatusBadge label={PRODUCT_STATUS_LABELS[product.status]} tone={getProductStatusTone(product.status)} />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <AdminStatusBadge label={PRODUCT_STATUS_LABELS[product.status]} tone={getProductStatusTone(product.status)} />
+                    {product.sourceIngestionDraftId && (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-800 dark:bg-sky-900/40 dark:text-sky-300"
+                        title={`Creado desde draft de ingestión ${product.sourceIngestionDraftId}`}
+                      >
+                        Importado de Telegram
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="px-5 py-4 align-middle">
                   <div className="flex items-center justify-end gap-3 whitespace-nowrap">
