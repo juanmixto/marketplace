@@ -19,13 +19,19 @@ const buildStaticRoutes = (toAbsoluteUrl: Absolutize): MetadataRoute.Sitemap => 
   { url: toAbsoluteUrl('/privacidad'), changeFrequency: 'yearly', priority: 0.2 },
 ]
 
-async function getActiveProductRoutes(toAbsoluteUrl: Absolutize) {
+// Next.js serializes `images: string[]` into <image:image> children in
+// the generated sitemap XML (namespace support built-in since 14.2).
+// Relevant for a food marketplace where Google Images is a non-trivial
+// traffic source for queries like "aceite oliva artesano".
+
+async function getActiveProductRoutes(toAbsoluteUrl: Absolutize): Promise<MetadataRoute.Sitemap> {
   const products = await db.product.findMany({
     where: getAvailableProductWhere(),
     orderBy: { updatedAt: 'desc' },
     select: {
       slug: true,
       updatedAt: true,
+      images: true,
     },
   })
 
@@ -34,25 +40,35 @@ async function getActiveProductRoutes(toAbsoluteUrl: Absolutize) {
     lastModified: product.updatedAt,
     changeFrequency: 'weekly' as const,
     priority: 0.8,
+    images: product.images.map(toAbsoluteUrl),
   }))
 }
 
-async function getActiveVendorRoutes(toAbsoluteUrl: Absolutize) {
+async function getActiveVendorRoutes(toAbsoluteUrl: Absolutize): Promise<MetadataRoute.Sitemap> {
   const vendors = await db.vendor.findMany({
     where: { status: 'ACTIVE' },
     orderBy: { updatedAt: 'desc' },
     select: {
       slug: true,
       updatedAt: true,
+      logo: true,
+      coverImage: true,
     },
   })
 
-  return vendors.map(vendor => ({
-    url: toAbsoluteUrl(`/productores/${vendor.slug}`),
-    lastModified: vendor.updatedAt,
-    changeFrequency: 'weekly' as const,
-    priority: 0.7,
-  }))
+  return vendors.map(vendor => {
+    const images = [vendor.coverImage, vendor.logo]
+      .filter((img): img is string => Boolean(img))
+      .map(toAbsoluteUrl)
+
+    return {
+      url: toAbsoluteUrl(`/productores/${vendor.slug}`),
+      lastModified: vendor.updatedAt,
+      changeFrequency: 'weekly' as const,
+      priority: 0.7,
+      ...(images.length > 0 ? { images } : {}),
+    }
+  })
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

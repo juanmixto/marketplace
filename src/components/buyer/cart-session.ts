@@ -6,7 +6,7 @@ import { useCartStore } from '@/domains/orders/cart-store'
 export const CART_MERGED_FLAG_KEY = 'cart-merged-user'
 
 export function clearCartSessionState() {
-  useCartStore.setState({ items: [] })
+  useCartStore.setState({ items: [], hasHydrated: false })
   if (typeof window !== 'undefined') {
     window.localStorage.removeItem(CART_MERGED_FLAG_KEY)
   }
