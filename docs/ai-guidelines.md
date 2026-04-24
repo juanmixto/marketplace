@@ -145,7 +145,7 @@ Zustand is the only client state library in this repo. Rules:
 - **Every store file starts with `'use client'`.** No exceptions.
 - **Store files are named `*-store.ts`** (e.g. `cart-store.ts`, `favorites-store.ts`).
 - **Stores are NOT re-exported from domain barrels** (`index.ts`). If a component needs a store, it imports the store file directly.
-- **Stores are never imported from Server Components, Server Actions, `middleware.ts`, or any file without `'use client'`.** Doing so bundles client code into the server graph and typically surfaces as cryptic hydration errors.
+- **Stores are never imported from Server Components, Server Actions, `proxy.ts`, or any file without `'use client'`.** Doing so bundles client code into the server graph and typically surfaces as cryptic hydration errors.
 - **Stores should not call server code.** If a store needs data from the server, it receives it via props from a `'use client'` component that got it from a Server Component.
 
 Current stores (as of 2026-04-16):

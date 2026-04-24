@@ -1,0 +1,70 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mp_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-marketplace}
+    volumes:
+      - marketplace_prod_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mp_user} -d ${POSTGRES_DB:-marketplace}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mp_user}:${POSTGRES_PASSWORD:-mp_pass}@db:5432/${POSTGRES_DB:-marketplace}
+    depends_on:
+      db:
+        condition: service_healthy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.marketplace.rule=Host(`${APP_HOST}`)
+      - traefik.http.routers.marketplace.entrypoints=websecure
+      - traefik.http.routers.marketplace.tls=true
+      - traefik.http.services.marketplace.loadbalancer.server.port=3000
+      - traefik.http.middlewares.marketplace-headers.headers.customrequestheaders.X-Forwarded-Proto=https
+
+  traefik:
+    image: traefik:v3.1
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --api.dashboard=true
+      - --log.level=INFO
+      - --accesslog=true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./deploy/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    depends_on:
+      - app
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - traefik
+
+volumes:
+  marketplace_prod_db:
