@@ -25,6 +25,7 @@ function itemKey(productId: string, variantId?: string) {
 
 export function CartPageClient({ shippingSettings }: Props) {
   const { items, removeItem, updateQty, subtotal, clearCart, itemCount } = useCartStore()
+  const cartHydrated = useCartStore(state => state.hasHydrated)
   const t = useT()
 
   const [stockMap, setStockMap] = useState<Record<string, CartStockResultItem>>({})
@@ -119,6 +120,18 @@ export function CartPageClient({ shippingSettings }: Props) {
     }
     return map
   }, [promoPreview])
+
+  if (!cartHydrated) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-24">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center shadow-sm">
+          <ShoppingBagIcon className="mx-auto mb-4 h-16 w-16 text-[var(--muted)]" />
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">{t('cart.title')}</h1>
+          <p className="mt-2 text-[var(--muted)]">Cargando tu carrito…</p>
+        </div>
+      </div>
+    )
+  }
 
   if (items.length === 0) {
     return (
@@ -376,8 +389,11 @@ export function CartPageClient({ shippingSettings }: Props) {
                 </p>
               </>
             ) : (
-              <Link href="/checkout">
-                <Button className="mt-4 w-full" size="lg">{t('cart.toCheckout')}</Button>
+              <Link
+                href="/checkout"
+                className="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm shadow-emerald-950/10 transition hover:bg-emerald-700 active:scale-[0.98] dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400"
+              >
+                {t('cart.toCheckout')}
               </Link>
             )}
             {checkingStock && (
@@ -407,8 +423,11 @@ export function CartPageClient({ shippingSettings }: Props) {
               {t('cart.toCheckout')}
             </Button>
           ) : (
-            <Link href="/checkout" className="shrink-0">
-              <Button size="md" className="min-w-[10rem]">{t('cart.toCheckout')}</Button>
+            <Link
+              href="/checkout"
+              className="inline-flex min-w-[10rem] shrink-0 items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-emerald-950/10 transition hover:bg-emerald-700 active:scale-[0.98] dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400"
+            >
+              {t('cart.toCheckout')}
             </Link>
           )}
         </div>

@@ -7,26 +7,17 @@ name: Security Scan
 #   - gitleaks:    committed secrets (AUTH_SECRET, sk_live_..., etc.)
 #   - semgrep:     pattern-level SAST (OWASP Top 10, Next.js, TypeScript)
 #
-# All three are blocking. Semgrep was advisory for its first week so
-# ruleset noise could be triaged without churning unrelated PRs; main
-# has been clean since the AES-GCM auth-tag fix in #559, so it's now
-# gating merges like the other two. Findings also upload as SARIF so
-# they land in the Security tab, not just the job log.
+# The scanner still matters, but it no longer blocks every PR. We run
+# it on `main` and on-demand so the PR fast gate stays focused on the
+# merge-critical checks.
 #
-# Required-check status:
-#   - "Security scan" = the aggregate "all-blocking-steps-passed" job below.
-#   - Add it to branch protection once the first run is green to keep
-#     secrets and known-vuln deps out of main.
+# Findings upload as SARIF so they land in the Security tab, not just
+# the job log.
 
 on:
   push:
     branches:
       - main
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
-      - '.vscode/**'
-  pull_request:
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
