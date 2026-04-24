@@ -14,7 +14,7 @@ import {
   type EnrichedProducer,
   type ProducerStatusFilter,
   type ProducersOverview,
-} from '@/domains/admin/producers'
+} from '@/domains/admin/producers-schema'
 import type { VendorStatus } from '@/generated/prisma/enums'
 
 const SEARCH_DEBOUNCE_MS = 250
