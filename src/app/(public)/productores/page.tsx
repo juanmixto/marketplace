@@ -47,6 +47,7 @@ export default async function ProductoresPage() {
             <Link
               key={v.slug}
               href={`/productores/${v.slug}`}
+              prefetch={false}
               className="group overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md dark:hover:border-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
             >
               <div className="relative h-44 overflow-hidden border-b border-[var(--border)] bg-slate-100 dark:bg-slate-900">
