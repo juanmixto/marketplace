@@ -12,17 +12,6 @@ import { translateCategoryLabel } from '@/lib/portals'
 import { buildPageMetadata } from '@/lib/seo'
 import { serializeProductForCard } from '@/lib/catalog-serialization'
 
-export async function generateMetadata(): Promise<Metadata> {
-  const locale = await getServerLocale()
-  const copy = getCatalogCopy(locale)
-
-  return buildPageMetadata({
-    title: copy.page.title,
-    description: copy.page.description,
-    path: '/productos',
-  })
-}
-
 interface Props {
   searchParams: Promise<{
     q?: string
@@ -31,6 +20,23 @@ interface Props {
     orden?: string
     cursor?: string
   }>
+}
+
+function hasFacetedParams(params: Awaited<Props['searchParams']>): boolean {
+  return Boolean(params.q || params.categoria || params.cert || params.orden || params.cursor)
+}
+
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  const locale = await getServerLocale()
+  const copy = getCatalogCopy(locale)
+  const params = await searchParams
+
+  return buildPageMetadata({
+    title: copy.page.title,
+    description: copy.page.description,
+    path: '/productos',
+    noindex: hasFacetedParams(params),
+  })
 }
 
 export default async function ProductosPage({ searchParams }: Props) {
