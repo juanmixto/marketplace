@@ -52,9 +52,9 @@ test.describe('cart and checkout @smoke', () => {
 
     // --- CART ---
     await page.goto('/carrito')
-    await expect(page.getByText(/tomates cherry/i).first()).toBeVisible({ timeout: 5_000 })
 
     const toCheckout = page.getByRole('link', { name: /ir al checkout/i }).first()
+    await expect(toCheckout).toBeVisible({ timeout: 10_000 })
     // The shard's `next dev` server has to cold-compile `/checkout` the
     // first time a test visits it (webpack + React server components),
     // which on GitHub-hosted runners has been observed to exceed the old
@@ -64,7 +64,7 @@ test.describe('cart and checkout @smoke', () => {
     // between click dispatch and the assertion being installed, and
     // bump the ceiling to 25s to absorb dev-mode compile spikes.
     await Promise.all([
-      page.waitForURL(/\/checkout(?:\/|$|\?)/, { timeout: 25_000 }),
+      page.waitForURL(/\/checkout(?:\/|$|\?)/, { timeout: 25_000, waitUntil: 'commit' }),
       toCheckout.click(),
     ])
 

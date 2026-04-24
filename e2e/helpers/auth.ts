@@ -17,11 +17,14 @@ export const TEST_USERS = {
  * real auth flow including the redirect after a successful submit.
  */
 export async function loginAs(page: Page, user: TestUser) {
-  await page.goto('/login')
+  // Use 'commit' so we don't wait for full hydration before filling the form;
+  // the login page is a server component and hydration can take >5s on cold
+  // dev-mode runners (GitHub-hosted, first request).
+  await page.goto('/login', { waitUntil: 'commit' })
   await page.locator('input[name="email"]').fill(user.email)
   await page.locator('input[name="password"]').fill(user.password)
   await page.getByRole('button', { name: 'Iniciar sesión' }).click()
-  // Successful login bounces away from /login. Wait until the URL changes
-  // so callers can immediately assert against the destination.
-  await page.waitForURL(url => !url.pathname.startsWith('/login'), { timeout: 10_000 })
+  // Successful login bounces away from /login. 20s absorbs dev-mode
+  // compile spikes on GitHub-hosted runners (login + session setup).
+  await page.waitForURL(url => !url.pathname.startsWith('/login'), { timeout: 20_000 })
 }
