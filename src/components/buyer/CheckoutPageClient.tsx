@@ -197,10 +197,12 @@ export function CheckoutPageClient({
   }
 
   const hasTrackedCheckoutRef = useRef(false)
+  const hasRedirectedToCartRef = useRef(false)
   // #524: keep the server-issued attempt id stable across re-renders.
   // Declared at the top of the component alongside other hooks — hooks
   // cannot live below conditional returns.
   const attemptIdRef = useRef(checkoutAttemptId)
+  const shouldRedirectToCart = cartHydrated && items.length === 0 && step !== 'processing' && !completedOrderNumber
 
   useEffect(() => {
     if (items.length === 0 || hasTrackedCheckoutRef.current) return
@@ -309,8 +311,13 @@ export function CheckoutPageClient({
     )
   }
 
-  if (items.length === 0 && step !== 'processing' && !completedOrderNumber) {
+  useEffect(() => {
+    if (!shouldRedirectToCart || hasRedirectedToCartRef.current) return
+    hasRedirectedToCartRef.current = true
     router.replace('/carrito')
+  }, [router, shouldRedirectToCart])
+
+  if (shouldRedirectToCart) {
     return null
   }
 
