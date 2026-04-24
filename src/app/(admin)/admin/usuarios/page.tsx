@@ -6,8 +6,9 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { formatDate } from '@/lib/utils'
 import { Prisma } from '@/generated/prisma/client'
+import { getServerLocale } from '@/i18n/server'
+import { getAdminUsersCopy } from '@/i18n/admin-users-copy'
 
-export const metadata: Metadata = { title: 'Usuarios | Admin' }
 export const dynamic = 'force-dynamic'
 
 interface PageProps {
@@ -19,23 +20,23 @@ interface PageProps {
 }
 
 const ROLE_OPTIONS = [
-  { value: 'ALL', label: 'Todos' },
-  { value: 'CUSTOMER', label: 'Clientes' },
-  { value: 'VENDOR', label: 'Vendedores' },
-  { value: 'ADMIN_SUPPORT', label: 'Support' },
-  { value: 'ADMIN_CATALOG', label: 'Catálogo' },
-  { value: 'ADMIN_FINANCE', label: 'Finanzas' },
-  { value: 'ADMIN_OPS', label: 'Ops' },
-  { value: 'SUPERADMIN', label: 'Superadmin' },
+  { value: 'ALL' },
+  { value: 'CUSTOMER' },
+  { value: 'VENDOR' },
+  { value: 'ADMIN_SUPPORT' },
+  { value: 'ADMIN_CATALOG' },
+  { value: 'ADMIN_FINANCE' },
+  { value: 'ADMIN_OPS' },
+  { value: 'SUPERADMIN' },
 ] as const
 
 type AdminUserRole = Exclude<(typeof ROLE_OPTIONS)[number]['value'], 'ALL'>
 
 const STATUS_OPTIONS = [
-  { value: 'ALL', label: 'Todos' },
-  { value: 'ACTIVE', label: 'Activos' },
-  { value: 'INACTIVE', label: 'Inactivos' },
-  { value: 'DELETED', label: 'Eliminados' },
+  { value: 'ALL' },
+  { value: 'ACTIVE' },
+  { value: 'INACTIVE' },
+  { value: 'DELETED' },
 ] as const
 
 function parseRole(value: string | undefined): AdminUserRole | 'ALL' {
@@ -50,35 +51,24 @@ function parseStatus(value: string | undefined) {
   return allowed.has(value as (typeof STATUS_OPTIONS)[number]['value']) ? value : 'ALL'
 }
 
-function roleLabel(role: string): string {
-  switch (role) {
-    case 'CUSTOMER':
-      return 'Cliente'
-    case 'VENDOR':
-      return 'Vendedor'
-    case 'ADMIN_SUPPORT':
-      return 'Support'
-    case 'ADMIN_CATALOG':
-      return 'Catálogo'
-    case 'ADMIN_FINANCE':
-      return 'Finanzas'
-    case 'ADMIN_OPS':
-      return 'Ops'
-    case 'SUPERADMIN':
-      return 'Superadmin'
-    default:
-      return role
-  }
+function statusBadge(
+  user: { isActive: boolean; deletedAt: Date | null },
+  copy: ReturnType<typeof getAdminUsersCopy>['list']
+) {
+  if (user.deletedAt) return <Badge variant="red">{copy.statuses.DELETED}</Badge>
+  if (!user.isActive) return <Badge variant="amber">{copy.statuses.INACTIVE}</Badge>
+  return <Badge variant="green">{copy.statuses.ACTIVE}</Badge>
 }
 
-function statusBadge(user: { isActive: boolean; deletedAt: Date | null }) {
-  if (user.deletedAt) return <Badge variant="red">Eliminado</Badge>
-  if (!user.isActive) return <Badge variant="amber">Inactivo</Badge>
-  return <Badge variant="green">Activo</Badge>
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale()
+  return { title: getAdminUsersCopy(locale).list.metadataTitle }
 }
 
 export default async function AdminUsersPage({ searchParams }: PageProps) {
   await requireAdmin()
+  const locale = await getServerLocale()
+  const copy = getAdminUsersCopy(locale).list
 
   const sp = await searchParams
   const q = sp.q?.trim() ?? ''
@@ -127,34 +117,34 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
           <div className="space-y-3">
             <div>
               <p className="text-xs font-medium uppercase tracking-[0.22em] text-[var(--muted-foreground)]">
-                Gestión
+                {copy.eyebrow}
               </p>
               <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--foreground)]">
-                Usuarios
+                {copy.title}
               </h1>
               <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-                Cuenta de usuarios, roles y estado de acceso.
+                {copy.description}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Badge variant="outline">{total} resultados</Badge>
-              <Badge variant="green">{activeCount} activos</Badge>
-              <Badge variant="default">{adminCount} admins</Badge>
+              <Badge variant="outline">{copy.badges.results(total)}</Badge>
+              <Badge variant="green">{copy.badges.active(activeCount)}</Badge>
+              <Badge variant="default">{copy.badges.admins(adminCount)}</Badge>
             </div>
           </div>
 
           <form className="grid gap-2 sm:grid-cols-3" action="/admin/usuarios" method="get">
             <label className="block text-xs">
-              <span className="block font-medium text-[var(--muted-foreground)]">Buscar</span>
+              <span className="block font-medium text-[var(--muted-foreground)]">{copy.search.label}</span>
               <input
                 name="q"
                 defaultValue={q}
-                placeholder="Email o nombre"
+                placeholder={copy.search.placeholder}
                 className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm"
               />
             </label>
             <label className="block text-xs">
-              <span className="block font-medium text-[var(--muted-foreground)]">Rol</span>
+              <span className="block font-medium text-[var(--muted-foreground)]">{copy.filters.role}</span>
               <select
                 name="role"
                 defaultValue={role}
@@ -162,13 +152,13 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
               >
                 {ROLE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {copy.roles[option.value]}
                   </option>
                 ))}
               </select>
             </label>
             <label className="block text-xs">
-              <span className="block font-medium text-[var(--muted-foreground)]">Estado</span>
+              <span className="block font-medium text-[var(--muted-foreground)]">{copy.filters.status}</span>
               <select
                 name="status"
                 defaultValue={status}
@@ -176,7 +166,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
               >
                 {STATUS_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {copy.statuses[option.value]}
                   </option>
                 ))}
               </select>
@@ -186,7 +176,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
                 type="submit"
                 className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-raised)]"
               >
-                Filtrar
+                {copy.filters.submit}
               </button>
             </div>
           </form>
@@ -204,18 +194,18 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
               </colgroup>
               <thead className="bg-[var(--muted)]/40 text-left text-xs uppercase tracking-wider text-[var(--muted-foreground)]">
                 <tr>
-                  <th className="px-5 py-4 font-medium">Usuario</th>
-                  <th className="px-5 py-4 font-medium">Rol</th>
-                  <th className="px-5 py-4 font-medium">Estado</th>
-                  <th className="px-5 py-4 font-medium">Verificado</th>
-                  <th className="px-5 py-4 font-medium">Alta</th>
+                  <th className="px-5 py-4 font-medium">{copy.table.user}</th>
+                  <th className="px-5 py-4 font-medium">{copy.table.role}</th>
+                  <th className="px-5 py-4 font-medium">{copy.table.status}</th>
+                  <th className="px-5 py-4 font-medium">{copy.table.verified}</th>
+                  <th className="px-5 py-4 font-medium">{copy.table.joined}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
                 {users.length === 0 && (
                   <tr>
                     <td colSpan={5} className="px-5 py-14 text-center text-[var(--muted-foreground)]">
-                      No hay usuarios para esos filtros.
+                      {copy.table.empty}
                     </td>
                   </tr>
                 )}
@@ -228,11 +218,11 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
                       <p className="mt-1 truncate text-xs text-[var(--muted-foreground)]">{user.email}</p>
                     </td>
                     <td className="px-5 py-4 align-top">
-                      <Badge variant="outline">{roleLabel(user.role)}</Badge>
+                      <Badge variant="outline">{copy.roleLabels[user.role as AdminUserRole] ?? user.role}</Badge>
                     </td>
-                    <td className="px-5 py-4 align-top">{statusBadge(user)}</td>
+                    <td className="px-5 py-4 align-top">{statusBadge(user, copy)}</td>
                     <td className="px-5 py-4 align-top text-[var(--muted-foreground)]">
-                      {user.emailVerified ? formatDate(user.emailVerified) : 'Pendiente'}
+                      {user.emailVerified ? formatDate(user.emailVerified) : copy.pending}
                     </td>
                     <td className="px-5 py-4 align-top text-[var(--muted-foreground)]">{formatDate(user.createdAt)}</td>
                   </tr>
