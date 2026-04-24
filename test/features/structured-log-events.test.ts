@@ -14,12 +14,16 @@ import { join } from 'node:path'
  */
 
 interface EventAssertion {
-  file: string
+  files: string[]
   events: string[]
 }
 
 const REQUIRED_CHECKOUT_EVENTS: EventAssertion = {
-  file: 'src/domains/orders/actions.ts',
+  files: [
+    'src/domains/orders/use-cases/create-order.ts',
+    'src/domains/orders/use-cases/create-checkout-order.ts',
+    'src/domains/orders/use-cases/confirm-order.ts',
+  ],
   events: [
     'checkout.start',
     'checkout.committed',
@@ -35,7 +39,7 @@ const REQUIRED_CHECKOUT_EVENTS: EventAssertion = {
 }
 
 const REQUIRED_STRIPE_WEBHOOK_EVENTS: EventAssertion = {
-  file: 'src/app/api/webhooks/stripe/route.ts',
+  files: ['src/app/api/webhooks/stripe/route.ts'],
   events: [
     'stripe.webhook.received',
     'stripe.webhook.duplicate',
@@ -57,23 +61,25 @@ const REQUIRED_STRIPE_WEBHOOK_EVENTS: EventAssertion = {
 }
 
 const REQUIRED_WEBHOOK_RETRY_EVENTS: EventAssertion = {
-  file: 'src/domains/payments/webhook.ts',
+  files: ['src/domains/payments/webhook.ts'],
   events: ['stripe.webhook.retry', 'stripe.webhook.retry_exhausted'],
 }
 
 const REQUIRED_PAYMENT_PROVIDER_EVENTS: EventAssertion = {
-  file: 'src/domains/payments/provider.ts',
+  files: ['src/domains/payments/provider.ts'],
   events: ['checkout.stripe_intent_create_failed'],
 }
 
-for (const { file, events } of [
+for (const { files, events } of [
   REQUIRED_CHECKOUT_EVENTS,
   REQUIRED_STRIPE_WEBHOOK_EVENTS,
   REQUIRED_WEBHOOK_RETRY_EVENTS,
   REQUIRED_PAYMENT_PROVIDER_EVENTS,
 ]) {
-  test(`${file}: all required event names still present`, () => {
-    const content = readFileSync(join(process.cwd(), file), 'utf-8')
+  test(`${files.join(', ')}: all required event names still present`, () => {
+    const content = files
+      .map((file) => readFileSync(join(process.cwd(), file), 'utf-8'))
+      .join('\n')
     const missing: string[] = []
     for (const event of events) {
       if (!content.includes(`'${event}'`)) missing.push(event)
@@ -81,20 +87,24 @@ for (const { file, events } of [
     assert.equal(
       missing.length,
       0,
-      `Missing event names in ${file}: ${missing.join(', ')}. If you renamed them, update docs/runbooks/payment-incidents.md and this test.`
+      `Missing event names in ${files.join(', ')}: ${missing.join(', ')}. If you renamed them, update docs/runbooks/payment-incidents.md and this test.`
     )
   })
 }
 
-test('orders/actions.ts no longer uses console.* for logging', () => {
-  const content = readFileSync(
-    join(process.cwd(), 'src/domains/orders/actions.ts'),
-    'utf-8'
-  )
-  assert.ok(
-    !/console\.(warn|error|info|debug|log)\s*\(/.test(content),
-    'orders/actions.ts must use logger.* for all structured logging'
-  )
+test('orders use-cases no longer use console.* for logging', () => {
+  const files = [
+    'src/domains/orders/use-cases/create-order.ts',
+    'src/domains/orders/use-cases/create-checkout-order.ts',
+    'src/domains/orders/use-cases/confirm-order.ts',
+  ]
+  for (const file of files) {
+    const content = readFileSync(join(process.cwd(), file), 'utf-8')
+    assert.ok(
+      !/console\.(warn|error|info|debug|log)\s*\(/.test(content),
+      `${file} must use logger.* for all structured logging`,
+    )
+  }
 })
 
 test('stripe webhook route no longer uses console.* for logging', () => {
@@ -119,10 +129,13 @@ test('webhook retry + payment provider no longer use console.* for logging', () 
 })
 
 test('correlation ID is threaded through checkout logs', () => {
-  const content = readFileSync(
-    join(process.cwd(), 'src/domains/orders/actions.ts'),
-    'utf-8'
-  )
+  const content = [
+    'src/domains/orders/use-cases/create-order.ts',
+    'src/domains/orders/use-cases/create-checkout-order.ts',
+    'src/domains/orders/use-cases/confirm-order.ts',
+  ]
+    .map((file) => readFileSync(join(process.cwd(), file), 'utf-8'))
+    .join('\n')
   // The start event must always include correlationId; easiest pin is
   // to require that the word "correlationId" appears at least as many
   // times as the number of logger.* calls. This catches regressions

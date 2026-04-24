@@ -15,6 +15,19 @@ export async function resetIntegrationDatabase() {
     .join(', ')
 
   await db.$executeRawUnsafe(`TRUNCATE TABLE ${tableList} RESTART IDENTITY CASCADE`)
+
+  // Re-seed the fallback Category the Phase 4 publish migration
+  // creates. The shared-isolation cohort registers every file's
+  // `beforeEach(resetIntegrationDatabase)` globally in the same
+  // process, so a later file's reset can wipe a row that an earlier
+  // file's beforeEach seeded. Re-seeding here keeps the invariant
+  // "after any reset, cat_uncategorized exists" true regardless of
+  // hook ordering across files.
+  await db.$executeRawUnsafe(`
+    INSERT INTO "Category" ("id", "name", "slug", "isActive", "sortOrder", "createdAt", "updatedAt")
+    VALUES ('cat_uncategorized', 'Sin categoría', 'uncategorized', true, 999, NOW(), NOW())
+    ON CONFLICT ("slug") DO NOTHING
+  `)
 }
 
 export function useTestSession(session: ActionSession | null) {
