@@ -9,6 +9,17 @@ import {
   orderCreatedPayloadSchema,
   orderPendingPayloadSchema,
   messageReceivedPayloadSchema,
+  orderStatusChangedPayloadSchema,
+  favoriteBackInStockPayloadSchema,
+  favoritePriceDropPayloadSchema,
+  orderDeliveredPayloadSchema,
+  labelFailedPayloadSchema,
+  incidentOpenedPayloadSchema,
+  reviewReceivedPayloadSchema,
+  payoutPaidPayloadSchema,
+  stockLowPayloadSchema,
+  vendorApplicationApprovedPayloadSchema,
+  vendorApplicationRejectedPayloadSchema,
   NOTIFICATION_EVENTS,
 } from '@/domains/notifications/events'
 import { setPreferenceInputSchema } from '@/domains/notifications/preferences-schema'
@@ -92,7 +103,10 @@ test('notificationChannelSchema — frozen value set', () => {
   // Adding a transport (e.g. WHATSAPP, EMAIL) is a deliberate
   // architectural change — every dispatcher that switches on
   // channel needs a new case.
-  assertEnumValues('notificationChannelSchema', notificationChannelSchema as never, ['TELEGRAM'])
+  assertEnumValues('notificationChannelSchema', notificationChannelSchema as never, [
+    'TELEGRAM',
+    'WEB_PUSH',
+  ])
 })
 
 test('notificationEventTypeSchema — frozen value set', () => {
@@ -100,6 +114,15 @@ test('notificationEventTypeSchema — frozen value set', () => {
     'ORDER_CREATED',
     'ORDER_PENDING',
     'MESSAGE_RECEIVED',
+    'ORDER_DELIVERED',
+    'LABEL_FAILED',
+    'INCIDENT_OPENED',
+    'REVIEW_RECEIVED',
+    'PAYOUT_PAID',
+    'STOCK_LOW',
+    'BUYER_ORDER_STATUS',
+    'BUYER_FAVORITE_RESTOCK',
+    'BUYER_FAVORITE_PRICE_DROP',
   ])
 })
 
@@ -117,11 +140,41 @@ test('NOTIFICATION_EVENTS string keys match the enum', () => {
   // dispatcher's lookup tables drift.
   assert.deepEqual(
     Object.keys(NOTIFICATION_EVENTS).sort(),
-    ['MESSAGE_RECEIVED', 'ORDER_CREATED', 'ORDER_PENDING'],
+    [
+      'FAVORITE_BACK_IN_STOCK',
+      'FAVORITE_PRICE_DROP',
+      'INCIDENT_OPENED',
+      'LABEL_FAILED',
+      'MESSAGE_RECEIVED',
+      'ORDER_CREATED',
+      'ORDER_DELIVERED',
+      'ORDER_PENDING',
+      'ORDER_STATUS_CHANGED',
+      'PAYOUT_PAID',
+      'REVIEW_RECEIVED',
+      'STOCK_LOW',
+      'VENDOR_APPLICATION_APPROVED',
+      'VENDOR_APPLICATION_REJECTED',
+    ],
   )
   assert.deepEqual(
     Object.values(NOTIFICATION_EVENTS).sort(),
-    ['message.received', 'order.created', 'order.pending'],
+    [
+      'favorite.back_in_stock',
+      'favorite.price_drop',
+      'incident.opened',
+      'label.failed',
+      'message.received',
+      'order.created',
+      'order.delivered',
+      'order.pending',
+      'order.status_changed',
+      'payout.paid',
+      'review.received',
+      'stock.low',
+      'vendor.application.approved',
+      'vendor.application.rejected',
+    ],
   )
 })
 
@@ -155,17 +208,15 @@ test('orderPendingPayloadSchema — frozen shape', () => {
 })
 
 test('orderPendingPayloadSchema — reason set is frozen', () => {
-  // The two `reason` values map to two distinct vendor actions
-  // (confirm vs ship). A new reason without code coverage
+  // Each `reason` value maps to a distinct vendor action (confirm,
+  // generate label, ship). A new reason without code coverage
   // downstream would render a generic notification.
-  const ok1 = orderPendingPayloadSchema.safeParse({
-    orderId: 'o', vendorId: 'v', reason: 'NEEDS_CONFIRMATION',
-  })
-  assert.equal(ok1.success, true)
-  const ok2 = orderPendingPayloadSchema.safeParse({
-    orderId: 'o', vendorId: 'v', reason: 'NEEDS_SHIPMENT',
-  })
-  assert.equal(ok2.success, true)
+  for (const reason of ['NEEDS_CONFIRMATION', 'NEEDS_LABEL', 'NEEDS_SHIPMENT']) {
+    const parsed = orderPendingPayloadSchema.safeParse({
+      orderId: 'o', vendorId: 'v', reason,
+    })
+    assert.equal(parsed.success, true, `expected ${reason} to parse`)
+  }
   const bad = orderPendingPayloadSchema.safeParse({
     orderId: 'o', vendorId: 'v', reason: 'NEEDS_REFUND',
   })
@@ -189,6 +240,132 @@ test('messageReceivedPayloadSchema — preview is capped at 200 chars', () => {
     preview: 'x'.repeat(201),
   })
   assert.equal(result.success, false)
+})
+
+test('orderStatusChangedPayloadSchema — frozen shape', () => {
+  assertObjectShape(
+    'orderStatusChangedPayloadSchema',
+    orderStatusChangedPayloadSchema as never,
+    {
+      required: ['orderId', 'customerUserId', 'status'],
+      optional: ['fulfillmentId', 'orderNumber', 'vendorName'],
+    },
+  )
+})
+
+test('orderStatusChangedPayloadSchema — status set is frozen', () => {
+  // These three statuses are the only buyer-facing milestones. Adding a
+  // new value (e.g. EXCEPTION) without template coverage would render a
+  // message with a missing emoji/copy.
+  for (const status of ['SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED']) {
+    const parsed = orderStatusChangedPayloadSchema.safeParse({
+      orderId: 'o',
+      customerUserId: 'u',
+      status,
+    })
+    assert.equal(parsed.success, true, `expected ${status} to parse`)
+  }
+  const bad = orderStatusChangedPayloadSchema.safeParse({
+    orderId: 'o',
+    customerUserId: 'u',
+    status: 'EXCEPTION',
+  })
+  assert.equal(bad.success, false)
+})
+
+test('favoriteBackInStockPayloadSchema — frozen shape', () => {
+  assertObjectShape(
+    'favoriteBackInStockPayloadSchema',
+    favoriteBackInStockPayloadSchema as never,
+    {
+      required: ['productId', 'productName'],
+      optional: ['productSlug', 'vendorName'],
+    },
+  )
+})
+
+test('favoritePriceDropPayloadSchema — frozen shape', () => {
+  assertObjectShape(
+    'favoritePriceDropPayloadSchema',
+    favoritePriceDropPayloadSchema as never,
+    {
+      required: ['productId', 'productName', 'oldPriceCents', 'newPriceCents', 'currency'],
+      optional: ['productSlug', 'vendorName'],
+    },
+  )
+})
+
+test('orderDeliveredPayloadSchema — frozen shape', () => {
+  assertObjectShape('orderDeliveredPayloadSchema', orderDeliveredPayloadSchema as never, {
+    required: ['orderId', 'vendorId', 'fulfillmentId'],
+    optional: [],
+  })
+})
+
+test('labelFailedPayloadSchema — frozen shape', () => {
+  assertObjectShape('labelFailedPayloadSchema', labelFailedPayloadSchema as never, {
+    required: ['orderId', 'vendorId', 'fulfillmentId', 'errorMessage'],
+    optional: [],
+  })
+})
+
+test('incidentOpenedPayloadSchema — frozen shape', () => {
+  assertObjectShape('incidentOpenedPayloadSchema', incidentOpenedPayloadSchema as never, {
+    required: ['incidentId', 'orderId', 'vendorId', 'type'],
+    optional: [],
+  })
+})
+
+test('reviewReceivedPayloadSchema — frozen shape', () => {
+  assertObjectShape('reviewReceivedPayloadSchema', reviewReceivedPayloadSchema as never, {
+    required: ['reviewId', 'vendorId', 'productId', 'productName', 'rating'],
+    optional: [],
+  })
+})
+
+test('reviewReceivedPayloadSchema — rating bounded 1..5', () => {
+  for (const rating of [0, 6, 3.5]) {
+    const parsed = reviewReceivedPayloadSchema.safeParse({
+      reviewId: 'r', vendorId: 'v', productId: 'p', productName: 'P', rating,
+    })
+    assert.equal(parsed.success, false, `rating ${rating} must be rejected`)
+  }
+})
+
+test('payoutPaidPayloadSchema — frozen shape', () => {
+  assertObjectShape('payoutPaidPayloadSchema', payoutPaidPayloadSchema as never, {
+    required: ['settlementId', 'vendorId', 'netPayableCents', 'currency', 'periodLabel'],
+    optional: [],
+  })
+})
+
+test('stockLowPayloadSchema — frozen shape', () => {
+  assertObjectShape('stockLowPayloadSchema', stockLowPayloadSchema as never, {
+    required: ['productId', 'vendorId', 'productName', 'remainingStock'],
+    optional: [],
+  })
+})
+
+test('vendorApplicationApprovedPayloadSchema — frozen shape', () => {
+  assertObjectShape(
+    'vendorApplicationApprovedPayloadSchema',
+    vendorApplicationApprovedPayloadSchema as never,
+    {
+      required: ['userId', 'vendorId', 'displayName', 'vendorSlug'],
+      optional: [],
+    },
+  )
+})
+
+test('vendorApplicationRejectedPayloadSchema — frozen shape', () => {
+  assertObjectShape(
+    'vendorApplicationRejectedPayloadSchema',
+    vendorApplicationRejectedPayloadSchema as never,
+    {
+      required: ['userId', 'vendorId', 'displayName'],
+      optional: [],
+    },
+  )
 })
 
 // ─── Preferences write surface ────────────────────────────────────────────────

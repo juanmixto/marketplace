@@ -207,7 +207,7 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
   }
 
   return (
-    <div className="p-4">
+    <div className="p-4" data-testid={`subscription-row-${product.slug}`}>
       <div className="flex items-start gap-4 flex-wrap">
         <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-[var(--surface-raised)]">
           {image ? (
@@ -333,12 +333,13 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
             </button>
           )}
           {!isCanceled && (
-            <button
-              type="button"
-              onClick={() => runAction(() => cancelSubscription(subscription.id))}
-              disabled={pending}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 bg-red-50 min-h-11 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-60 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-900/40"
-            >
+              <button
+                type="button"
+                onClick={() => runAction(() => cancelSubscription(subscription.id))}
+                disabled={pending}
+                data-testid={`subscription-cancel-${product.slug}`}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 bg-red-50 min-h-11 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-60 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-900/40"
+              >
               <XCircleIcon className="h-4 w-4" />
               {t('account.subscriptions.cancel')}
             </button>

@@ -153,14 +153,16 @@ test('toCheckoutFormAddress maps a saved address into checkout form values', () 
 })
 
 test('createOrder runs a stock precheck BEFORE creating a Stripe PaymentIntent (#133)', () => {
-  const actions = readSource('../../src/domains/orders/actions.ts')
+  const actions = readSource('../../src/domains/orders/use-cases/create-order.ts')
 
-  // The precheck loop must exist with the recognizable shortage message...
-  assert.match(actions, /Stock insuficiente: \$\{stockShortages\.join/, 'must surface a clear stock-shortage error')
+  // The precheck must now read as a domain helper and still surface a
+  // clear shortage error before the payment provider is called.
+  assert.match(actions, /ensureStockAvailability\(/, 'must keep the stock precheck as a named domain step')
+  assert.match(actions, /InsufficientStockError\(/, 'must surface a clear stock-shortage error')
 
   // ...and it must run before createPaymentIntent so we never charge a buyer
   // we can't fulfil. Capture both code positions and assert ordering.
-  const precheckIndex = actions.indexOf('stockShortages')
+  const precheckIndex = actions.indexOf('ensureStockAvailability(products, validatedItems)')
   const paymentIntentIndex = actions.indexOf('createPaymentIntent(')
 
   assert.ok(precheckIndex > 0, 'precheck must exist in createOrder')
@@ -174,13 +176,13 @@ test('createOrder runs a stock precheck BEFORE creating a Stripe PaymentIntent (
 test('createOrder still validates stock atomically inside the transaction (#133)', () => {
   // The precheck is best-effort. The transactional FOR UPDATE check must
   // remain in place to defeat the race window between the read and the write.
-  const actions = readSource('../../src/domains/orders/actions.ts')
-  assert.match(actions, /FOR UPDATE/, 'transactional row lock must still be present')
-  assert.match(actions, /Stock insuficiente para/, 'transactional check must still throw on shortage')
+  const inventory = readSource('../../src/domains/orders/inventory.ts')
+  assert.match(inventory, /FOR UPDATE/, 'transactional row lock must still be present')
+  assert.match(inventory, /InsufficientStockError/, 'transactional check must still throw on shortage')
 })
 
 test('createOrder builds Stripe Connect destination data for single-vendor orders (#48)', () => {
-  const actions = readSource('../../src/domains/orders/actions.ts')
+  const actions = readSource('../../src/domains/orders/use-cases/create-order.ts')
 
   // The vendor select must include the Connect fields used to route money.
   // Without these on the loaded vendor record, the destination charge logic
@@ -189,11 +191,11 @@ test('createOrder builds Stripe Connect destination data for single-vendor order
   assert.match(actions, /stripeOnboarded:\s*true/, 'vendor select must load stripeOnboarded')
   assert.match(actions, /commissionRate:\s*true/, 'vendor select must load commissionRate')
 
-  // The destination-charge branch must only fire when the order has exactly
-  // one vendor AND that vendor has finished Stripe onboarding. Multi-vendor
-  // orders fall back to the platform-account flow + settlement system.
-  assert.match(actions, /vendorIds\.length === 1/, 'destination charges must gate on single-vendor orders')
-  assert.match(actions, /stripeOnboarded\s*&&\s*[a-zA-Z]+\.stripeAccountId/, 'must require completed onboarding')
+  // The destination-charge branch now lives in a named helper, but the same
+  // gate must still exist and depend on the onboarding status.
+  assert.match(actions, /buildConnectDestination\(/, 'destination charges must live behind a named helper')
+  assert.match(actions, /vendorIds\.length !== 1/, 'destination charges must gate on single-vendor orders')
+  assert.match(actions, /onlyVendor\?\.stripeOnboarded \|\| !onlyVendor\.stripeAccountId/, 'must require completed onboarding')
 
   // The commission must come out as application_fee_amount, not be silently
   // dropped or split per-line. Verify the math hits commissionRate.
@@ -214,6 +216,14 @@ test('checkout client avoids the empty-cart fallback while the confirmation redi
 
   assert.match(checkoutClient, /setCompletedOrderNumber\(orderNumber\)/)
   assert.match(checkoutClient, /items\.length === 0 && step !== 'processing' && !completedOrderNumber/)
+})
+
+test('checkout client waits for cart hydration before redirecting to /carrito', () => {
+  const checkoutClient = readSource('../../src/components/buyer/CheckoutPageClient.tsx')
+
+  assert.match(checkoutClient, /const cartHydrated = useCartStore\(state => state\.hasHydrated\)/)
+  assert.match(checkoutClient, /if \(!cartHydrated\) \{[\s\S]*?return \(/)
+  assert.match(checkoutClient, /if \(items\.length === 0 && step !== 'processing' && !completedOrderNumber\)/)
 })
 
 test('checkout new-address form is collapsed by default when saved addresses exist', () => {

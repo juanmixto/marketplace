@@ -10,6 +10,25 @@ import { getActionSession } from '@/lib/action-session'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { isVendor } from '@/lib/roles'
 import { isAllowedImageUrl } from '@/lib/image-validation'
+// eslint-disable-next-line no-restricted-imports -- Telegram bootstrap is server-only and intentionally excluded from the notifications barrel
+import { ensureTelegramHandlersRegistered } from '@/domains/notifications/telegram/ensure-registered'
+// eslint-disable-next-line no-restricted-imports -- Web-push bootstrap mirrors the Telegram one; same reason
+import { ensureWebPushHandlersRegistered } from '@/domains/notifications/web-push/ensure-registered'
+
+/**
+ * Dynamic dispatcher loader. The static import would close a
+ * `vendors → notifications → vendors` domain cycle (notifications/
+ * telegram/actions/*.ts calls back into this module), so we defer
+ * the import. Call as `void emitNotification(...)` — handlers are
+ * fire-and-forget, queueMicrotask'd by the dispatcher itself.
+ */
+async function emitNotification<E extends string>(
+  event: E,
+  payload: unknown,
+): Promise<void> {
+  const mod = await import('@/domains/notifications/dispatcher')
+  ;(mod.emit as (e: E, p: unknown) => void)(event, payload)
+}
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 
@@ -30,6 +49,9 @@ async function requireVendor() {
 // ─── Product schemas ──────────────────────────────────────────────────────────
 
 import { productSchema, type ProductInput } from '@/shared/types/products'
+
+ensureTelegramHandlersRegistered()
+ensureWebPushHandlersRegistered()
 
 // ─── CRUD productos ───────────────────────────────────────────────────────────
 
@@ -80,6 +102,8 @@ export async function updateProduct(productId: string, input: Partial<ProductInp
 
   const data = productSchema.partial().parse(input)
 
+  const previousBasePriceCents = Math.round(Number(product.basePrice) * 100)
+
   const updated = await db.product.update({
     where: { id: productId },
     data: {
@@ -89,6 +113,23 @@ export async function updateProduct(productId: string, input: Partial<ProductInp
       ...(product.status === 'REJECTED' && { rejectionNote: null }),
     },
   })
+
+  // Price-drop fanout: only when the new basePrice is strictly lower
+  // than the previous one. Small drifting changes still fire, but the
+  // handler enforces a 24h per-product cooldown to keep the signal
+  // meaningful.
+  const newBasePriceCents = Math.round(Number(updated.basePrice) * 100)
+  if (newBasePriceCents > 0 && newBasePriceCents < previousBasePriceCents) {
+    emitNotification('favorite.price_drop', {
+      productId: updated.id,
+      productName: updated.name,
+      productSlug: updated.slug,
+      vendorName: vendor.displayName,
+      oldPriceCents: previousBasePriceCents,
+      newPriceCents: newBasePriceCents,
+      currency: 'EUR',
+    })
+  }
 
   safeRevalidatePath('/vendor/productos')
   safeRevalidatePath(`/productos/${product.slug}`)
@@ -132,6 +173,28 @@ export async function updateProductVariants(input: z.infer<typeof syncVariantsSc
 
   const incomingIds = new Set(variants.map(v => v.id).filter((x): x is string => Boolean(x)))
   const toDelete = product.variants.filter(v => !incomingIds.has(v.id))
+
+  // Track restock transitions *before* the transaction so we know which
+  // variants just came back from zero — buyers who favourited the parent
+  // product care about the product-level event, not per-variant.
+  const previousVariantStock = new Map(
+    product.variants.map(v => [v.id, { stock: v.stock, isActive: v.isActive }]),
+  )
+  let hadRestockTransition = false
+  for (const v of variants) {
+    if (!v.isActive || v.stock <= 0) continue
+    if (!v.id) {
+      // New active variant with stock > 0 is itself a restock signal.
+      hadRestockTransition = true
+      continue
+    }
+    const prev = previousVariantStock.get(v.id)
+    if (!prev) continue
+    const wasOutOfStock = !prev.isActive || prev.stock <= 0
+    if (wasOutOfStock) {
+      hadRestockTransition = true
+    }
+  }
 
   await db.$transaction(async tx => {
     for (const v of variants) {
@@ -180,6 +243,15 @@ export async function updateProductVariants(input: z.infer<typeof syncVariantsSc
     }
   })
 
+  if (hadRestockTransition) {
+    emitNotification('favorite.back_in_stock', {
+      productId: product.id,
+      productName: product.name,
+      productSlug: product.slug,
+      vendorName: vendor.displayName,
+    })
+  }
+
   safeRevalidatePath('/vendor/productos')
   safeRevalidatePath(`/productos/${product.slug}`)
   revalidateCatalogExperience({ productSlug: product.slug, vendorSlug: vendor.slug })
@@ -209,11 +281,24 @@ export async function setProductStock(input: z.infer<typeof stockSetSchema>) {
     throw new Error('Productos con variantes: edita el stock por variante')
   }
 
+  const previousStock = product.stock
   const updated = await db.product.update({
     where: { id: productId },
     data: { stock },
-    select: { id: true, stock: true, slug: true },
+    select: { id: true, stock: true, slug: true, name: true },
   })
+
+  // Fire the back-in-stock fanout exactly on the 0 → positive transition.
+  // Any other change (top-up while already in stock, drop to zero) is a
+  // non-event from the buyer's point of view.
+  if (previousStock <= 0 && stock > 0) {
+    emitNotification('favorite.back_in_stock', {
+      productId: updated.id,
+      productName: updated.name,
+      productSlug: updated.slug,
+      vendorName: vendor.displayName,
+    })
+  }
 
   safeRevalidatePath('/vendor/productos')
   safeRevalidatePath(`/productos/${product.slug}`)
@@ -357,16 +442,15 @@ export async function advanceFulfillment(
     }
   })
 
-  // #570 — notify the buyer that a parcel is on the way. First live
-  // push event in the app. Fire-and-forget so a broken push provider
-  // never blocks the vendor's UI. sendPushToUser is already a no-op
-  // when VAPID is unconfigured or the buyer has no subscription.
+  // #570 — notify the buyer that a parcel is on the way. Goes through
+  // the notification dispatcher so both transports (Telegram + web
+  // push) deliver personalized copy. The direct `sendPushToUser` call
+  // this replaced would otherwise fire alongside the dispatcher path,
+  // producing two push events per transition (the buyer sees one
+  // thanks to the browser-level tag collapse, but the
+  // NotificationDelivery table logged both).
   if (nextStatus === 'SHIPPED') {
-    void notifyBuyerFulfillmentShipped(fulfillment.orderId, {
-      trackingNumber: trackingNumber ?? null,
-    }).catch(() => {
-      /* logged inside the helper — ignore here so the outer UI is unaffected */
-    })
+    void notifyBuyerFulfillmentShipped(fulfillment.orderId, fulfillment.vendorId, fulfillmentId)
   }
 
   safeRevalidatePath('/vendor/pedidos')
@@ -374,22 +458,28 @@ export async function advanceFulfillment(
 
 async function notifyBuyerFulfillmentShipped(
   orderId: string,
-  extras: { trackingNumber: string | null },
+  vendorId: string,
+  fulfillmentId: string,
 ) {
   try {
-    const order = await db.order.findUnique({
-      where: { id: orderId },
-      select: { customerId: true, orderNumber: true },
-    })
+    const [order, vendor] = await Promise.all([
+      db.order.findUnique({
+        where: { id: orderId },
+        select: { customerId: true, orderNumber: true },
+      }),
+      db.vendor.findUnique({
+        where: { id: vendorId },
+        select: { displayName: true },
+      }),
+    ])
     if (!order) return
-    const { sendPushToUser } = await import('@/lib/pwa/push-send')
-    await sendPushToUser(order.customerId, {
-      title: '📦 Tu pedido va en camino',
-      body: extras.trackingNumber
-        ? `Pedido ${order.orderNumber} · tracking ${extras.trackingNumber}`
-        : `Pedido ${order.orderNumber} enviado. Toca para ver el seguimiento.`,
-      url: `/cuenta/pedidos/${orderId}`,
-      tag: `order-shipped-${orderId}`,
+    void emitNotification('order.status_changed', {
+      orderId,
+      customerUserId: order.customerId,
+      fulfillmentId,
+      status: 'SHIPPED',
+      orderNumber: order.orderNumber,
+      vendorName: vendor?.displayName ?? undefined,
     })
   } catch (err) {
     const { logger } = await import('@/lib/logger')
@@ -417,7 +507,7 @@ export async function confirmFulfillmentByUserId(
 > {
   const fulfillment = await db.vendorFulfillment.findFirst({
     where: { id: fulfillmentId, vendor: { userId } },
-    select: { id: true, status: true },
+    select: { id: true, status: true, orderId: true, vendorId: true },
   })
   if (!fulfillment) {
     return { ok: false, code: 'NOT_FOUND', message: 'Fulfillment no encontrado' }
@@ -433,6 +523,14 @@ export async function confirmFulfillmentByUserId(
   await db.vendorFulfillment.update({
     where: { id: fulfillmentId },
     data: { status: 'CONFIRMED' },
+  })
+  // Out-of-band (Telegram) confirm leaves the vendor outside the app, so
+  // nudge them with the next action — generate the shipping label.
+  emitNotification('order.pending', {
+    orderId: fulfillment.orderId,
+    vendorId: fulfillment.vendorId,
+    fulfillmentId: fulfillment.id,
+    reason: 'NEEDS_LABEL',
   })
   safeRevalidatePath('/vendor/pedidos')
   return { ok: true, fulfillmentId }
@@ -457,7 +555,7 @@ export async function markShippedByUserId(
 > {
   const fulfillment = await db.vendorFulfillment.findFirst({
     where: { id: fulfillmentId, vendor: { userId } },
-    select: { id: true, status: true, orderId: true },
+    select: { id: true, status: true, orderId: true, vendorId: true },
   })
   if (!fulfillment) {
     return { ok: false, code: 'NOT_FOUND', message: 'Fulfillment no encontrado' }
@@ -487,8 +585,99 @@ export async function markShippedByUserId(
     })
   })
 
+  // Notify the buyer that their order is on its way. The alternative
+  // emission site — `shipping/transitions.ts` — fires when the Shipment
+  // entity reaches IN_TRANSIT, but the vendor "Marcar enviado" flow
+  // (both the portal button and the Telegram callback) transitions the
+  // VendorFulfillment without advancing the Shipment, so without this
+  // emission the buyer never gets the "📦 ya está en camino" ping.
+  const [order, vendor] = await Promise.all([
+    db.order.findUnique({
+      where: { id: fulfillment.orderId },
+      select: { customerId: true, orderNumber: true },
+    }),
+    db.vendor.findUnique({
+      where: { id: fulfillment.vendorId },
+      select: { displayName: true },
+    }),
+  ])
+  if (order) {
+    void emitNotification('order.status_changed', {
+      orderId: fulfillment.orderId,
+      customerUserId: order.customerId,
+      fulfillmentId,
+      status: 'SHIPPED',
+      orderNumber: order.orderNumber,
+      vendorName: vendor?.displayName ?? undefined,
+    })
+  }
+
   safeRevalidatePath('/vendor/pedidos')
   return { ok: true, fulfillmentId }
+}
+
+/**
+ * Bumps a product's stock by a fixed amount on behalf of the vendor
+ * identified by userId (Telegram callback entrypoint). Mirrors the
+ * ownership/shape rules of setProductStock: rejects products with
+ * active variants and products that don't track stock. Fires the
+ * back_in_stock fanout on the 0 → positive transition, same as the
+ * portal action.
+ */
+export async function increaseProductStockByUserId(
+  userId: string,
+  productId: string,
+  amount: number,
+): Promise<
+  | { ok: true; stock: number }
+  | { ok: false; code: 'NOT_FOUND' | 'HAS_VARIANTS' | 'NOT_TRACKED'; message: string }
+> {
+  if (!Number.isInteger(amount) || amount <= 0 || amount > 1_000) {
+    return { ok: false, code: 'NOT_TRACKED', message: 'Cantidad inválida' }
+  }
+  const product = await db.product.findFirst({
+    where: { vendor: { userId }, id: productId, deletedAt: null },
+    include: {
+      vendor: { select: { id: true, slug: true, displayName: true } },
+      variants: { where: { isActive: true }, select: { id: true } },
+    },
+  })
+  if (!product) {
+    return { ok: false, code: 'NOT_FOUND', message: 'Producto no encontrado' }
+  }
+  if (!product.trackStock) {
+    return { ok: false, code: 'NOT_TRACKED', message: 'Este producto no trackea stock' }
+  }
+  if (product.variants.length > 0) {
+    return {
+      ok: false,
+      code: 'HAS_VARIANTS',
+      message: 'Producto con variantes — edítalo en la web',
+    }
+  }
+
+  const previousStock = product.stock
+  const updated = await db.product.update({
+    where: { id: productId },
+    data: { stock: { increment: amount } },
+    select: { id: true, stock: true, slug: true, name: true },
+  })
+  if (previousStock <= 0 && updated.stock > 0) {
+    void emitNotification('favorite.back_in_stock', {
+      productId: updated.id,
+      productName: updated.name,
+      productSlug: updated.slug,
+      vendorName: product.vendor.displayName,
+    })
+  }
+
+  safeRevalidatePath('/vendor/productos')
+  safeRevalidatePath(`/productos/${updated.slug}`)
+  revalidateCatalogExperience({
+    productSlug: updated.slug,
+    vendorSlug: product.vendor.slug,
+  })
+  return { ok: true, stock: updated.stock }
 }
 
 export async function getMyFulfillments(filter?: 'active' | 'urgent' | 'shipped' | 'all') {
@@ -524,7 +713,40 @@ export async function getMyFulfillments(filter?: 'active' | 'urgent' | 'shipped'
         include: {
           lines: {
             where: { vendorId: vendor.id },
-            include: { product: { select: { name: true, images: true, unit: true } } },
+            include: { product: { select: { name: true, images: true, unit: true, slug: true } } },
+          },
+          customer: { select: { firstName: true, lastName: true } },
+          address: true,
+        },
+      },
+    },
+  })
+}
+
+export async function getMyFulfillmentByOrderId(orderId: string) {
+  const { vendor } = await requireVendor()
+
+  return db.vendorFulfillment.findFirst({
+    where: {
+      vendorId: vendor.id,
+      orderId,
+    },
+    include: {
+      shipment: {
+        select: {
+          id: true,
+          status: true,
+          labelUrl: true,
+          trackingUrl: true,
+          trackingNumber: true,
+          carrierName: true,
+        },
+      },
+      order: {
+        include: {
+          lines: {
+            where: { vendorId: vendor.id },
+            include: { product: { select: { name: true, images: true, unit: true, slug: true } } },
           },
           customer: { select: { firstName: true, lastName: true } },
           address: true,

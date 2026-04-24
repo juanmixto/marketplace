@@ -47,6 +47,10 @@ const PUBLIC_API_ROUTES: ReadonlyArray<{ path: string; why: string }> = [
     why: 'Email-link verification. Auth is the token in the URL, not a session.',
   },
   {
+    path: 'src/app/api/auth/login-precheck/route.ts',
+    why: 'Two-step admin login step 1 (password + has2fa lookup). Must be reachable when logged out. Rate-limited per IP and per identity on the same order as login itself.',
+  },
+  {
     path: 'src/app/api/contacto/route.ts',
     why: 'Public contact form. Rate-limited per IP and per identity.',
   },

@@ -277,6 +277,16 @@ model Vendor {
   bankAccountName String?
   stripeAccountId String?         @unique
   stripeOnboarded Boolean         @default(false)
+
+  // Phase 4 PR-E — ghost-vendor claim. Populated only when this
+  // Vendor was created by Telegram ingestion (owned by a ghost
+  // User). A real producer enters this code to take ownership;
+  // once claimed, both columns are cleared and the Vendor looks
+  // like any other self-serve vendor. Null for all vendors that
+  // were created through `applyAsVendor`.
+  claimCode          String?   @unique
+  claimCodeExpiresAt DateTime?
+
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
@@ -366,6 +376,18 @@ model Product {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
+  // Phase 4 — ingestion provenance. Set when this Product was created
+  // by publishing an approved IngestionProductDraft. The UNIQUE
+  // constraint on `sourceIngestionDraftId` is the sole mechanism that
+  // prevents the "approve the same draft twice" race from inserting
+  // duplicate products. `sourceTelegramMessageId` is kept as a
+  // convenience for cross-references from Product back to the raw
+  // Telegram message; it is a secondary handle and NOT unique (a
+  // single message can theoretically yield several product drafts
+  // when the extractor detects multiple products in one post).
+  sourceIngestionDraftId  String? @unique
+  sourceTelegramMessageId String?
+
   vendor            Vendor             @relation(fields: [vendorId], references: [id])
   category          Category?          @relation(fields: [categoryId], references: [id])
   variants          ProductVariant[]
@@ -387,6 +409,7 @@ model Product {
   // filtered by status. Composite index keeps page N constant-time
   // regardless of N. See #89.
   @@index([status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([sourceTelegramMessageId])
 }
 
 model ProductVariant {
@@ -535,10 +558,10 @@ model Review {
   vendorResponse   String?   @db.Text
   vendorResponseAt DateTime?
 
-  order    Order   @relation(fields: [orderId], references: [id])
-  product  Product @relation(fields: [productId], references: [id])
-  vendor   Vendor  @relation(fields: [vendorId], references: [id])
-  customer User    @relation(fields: [customerId], references: [id])
+  order    Order          @relation(fields: [orderId], references: [id])
+  product  Product        @relation(fields: [productId], references: [id])
+  vendor   Vendor         @relation(fields: [vendorId], references: [id])
+  customer User           @relation(fields: [customerId], references: [id])
   reports  ReviewReport[]
 
   @@unique([orderId, productId])
@@ -1130,12 +1153,24 @@ model PushSubscription {
 
 enum NotificationChannel {
   TELEGRAM
+  WEB_PUSH
 }
 
 enum NotificationEventType {
   ORDER_CREATED
   ORDER_PENDING
   MESSAGE_RECEIVED
+  ORDER_DELIVERED
+  LABEL_FAILED
+  INCIDENT_OPENED
+  REVIEW_RECEIVED
+  PAYOUT_PAID
+  STOCK_LOW
+  BUYER_ORDER_STATUS
+  BUYER_FAVORITE_RESTOCK
+  BUYER_FAVORITE_PRICE_DROP
+  BUYER_VENDOR_APPLICATION_APPROVED
+  BUYER_VENDOR_APPLICATION_REJECTED
 }
 
 enum NotificationDeliveryStatus {
@@ -1214,4 +1249,436 @@ model TelegramActionLog {
 
   @@index([userId, createdAt])
   @@index([chatId, createdAt])
+}
+
+// ─── Telegram ingestion (PHASE 1 — raw data only) ────────────────────────────
+//
+// Observer-side read of public Telegram groups via a MTProto sidecar
+// (Telethon). Completely separate from TelegramLink / TelegramActionLog,
+// which are for the USER-facing notification bot. Naming is explicit
+// (TelegramIngestion*) to avoid any confusion between the two concerns.
+//
+// These tables are the source of truth for raw messages; nothing here
+// feeds Product / Vendor / ProductImage in Phase 1. Processing, drafts,
+// and publishing land in later phases behind the same kill switch.
+
+enum TelegramIngestionChatKind {
+  GROUP
+  SUPERGROUP
+  CHANNEL
+}
+
+enum TelegramIngestionConnectionStatus {
+  PENDING
+  ACTIVE
+  REVOKED
+}
+
+enum TelegramIngestionMediaKind {
+  PHOTO
+  VIDEO
+  DOCUMENT
+  OTHER
+}
+
+enum TelegramIngestionMediaStatus {
+  PENDING
+  DOWNLOADED
+  SKIPPED_OVERSIZE
+  SOURCE_GONE
+  FAILED
+}
+
+enum TelegramIngestionSyncStatus {
+  RUNNING
+  OK
+  FAILED
+  CANCELLED
+}
+
+enum IngestionJobStatus {
+  QUEUED
+  RUNNING
+  OK
+  FAILED
+  DEAD
+}
+
+model TelegramIngestionConnection {
+  id              String                            @id @default(cuid())
+  label           String
+  // One-way hash of the phone number that owns the Telethon session.
+  // The actual phone number and session data live ONLY inside the
+  // sidecar's encrypted volume — never in this DB.
+  phoneNumberHash String
+  // Opaque pointer the sidecar uses to look up its local session.
+  sessionRef      String                            @unique
+  status          TelegramIngestionConnectionStatus @default(PENDING)
+  createdByUserId String
+  createdAt       DateTime                          @default(now())
+  updatedAt       DateTime                          @updatedAt
+
+  chats TelegramIngestionChat[]
+
+  @@index([status])
+  @@index([createdByUserId])
+}
+
+model TelegramIngestionChat {
+  id             String                    @id @default(cuid())
+  connectionId   String
+  // Telegram chat IDs exceed 32-bit; BigInt is required.
+  tgChatId       BigInt
+  title          String
+  kind           TelegramIngestionChatKind
+  // Incremental sync cursor. Only advanced after a batch lands in DB.
+  lastMessageId  BigInt?
+  isEnabled      Boolean                   @default(false)
+  disabledReason String?                   @db.Text
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  connection TelegramIngestionConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  messages   TelegramIngestionMessage[]
+  syncRuns   TelegramIngestionSyncRun[]
+
+  @@unique([connectionId, tgChatId])
+  @@index([isEnabled])
+}
+
+model TelegramIngestionMessage {
+  id          String   @id @default(cuid())
+  chatId      String
+  tgMessageId BigInt
+  tgAuthorId  BigInt?
+  text        String?  @db.Text
+  // Raw Telethon payload, preserved verbatim for source-of-truth.
+  rawJson     Json
+  postedAt    DateTime
+  fetchedAt   DateTime @default(now())
+  // Phase-1-ready hook for the right-to-erasure / tombstone flow.
+  tombstoned  Boolean  @default(false)
+
+  chat                       TelegramIngestionChat           @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  media                      TelegramIngestionMessageMedia[]
+  ingestionExtractionResults IngestionExtractionResult[]
+  ingestionProductDrafts     IngestionProductDraft[]
+
+  @@unique([chatId, tgMessageId])
+  @@index([chatId, postedAt(sort: Desc)])
+  @@index([tgAuthorId])
+}
+
+model TelegramIngestionMessageMedia {
+  id           String                       @id @default(cuid())
+  messageId    String
+  // Telegram's stable unique id lets us dedupe across messages that
+  // forward the same media. One download → one blob → many references.
+  fileUniqueId String                       @unique
+  kind         TelegramIngestionMediaKind
+  status       TelegramIngestionMediaStatus @default(PENDING)
+  blobKey      String?
+  sizeBytes    Int?
+  mimeType     String?
+  downloadedAt DateTime?
+  lastErrorMsg String?                      @db.Text
+  createdAt    DateTime                     @default(now())
+
+  message TelegramIngestionMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([status])
+}
+
+model TelegramIngestionSyncRun {
+  id              String                      @id @default(cuid())
+  chatId          String
+  status          TelegramIngestionSyncStatus @default(RUNNING)
+  startedAt       DateTime                    @default(now())
+  finishedAt      DateTime?
+  fromMessageId   BigInt?
+  toMessageId     BigInt?
+  messagesFetched Int                         @default(0)
+  mediaFetched    Int                         @default(0)
+  errorMessage    String?                     @db.Text
+  // Correlation id threaded to every log line emitted during the run.
+  correlationId   String
+
+  chat TelegramIngestionChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, startedAt(sort: Desc)])
+  @@index([status])
+}
+
+// Admin-visible mirror of pg-boss job outcomes. pg-boss keeps its own
+// `pgboss.*` schema for internal state; this table exists so the admin
+// panel + operators can browse ingestion job history using the same
+// Prisma client as the rest of the app.
+model IngestionJob {
+  id           String             @id @default(cuid())
+  kind         String
+  status       IngestionJobStatus @default(QUEUED)
+  // Opaque payload pointer (e.g. chatId, messageMediaId). Kept small
+  // on purpose; the full payload stays in pg-boss.
+  payloadRef   String
+  attempts     Int                @default(0)
+  lastErrorMsg String?            @db.Text
+  lastErrorAt  DateTime?
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([kind, status])
+  @@index([status, createdAt])
+}
+
+// ─── Telegram ingestion processing (PHASE 2 — deterministic drafts) ──────────
+//
+// Deterministic intermediate layer between raw messages and any future
+// catalog publishing. Rules-only in Phase 2; LLM is deferred to Phase
+// 2.5 behind a separate flag. Source of truth remains
+// `TelegramIngestionMessage`; drafts never mutate raw and always carry
+// provenance via `sourceMessageId`.
+//
+// Locked invariants (see #679 comment 4281108530):
+//   - idempotency key on drafts: (sourceMessageId, extractorVersion, productOrdinal)
+//   - ExtractionResult unique on (messageId, extractorVersion)
+//   - every extraction carries `inputSnapshot` so rule changes don't
+//     invalidate historical results
+//   - confidence range [0,1] + fixed bands HIGH (≥0.8) / MEDIUM / LOW
+//   - non-destructive dedupe via canonicalDraftId / duplicateOf
+//   - ReviewQueueItem states limited to ENQUEUED | AUTO_RESOLVED
+
+enum IngestionExtractorEngine {
+  RULES
+  // LLM reserved for Phase 2.5 — deliberate, not implemented in Phase 2.
+  LLM
+}
+
+enum IngestionConfidenceBand {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum IngestionDraftStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  TOMBSTONED
+}
+
+enum IngestionDraftKind {
+  PRODUCT_DRAFT
+  VENDOR_DRAFT
+  DEDUPE_CANDIDATE
+  // Added in rules-1.1.0. Enqueued when the classifier says PRODUCT
+  // (or PRODUCT_NO_PRICE) but the extractor could not materialise a
+  // draft — either because there was no price signal or the fields
+  // looked like a promo. `targetId` points at the
+  // IngestionExtractionResult.id instead of a draft id.
+  UNEXTRACTABLE_PRODUCT
+}
+
+enum IngestionReviewState {
+  ENQUEUED
+  AUTO_RESOLVED
+}
+
+enum IngestionDedupeKind {
+  STRONG
+  HEURISTIC
+  SIMILARITY
+}
+
+enum IngestionDedupeRisk {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum IngestionMessageClass {
+  PRODUCT
+  // Added in rules-1.1.0. Producer-flavoured post that does NOT
+  // contain a usable price token (very common in real chats where
+  // price is moved to DM). The extractor runs but does not produce
+  // drafts; the drafts builder enqueues an UNEXTRACTABLE_PRODUCT
+  // review queue item so the message stays visible to operators.
+  PRODUCT_NO_PRICE
+  CONVERSATION
+  SPAM
+  OTHER
+}
+
+model IngestionExtractionResult {
+  id                String                   @id @default(cuid())
+  messageId         String
+  engine            IngestionExtractorEngine @default(RULES)
+  extractorVersion  String
+  schemaVersion     Int                      @default(1)
+  // Raw-message snapshot at extraction time so historical results
+  // stay self-contained when rules change. Never mutated.
+  inputSnapshot     Json
+  // Extractor output, pinned by a Zod freeze test.
+  payload           Json
+  // Overall confidence in [0,1]. Decimal(3,2) to keep shape stable.
+  confidenceOverall Decimal                  @db.Decimal(3, 2)
+  confidenceBand    IngestionConfidenceBand
+  confidenceByField Json
+  classification    IngestionMessageClass?
+  // Cost fields reserved for Phase 2.5 (LLM); always NULL for RULES.
+  costTokensIn      Int?
+  costTokensOut     Int?
+  costUsd           Decimal?                 @db.Decimal(10, 4)
+  correlationId     String
+  createdAt         DateTime                 @default(now())
+
+  message       TelegramIngestionMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  productDrafts IngestionProductDraft[]
+
+  // rules-1.2.0: unextractable-dedupe candidates reference this
+  // row via two optional relations (left vs right side of the pair).
+  unextractableLefts  IngestionUnextractableDedupeCandidate[] @relation("UnextractableLeft")
+  unextractableRights IngestionUnextractableDedupeCandidate[] @relation("UnextractableRight")
+
+  // Re-running the same extractor version on the same message MUST
+  // be a no-op. Bumping the version creates a new revision row.
+  @@unique([messageId, extractorVersion])
+  @@index([messageId, createdAt(sort: Desc)])
+  @@index([engine, extractorVersion])
+}
+
+model IngestionVendorDraft {
+  id                     String                  @id @default(cuid())
+  // Hash of phone, username, bot id — the stable identifier we can
+  // match across messages. Null when the extractor could not infer a
+  // stable identity; such drafts NEVER auto-merge.
+  externalId             String?
+  displayName            String
+  // Provenance: which messages contributed to inferring this vendor.
+  inferredFromMessageIds Json
+  extractorVersion       String
+  confidenceOverall      Decimal                 @db.Decimal(3, 2)
+  confidenceBand         IngestionConfidenceBand
+  status                 IngestionDraftStatus    @default(PENDING)
+  // Non-destructive dedupe pointers. When null, this row IS canonical.
+  canonicalDraftId       String?
+  duplicateOf            String?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+
+  canonical IngestionVendorDraft?  @relation("VendorDraftCanonical", fields: [canonicalDraftId], references: [id], onDelete: SetNull)
+  merges    IngestionVendorDraft[] @relation("VendorDraftCanonical")
+
+  productDrafts IngestionProductDraft[]
+
+  @@unique([externalId, extractorVersion])
+  @@index([status])
+  @@index([canonicalDraftId])
+}
+
+model IngestionProductDraft {
+  id                 String                  @id @default(cuid())
+  sourceMessageId    String
+  sourceExtractionId String
+  extractorVersion   String
+  // 0-based index into the extractor's product array for this message.
+  productOrdinal     Int                     @default(0)
+  vendorDraftId      String?
+  status             IngestionDraftStatus    @default(PENDING)
+  confidenceOverall  Decimal                 @db.Decimal(3, 2)
+  confidenceBand     IngestionConfidenceBand
+  // Structured fields produced by the extractor. `null` means the
+  // field was not present or not inferred.
+  productName        String?
+  categorySlug       String?
+  unit               String?
+  weightGrams        Int?
+  priceCents         Int?
+  currencyCode       String?
+  availability       String?
+  rawFieldsSeen      Json
+  // Non-destructive dedupe pointers. Canonical when null.
+  canonicalDraftId   String?
+  duplicateOf        String?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  sourceMessage    TelegramIngestionMessage  @relation(fields: [sourceMessageId], references: [id], onDelete: Cascade)
+  sourceExtraction IngestionExtractionResult @relation(fields: [sourceExtractionId], references: [id], onDelete: Cascade)
+  vendorDraft      IngestionVendorDraft?     @relation(fields: [vendorDraftId], references: [id], onDelete: SetNull)
+  canonical        IngestionProductDraft?    @relation("ProductDraftCanonical", fields: [canonicalDraftId], references: [id], onDelete: SetNull)
+  merges           IngestionProductDraft[]   @relation("ProductDraftCanonical")
+
+  // Idempotency key: re-running the same version on the same message
+  // returns the existing row for every ordinal.
+  @@unique([sourceMessageId, extractorVersion, productOrdinal], map: "IngestionProductDraft_source_ver_ordinal_key")
+  @@index([status, createdAt(sort: Desc)])
+  @@index([vendorDraftId])
+  @@index([canonicalDraftId])
+  @@index([confidenceBand])
+}
+
+model IngestionReviewQueueItem {
+  id                 String               @id @default(cuid())
+  kind               IngestionDraftKind
+  targetId           String
+  priority           Int                  @default(0)
+  state              IngestionReviewState @default(ENQUEUED)
+  // Populated only when state transitions to AUTO_RESOLVED (LOW-risk
+  // dedupe auto-merge). Everything else stays ENQUEUED until Phase 3
+  // introduces the manual-review state machine.
+  autoResolvedReason String?
+  autoResolvedAt     DateTime?
+  createdAt          DateTime             @default(now())
+
+  @@unique([kind, targetId])
+  @@index([state, priority(sort: Desc), createdAt])
+}
+
+model IngestionDedupeCandidate {
+  id            String              @id @default(cuid())
+  leftDraftId   String
+  rightDraftId  String
+  kind          IngestionDedupeKind
+  riskClass     IngestionDedupeRisk
+  reasonJson    Json
+  // True only for LOW-risk auto-applied merges. MEDIUM / HIGH always
+  // remain false in Phase 2 (manual review is mandatory).
+  autoApplied   Boolean             @default(false)
+  autoAppliedAt DateTime?
+  createdAt     DateTime            @default(now())
+
+  @@unique([leftDraftId, rightDraftId, kind])
+  @@index([riskClass, autoApplied])
+  @@index([createdAt])
+}
+
+// Phase 2.x iter-2 / rules-1.2.0: dedupe candidates for
+// `PRODUCT_NO_PRICE` extractions. Separate table from
+// `IngestionDedupeCandidate` by design (user rejected polymorphic
+// target columns) — a candidate here always links two
+// `IngestionExtractionResult` rows, never drafts. Policy mirrors the
+// product-draft dedupe: only STRONG → LOW → auto-merge, MEDIUM / HIGH
+// require human review. The "merge" in this table is a pointer
+// operation on the review queue (ENQUEUED → AUTO_RESOLVED), never a
+// destructive write to the extraction rows.
+model IngestionUnextractableDedupeCandidate {
+  id                String              @id @default(cuid())
+  leftExtractionId  String
+  rightExtractionId String
+  kind              IngestionDedupeKind
+  riskClass         IngestionDedupeRisk
+  reasonJson        Json
+  autoApplied       Boolean             @default(false)
+  autoAppliedAt     DateTime?
+  createdAt         DateTime            @default(now())
+
+  leftExtraction  IngestionExtractionResult @relation("UnextractableLeft", fields: [leftExtractionId], references: [id], onDelete: Cascade)
+  rightExtraction IngestionExtractionResult @relation("UnextractableRight", fields: [rightExtractionId], references: [id], onDelete: Cascade)
+
+  @@unique([leftExtractionId, rightExtractionId, kind], map: "IngUnxDedupe_left_right_kind_key")
+  @@index([riskClass, autoApplied], map: "IngUnxDedupe_riskClass_autoApplied_idx")
+  @@index([createdAt], map: "IngUnxDedupe_createdAt_idx")
 }

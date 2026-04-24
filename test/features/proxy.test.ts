@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createLoginRedirectUrl } from '@/proxy'
+import type { NextRequest } from 'next/server'
+import { createLoginRedirectUrl, isOriginAllowed } from '@/proxy'
 import { hostMatchesAdmin, isRequestOnAdminHost, ADMIN_HOST_ENV_VAR } from '@/lib/admin-host'
 
 test('createLoginRedirectUrl preserves the full protected path including query string', () => {
@@ -97,4 +98,108 @@ test('isRequestOnAdminHost uses host header, falls back to x-forwarded-host', ()
     if (originalValue === undefined) delete process.env[ADMIN_HOST_ENV_VAR]
     else process.env[ADMIN_HOST_ENV_VAR] = originalValue
   }
+})
+
+// ---------------------------------------------------------------------------
+// CSRF Origin allow-list (proxy.isOriginAllowed). Behind reverse proxies /
+// tunnels (Cloudflare Tunnel → dev.feldescloud.com terminates TLS and
+// forwards plain http://localhost:3001), the browser-sent Origin host
+// (dev.feldescloud.com) won't equal `new URL(request.url).host`
+// (localhost:3001). The allow-list must accept Host / X-Forwarded-Host
+// and the configured AUTH_URL / NEXT_PUBLIC_APP_URL so that legitimate
+// same-origin POSTs (e.g. /api/admin/2fa/enroll) aren't rejected with
+// `forbidden_origin`.
+// ---------------------------------------------------------------------------
+
+function makeRequest(opts: {
+  url: string
+  origin?: string | null
+  referer?: string | null
+  host?: string | null
+  forwardedHost?: string | null
+}): NextRequest {
+  const map = new Map<string, string>()
+  if (opts.origin) map.set('origin', opts.origin)
+  if (opts.referer) map.set('referer', opts.referer)
+  if (opts.host) map.set('host', opts.host)
+  if (opts.forwardedHost) map.set('x-forwarded-host', opts.forwardedHost)
+  return {
+    url: opts.url,
+    headers: { get: (name: string) => map.get(name.toLowerCase()) ?? null },
+  } as unknown as NextRequest
+}
+
+test('isOriginAllowed accepts same-origin POST when request.url matches Origin', () => {
+  const request = makeRequest({
+    url: 'https://example.com/api/x',
+    origin: 'https://example.com',
+  })
+  assert.equal(isOriginAllowed(request), true)
+})
+
+test('isOriginAllowed accepts Origin matching the forwarded Host header behind a tunnel', () => {
+  // Cloudflare Tunnel: TLS terminated at edge, forwarded to localhost.
+  const request = makeRequest({
+    url: 'http://localhost:3001/api/admin/2fa/enroll',
+    origin: 'https://dev.feldescloud.com',
+    host: 'dev.feldescloud.com',
+  })
+  assert.equal(isOriginAllowed(request), true)
+})
+
+test('isOriginAllowed accepts Origin matching X-Forwarded-Host', () => {
+  const request = makeRequest({
+    url: 'http://localhost:3001/api/x',
+    origin: 'https://app.example.com',
+    forwardedHost: 'app.example.com',
+  })
+  assert.equal(isOriginAllowed(request), true)
+})
+
+test('isOriginAllowed accepts Origin matching AUTH_URL when forwarded headers are absent', () => {
+  const original = process.env.AUTH_URL
+  process.env.AUTH_URL = 'https://dev.feldescloud.com'
+  try {
+    const request = makeRequest({
+      url: 'http://localhost:3001/api/admin/2fa/enroll',
+      origin: 'https://dev.feldescloud.com',
+    })
+    assert.equal(isOriginAllowed(request), true)
+  } finally {
+    if (original === undefined) delete process.env.AUTH_URL
+    else process.env.AUTH_URL = original
+  }
+})
+
+test('isOriginAllowed rejects cross-site POST from an unrelated origin', () => {
+  const original = process.env.AUTH_URL
+  process.env.AUTH_URL = 'https://dev.feldescloud.com'
+  try {
+    const request = makeRequest({
+      url: 'http://localhost:3001/api/x',
+      origin: 'https://evil.example.com',
+      host: 'dev.feldescloud.com',
+    })
+    assert.equal(isOriginAllowed(request), false)
+  } finally {
+    if (original === undefined) delete process.env.AUTH_URL
+    else process.env.AUTH_URL = original
+  }
+})
+
+test('isOriginAllowed accepts requests without Origin or Referer (non-browser caller)', () => {
+  // Server-to-server / curl: SameSite=Lax cookies and the missing Origin
+  // mean this is not a browser CSRF target. Webhook routes are exempt
+  // upstream; everything else just gets the regular auth check.
+  const request = makeRequest({ url: 'http://localhost:3001/api/x' })
+  assert.equal(isOriginAllowed(request), true)
+})
+
+test('isOriginAllowed falls back to Referer when Origin is missing', () => {
+  const request = makeRequest({
+    url: 'http://localhost:3001/api/x',
+    referer: 'https://dev.feldescloud.com/admin/security/enroll',
+    host: 'dev.feldescloud.com',
+  })
+  assert.equal(isOriginAllowed(request), true)
 })

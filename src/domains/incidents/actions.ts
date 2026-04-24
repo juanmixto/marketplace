@@ -26,8 +26,11 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { getActionSession } from '@/lib/action-session'
 import { redirect } from 'next/navigation'
+import { safeRevalidatePath } from '@/lib/revalidate'
 import { isAdminRole } from '@/lib/roles'
 import { IncidentStatus, IncidentType } from '@/generated/prisma/enums'
+// eslint-disable-next-line no-restricted-imports -- dispatcher is intentionally server-only, excluded from notifications barrel
+import { emit as emitNotification } from '@/domains/notifications/dispatcher'
 import {
   INCIDENT_SLA_HOURS,
   IncidentAuthError,
@@ -104,6 +107,26 @@ export async function openIncident(
     select: { id: true },
   })
 
+  // Notify every vendor that shipped a line on this order so whoever is
+  // responsible sees it fast. SLA clock starts now; latency here matters.
+  const vendorLines = await db.orderLine.findMany({
+    where: { orderId: order.id },
+    select: { vendorId: true },
+    distinct: ['vendorId'],
+  })
+  for (const { vendorId } of vendorLines) {
+    emitNotification('incident.opened', {
+      incidentId: incident.id,
+      orderId: order.id,
+      vendorId,
+      type: parsed.type,
+    })
+  }
+
+  safeRevalidatePath('/cuenta/incidencias')
+  safeRevalidatePath(`/cuenta/incidencias/${incident.id}`)
+  safeRevalidatePath('/admin/incidencias')
+
   return { incidentId: incident.id }
 }
 
@@ -158,6 +181,11 @@ export async function addIncidentMessage(
     },
     select: { id: true },
   })
+
+  safeRevalidatePath(`/cuenta/incidencias/${incident.id}`)
+  if (isAdmin) {
+    safeRevalidatePath(`/admin/incidencias/${incident.id}`)
+  }
 
   return { messageId: message.id }
 }

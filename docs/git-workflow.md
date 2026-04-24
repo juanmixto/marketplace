@@ -76,6 +76,33 @@ Multiple Claude Code agents (or a human + agent) can be active in the same repo 
 
 This rule comes directly from the 2026-04-12 incident, where an agent overwrote a concurrent agent's WIP because it assumed the worktree was idle.
 
+### Concrete conventions
+
+**1 agent = 1 worktree.** Non-negotiable. The base checkout at `/home/whisper/marketplace` is for solo work; parallel agents must branch out.
+
+- **Path layout:**
+
+  ```text
+  /home/whisper/marketplace          → base (not shared in parallel)
+  /home/whisper/worktrees/<agent-1>  → isolated
+  /home/whisper/worktrees/<agent-2>  → isolated
+  ```
+
+- **Spawn:**
+
+  ```bash
+  git fetch origin
+  git worktree add /home/whisper/worktrees/<name> origin/main -b feat/<feature>
+  ```
+
+- **Port per agent:** each agent runs its own dev server on its own port (`3001`, `3002`, `3003`, …). Never share a `next dev` process.
+- **`node_modules`:** reuse across worktrees only if the build stays green. Prisma `generate` has bitten us here — when in doubt, install fresh.
+- **Rebase policy:** do **not** rebase every time `main` moves. Rebase once, when work is ready to merge (or immediately before merge). Constant rebasing burns CI and creates phantom "behind" churn.
+- **Stop on anomalies.** Files mutating without cause, branch switching under you, or index errors → halt, move work to a fresh worktree, do not try to salvage in-place.
+- Never `reset`, `checkout`, `clean`, or modify branches outside your own worktree.
+
+Priority: **isolation > convenience.** An extra worktree is cheap; corrupted work is not.
+
 ---
 
 ## Hygiene
@@ -92,6 +119,18 @@ The script only **reports** by default — it never deletes anything without exp
 ```bash
 ./scripts/git-hygiene.sh
 ```
+
+### Closing the loop
+
+When a task is done, prefer this order:
+
+1. Merge or archive the useful commits.
+2. Align the active branch with the remote branch or `main`.
+3. Remove temporary worktrees.
+4. Delete temporary backup branches once the useful work is preserved.
+5. Remove generated test artefacts such as `test-results/.last-run.json` if they are not part of the task.
+
+If you are unsure whether a branch or worktree still contains unique work, stop and inspect the diff first. Do not assume a `[gone]` ref or a dirty worktree is safe to delete.
 
 ---
 

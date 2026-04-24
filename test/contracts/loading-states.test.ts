@@ -44,6 +44,7 @@ test('shared Button component sets aria-busy when isLoading (#188)', () => {
 test('LoginForm wires its submit button to a loading state (#188)', () => {
   const src = read('src/components/auth/LoginForm.tsx')
   assert.match(src, /isLoading=\{loading\}/, 'login submit must surface its loading state')
+  assert.match(src, /disabled=\{!mounted\}/, 'login submit must stay gated until mounted')
   // The setLoading(true) → await → setLoading(false) pattern must be intact.
   assert.match(src, /setLoading\(true\)/)
   assert.match(src, /setLoading\(false\)/)
