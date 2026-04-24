@@ -14,10 +14,13 @@ import {
 import { cn } from '@/lib/utils'
 import { adminNavItems } from '@/lib/navigation'
 import { useSidebar } from '@/components/layout/SidebarProvider'
+import { useFeatureFlagStrict } from '@/lib/flags.client'
+import { ArchiveBoxArrowDownIcon } from '@heroicons/react/24/outline'
 
 const NAV_META = {
   '/admin/dashboard':     HomeIcon,
   '/admin/pedidos':       ShoppingBagIcon,
+  '/admin/usuarios':      UsersIcon,
   '/admin/productores':   UsersIcon,
   '/admin/productos':     ArchiveBoxIcon,
   '/admin/promociones':   TagIcon,
@@ -31,6 +34,7 @@ const NAV_META = {
   '/admin/informes':      ChartBarIcon,
   '/admin/analytics':     PresentationChartLineIcon,
   '/admin/notificaciones': BellIcon,
+  '/admin/ingestion': ArchiveBoxArrowDownIcon,
 } as const
 
 const SIDEBAR_EASE = 'cubic-bezier(0.25, 0.1, 0.25, 1)'
@@ -39,6 +43,12 @@ const SIDEBAR_DURATION_MS = 320
 export function AdminSidebar() {
   const pathname = usePathname()
   const { collapsed, toggleCollapsed, mobileOpen, closeMobile } = useSidebar()
+  const ingestionAdminEnabled = useFeatureFlagStrict('feat-ingestion-admin')
+  const visibleNavItems = adminNavItems.filter((item) => {
+    if (!item.flag) return true
+    if (item.flag === 'feat-ingestion-admin') return ingestionAdminEnabled
+    return false
+  })
 
   const labelCls = cn(
     'overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] ease-out',
@@ -104,7 +114,7 @@ export function AdminSidebar() {
         </div>
 
         <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
-          {adminNavItems.map(({ href, label, available }) => {
+          {visibleNavItems.map(({ href, label, available }) => {
             const Icon = NAV_META[href as keyof typeof NAV_META]
             const isActive = pathname === href || pathname.startsWith(href + '/')
 

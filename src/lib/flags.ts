@@ -105,6 +105,41 @@ export async function isFeatureEnabled(
   }
 }
 
+/**
+ * Fail-closed variant of `isFeatureEnabled` for feature gates whose
+ * "unknown" state MUST resolve to off — publish paths, destructive
+ * actions, anything that cannot safely run during a PostHog outage.
+ *
+ * Returns `true` only when:
+ *   - an explicit `true` override is present, OR
+ *   - PostHog is configured AND returns a strict `true` for the key.
+ *
+ * A PostHog outage, a missing key, an exception, or an `undefined`
+ * flag value all resolve to `false`. Use this INSTEAD OF
+ * `isFeatureEnabled` for anything whose default-on behaviour during
+ * an outage would be unacceptable.
+ */
+export async function isFeatureEnabledStrict(
+  key: string,
+  ctx?: FlagContext
+): Promise<boolean> {
+  const overrides = getOverrides()
+  const override = overrides[key]
+  if (typeof override === 'boolean') return override
+
+  try {
+    const client = await getClient()
+    if (!client) return false
+    const result = await client.isFeatureEnabled(key, distinctId(ctx), {
+      personProperties: personProperties(ctx),
+    })
+    return result === true
+  } catch (err) {
+    logger.warn('flags.eval_failed_strict', { key, err })
+    return false
+  }
+}
+
 export function resetFlagsForTests(): void {
   clientPromise = null
   overrideCache = null

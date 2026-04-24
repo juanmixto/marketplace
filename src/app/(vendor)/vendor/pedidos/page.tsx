@@ -11,6 +11,7 @@ import type { BadgeVariant } from '@/domains/catalog/types'
 import { parseOrderAddressSnapshot } from '@/types/order'
 import { getServerT } from '@/i18n/server'
 import type { TranslationKeys } from '@/i18n/locales'
+import { ShoppingBagIcon, ArchiveBoxIcon } from '@heroicons/react/24/outline'
 
 export const metadata: Metadata = { title: 'Mis pedidos' }
 
@@ -142,8 +143,18 @@ export default async function VendorPedidosPage({ searchParams }: PageProps) {
       </div>
 
       {all.length === 0 ? (
-        <div className="rounded-xl border-2 border-dashed border-[var(--border)] py-16 text-center">
-          <p className="text-[var(--muted)]">{t('vendor.orders.empty')}</p>
+        <div className="rounded-xl border-2 border-dashed border-[var(--border)] px-6 py-12 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+            <ShoppingBagIcon className="h-8 w-8" aria-hidden="true" />
+          </div>
+          <h2 className="text-lg font-semibold text-[var(--foreground)]">{t('vendor.orders.emptyTitle')}</h2>
+          <p className="mx-auto mt-1 max-w-md text-sm text-[var(--muted)]">{t('vendor.orders.emptyBody')}</p>
+          <Link
+            href="/vendor/productos"
+            className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400"
+          >
+            <ArchiveBoxIcon className="h-4 w-4" /> {t('vendor.orders.emptyCta')}
+          </Link>
         </div>
       ) : (
         <>

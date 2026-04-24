@@ -5,6 +5,13 @@ export interface AppNavItem {
   href: string
   label: string
   available: boolean
+  /**
+   * When set, the entry is only rendered if the named PostHog flag
+   * resolves strictly true (fail-closed). Route-level authz already
+   * rejects unauthorised access; this keeps the link itself out of
+   * the nav for users without the flag so pre-GA surfaces don't leak.
+   */
+  flag?: string
 }
 
 export interface LocalizedNavItem {
@@ -28,6 +35,7 @@ export const vendorNavItems: LocalizedNavItem[] = [
 export const adminNavItems: AppNavItem[] = [
   { href: '/admin/dashboard', label: 'Dashboard', available: true },
   { href: '/admin/pedidos', label: 'Pedidos', available: true },
+  { href: '/admin/usuarios', label: 'Usuarios', available: true },
   { href: '/admin/productores', label: 'Productores', available: true },
   { href: '/admin/productos', label: 'Productos', available: true },
   { href: '/admin/promociones', label: 'Promociones', available: true },
@@ -41,6 +49,7 @@ export const adminNavItems: AppNavItem[] = [
   { href: '/admin/informes', label: 'Informes', available: true },
   { href: '/admin/analytics', label: 'Analytics', available: true },
   { href: '/admin/notificaciones', label: 'Notificaciones', available: true },
+  { href: '/admin/ingestion', label: 'Ingestion', available: true, flag: 'feat-ingestion-admin' },
 ]
 
 export const buyerAccountItems: AppNavItem[] = [
