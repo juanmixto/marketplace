@@ -57,7 +57,10 @@ test.describe('buyer subscription checkout @smoke', () => {
     // --- SUBSCRIPTIONS LIST ---
     await page.waitForURL(/\/cuenta\/suscripciones/, { timeout: 15_000 })
     await expect(page.getByText(/cesta mixta de huerta/i).first()).toBeVisible()
-    await expect(page.getByText(/^activa$/i).first()).toBeVisible()
+    // The active badge text is translated and easy to regress with copy
+    // tweaks. The re-schedule CTA is the real operator signal we care
+    // about here: only active subscriptions expose it.
+    await expect(page.getByTestId('reschedule-subscription-cta').first()).toBeVisible()
     // Must now be Quincenal — we picked biweekly.
     await expect(page.getByText(/quincenal/i).first()).toBeVisible()
     // Shipping address from seed (Calle Mayor 18).
