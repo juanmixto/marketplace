@@ -136,10 +136,16 @@ export async function POST(req: NextRequest) {
   // and covers ALL event types (payment_intent.*, customer.subscription.*,
   // invoice.*) uniformly. The per-subscription watermark from #417 is
   // complementary: it catches out-of-order events with _different_ ids.
-  const eventId = event.id ?? null
+  //
+  // Real Stripe events always carry `event.id`, but mock/test webhooks and
+  // malformed retries may not. To keep idempotency intact even then, fall
+  // back to a deterministic synthetic id derived from the raw-body hash —
+  // two identical payloads collapse to the same delivery row, which is
+  // exactly what idempotency should guarantee.
+  const payloadHash = createHash('sha256').update(body).digest('hex')
+  const eventId: string = event.id ?? `synthetic_${payloadHash.slice(0, 32)}`
   let deliveryId: string | null = null
-  if (eventId) {
-    const payloadHash = createHash('sha256').update(body).digest('hex')
+  {
     try {
       const delivery = await db.webhookDelivery.create({
         data: {
@@ -180,7 +186,7 @@ export async function POST(req: NextRequest) {
           await handleInvalidWebhookPayload(event)
           break
         }
-        await handlePaymentSucceeded(pi.id, pi.amount, pi.currency, event.id)
+        await handlePaymentSucceeded(pi.id, pi.amount, pi.currency, eventId)
         break
       }
       case 'payment_intent.payment_failed': {
@@ -189,7 +195,7 @@ export async function POST(req: NextRequest) {
           await handleInvalidWebhookPayload(event)
           break
         }
-        await handlePaymentFailed(pi.id, event.id)
+        await handlePaymentFailed(pi.id, eventId)
         break
       }
       // Phase 4b-α: subscription lifecycle. The handlers below dedupe by
