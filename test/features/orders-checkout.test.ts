@@ -223,7 +223,9 @@ test('checkout client waits for cart hydration before redirecting to /carrito', 
 
   assert.match(checkoutClient, /const cartHydrated = useCartStore\(state => state\.hasHydrated\)/)
   assert.match(checkoutClient, /if \(!cartHydrated\) \{[\s\S]*?return \(/)
-  assert.match(checkoutClient, /if \(items\.length === 0 && step !== 'processing' && !completedOrderNumber\)/)
+  assert.match(checkoutClient, /const shouldRedirectToCart = cartHydrated && items\.length === 0 && step !== 'processing' && !completedOrderNumber/)
+  assert.match(checkoutClient, /useEffect\(\(\) => \{\s*if \(!shouldRedirectToCart \|\| hasRedirectedToCartRef\.current\) return/)
+  assert.match(checkoutClient, /if \(shouldRedirectToCart\) \{\s*return null\s*\}/)
 })
 
 test('checkout new-address form is collapsed by default when saved addresses exist', () => {
