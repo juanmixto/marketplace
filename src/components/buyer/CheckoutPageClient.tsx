@@ -297,6 +297,12 @@ export function CheckoutPageClient({
     router.refresh()
   }, [clearCart, completedOrderNumber, router])
 
+  useEffect(() => {
+    if (!shouldRedirectToCart || hasRedirectedToCartRef.current) return
+    hasRedirectedToCartRef.current = true
+    router.replace('/carrito')
+  }, [router, shouldRedirectToCart])
+
   if (!cartHydrated) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-24 sm:px-6 lg:px-8">
@@ -310,12 +316,6 @@ export function CheckoutPageClient({
       </div>
     )
   }
-
-  useEffect(() => {
-    if (!shouldRedirectToCart || hasRedirectedToCartRef.current) return
-    hasRedirectedToCartRef.current = true
-    router.replace('/carrito')
-  }, [router, shouldRedirectToCart])
 
   if (shouldRedirectToCart) {
     return null
