@@ -28,6 +28,7 @@ env:
   AUTH_SECRET: ci-secret-please-change
   NEXT_PUBLIC_APP_URL: http://localhost:3000
   PAYMENT_PROVIDER: mock
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   verify:
@@ -178,7 +179,7 @@ jobs:
       # any global seed data would be wiped before the first test
       # ever runs. Skipping saves ~5-8s per shard.
 
-      - name: Integration tests (shard ${{ matrix.shard }} of 8)
+      - name: Integration tests (shard ${{ matrix.shard }} of 16)
         run: npm run test:integration
         timeout-minutes: 10
 
