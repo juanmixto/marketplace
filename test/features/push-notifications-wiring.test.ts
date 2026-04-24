@@ -4,10 +4,19 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 /**
- * Contract pin for the first live push-notification wiring (#570).
- * Regression in any of these assertions silently breaks the buyer's
- * "your parcel is on the way" push, which is the one event the
- * subscribe-flow was shipped for.
+ * Contract pin for the buyer-facing "your parcel is on the way" wiring.
+ *
+ * Originally (#570) the push was a direct `sendPushToUser` call with a
+ * hand-rolled payload. That path bypassed the notification dispatcher,
+ * so the Telegram transport (#611) and the web-push catalogue (#624)
+ * could not personalize it. Once both transports were wired through
+ * the dispatcher via `order.status_changed`, the direct call became a
+ * duplicate — both paths fired on every SHIPPED transition.
+ *
+ * This test pins the consolidated behaviour: `advanceFulfillment`
+ * emits `order.status_changed` through the dispatcher, the transports
+ * handle rendering + delivery + preferences, and the direct
+ * `sendPushToUser` call is gone.
  */
 
 const ACTIONS_PATH = 'src/domains/vendors/actions.ts'
@@ -16,51 +25,43 @@ function readActions(): string {
   return readFileSync(join(process.cwd(), ACTIONS_PATH), 'utf-8')
 }
 
-test('advanceFulfillment fires a push when the transition lands on SHIPPED', () => {
+test('advanceFulfillment emits order.status_changed when it lands on SHIPPED', () => {
   const src = readActions()
-  // The helper must exist and the fire-and-forget callsite must
-  // reference it inside the `if (nextStatus === 'SHIPPED')` branch.
-  assert.match(src, /notifyBuyerFulfillmentShipped/, 'helper must be defined')
   assert.match(
     src,
     /if\s*\(\s*nextStatus\s*===\s*'SHIPPED'\s*\)\s*\{[\s\S]*notifyBuyerFulfillmentShipped/,
-    'the push must be guarded by the SHIPPED transition — firing on every transition would spam buyers',
+    'emission must be guarded by the SHIPPED transition — firing on every transition would spam buyers',
+  )
+  assert.match(
+    src,
+    /emitNotification\(\s*['"]order\.status_changed['"]/,
+    'the buyer notification must flow through the dispatcher so every transport sees it',
   )
 })
 
-test('push helper is fire-and-forget — a failure never blocks the vendor UI', () => {
+test('advanceFulfillment no longer bypasses the dispatcher with a direct sendPushToUser', () => {
   const src = readActions()
-  assert.match(
+  assert.doesNotMatch(
     src,
-    /void notifyBuyerFulfillmentShipped[\s\S]*\.catch\(/,
-    'the call must be `void helper(...).catch(...)` so a web-push error does not throw out of advanceFulfillment',
+    /sendPushToUser\s*\(/,
+    'removing the direct call is what consolidates the flow — a regression would duplicate every SHIPPED push (one direct, one via dispatcher)',
   )
 })
 
-test('push helper uses the official sendPushToUser API (graceful degradation)', () => {
+test('order.status_changed payload carries orderNumber + vendorName for personalized templates', () => {
   const src = readActions()
   assert.match(
     src,
-    /import\(\s*['"]@\/lib\/pwa\/push-send['"]\s*\)/,
-    'the helper must import from src/lib/pwa/push-send so the `no VAPID → no-op` and stale-subscription cleanup behaviour is preserved',
-  )
-  assert.match(src, /sendPushToUser\s*\(/, 'must call sendPushToUser, not ad-hoc web-push')
-})
-
-test('push payload includes a deep-link to the buyer order detail', () => {
-  const src = readActions()
-  assert.match(
-    src,
-    /url:\s*`\/cuenta\/pedidos\/\$\{orderId\}`/,
-    'the push must deep-link into the buyer order detail so a tap lands on the tracking page',
+    /status:\s*'SHIPPED'[\s\S]*orderNumber:[\s\S]*vendorName:/,
+    'the dispatcher payload must include orderNumber and vendorName so the buyer-facing copy can name-drop the shop',
   )
 })
 
-test('push payload is tagged so repeat shipments of the same order collapse in the tray', () => {
+test('shipped-buyer notification remains fire-and-forget', () => {
   const src = readActions()
   assert.match(
     src,
-    /tag:\s*`order-shipped-\$\{orderId\}`/,
-    'tag pins the notification to the order so multiple fulfillments in the same order don\'t pile up',
+    /void notifyBuyerFulfillmentShipped\s*\(/,
+    'void-prefixed call keeps a broken transport from tearing out of advanceFulfillment',
   )
 })

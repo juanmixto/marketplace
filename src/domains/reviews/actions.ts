@@ -6,6 +6,8 @@ import { getActionSession } from '@/lib/action-session'
 import { isVendor } from '@/lib/roles'
 import { redirect } from 'next/navigation'
 import { safeRevalidatePath } from '@/lib/revalidate'
+// eslint-disable-next-line no-restricted-imports -- dispatcher is intentionally server-only, excluded from notifications barrel
+import { emit as emitNotification } from '@/domains/notifications/dispatcher'
 
 const createReviewSchema = z.object({
   orderId: z.string().min(1),
@@ -90,7 +92,7 @@ export async function createReview(
   const [product, vendor] = await Promise.all([
     db.product.findUnique({
       where: { id: validated.productId },
-      select: { slug: true },
+      select: { slug: true, name: true },
     }),
     db.vendor.findUnique({
       where: { id: line.vendorId },
@@ -98,8 +100,8 @@ export async function createReview(
     }),
   ])
 
-  await db.$transaction(async tx => {
-    await tx.review.create({
+  const createdReview = await db.$transaction(async tx => {
+    const review = await tx.review.create({
       data: {
         orderId: validated.orderId,
         productId: validated.productId,
@@ -108,6 +110,7 @@ export async function createReview(
         rating: validated.rating,
         body: trimmedBody || null,
       },
+      select: { id: true },
     })
 
     const aggregate = await tx.review.aggregate({
@@ -123,6 +126,15 @@ export async function createReview(
         totalReviews: aggregate._count._all,
       },
     })
+    return review
+  })
+
+  emitNotification('review.received', {
+    reviewId: createdReview.id,
+    vendorId: line.vendorId,
+    productId: validated.productId,
+    productName: product?.name ?? 'Producto',
+    rating: validated.rating,
   })
 
   safeRevalidatePath(`/cuenta/pedidos/${validated.orderId}`)

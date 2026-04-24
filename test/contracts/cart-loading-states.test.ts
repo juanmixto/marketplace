@@ -86,3 +86,10 @@ test('cart store updates remain synchronous (the optimistic guarantee, #132)', (
   assert.ok(!/removeItem:\s*async/.test(storeSrc), 'removeItem must remain synchronous')
   assert.ok(!/updateQty:\s*async/.test(storeSrc), 'updateQty must remain synchronous')
 })
+
+test('cart page waits for hydration before showing the empty state', () => {
+  assert.match(SRC, /const cartHydrated = useCartStore\(state => state\.hasHydrated\)/)
+  assert.match(SRC, /if \(!cartHydrated\) \{\s+return \(/)
+  assert.match(SRC, /Cargando tu carrito…/)
+  assert.match(SRC, /if \(items\.length === 0\) \{/)
+})

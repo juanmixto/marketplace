@@ -1,11 +1,15 @@
-import { confirmFulfillmentByUserId } from '@/domains/vendors'
 import type { ActionContext } from './registry'
 import {
   answerCallbackQuery,
   editMessageRemoveKeyboard,
 } from '../service'
 
+// Deferred import — vendors depends on notifications for event emission,
+// and Telegram callback actions only run when the user taps a button, so
+// loading the vendor module lazily keeps the static domain graph acyclic
+// without changing runtime behaviour.
 export async function confirmFulfillmentAction(ctx: ActionContext): Promise<void> {
+  const { confirmFulfillmentByUserId } = await import('@/domains/vendors')
   const result = await confirmFulfillmentByUserId(ctx.userId, ctx.targetId)
 
   if (!result.ok) {

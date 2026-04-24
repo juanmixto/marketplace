@@ -1,6 +1,5 @@
 'use client'
 
-import { signOut } from 'next-auth/react'
 import { useState } from 'react'
 import { UserCircleIcon, ChevronDownIcon, Bars3Icon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
@@ -10,6 +9,7 @@ import { useT } from '@/i18n'
 import { useSidebar } from '@/components/layout/SidebarProvider'
 import { PortalSwitcher } from '@/components/layout/PortalSwitcher'
 import type { AvailablePortal } from '@/lib/portals'
+import { signOutAndClearCart } from '@/components/buyer/cart-session'
 
 interface Props {
   user: { name?: string | null; email?: string | null }
@@ -78,7 +78,7 @@ export function VendorHeader({ user, vendor, portals = [] }: Props) {
                 {t('vendor.header.goToStore')}
               </Link>
               <button
-                onClick={() => signOut({ callbackUrl: '/login' })}
+                onClick={() => void signOutAndClearCart('/login')}
                 className="mt-1 w-full rounded-lg border-t border-[var(--border)] px-3 py-2.5 text-left text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40 mx-1 pt-2"
               >
                 {t('vendor.header.signOut')}

@@ -33,7 +33,7 @@ you the `correlationId` → grep the logs with it per scenarios below.
 
 ## Log query index
 
-### Checkout events (from `createOrder` / `createCheckoutOrder`)
+### Checkout events (from orders use-cases)
 
 | Scope | What it means |
 |---|---|

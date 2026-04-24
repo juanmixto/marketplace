@@ -40,7 +40,7 @@ export default async function ComoVender() {
           <p className="mb-8 text-xl text-foreground-soft">{copy.heroBody}</p>
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Link
-              href="/register?rol=productor"
+              href="/cuenta/hazte-vendedor"
               className="rounded-lg bg-accent px-8 py-4 font-semibold text-white transition-colors hover:bg-accent-hover"
             >
               {copy.heroPrimaryCta}
@@ -178,7 +178,7 @@ export default async function ComoVender() {
           <h2 className="mb-6 text-4xl font-bold text-foreground">{copy.ctaTitle}</h2>
           <p className="mb-8 text-xl text-foreground-soft">{copy.ctaBody}</p>
           <Link
-            href="/register?rol=productor"
+            href="/cuenta/hazte-vendedor"
             className="rounded-lg bg-accent px-10 py-4 text-lg font-semibold text-white transition-colors hover:bg-accent-hover"
           >
             {copy.ctaPrimary}

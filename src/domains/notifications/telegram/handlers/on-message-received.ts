@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import type { MessageReceivedPayload } from '../../events'
 import { sendToUser } from '../service'
 import { messageReceivedTemplate } from '../templates'
+import { resolveVendorFirstName } from './order-view'
 
 export async function onMessageReceived(payload: MessageReceivedPayload): Promise<void> {
   const vendor = await db.vendor.findUnique({
@@ -10,7 +11,12 @@ export async function onMessageReceived(payload: MessageReceivedPayload): Promis
   })
   if (!vendor) return
 
-  await sendToUser(vendor.userId, 'MESSAGE_RECEIVED', messageReceivedTemplate(payload), {
-    payloadRef: `conversation:${payload.conversationId}`,
-  })
+  const vendorFirstName = await resolveVendorFirstName(payload.vendorId)
+
+  await sendToUser(
+    vendor.userId,
+    'MESSAGE_RECEIVED',
+    messageReceivedTemplate(payload, { vendorFirstName }),
+    { payloadRef: `conversation:${payload.conversationId}` },
+  )
 }
