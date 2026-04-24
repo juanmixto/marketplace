@@ -74,6 +74,7 @@ export function CheckoutPageClient({
 }: Props) {
   const router = useRouter()
   const { items, subtotal, clearCart } = useCartStore()
+  const cartHydrated = useCartStore(state => state.hasHydrated)
   const [step, setStep] = useState<'address' | 'payment' | 'processing'>('address')
   const [serverError, setServerError] = useState<string | null>(null)
   const hasInitialAddresses = initialAddresses !== undefined
@@ -293,6 +294,20 @@ export function CheckoutPageClient({
     router.replace(`/checkout/confirmacion?orderNumber=${encodeURIComponent(completedOrderNumber)}`)
     router.refresh()
   }, [clearCart, completedOrderNumber, router])
+
+  if (!cartHydrated) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-24 sm:px-6 lg:px-8">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-6 py-10 text-center shadow-sm">
+          <p className="text-sm font-medium uppercase tracking-[0.16em] text-[var(--muted)]">
+            {t('checkout.flowLabel')}
+          </p>
+          <h1 className="mt-3 text-2xl font-bold text-[var(--foreground)]">{t('checkout.title')}</h1>
+          <p className="mt-2 text-sm text-[var(--muted)]">{t('cart.title')}…</p>
+        </div>
+      </div>
+    )
+  }
 
   if (items.length === 0 && step !== 'processing' && !completedOrderNumber) {
     router.replace('/carrito')

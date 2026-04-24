@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { useCartStore } from '@/domains/orders/cart-store'
 
 function resetCart() {
-  useCartStore.setState({ items: [] })
+  useCartStore.setState({ items: [], hasHydrated: false })
 }
 
 test('addItem can add multiple units in one action', () => {
@@ -49,4 +49,13 @@ test('addItem merges quantities from repeated bulk adds', () => {
   } as never)
 
   assert.equal(useCartStore.getState().items[0]?.quantity, 5)
+})
+
+test('cart store exposes a hydration flag for persisted localStorage state', () => {
+  resetCart()
+
+  assert.equal(useCartStore.getState().hasHydrated, false)
+
+  useCartStore.getState().setHasHydrated(true)
+  assert.equal(useCartStore.getState().hasHydrated, true)
 })
