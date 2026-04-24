@@ -14,6 +14,29 @@ const BILLED_STATUSES = [
 
 const SPARKLINE_DAYS = 14
 
+export const DEFAULT_PAGE_SIZE = 20
+
+export const PRODUCER_STATUS_FILTERS = [
+  'ALL',
+  'ACTIVE',
+  'APPLYING',
+  'PENDING_DOCS',
+  'SUSPENDED_TEMP',
+  'SUSPENDED_PERM',
+  'REJECTED',
+] as const
+export type ProducerStatusFilter = (typeof PRODUCER_STATUS_FILTERS)[number]
+
+export const PRODUCER_SORT_KEYS = [
+  'revenueDesc',
+  'revenueAsc',
+  'recent',
+  'lastSeen',
+  'name',
+  'orders',
+] as const
+export type ProducerSortKey = (typeof PRODUCER_SORT_KEYS)[number]
+
 export interface ProducerSparkPoint {
   day: string
   revenue: number
@@ -40,8 +63,26 @@ export interface EnrichedProducer {
   sparkline: number[]
 }
 
+export interface ProducersOverviewParams {
+  page?: number
+  search?: string
+  status?: ProducerStatusFilter
+  sort?: ProducerSortKey
+}
+
 export interface ProducersOverview {
-  producers: EnrichedProducer[]
+  pageItems: EnrichedProducer[]
+  pagination: {
+    page: number
+    pageSize: number
+    totalFiltered: number
+    totalPages: number
+  }
+  params: {
+    search: string
+    status: ProducerStatusFilter
+    sort: ProducerSortKey
+  }
   globals: {
     total: number
     active: number
@@ -85,8 +126,29 @@ function toNumber(value: string | number | bigint | null | undefined): number {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
-export async function getProducersOverview(): Promise<ProducersOverview> {
+export function normalizeProducersOverviewParams(
+  raw: ProducersOverviewParams | undefined
+): Required<Omit<ProducersOverviewParams, 'page'>> & { page: number; pageSize: number } {
+  const pageSize = DEFAULT_PAGE_SIZE
+  const page = Math.max(1, Math.floor(raw?.page ?? 1))
+  const search = (raw?.search ?? '').trim()
+  const status: ProducerStatusFilter = PRODUCER_STATUS_FILTERS.includes(
+    raw?.status as ProducerStatusFilter
+  )
+    ? (raw!.status as ProducerStatusFilter)
+    : 'ALL'
+  const sort: ProducerSortKey = PRODUCER_SORT_KEYS.includes(raw?.sort as ProducerSortKey)
+    ? (raw!.sort as ProducerSortKey)
+    : 'revenueDesc'
+  return { page, pageSize, search, status, sort }
+}
+
+export async function getProducersOverview(
+  rawParams: ProducersOverviewParams = {}
+): Promise<ProducersOverview> {
   await requireAdmin()
+  const params = normalizeProducersOverviewParams(rawParams)
+
   const [vendors, statusGroups, revenueRows, topProductRows, lastSeenRows, sparkRows] = await Promise.all([
     db.vendor.findMany({
       orderBy: { createdAt: 'desc' },
@@ -168,7 +230,6 @@ export async function getProducersOverview(): Promise<ProducersOverview> {
     lastSeenByVendor.set(row.vendorId, row.lastSeenAt ? row.lastSeenAt.toISOString() : null)
   }
 
-  // Build a 14-day index → 0 for each vendor, then fill from sparkRows.
   const today = new Date()
   today.setUTCHours(0, 0, 0, 0)
   const dayKeys: string[] = []
@@ -190,7 +251,7 @@ export async function getProducersOverview(): Promise<ProducersOverview> {
     arr[idx] = toNumber(row.revenue)
   }
 
-  const producers: EnrichedProducer[] = vendors.map(v => {
+  const allEnriched: EnrichedProducer[] = vendors.map(v => {
     const rev = revenueByVendor.get(v.id)
     return {
       id: v.id,
@@ -214,6 +275,47 @@ export async function getProducersOverview(): Promise<ProducersOverview> {
     }
   })
 
+  // Apply filter → sort → paginate server-side so the client only ever
+  // deserialises the visible page (~20 rows) instead of the whole table.
+  const searchLower = params.search.toLowerCase()
+  const filtered = allEnriched.filter(p => {
+    if (params.status !== 'ALL' && p.status !== params.status) return false
+    if (!searchLower) return true
+    return (
+      p.displayName.toLowerCase().includes(searchLower) ||
+      p.email.toLowerCase().includes(searchLower) ||
+      (p.location?.toLowerCase().includes(searchLower) ?? false)
+    )
+  })
+
+  const sorted = [...filtered]
+  switch (params.sort) {
+    case 'revenueDesc':
+      sorted.sort((a, b) => b.revenue - a.revenue)
+      break
+    case 'revenueAsc':
+      sorted.sort((a, b) => a.revenue - b.revenue)
+      break
+    case 'recent':
+      sorted.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      break
+    case 'lastSeen':
+      sorted.sort((a, b) => (b.lastSeenAt ?? '').localeCompare(a.lastSeenAt ?? ''))
+      break
+    case 'name':
+      sorted.sort((a, b) => a.displayName.localeCompare(b.displayName))
+      break
+    case 'orders':
+      sorted.sort((a, b) => b.ordersCount - a.ordersCount)
+      break
+  }
+
+  const totalFiltered = sorted.length
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / params.pageSize))
+  const safePage = Math.min(params.page, totalPages)
+  const pageStart = (safePage - 1) * params.pageSize
+  const pageItems = sorted.slice(pageStart, pageStart + params.pageSize)
+
   const statusCounts: Record<VendorStatus, number> = {
     APPLYING: 0,
     PENDING_DOCS: 0,
@@ -226,19 +328,30 @@ export async function getProducersOverview(): Promise<ProducersOverview> {
     statusCounts[g.status] = g._count._all
   }
 
-  const gmv = producers.reduce((acc, p) => acc + p.revenue, 0)
-  const orders = producers.reduce((acc, p) => acc + p.ordersCount, 0)
+  const gmv = allEnriched.reduce((acc, p) => acc + p.revenue, 0)
+  const orders = allEnriched.reduce((acc, p) => acc + p.ordersCount, 0)
 
   return {
-    producers,
-    statusCounts,
+    pageItems,
+    pagination: {
+      page: safePage,
+      pageSize: params.pageSize,
+      totalFiltered,
+      totalPages,
+    },
+    params: {
+      search: params.search,
+      status: params.status,
+      sort: params.sort,
+    },
     globals: {
-      total: producers.length,
+      total: allEnriched.length,
       active: statusCounts.ACTIVE,
       pendingReview: statusCounts.APPLYING + statusCounts.PENDING_DOCS,
       suspended: statusCounts.SUSPENDED_TEMP + statusCounts.SUSPENDED_PERM,
       gmv,
       orders,
     },
+    statusCounts,
   }
 }
