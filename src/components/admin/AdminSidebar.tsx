@@ -20,6 +20,7 @@ import { ArchiveBoxArrowDownIcon } from '@heroicons/react/24/outline'
 const NAV_META = {
   '/admin/dashboard':     HomeIcon,
   '/admin/pedidos':       ShoppingBagIcon,
+  '/admin/usuarios':      UsersIcon,
   '/admin/productores':   UsersIcon,
   '/admin/productos':     ArchiveBoxIcon,
   '/admin/promociones':   TagIcon,

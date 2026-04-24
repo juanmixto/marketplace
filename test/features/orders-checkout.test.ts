@@ -215,7 +215,19 @@ test('checkout client avoids the empty-cart fallback while the confirmation redi
   const checkoutClient = readSource('../../src/components/buyer/CheckoutPageClient.tsx')
 
   assert.match(checkoutClient, /setCompletedOrderNumber\(orderNumber\)/)
-  assert.match(checkoutClient, /items\.length === 0 && step !== 'processing' && !completedOrderNumber/)
+  assert.match(checkoutClient, /const shouldRedirectToCart = cartHydrated && items\.length === 0 && step !== 'processing' && !completedOrderNumber/)
+  assert.match(checkoutClient, /useEffect\(\(\) => \{\s*if \(!shouldRedirectToCart \|\| hasRedirectedToCartRef\.current\) return/)
+  assert.match(checkoutClient, /if \(shouldRedirectToCart\) \{\s*return null\s*\}/)
+})
+
+test('checkout client waits for cart hydration before redirecting to /carrito', () => {
+  const checkoutClient = readSource('../../src/components/buyer/CheckoutPageClient.tsx')
+
+  assert.match(checkoutClient, /const cartHydrated = useCartStore\(state => state\.hasHydrated\)/)
+  assert.match(checkoutClient, /if \(!cartHydrated\) \{[\s\S]*?return \(/)
+  assert.match(checkoutClient, /const shouldRedirectToCart = cartHydrated && items\.length === 0 && step !== 'processing' && !completedOrderNumber/)
+  assert.match(checkoutClient, /useEffect\(\(\) => \{\s*if \(!shouldRedirectToCart \|\| hasRedirectedToCartRef\.current\) return/)
+  assert.match(checkoutClient, /if \(shouldRedirectToCart\) \{\s*return null\s*\}/)
 })
 
 test('checkout new-address form is collapsed by default when saved addresses exist', () => {
