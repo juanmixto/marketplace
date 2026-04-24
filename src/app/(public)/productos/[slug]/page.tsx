@@ -101,16 +101,20 @@ export default async function ProductDetailPage({ params }: Props) {
   const localizedProduct = getLocalizedProductCopy(product, locale)
   const taxRate = Number(product.taxRate)
 
-  const related = await getProducts({
-    categorySlug: product.category?.slug,
-    limit: 4,
-  }).then(r => r.products.filter(p => p.id !== product.id).slice(0, 4))
-  const reviewSummary = await getProductReviews(product.id)
-  const activePromotions = await getActivePromotionsForProduct({
-    productId: product.id,
-    vendorId: product.vendor.id,
-    categoryId: product.categoryId ?? null,
-  })
+  // Three independent reads — fire in parallel to cut TTFB on the
+  // product page (SEO + CWV: each sequential hop is ~1 RTT).
+  const [related, reviewSummary, activePromotions] = await Promise.all([
+    getProducts({
+      categorySlug: product.category?.slug,
+      limit: 4,
+    }).then(r => r.products.filter(p => p.id !== product.id).slice(0, 4)),
+    getProductReviews(product.id),
+    getActivePromotionsForProduct({
+      productId: product.id,
+      vendorId: product.vendor.id,
+      categoryId: product.categoryId ?? null,
+    }),
+  ])
 
   // An "auto-applied" promo is one that a buyer gets without typing a
   // code and without needing to reach a minimum subtotal — i.e. it
