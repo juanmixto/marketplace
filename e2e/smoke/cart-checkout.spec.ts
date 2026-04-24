@@ -52,6 +52,9 @@ test.describe('cart and checkout @smoke', () => {
 
     // --- CART ---
     await page.goto('/carrito')
+    await expect(
+      page.getByRole('link', { name: /tomates cherry ecológicos/i }).first(),
+    ).toBeVisible({ timeout: 5_000 })
 
     const toCheckout = page.getByRole('link', { name: /ir al checkout/i }).first()
     await expect(toCheckout).toBeVisible({ timeout: 10_000 })
@@ -65,7 +68,7 @@ test.describe('cart and checkout @smoke', () => {
     // bump the ceiling to 25s to absorb dev-mode compile spikes.
     await Promise.all([
       page.waitForURL(/\/checkout(?:\/|$|\?)/, { timeout: 25_000, waitUntil: 'commit' }),
-      toCheckout.click(),
+      toCheckout.click({ noWaitAfter: true }),
     ])
 
     // --- CHECKOUT ---
@@ -77,7 +80,10 @@ test.describe('cart and checkout @smoke', () => {
     // Confirm button text includes the total price. Match on the verb.
     const confirm = page.getByRole('button', { name: /confirmar pedido/i })
     await expect(confirm).toBeEnabled({ timeout: 5_000 })
-    await confirm.click()
+    await Promise.all([
+      page.waitForURL(/\/checkout\/confirmacion\?orderNumber=/, { timeout: 20_000 }),
+      confirm.click({ noWaitAfter: true }),
+    ])
 
     // --- CONFIRMATION ---
     await expect(page).toHaveURL(/\/checkout\/confirmacion\?orderNumber=/, { timeout: 15_000 })
