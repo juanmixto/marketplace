@@ -81,11 +81,19 @@ function getWebhookErrorMessage(error: unknown) {
 
 /**
  * Returns true if the mock webhook path is safe to use.
- * In production, mock processing must be blocked to prevent spoofed events.
+ *
+ * Mock processing skips signature verification, so it must be blocked in any
+ * environment that could see real payment traffic or be reachable from the
+ * public internet. We allow only `development` and `test` — staging and any
+ * unknown NODE_ENV are treated as production-equivalent (deny).
+ *
+ * Historical note: this used to be `nodeEnv !== 'production'`, which let a
+ * staging deploy with `PAYMENT_PROVIDER=mock` accept unsigned webhooks and
+ * spoof paid orders. See audit 2026-04-21.
  */
 export function isMockWebhookAllowed(paymentProvider: string, nodeEnv: string): boolean {
   if (paymentProvider !== 'mock') return false
-  return nodeEnv !== 'production'
+  return nodeEnv === 'development' || nodeEnv === 'test'
 }
 
 /**
