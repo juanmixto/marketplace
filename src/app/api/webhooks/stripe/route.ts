@@ -30,6 +30,7 @@ import {
 } from '@/domains/subscriptions/cadence'
 import { sendSubscriptionPaymentFailedEmail } from '@/domains/subscriptions/emails'
 import { logger } from '@/lib/logger'
+import { isFeatureEnabled } from '@/lib/flags'
 import type Stripe from 'stripe'
 
 type WebhookEvent = {
@@ -71,6 +72,20 @@ function eventCreatedAt(event: Stripe.Event | WebhookEvent): Date {
  * Handles: payment_intent.succeeded, payment_intent.payment_failed
  */
 export async function POST(req: NextRequest) {
+  // Emergency kill switch. Returning 503 (not 200) is intentional:
+  // Stripe will retry the event with exponential backoff for up to
+  // 3 days, so when we reopen the switch the queue drains itself.
+  // Never swallow an event — losing a payment confirmation is far
+  // worse than a delayed one. Fail-open in src/lib/flags.ts means a
+  // PostHog outage does NOT wedge the webhook.
+  if (!(await isFeatureEnabled('kill-stripe-webhook'))) {
+    logger.warn('stripe.webhook.kill_switch_active', {})
+    return NextResponse.json(
+      { error: 'webhook temporarily disabled' },
+      { status: 503 }
+    )
+  }
+
   const body = await req.text()
   const sig = req.headers.get('stripe-signature')
   const env = getServerEnv()
@@ -326,14 +341,13 @@ async function handlePaymentSucceeded(providerRef: string, amount?: number, curr
           data: { status: 'SUCCEEDED' },
         })
 
+        // Only PLACED is a legal predecessor for PAYMENT_CONFIRMED. The
+        // previous `OR { not: ... }` filter would happily resurrect a
+        // CANCELLED or REFUNDED order when a late/retried webhook arrived,
+        // leaving the buyer charged with no fulfillment intent. Being
+        // explicit makes the transition a single allowed edge.
         const orderUpdate = await tx.order.updateMany({
-          where: {
-            id: payment.orderId,
-            OR: [
-              { paymentStatus: { not: 'SUCCEEDED' } },
-              { status: { not: 'PAYMENT_CONFIRMED' } },
-            ],
-          },
+          where: { id: payment.orderId, status: 'PLACED' },
           data: { status: 'PAYMENT_CONFIRMED', paymentStatus: 'SUCCEEDED' },
         })
 

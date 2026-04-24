@@ -201,16 +201,47 @@ Without these env vars, the entire push layer degrades silently:
 
 ### Triggering a push from backend code
 
-```ts
-import { sendPushToUser } from '@/lib/pwa/push-send'
+Prefer the **notification dispatcher** over calling `sendPushToUser`
+directly: it fans out the event to every transport (Telegram + web
+push) with per-channel preferences, delivery logging, and the
+personalized templates in `src/domains/notifications/web-push/templates.ts`:
 
-await sendPushToUser(userId, {
-  title: 'Pedido enviado',
-  body: 'Tu pedido #1234 ya está en camino.',
-  url: '/cuenta/pedidos/1234',
-  tag: 'order-1234',
+```ts
+import { emit as emitNotification } from '@/domains/notifications/dispatcher'
+
+emitNotification('order.status_changed', {
+  orderId,
+  customerUserId,
+  fulfillmentId,
+  status: 'SHIPPED',
+  orderNumber,
+  vendorName,
 })
 ```
+
+A direct `sendPushToUser(...)` call is only appropriate for ad-hoc
+pings that are not in the `NotificationEventName` catalogue — it
+skips every preference check and writes nothing to
+`NotificationDelivery`.
+
+### Verifying the pipeline end-to-end on dev
+
+1. **Keys present?** `grep VAPID .env.local` — the two keys must be
+   set. If missing, run the generator command above; the server logs
+   `push.config.missing` otherwise.
+2. **Subscribe a device** — open `https://dev.feldescloud.com/cuenta/notificaciones`
+   on the target phone/browser, install the PWA if prompted, click
+   *Activar notificaciones*. One row appears in `PushSubscription`.
+3. **Fire an event** — mark an order as SHIPPED from the vendor
+   portal. Check `NotificationDelivery` for two rows (one
+   `TELEGRAM`, one `WEB_PUSH`) tagged with the order's payloadRef.
+4. **OS notification arrives** — banner lands within ~1 s. Tap it;
+   the SW deep-links to `/cuenta/pedidos/<id>`.
+5. **Troubleshoot** — a `SKIPPED/PUSH_DISABLED` row means VAPID is
+   not loaded in this runtime; restart the dev server after editing
+   `.env.local`. `SKIPPED/NO_SUBSCRIPTION` means the user never
+   clicked Activar. `SKIPPED/USER_DISABLED` means they toggled the
+   preference off at `/cuenta/notificaciones`.
 
 ## Web Share Target (#465)
 

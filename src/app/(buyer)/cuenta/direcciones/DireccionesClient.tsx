@@ -39,14 +39,25 @@ const SPANISH_PROVINCES = [
 interface DireccionesClientProps {
   userFirstName?: string
   userLastName?: string
+  /**
+   * Addresses pre-fetched on the server. Seeding the store from props
+   * avoids the mount-time `fetch('/api/direcciones')` round trip and the
+   * "blink to Loading…" that came with it: the list is visible from the
+   * first paint. Left optional so existing call sites keep working.
+   */
+  initialAddresses?: Address[]
 }
 
 export function DireccionesClient({
   userFirstName = '',
   userLastName = '',
+  initialAddresses,
 }: DireccionesClientProps = {}) {
-  const [addresses, setAddresses] = useState<Address[]>([])
-  const [loading, setLoading] = useState(true)
+  const [addresses, setAddresses] = useState<Address[]>(initialAddresses ?? [])
+  // If the page already passed server-rendered addresses we can paint
+  // immediately; otherwise preserve the old behaviour of showing a
+  // loading indicator while the `useEffect` fetches.
+  const [loading, setLoading] = useState(initialAddresses === undefined)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -66,11 +77,16 @@ export function DireccionesClient({
     },
   })
 
-  // Load addresses on mount
+  // Only fetch on mount when the caller did NOT pre-seed addresses. When
+  // the server-rendered page passes `initialAddresses`, the list is
+  // already visible on first paint and a second fetch would just cause
+  // a visible flash. Mutations further down keep local state in sync
+  // without needing a refetch.
   useEffect(() => {
+    if (initialAddresses !== undefined) return
     const loadAddresses = async () => {
       try {
-        const res = await fetch('/api/direcciones')
+        const res = await fetch('/api/direcciones', { cache: 'no-store' })
         if (!res.ok) throw new Error('Error al cargar direcciones')
         const data = await res.json()
         setAddresses(data)
@@ -81,7 +97,7 @@ export function DireccionesClient({
       }
     }
     loadAddresses()
-  }, [])
+  }, [initialAddresses])
 
   const onSubmit = async (data: AddressForm) => {
     try {

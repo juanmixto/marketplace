@@ -30,7 +30,7 @@ export default async function VendorPerfilPage() {
         <StripeConnectUI onboarded={profile.stripeOnboarded} />
       </section>
 
-      <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
+      <section id="shipping-address" className="space-y-4 scroll-mt-20 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
         <div>
           <h2 className="font-semibold text-[var(--foreground)]">{t('vendor.shippingAddress.title')}</h2>
           <p className="text-sm text-[var(--muted)] mt-0.5">{t('vendor.shippingAddress.subtitle')}</p>
