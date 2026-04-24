@@ -252,7 +252,9 @@ export default async function ReviewItemDetailPage({ params }: PageProps) {
                             <span className="font-mono text-[var(--muted-foreground)]">{field}</span>:{' '}
                             <span className="font-mono">{meta.rule}</span>
                             {meta.source && (
-                              <span className="ml-2 text-[var(--muted-foreground)]">("{meta.source}")</span>
+                              <span className="ml-2 text-[var(--muted-foreground)]">
+                                &quot;{meta.source}&quot;
+                              </span>
                             )}
                           </li>
                         ))}
