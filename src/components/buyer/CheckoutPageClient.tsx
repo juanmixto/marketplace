@@ -462,17 +462,18 @@ export function CheckoutPageClient({
                       </button>
                     )}
                   </div>
-                  <div className="grid gap-3">
-                    {savedAddresses.map(address => {
-                      const isSelected = selectedAddressId === address.id
-                      return (
-                        <button
-                          key={address.id}
-                          type="button"
-                          onClick={() => handleUseSavedAddress(address)}
-                          className={`rounded-lg border p-3 text-left transition ${
-                            isSelected
-                              ? 'border-emerald-500 bg-emerald-50/70 dark:border-emerald-400 dark:bg-emerald-950/20'
+                <div className="grid gap-3" data-testid="checkout-saved-addresses">
+                  {savedAddresses.map(address => {
+                    const isSelected = selectedAddressId === address.id
+                    return (
+                      <button
+                        key={address.id}
+                        type="button"
+                        onClick={() => handleUseSavedAddress(address)}
+                        data-testid="checkout-saved-address"
+                        className={`rounded-lg border p-3 text-left transition ${
+                          isSelected
+                            ? 'border-emerald-500 bg-emerald-50/70 dark:border-emerald-400 dark:bg-emerald-950/20'
                               : 'border-[var(--border)] bg-[var(--surface-raised)] hover:border-emerald-300 dark:hover:border-emerald-700'
                           }`}
                         >

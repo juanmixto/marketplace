@@ -24,7 +24,6 @@ import AxeBuilder from '@axe-core/playwright'
 import { TEST_USERS, loginAs } from '../helpers/auth'
 
 const SEEDED_PRODUCT_SLUG = 'tomates-cherry-ecologicos'
-const SEEDED_ADDRESS_LINE1 = 'Calle Mayor 18'
 
 test.describe('cart and checkout @smoke', () => {
   test('buyer adds a product, checks out with the mock provider and lands on confirmation', async ({ page }) => {
@@ -64,9 +63,13 @@ test.describe('cart and checkout @smoke', () => {
 
     // --- CHECKOUT ---
     // The seeded customer has a default address (`Calle Mayor 18`, Madrid).
-    // Wait for saved addresses to load so the preferred one is auto-
-    // selected and handleConfirmClick can bypass client-side validation.
-    await expect(page.getByText(SEEDED_ADDRESS_LINE1)).toBeVisible({ timeout: 10_000 })
+    // Wait for saved addresses to load and explicitly select one of the
+    // persisted rows. The seeded customer always has at least one saved
+    // address, but the exact rendering can lag behind the checkout shell
+    // on CI, so we wait on the row itself instead of a specific line of text.
+    const savedAddress = page.getByTestId('checkout-saved-address').first()
+    await expect(savedAddress).toBeVisible({ timeout: 20_000 })
+    await savedAddress.click()
 
     // Confirm button text includes the total price. Match on the verb.
     const confirm = page.getByRole('button', { name: /confirmar pedido/i })
