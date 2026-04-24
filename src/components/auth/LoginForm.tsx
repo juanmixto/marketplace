@@ -97,11 +97,36 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
     if (opts.totp) payload.totpCode = opts.totp
     if (opts.remember) payload.rememberDevice = '1'
 
-    const result = await signIn('credentials', {
-      ...payload,
-      redirect: false,
-      callbackUrl: safeCallbackUrl,
-    })
+    const signInWithRetry = async () => {
+      let lastError: unknown = null
+
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          return await signIn('credentials', {
+            ...payload,
+            redirect: false,
+            callbackUrl: safeCallbackUrl,
+          })
+        } catch (error) {
+          lastError = error
+          if (attempt === 0) {
+            await new Promise(resolve => setTimeout(resolve, 250))
+            continue
+          }
+        }
+      }
+
+      throw lastError ?? new Error('signIn failed')
+    }
+
+    let result
+    try {
+      result = await signInWithRetry()
+    } catch {
+      setError(t('login.error.generic'))
+      setLoading(false)
+      return
+    }
 
     if (result?.error) {
       setError(t('login.error.invalidCredentials'))
