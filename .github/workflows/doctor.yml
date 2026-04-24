@@ -3,6 +3,9 @@ name: Doctor
 on:
   pull_request:
     paths:
+      # Docs-only PRs still need the blocking doctor gate because
+      # branch protection requires it on every mergeable PR.
+      - 'docs/**'
       # Schema and any code that can drift between schema.prisma and DB
       - 'prisma/**'
       # Any API route can 500 — broad filter keeps us safe

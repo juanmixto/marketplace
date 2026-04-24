@@ -1,10 +1,17 @@
-import { ArrowPathIcon, HeartIcon, MapPinIcon, ShoppingBagIcon, UserCircleIcon } from '@heroicons/react/24/outline'
+import { ArrowPathIcon, BellIcon, HeartIcon, MapPinIcon, ShoppingBagIcon, UserCircleIcon } from '@heroicons/react/24/outline'
 import type { TranslationKeys } from '@/i18n/locales'
 
 export interface AppNavItem {
   href: string
   label: string
   available: boolean
+  /**
+   * When set, the entry is only rendered if the named PostHog flag
+   * resolves strictly true (fail-closed). Route-level authz already
+   * rejects unauthorised access; this keeps the link itself out of
+   * the nav for users without the flag so pre-GA surfaces don't leak.
+   */
+  flag?: string
 }
 
 export interface LocalizedNavItem {
@@ -22,13 +29,13 @@ export const vendorNavItems: LocalizedNavItem[] = [
   { href: '/vendor/valoraciones',    labelKey: 'vendor.nav.reviews',       available: true },
   { href: '/vendor/liquidaciones',   labelKey: 'vendor.nav.settlements',   available: true },
   { href: '/vendor/perfil',          labelKey: 'vendor.nav.profile',       available: true },
-  { href: '/vendor/ajustes/telegram', labelKey: 'vendor.nav.telegram',      available: true },
   { href: '/vendor/ajustes/notificaciones', labelKey: 'vendor.nav.notifications', available: true },
 ]
 
 export const adminNavItems: AppNavItem[] = [
   { href: '/admin/dashboard', label: 'Dashboard', available: true },
   { href: '/admin/pedidos', label: 'Pedidos', available: true },
+  { href: '/admin/usuarios', label: 'Usuarios', available: true },
   { href: '/admin/productores', label: 'Productores', available: true },
   { href: '/admin/productos', label: 'Productos', available: true },
   { href: '/admin/promociones', label: 'Promociones', available: true },
@@ -42,6 +49,7 @@ export const adminNavItems: AppNavItem[] = [
   { href: '/admin/informes', label: 'Informes', available: true },
   { href: '/admin/analytics', label: 'Analytics', available: true },
   { href: '/admin/notificaciones', label: 'Notificaciones', available: true },
+  { href: '/admin/ingestion', label: 'Ingestion', available: true, flag: 'feat-ingestion-admin' },
 ]
 
 export const buyerAccountItems: AppNavItem[] = [
@@ -50,6 +58,7 @@ export const buyerAccountItems: AppNavItem[] = [
   { href: '/cuenta/direcciones', label: 'Mis direcciones', available: true },
   { href: '/cuenta/favoritos', label: 'Mis favoritos', available: true },
   { href: '/cuenta/perfil', label: 'Datos personales', available: true },
+  { href: '/cuenta/notificaciones', label: 'Notificaciones', available: true },
 ]
 
 export const buyerAccountMeta = {
@@ -77,6 +86,11 @@ export const buyerAccountMeta = {
     icon: UserCircleIcon,
     labelKey: 'account.nav.profile.label',
     descKey:  'account.nav.profile.desc',
+  },
+  '/cuenta/notificaciones': {
+    icon: BellIcon,
+    labelKey: 'account.nav.notifications.label',
+    descKey:  'account.nav.notifications.desc',
   },
 } as const
 

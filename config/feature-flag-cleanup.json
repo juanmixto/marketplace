@@ -1,0 +1,32 @@
+{
+  "feat-buyer-subscriptions": {
+    "issue": 753,
+    "owner": "@juanmixto",
+    "dueDate": "2026-05-23"
+  },
+  "feat-ingestion-admin": {
+    "issue": 753,
+    "owner": "@juanmixto",
+    "dueDate": "2026-05-23"
+  },
+  "feat-ingestion-classifier": {
+    "issue": 753,
+    "owner": "@juanmixto",
+    "dueDate": "2026-05-23"
+  },
+  "feat-ingestion-dedupe": {
+    "issue": 753,
+    "owner": "@juanmixto",
+    "dueDate": "2026-05-23"
+  },
+  "feat-ingestion-publish": {
+    "issue": 753,
+    "owner": "@juanmixto",
+    "dueDate": "2026-05-23"
+  },
+  "feat-ingestion-rules-extractor": {
+    "issue": 753,
+    "owner": "@juanmixto",
+    "dueDate": "2026-05-23"
+  }
+}

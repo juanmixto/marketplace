@@ -16,7 +16,7 @@ export function Footer() {
       { href: '/productos?cert=KM0',    labelKey: 'km0' },
     ],
     vender: [
-      { href: '/register?rol=productor', labelKey: 'becomeProducer' },
+      { href: '/cuenta/hazte-vendedor', labelKey: 'becomeProducer' },
       { href: '/vendor/dashboard',       labelKey: 'producerPortal' },
       { href: '/como-funciona',          labelKey: 'howItWorks' },
       { href: '/como-vender',            labelKey: 'whyWithUs' },

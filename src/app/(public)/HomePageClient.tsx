@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { ProductCard } from '@/components/catalog/ProductCard'
@@ -35,6 +37,15 @@ export function HomePageClient({ featured, categories, vendors, heroStats, publi
   const { locale } = useLocale()
   const t = useT()
   const portalLinks = getPublicPortalLinks(locale)
+
+  // Hide the "Entra según tu perfil" quick-access block for authenticated
+  // users — once they're signed in, the portal shortcuts are noise. SSR
+  // renders the block (public page is cached and session resolves only
+  // after hydration); we swap it out once `useSession` reports a user.
+  const { data: session, status } = useSession()
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  const hideQuickAccess = mounted && status === 'authenticated' && !!session?.user
 
   const STEPS: { step: string; titleKey: TranslationKeys; descKey: TranslationKeys }[] = [
     { step: '01', titleKey: 'steps.01.title', descKey: 'steps.01.desc' },
@@ -184,6 +195,7 @@ export function HomePageClient({ featured, categories, vendors, heroStats, publi
       </section>
 
       {/* ── Quick access ─────────────────────────────────────────────────── */}
+      {!hideQuickAccess && (
       <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="rounded-3xl border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] via-emerald-50/35 to-teal-50/20 p-6 shadow-sm dark:from-[var(--surface)] dark:via-emerald-950/20 dark:to-teal-950/10 sm:p-7">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -218,6 +230,7 @@ export function HomePageClient({ featured, categories, vendors, heroStats, publi
           </div>
         </div>
       </section>
+      )}
 
       {/* ── Categories ───────────────────────────────────────────────────── */}
       <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
@@ -408,7 +421,7 @@ export function HomePageClient({ featured, categories, vendors, heroStats, publi
           </p>
           <div className="mt-7 flex flex-wrap justify-center gap-4">
             <Link
-              href="/register?rol=productor"
+              href="/cuenta/hazte-vendedor"
               className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 font-semibold text-emerald-950 shadow-md transition-all hover:-translate-y-0.5 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-900"
             >
               {t('sections.ctaBtn')}
