@@ -3,7 +3,8 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { getVendors } from '@/domains/catalog/queries'
 import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
-import { buildPageMetadata } from '@/lib/seo'
+import { absoluteUrl, buildPageMetadata } from '@/lib/seo'
+import { JsonLd } from '@/components/seo/JsonLd'
 import { getVendorHeroImage, getVendorVisualLabelKey } from '@/domains/vendors/visuals'
 import { getServerT } from '@/i18n/server'
 
@@ -20,8 +21,20 @@ export const revalidate = 60
 export default async function ProductoresPage() {
   const [vendors, t] = await Promise.all([getVendors(50), getServerT()])
 
+  const itemListData = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    itemListElement: vendors.map((v, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      url: absoluteUrl(`/productores/${v.slug}`),
+      name: v.displayName,
+    })),
+  }
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <JsonLd data={itemListData} />
       <h1 className="text-3xl font-bold text-[var(--foreground)]">{t('producersPage.title')}</h1>
       <p className="mt-2 text-[var(--muted)]">{t('producersPage.subtitle')}</p>
 
