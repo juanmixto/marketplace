@@ -194,13 +194,13 @@ What is missing is the **UI** for displaying and creating reviews from product/o
 
 ---
 
-## Route middleware — partially wired
+## Route proxy — partially wired
 
-`src/lib/auth-config.ts` already implements the `authorized` callback that gates admin/vendor/buyer areas. The only missing piece is the `middleware.ts` file at the project root re-exporting `auth`:
+`src/lib/auth-config.ts` already implements the `authorized` callback that gates admin/vendor/buyer areas. The file-convention entrypoint at the project root is `proxy.ts`, which re-exports the edge logic:
 
 ```ts
-// middleware.ts (at project root, next to package.json)
-export { auth as middleware } from '@/lib/auth'
+// proxy.ts (at project root, next to package.json)
+export { proxy } from '@/proxy'
 
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|api/auth).*)'],
@@ -373,6 +373,7 @@ Both evaluators return `true` if PostHog is unreachable, the SDK throws, or the 
 2. Wrap the call site with `await isFeatureEnabled('kill-foo', { userId, email, role })` (pass the richest context you have — PostHog targeting depends on it).
 3. Log a `<scope>.kill_switch_active` event when the switch fires so oncall can trace which flag rejected traffic. Follow the `scope.action` pattern already used in [`docs/runbooks/payment-incidents.md`](./runbooks/payment-incidents.md).
 4. **Every `feat-*` flag needs a cleanup ticket** filed when you ship it. Flags are debt; 30 days post-GA is the soft cap.
+5. Add or update the flag metadata in `config/feature-flag-cleanup.json` (`issue`, `owner`, `dueDate`). `npm run audit:flags-cleanup` is enforced by CI and fails if any active `feat-*` is missing metadata.
 
 ### Local eval
 

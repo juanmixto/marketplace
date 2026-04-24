@@ -354,14 +354,13 @@ async function handlePaymentSucceeded(providerRef: string, amount?: number, curr
           data: { status: 'SUCCEEDED' },
         })
 
+        // Only PLACED is a legal predecessor for PAYMENT_CONFIRMED. The
+        // previous `OR { not: ... }` filter would happily resurrect a
+        // CANCELLED or REFUNDED order when a late/retried webhook arrived,
+        // leaving the buyer charged with no fulfillment intent. Being
+        // explicit makes the transition a single allowed edge.
         const orderUpdate = await tx.order.updateMany({
-          where: {
-            id: payment.orderId,
-            OR: [
-              { paymentStatus: { not: 'SUCCEEDED' } },
-              { status: { not: 'PAYMENT_CONFIRMED' } },
-            ],
-          },
+          where: { id: payment.orderId, status: 'PLACED' },
           data: { status: 'PAYMENT_CONFIRMED', paymentStatus: 'SUCCEEDED' },
         })
 
