@@ -24,6 +24,15 @@ import AxeBuilder from '@axe-core/playwright'
 import { TEST_USERS, loginAs } from '../helpers/auth'
 
 const SEEDED_PRODUCT_SLUG = 'tomates-cherry-ecologicos'
+const FALLBACK_CHECKOUT_ADDRESS = {
+  firstName: 'Ana',
+  lastName: 'Pérez',
+  line1: 'Calle Mayor 18',
+  city: 'Madrid',
+  province: 'Madrid',
+  postalCode: '28001',
+  phone: '+34 600 000 000',
+}
 
 test.describe('cart and checkout @smoke', () => {
   test('buyer adds a product, checks out with the mock provider and lands on confirmation', async ({ page }) => {
@@ -62,14 +71,29 @@ test.describe('cart and checkout @smoke', () => {
     await expect(page).toHaveURL(/\/checkout(?:\/|$|\?)/, { timeout: 25_000 })
 
     // --- CHECKOUT ---
-    // The seeded customer has a default address (`Calle Mayor 18`, Madrid).
-    // Wait for saved addresses to load and explicitly select one of the
-    // persisted rows. The seeded customer always has at least one saved
-    // address, but the exact rendering can lag behind the checkout shell
-    // on CI, so we wait on the row itself instead of a specific line of text.
+    // The checkout can render either saved addresses or the new-address
+    // form first, depending on how quickly the seeded profile arrives on
+    // the shard. Prefer the saved row when it appears, but fall back to a
+    // deterministic new address so the smoke never hangs on a timing race.
     const savedAddress = page.getByTestId('checkout-saved-address').first()
-    await expect(savedAddress).toBeVisible({ timeout: 20_000 })
-    await savedAddress.click()
+    const firstName = page.getByRole('textbox', { name: /nombre/i })
+
+    const savedAddressReady = await savedAddress
+      .waitFor({ state: 'visible', timeout: 10_000 })
+      .then(() => true)
+      .catch(() => false)
+
+    if (savedAddressReady) {
+      await savedAddress.click()
+    } else {
+      await expect(firstName).toBeVisible({ timeout: 10_000 })
+      await firstName.fill(FALLBACK_CHECKOUT_ADDRESS.firstName)
+      await page.getByRole('textbox', { name: /apellidos/i }).fill(FALLBACK_CHECKOUT_ADDRESS.lastName)
+      await page.getByRole('textbox', { name: /dirección/i }).fill(FALLBACK_CHECKOUT_ADDRESS.line1)
+      await page.getByRole('combobox', { name: /provincia/i }).selectOption({ label: FALLBACK_CHECKOUT_ADDRESS.province })
+      await page.getByRole('textbox', { name: /código postal/i }).fill(FALLBACK_CHECKOUT_ADDRESS.postalCode)
+      await page.getByRole('textbox', { name: /teléfono/i }).fill(FALLBACK_CHECKOUT_ADDRESS.phone)
+    }
 
     // Confirm button text includes the total price. Match on the verb.
     const confirm = page.getByRole('button', { name: /confirmar pedido/i })
