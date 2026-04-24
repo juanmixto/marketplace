@@ -1,35 +1,25 @@
 name: Doctor
 
 on:
-  pull_request:
+  push:
+    branches:
+      - main
     paths:
-      # Schema and any code that can drift between schema.prisma and DB
+      # Post-merge tripwire so a schema drift that slipped through PR
+      # checks still fails loudly on main without competing with the PR
+      # fast gate.
       - 'prisma/**'
-      # Any API route can 500 — broad filter keeps us safe
       - 'src/app/api/**'
-      # Page routes with their own server-side render path
       - 'src/app/(buyer)/**'
       - 'src/app/(vendor)/**'
       - 'src/app/(admin)/**'
-      # DB client, env loader, session helpers
       - 'src/lib/db.ts'
       - 'src/lib/env.ts'
       - 'src/lib/action-session.ts'
       - 'src/lib/auth-config.ts'
-      # The doctor script and its workflow themselves
       - 'scripts/doctor.mjs'
       - 'marketplace-pwa-server.sh'
       - '.github/workflows/doctor.yml'
-  push:
-    branches:
-      - main
-    # Post-merge tripwire so a schema drift that slipped through
-    # individual PRs (e.g. merged without running doctor, or with an
-    # unrelated migration on the branch) still fails loudly on main.
-    paths:
-      - 'prisma/**'
-      - 'src/app/api/**'
-      - 'src/lib/db.ts'
   workflow_dispatch:
 
 permissions:

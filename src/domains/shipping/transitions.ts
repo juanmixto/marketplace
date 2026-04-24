@@ -166,10 +166,67 @@ export async function applyShipmentTransition(input: ApplyTransitionInput) {
         reason: 'NEEDS_SHIPMENT',
       })
     }
+    if (nextFulfillment === 'DELIVERED') {
+      emitNotification('order.delivered', {
+        orderId: shipment.fulfillment.orderId,
+        vendorId: shipment.fulfillment.vendorId,
+        fulfillmentId: shipment.fulfillmentId,
+      })
+    }
+
+    await emitBuyerOrderStatus({
+      orderId: shipment.fulfillment.orderId,
+      fulfillmentId: shipment.fulfillmentId,
+      vendorId: shipment.fulfillment.vendorId,
+      shipmentStatus: input.nextStatus,
+    })
   }
 
   safeRevalidatePath('/vendor/pedidos')
   return { applied: true as const }
+}
+
+/**
+ * Emit a buyer-facing `order.status_changed` event when a shipment
+ * transitions to a milestone the customer cares about. Silent for other
+ * transitions (DRAFT, LABEL_*, EXCEPTION) — those are vendor-internal.
+ */
+async function emitBuyerOrderStatus(input: {
+  orderId: string
+  fulfillmentId: string
+  vendorId: string
+  shipmentStatus: ShipmentStatusInternal
+}): Promise<void> {
+  const buyerStatus =
+    input.shipmentStatus === 'IN_TRANSIT'
+      ? 'SHIPPED'
+      : input.shipmentStatus === 'OUT_FOR_DELIVERY'
+        ? 'OUT_FOR_DELIVERY'
+        : input.shipmentStatus === 'DELIVERED'
+          ? 'DELIVERED'
+          : null
+  if (!buyerStatus) return
+
+  const order = await db.order.findUnique({
+    where: { id: input.orderId },
+    select: { customerId: true, orderNumber: true },
+  })
+  if (!order) return
+
+  const vendor = await db.vendor.findUnique({
+    where: { id: input.vendorId },
+    select: { displayName: true },
+  })
+  const vendorName = vendor?.displayName ?? undefined
+
+  emitNotification('order.status_changed', {
+    orderId: input.orderId,
+    customerUserId: order.customerId,
+    fulfillmentId: input.fulfillmentId,
+    status: buyerStatus,
+    orderNumber: order.orderNumber,
+    vendorName,
+  })
 }
 
 async function recomputeOrderStatus(orderId: string): Promise<void> {

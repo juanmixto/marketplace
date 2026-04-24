@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { formatPrice } from '@/lib/utils'
 import { getAdminDailyRevenue, getAdminStats } from '@/domains/admin-stats/queries'
-import { AdminAnalyticsCharts } from '@/components/admin/AdminAnalyticsCharts'
+import { AdminAnalyticsChartsLazy } from '@/components/admin/AdminAnalyticsChartsLazy'
 
 export const metadata: Metadata = { title: 'Analytics — Admin' }
 export const revalidate = 60
@@ -64,7 +64,7 @@ export default async function AdminAnalyticsPage() {
         ))}
       </section>
 
-      <AdminAnalyticsCharts series={dailySeries} />
+      <AdminAnalyticsChartsLazy series={dailySeries} />
 
       <p className="text-xs text-[var(--muted)]">
         Datos recalculados cada 60 segundos. APIs:{' '}

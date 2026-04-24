@@ -82,6 +82,14 @@ export async function sendRawMessage(
     chat_id: chatId,
     text: message.text,
     parse_mode: 'HTML',
+    // Order messages embed a link to the detail page as the identifier
+    // (`MP-2026-…`). Without this flag Telegram renders the OpenGraph
+    // preview of the landing page and the card dwarfs the actionable
+    // content. Keep both the legacy and v7+ parameter so older Bot API
+    // deployments (and Telegram desktop clients that cache previews
+    // aggressively) honour the disable flag.
+    disable_web_page_preview: true,
+    link_preview_options: { is_disabled: true },
   }
   if (message.inline_keyboard && message.inline_keyboard.length > 0) {
     body.reply_markup = { inline_keyboard: message.inline_keyboard }

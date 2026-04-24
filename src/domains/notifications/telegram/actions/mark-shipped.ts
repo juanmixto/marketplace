@@ -1,11 +1,12 @@
-import { markShippedByUserId } from '@/domains/vendors'
 import type { ActionContext } from './registry'
 import {
   answerCallbackQuery,
   editMessageRemoveKeyboard,
 } from '../service'
 
+// Deferred import — see confirm-fulfillment.ts for the cycle rationale.
 export async function markShippedAction(ctx: ActionContext): Promise<void> {
+  const { markShippedByUserId } = await import('@/domains/vendors')
   const result = await markShippedByUserId(ctx.userId, ctx.targetId)
 
   if (!result.ok) {
