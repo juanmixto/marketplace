@@ -32,7 +32,7 @@ class FakeStorage implements Storage {
 }
 
 afterEach(() => {
-  useCartStore.setState({ items: [] })
+  useCartStore.setState({ items: [], hasHydrated: false })
   delete (globalThis as unknown as { window?: unknown }).window
 })
 
@@ -60,5 +60,6 @@ test('clearCartSessionState clears the cart store and merged flag', () => {
   clearCartSessionState()
 
   assert.equal(useCartStore.getState().items.length, 0)
+  assert.equal(useCartStore.getState().hasHydrated, false)
   assert.equal(storage.getItem('cart-merged-user'), null)
 })

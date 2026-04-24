@@ -1,6 +1,7 @@
 'use server'
 
 import { db } from '@/lib/db'
+import { hashCartForDedupe } from '@/domains/orders/cart-dedupe'
 import { redirect } from 'next/navigation'
 import { generateOrderNumber } from '@/lib/utils'
 import { createPaymentIntent } from '@/domains/payments'
@@ -103,10 +104,12 @@ async function replayCheckoutAttempt({
   sessionUserId,
   correlationId,
   checkoutAttemptId,
+  items,
 }: {
   sessionUserId: string
   correlationId: string
   checkoutAttemptId: string
+  items: CartItemInput[]
 }): Promise<CreateOrderResult | null> {
   const existing = await db.order.findUnique({
     where: { checkoutAttemptId },
@@ -114,6 +117,9 @@ async function replayCheckoutAttempt({
       id: true,
       orderNumber: true,
       customerId: true,
+      lines: {
+        select: { productId: true, variantId: true, quantity: true },
+      },
     },
   })
   if (!existing) return null
@@ -126,6 +132,30 @@ async function replayCheckoutAttempt({
       existingOrderOwner: existing.customerId,
     })
     throw new CheckoutAttemptCrossUserError()
+  }
+
+  // Cart-shape check: a replay must carry the same cart. If the hash
+  // diverges, the buyer has edited their cart but is presenting a
+  // stale attempt id (back button, cached HTML, page restore). Refuse
+  // to replay — returning the old Order would redirect them to a
+  // confirmation page for a purchase that no longer reflects what
+  // they intended to buy. The client must regenerate a fresh id.
+  const cartHash = hashCartForDedupe(items)
+  const existingCartHash = hashCartForDedupe(
+    existing.lines.map(line => ({
+      productId: line.productId,
+      variantId: line.variantId ?? undefined,
+      quantity: line.quantity,
+    }))
+  )
+  if (existingCartHash !== cartHash) {
+    logger.error('checkout.attempt_id_cart_mismatch', {
+      correlationId,
+      checkoutAttemptId,
+      userId: sessionUserId,
+      orderId: existing.id,
+    })
+    throw new Error('Sesión de checkout inválida. Recarga la página.')
   }
 
   logger.info('checkout.replayed', {
@@ -374,6 +404,7 @@ export async function createOrder(
       sessionUserId,
       correlationId,
       checkoutAttemptId,
+      items,
     })
     if (replay) {
       return replay

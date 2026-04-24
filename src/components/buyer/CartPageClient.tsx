@@ -25,6 +25,7 @@ function itemKey(productId: string, variantId?: string) {
 
 export function CartPageClient({ shippingSettings }: Props) {
   const { items, removeItem, updateQty, subtotal, clearCart, itemCount } = useCartStore()
+  const cartHydrated = useCartStore(state => state.hasHydrated)
   const t = useT()
 
   const [stockMap, setStockMap] = useState<Record<string, CartStockResultItem>>({})
@@ -119,6 +120,18 @@ export function CartPageClient({ shippingSettings }: Props) {
     }
     return map
   }, [promoPreview])
+
+  if (!cartHydrated) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-24">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center shadow-sm">
+          <ShoppingBagIcon className="mx-auto mb-4 h-16 w-16 text-[var(--muted)]" />
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">{t('cart.title')}</h1>
+          <p className="mt-2 text-[var(--muted)]">Cargando tu carrito…</p>
+        </div>
+      </div>
+    )
+  }
 
   if (items.length === 0) {
     return (
