@@ -51,6 +51,16 @@ next-env.d.ts
 
 /src/generated/prisma
 
+# local test and runtime artifacts
+/test-results/
+/results.csv
+/results.txt
+/run.sh
+/process_prs.sh
+/services/telegram-sidecar/.venv/
+/services/telegram-sidecar/app/__pycache__/
+/services/telegram-sidecar/sessions/
+
 # Local wiki source is published to the GitHub wiki repo separately
 docs/wiki/
 .claude/

@@ -1,0 +1,152 @@
+[
+  {
+    "id": "strong-match-exact-duplicate",
+    "description": "same vendor, name, unit, weight, price → STRONG / LOW / auto-merge allowed",
+    "a": {
+      "id": "a1", "vendorDraftId": "v1", "productName": "Manzanas golden",
+      "unit": "KG", "weightGrams": null, "priceCents": 250,
+      "extractorVersion": "rules-1.0.0", "canonicalDraftId": null
+    },
+    "b": {
+      "id": "b1", "vendorDraftId": "v1", "productName": "Manzanas golden",
+      "unit": "KG", "weightGrams": null, "priceCents": 250,
+      "extractorVersion": "rules-1.0.0", "canonicalDraftId": null
+    },
+    "expected": { "kind": "STRONG", "risk": "LOW", "reason": "identicalAcrossAllFields" }
+  },
+  {
+    "id": "strong-match-normalises-name-case-and-accents",
+    "description": "normalisation handles case, accents, punctuation",
+    "a": {
+      "id": "a2", "vendorDraftId": "v1", "productName": "Manzanas GOLDEN!",
+      "unit": "KG", "weightGrams": null, "priceCents": 250,
+      "extractorVersion": "rules-1.0.0", "canonicalDraftId": null
+    },
+    "b": {
+      "id": "b2", "vendorDraftId": "v1", "productName": "manzánas golden",
+      "unit": "KG", "weightGrams": null, "priceCents": 250,
+      "extractorVersion": "rules-1.0.0", "canonicalDraftId": null
+    },
+    "expected": { "kind": "STRONG", "risk": "LOW" }
+  },
+  {
+    "id": "heuristic-price-change-same-seller",
+    "description": "same seller + same product/unit, different price → HEURISTIC / MEDIUM",
+    "a": {
+      "id": "a3", "vendorDraftId": "v1", "productName": "Tomates raf",
+      "unit": "KG", "weightGrams": null, "priceCents": 320,
+      "extractorVersion": "rules-1.0.0", "canonicalDraftId": null
+    },
+    "b": {
+      "id": "b3", "vendorDraftId": "v1", "productName": "Tomates raf",
+      "unit": "KG", "weightGrams": null, "priceCents": 350,
+      "extractorVersion": "rules-1.0.0", "canonicalDraftId": null
+    },
+    "expected": { "kind": "HEURISTIC", "risk": "MEDIUM", "reason": "sameSellerSameProductDifferentAttributes" }
+  },
+  {
+    "id": "heuristic-weight-change-same-seller",
+    "description": "same seller + product/unit, different weight bucket → HEURISTIC",
+    "a": {
+      "id": "a4", "vendorDraftId": "v1", "productName": "Queso curado",
+      "unit": "G", "weightGrams": 250, "priceCents": 800,
+      "extractorVersion": "rules-1.0.0", "canonicalDraftId": null
+    },
+    "b": {
+      "id": "b4", "vendorDraftId": "v1", "productName": "Queso curado",
+      "unit": "G", "weightGrams": 600, "priceCents": 800,
+      "extractorVersion": "rules-1.0.0", "canonicalDraftId": null
+    },
+    "expected": { "kind": "HEURISTIC", "risk": "MEDIUM" }
+  },
+  {
+    "id": "similarity-same-name-different-vendor",
+    "description": "different seller, same normalised name → SIMILARITY / HIGH",
+    "a": {
+      "id": "a5", "vendorDraftId": "v1", "productName": "Naranjas valencianas",
+      "unit": "KG", "weightGrams": null, "priceCents": 150,
+      "extractorVersion": "rules-1.0.0", "canonicalDraftId": null
+    },
+    "b": {
+      "id": "b5", "vendorDraftId": "v2", "productName": "Naranjas valencianas",
+      "unit": "KG", "weightGrams": null, "priceCents": 180,
+      "extractorVersion": "rules-1.0.0", "canonicalDraftId": null
+    },
+    "expected": { "kind": "SIMILARITY", "risk": "HIGH", "reason": "sameNormalisedNameDifferentSeller" }
+  },
+  {
+    "id": "no-match-different-unit-same-product",
+    "description": "same seller + same name, different unit → NO match (kg vs unit is a meaningful difference)",
+    "a": {
+      "id": "a6", "vendorDraftId": "v1", "productName": "Lechuga",
+      "unit": "KG", "weightGrams": null, "priceCents": 200,
+      "extractorVersion": "rules-1.0.0", "canonicalDraftId": null
+    },
+    "b": {
+      "id": "b6", "vendorDraftId": "v1", "productName": "Lechuga",
+      "unit": "UNIT", "weightGrams": null, "priceCents": 90,
+      "extractorVersion": "rules-1.0.0", "canonicalDraftId": null
+    },
+    "expected": null
+  },
+  {
+    "id": "no-match-different-product-same-seller",
+    "description": "same seller, different products → nothing to merge",
+    "a": {
+      "id": "a7", "vendorDraftId": "v1", "productName": "Tomates",
+      "unit": "KG", "weightGrams": null, "priceCents": 180,
+      "extractorVersion": "rules-1.0.0", "canonicalDraftId": null
+    },
+    "b": {
+      "id": "b7", "vendorDraftId": "v1", "productName": "Pepinos",
+      "unit": "KG", "weightGrams": null, "priceCents": 160,
+      "extractorVersion": "rules-1.0.0", "canonicalDraftId": null
+    },
+    "expected": null
+  },
+  {
+    "id": "no-match-already-merged-row",
+    "description": "dedupe never compares rows already in a merge chain",
+    "a": {
+      "id": "a8", "vendorDraftId": "v1", "productName": "Cebollas",
+      "unit": "KG", "weightGrams": null, "priceCents": 120,
+      "extractorVersion": "rules-1.0.0", "canonicalDraftId": "older-row"
+    },
+    "b": {
+      "id": "b8", "vendorDraftId": "v1", "productName": "Cebollas",
+      "unit": "KG", "weightGrams": null, "priceCents": 120,
+      "extractorVersion": "rules-1.0.0", "canonicalDraftId": null
+    },
+    "expected": null
+  },
+  {
+    "id": "no-match-null-name",
+    "description": "drafts with null/empty names never auto-match",
+    "a": {
+      "id": "a9", "vendorDraftId": "v1", "productName": null,
+      "unit": "KG", "weightGrams": null, "priceCents": 200,
+      "extractorVersion": "rules-1.0.0", "canonicalDraftId": null
+    },
+    "b": {
+      "id": "b9", "vendorDraftId": "v1", "productName": null,
+      "unit": "KG", "weightGrams": null, "priceCents": 200,
+      "extractorVersion": "rules-1.0.0", "canonicalDraftId": null
+    },
+    "expected": null
+  },
+  {
+    "id": "false-positive-same-name-different-weight-bucket",
+    "description": "same vendor, name, unit but distinct weight buckets → HEURISTIC not STRONG",
+    "a": {
+      "id": "a10", "vendorDraftId": "v1", "productName": "Patatas",
+      "unit": "KG", "weightGrams": 2000, "priceCents": 200,
+      "extractorVersion": "rules-1.0.0", "canonicalDraftId": null
+    },
+    "b": {
+      "id": "b10", "vendorDraftId": "v1", "productName": "Patatas",
+      "unit": "KG", "weightGrams": 200, "priceCents": 200,
+      "extractorVersion": "rules-1.0.0", "canonicalDraftId": null
+    },
+    "expected": { "kind": "HEURISTIC", "risk": "MEDIUM" }
+  }
+]

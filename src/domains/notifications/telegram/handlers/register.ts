@@ -18,6 +18,7 @@ import { registerAction } from '../actions/registry'
 import { confirmFulfillmentAction } from '../actions/confirm-fulfillment'
 import { markShippedAction } from '../actions/mark-shipped'
 import { prepareFulfillmentAction } from '../actions/prepare-fulfillment'
+import { addStockAction } from '../actions/add-stock'
 
 const GLOBAL_KEY = '__marketplaceTelegramHandlersRegistered'
 
@@ -44,6 +45,7 @@ export function registerTelegramHandlers(): void {
   registerAction('confirmFulfillment', confirmFulfillmentAction)
   registerAction('markShipped', markShippedAction)
   registerAction('prepareFulfillment', prepareFulfillmentAction)
+  registerAction('addStock', addStockAction)
 
   g[GLOBAL_KEY] = true
 }

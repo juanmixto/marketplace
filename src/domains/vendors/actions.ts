@@ -442,16 +442,15 @@ export async function advanceFulfillment(
     }
   })
 
-  // #570 — notify the buyer that a parcel is on the way. First live
-  // push event in the app. Fire-and-forget so a broken push provider
-  // never blocks the vendor's UI. sendPushToUser is already a no-op
-  // when VAPID is unconfigured or the buyer has no subscription.
+  // #570 — notify the buyer that a parcel is on the way. Goes through
+  // the notification dispatcher so both transports (Telegram + web
+  // push) deliver personalized copy. The direct `sendPushToUser` call
+  // this replaced would otherwise fire alongside the dispatcher path,
+  // producing two push events per transition (the buyer sees one
+  // thanks to the browser-level tag collapse, but the
+  // NotificationDelivery table logged both).
   if (nextStatus === 'SHIPPED') {
-    void notifyBuyerFulfillmentShipped(fulfillment.orderId, {
-      trackingNumber: trackingNumber ?? null,
-    }).catch(() => {
-      /* logged inside the helper — ignore here so the outer UI is unaffected */
-    })
+    void notifyBuyerFulfillmentShipped(fulfillment.orderId, fulfillment.vendorId, fulfillmentId)
   }
 
   safeRevalidatePath('/vendor/pedidos')
@@ -459,22 +458,28 @@ export async function advanceFulfillment(
 
 async function notifyBuyerFulfillmentShipped(
   orderId: string,
-  extras: { trackingNumber: string | null },
+  vendorId: string,
+  fulfillmentId: string,
 ) {
   try {
-    const order = await db.order.findUnique({
-      where: { id: orderId },
-      select: { customerId: true, orderNumber: true },
-    })
+    const [order, vendor] = await Promise.all([
+      db.order.findUnique({
+        where: { id: orderId },
+        select: { customerId: true, orderNumber: true },
+      }),
+      db.vendor.findUnique({
+        where: { id: vendorId },
+        select: { displayName: true },
+      }),
+    ])
     if (!order) return
-    const { sendPushToUser } = await import('@/lib/pwa/push-send')
-    await sendPushToUser(order.customerId, {
-      title: '📦 Tu pedido va en camino',
-      body: extras.trackingNumber
-        ? `Pedido ${order.orderNumber} · tracking ${extras.trackingNumber}`
-        : `Pedido ${order.orderNumber} enviado. Toca para ver el seguimiento.`,
-      url: `/cuenta/pedidos/${orderId}`,
-      tag: `order-shipped-${orderId}`,
+    void emitNotification('order.status_changed', {
+      orderId,
+      customerUserId: order.customerId,
+      fulfillmentId,
+      status: 'SHIPPED',
+      orderNumber: order.orderNumber,
+      vendorName: vendor?.displayName ?? undefined,
     })
   } catch (err) {
     const { logger } = await import('@/lib/logger')
@@ -609,6 +614,70 @@ export async function markShippedByUserId(
 
   safeRevalidatePath('/vendor/pedidos')
   return { ok: true, fulfillmentId }
+}
+
+/**
+ * Bumps a product's stock by a fixed amount on behalf of the vendor
+ * identified by userId (Telegram callback entrypoint). Mirrors the
+ * ownership/shape rules of setProductStock: rejects products with
+ * active variants and products that don't track stock. Fires the
+ * back_in_stock fanout on the 0 → positive transition, same as the
+ * portal action.
+ */
+export async function increaseProductStockByUserId(
+  userId: string,
+  productId: string,
+  amount: number,
+): Promise<
+  | { ok: true; stock: number }
+  | { ok: false; code: 'NOT_FOUND' | 'HAS_VARIANTS' | 'NOT_TRACKED'; message: string }
+> {
+  if (!Number.isInteger(amount) || amount <= 0 || amount > 1_000) {
+    return { ok: false, code: 'NOT_TRACKED', message: 'Cantidad inválida' }
+  }
+  const product = await db.product.findFirst({
+    where: { vendor: { userId }, id: productId, deletedAt: null },
+    include: {
+      vendor: { select: { id: true, slug: true, displayName: true } },
+      variants: { where: { isActive: true }, select: { id: true } },
+    },
+  })
+  if (!product) {
+    return { ok: false, code: 'NOT_FOUND', message: 'Producto no encontrado' }
+  }
+  if (!product.trackStock) {
+    return { ok: false, code: 'NOT_TRACKED', message: 'Este producto no trackea stock' }
+  }
+  if (product.variants.length > 0) {
+    return {
+      ok: false,
+      code: 'HAS_VARIANTS',
+      message: 'Producto con variantes — edítalo en la web',
+    }
+  }
+
+  const previousStock = product.stock
+  const updated = await db.product.update({
+    where: { id: productId },
+    data: { stock: { increment: amount } },
+    select: { id: true, stock: true, slug: true, name: true },
+  })
+  if (previousStock <= 0 && updated.stock > 0) {
+    void emitNotification('favorite.back_in_stock', {
+      productId: updated.id,
+      productName: updated.name,
+      productSlug: updated.slug,
+      vendorName: product.vendor.displayName,
+    })
+  }
+
+  safeRevalidatePath('/vendor/productos')
+  safeRevalidatePath(`/productos/${updated.slug}`)
+  revalidateCatalogExperience({
+    productSlug: updated.slug,
+    vendorSlug: product.vendor.slug,
+  })
+  return { ok: true, stock: updated.stock }
 }
 
 export async function getMyFulfillments(filter?: 'active' | 'urgent' | 'shipped' | 'all') {

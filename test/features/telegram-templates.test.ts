@@ -378,6 +378,26 @@ test('stockLowTemplate differs between sold-out and low-stock cases', () => {
   assert.ok(low.text.includes('Quedan <b>3</b>'))
 })
 
+test('stockLowTemplate links to the product edit page and offers one-click restock', () => {
+  const msg = stockLowTemplate(
+    { productId: 'prod_abc', vendorId: 'vnd_1', productName: 'Tomate', remainingStock: 2 },
+  )
+  const buttons = (msg.inline_keyboard ?? []).flat()
+  const restock = buttons.find(b => 'callback_data' in b)
+  assert.ok(restock, 'a callback button must exist for one-click restock')
+  assert.equal(
+    'callback_data' in restock! ? restock.callback_data : '',
+    'addStock:prod_abc',
+    'callback_data shape is "addStock:<productId>"',
+  )
+  const link = buttons.find(b => 'url' in b)
+  assert.ok(link, 'a URL button must point to the product edit page')
+  assert.ok(
+    'url' in link! && link.url.endsWith('/vendor/productos/prod_abc'),
+    'deep-links to the specific product, not the catalog',
+  )
+})
+
 test('orderDeliveredTemplate personalises the closer with the buyer name', () => {
   const msg = orderDeliveredTemplate(
     { orderId: 'ord_1', vendorId: 'vnd_1', fulfillmentId: 'ful_1' },

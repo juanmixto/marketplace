@@ -26,6 +26,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { getActionSession } from '@/lib/action-session'
 import { redirect } from 'next/navigation'
+import { safeRevalidatePath } from '@/lib/revalidate'
 import { isAdminRole } from '@/lib/roles'
 import { IncidentStatus, IncidentType } from '@/generated/prisma/enums'
 // eslint-disable-next-line no-restricted-imports -- dispatcher is intentionally server-only, excluded from notifications barrel
@@ -122,6 +123,10 @@ export async function openIncident(
     })
   }
 
+  safeRevalidatePath('/cuenta/incidencias')
+  safeRevalidatePath(`/cuenta/incidencias/${incident.id}`)
+  safeRevalidatePath('/admin/incidencias')
+
   return { incidentId: incident.id }
 }
 
@@ -176,6 +181,11 @@ export async function addIncidentMessage(
     },
     select: { id: true },
   })
+
+  safeRevalidatePath(`/cuenta/incidencias/${incident.id}`)
+  if (isAdmin) {
+    safeRevalidatePath(`/admin/incidencias/${incident.id}`)
+  }
 
   return { messageId: message.id }
 }

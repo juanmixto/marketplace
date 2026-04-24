@@ -2,7 +2,12 @@ import type { ActionContext } from './registry'
 import {
   answerCallbackQuery,
   editMessageRemoveKeyboard,
+  sendRawMessage,
 } from '../service'
+
+function appUrl(): string {
+  return process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ?? ''
+}
 
 // Deferred import — shipping imports notifications for transition events,
 // and this callback only fires on user interaction, so the lazy import
@@ -19,6 +24,14 @@ export async function prepareFulfillmentAction(ctx: ActionContext): Promise<void
           ? 'Configura tu dirección de origen en el portal antes de generar etiquetas'
           : result.message
     await answerCallbackQuery(ctx.callbackQueryId, message)
+    if (result.code === 'VENDOR_ADDRESS_MISSING') {
+      await sendRawMessage(ctx.chatId, {
+        text: '📦 Configura tu dirección de origen antes de generar etiquetas.',
+        inline_keyboard: [
+          [{ text: '🏠 Configurar dirección', url: `${appUrl()}/vendor/perfil#shipping-address` }],
+        ],
+      }).catch(() => undefined)
+    }
     return
   }
 

@@ -1,10 +1,9 @@
 import type { MetadataRoute } from 'next'
 import { getServerEnv } from '@/lib/env'
 
-const siteUrl = new URL(getServerEnv().appUrl)
-const sitemapUrl = new URL('/sitemap.xml', siteUrl).toString()
-
 export default function robots(): MetadataRoute.Robots {
+  const siteUrl = new URL(getServerEnv().appUrl)
+  const sitemapUrl = new URL('/sitemap.xml', siteUrl).toString()
   return {
     rules: {
       userAgent: '*',

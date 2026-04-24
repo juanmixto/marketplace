@@ -7,6 +7,14 @@ export function getAvailableProductWhere(now = new Date()): Prisma.ProductWhereI
   return {
     status: 'ACTIVE',
     deletedAt: null,
+    // Phase 4 defence: even if a `Product` is flipped to ACTIVE, it
+    // must not leak into the public catalog while its owning Vendor
+    // is still in any non-public state (APPLYING, PENDING_DOCS,
+    // REJECTED, SUSPENDED_*). This matters for ingestion-created
+    // products whose Vendor is a ghost row keyed to a Telegram
+    // author, but it also plugs a latent gap for any suspended
+    // vendor whose products weren't individually taken down.
+    vendor: { status: 'ACTIVE' },
     OR: [
       { expiresAt: null },
       { expiresAt: { gt: now } },

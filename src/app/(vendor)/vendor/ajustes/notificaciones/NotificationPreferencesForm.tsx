@@ -2,7 +2,12 @@
 
 import { useState, useTransition } from 'react'
 import { useT } from '@/i18n'
-import { setPreference, type PreferenceRow, type NotificationEventType } from '@/domains/notifications'
+import {
+  setPreference,
+  type PreferenceRow,
+  type NotificationEventType,
+  type NotificationChannel,
+} from '@/domains/notifications'
 
 interface EventMeta {
   label: string
@@ -35,30 +40,49 @@ const GROUPS: Group[] = [
   { title: 'Negocio',      events: ['REVIEW_RECEIVED', 'PAYOUT_PAID', 'STOCK_LOW'] },
 ]
 
+// Channel names live in the i18n catalog — aria labels use the full
+// form for screen readers, the column headers use the short form.
+
 export function NotificationPreferencesForm({
   preferences,
   telegramLinked,
+  webPushSubscribed,
 }: {
   preferences: PreferenceRow[]
   telegramLinked: boolean
+  webPushSubscribed: boolean
 }) {
   const t = useT()
   const [rows, setRows] = useState(preferences)
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
-  const rowByEvent = new Map(rows.map(r => [r.eventType, r]))
+  const rowByKey = new Map<string, PreferenceRow>()
+  for (const r of rows) {
+    rowByKey.set(`${r.channel}:${r.eventType}`, r)
+  }
 
-  function setEnabled(eventType: NotificationEventType, next: boolean) {
-    const row = rowByEvent.get(eventType)
+  function channelGateEnabled(channel: NotificationChannel): boolean {
+    return channel === 'TELEGRAM' ? telegramLinked : webPushSubscribed
+  }
+
+  function setEnabled(
+    channel: NotificationChannel,
+    eventType: NotificationEventType,
+    next: boolean,
+  ) {
+    const key = `${channel}:${eventType}`
+    const row = rowByKey.get(key)
     if (!row) return
-    const optimistic = rows.map(r => (r.eventType === eventType ? { ...r, enabled: next } : r))
+    const optimistic = rows.map(r =>
+      r.channel === channel && r.eventType === eventType ? { ...r, enabled: next } : r,
+    )
     setRows(optimistic)
     setError(null)
 
     startTransition(async () => {
       try {
-        await setPreference({ channel: row.channel, eventType, enabled: next })
+        await setPreference({ channel, eventType, enabled: next })
       } catch (err) {
         setRows(preferences)
         setError(err instanceof Error ? err.message : t('vendor.notifications.saveError'))
@@ -68,29 +92,34 @@ export function NotificationPreferencesForm({
 
   return (
     <div className="space-y-5">
-      {!telegramLinked && (
+      {!telegramLinked && !webPushSubscribed && (
         <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
           {t('vendor.notifications.needsLink')}
         </p>
       )}
 
       {GROUPS.map(group => {
-        const visible = group.events.filter(ev => rowByEvent.has(ev) && EVENT_META[ev])
+        const visible = group.events.filter(ev => EVENT_META[ev])
         if (visible.length === 0) return null
         return (
           <section
             key={group.title}
             className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm"
           >
-            <header className="border-b border-[var(--border)] px-5 py-3">
+            <header className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-3">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
                 {group.title}
               </h3>
+              <div className="flex items-center gap-4 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+                <span className="w-16 text-center">{t('vendor.notifications.channel.telegram')}</span>
+                <span className="w-16 text-center">{t('vendor.notifications.channel.webPush')}</span>
+              </div>
             </header>
             <ul className="divide-y divide-[var(--border)]">
               {visible.map(eventType => {
                 const meta = EVENT_META[eventType]!
-                const row = rowByEvent.get(eventType)!
+                const telegramRow = rowByKey.get(`TELEGRAM:${eventType}`)
+                const webPushRow = rowByKey.get(`WEB_PUSH:${eventType}`)
                 return (
                   <li
                     key={eventType}
@@ -100,12 +129,28 @@ export function NotificationPreferencesForm({
                       <p className="text-sm font-medium text-[var(--foreground)]">{meta.label}</p>
                       <p className="mt-0.5 text-xs text-[var(--muted)]">{meta.description}</p>
                     </div>
-                    <Toggle
-                      checked={row.enabled}
-                      disabled={pending || !telegramLinked}
-                      onChange={next => setEnabled(eventType, next)}
-                      ariaLabel={meta.label}
-                    />
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 flex justify-center">
+                        {telegramRow ? (
+                          <Toggle
+                            checked={telegramRow.enabled}
+                            disabled={pending || !channelGateEnabled('TELEGRAM')}
+                            onChange={next => setEnabled('TELEGRAM', eventType, next)}
+                            ariaLabel={`${meta.label} — ${t('vendor.notifications.channel.telegram')}`}
+                          />
+                        ) : null}
+                      </div>
+                      <div className="w-16 flex justify-center">
+                        {webPushRow ? (
+                          <Toggle
+                            checked={webPushRow.enabled}
+                            disabled={pending || !channelGateEnabled('WEB_PUSH')}
+                            onChange={next => setEnabled('WEB_PUSH', eventType, next)}
+                            ariaLabel={`${meta.label} — ${t('vendor.notifications.channel.webPush')}`}
+                          />
+                        ) : null}
+                      </div>
+                    </div>
                   </li>
                 )
               })}
