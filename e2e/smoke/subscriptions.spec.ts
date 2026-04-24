@@ -20,6 +20,20 @@ test.describe('buyer subscription checkout @smoke', () => {
   test('buyer picks cadence + date, confirms, lands on list, reschedules next delivery', async ({ page }) => {
     await loginAs(page, TEST_USERS.customer)
 
+    // If a previous smoke run died after creating this exact plan, the
+    // seed alone cannot clean it up because the subscription row is not
+    // part of the static fixture. Clear that stale row up front so this
+    // run stays idempotent.
+    await page.goto('/cuenta/suscripciones')
+    const staleRow = page.getByTestId(`subscription-row-${SEEDED_SUBSCRIPTION_PRODUCT_SLUG}`)
+    if (await staleRow.count()) {
+      const cancelCta = staleRow.getByTestId(`subscription-cancel-${SEEDED_SUBSCRIPTION_PRODUCT_SLUG}`)
+      if (await cancelCta.count()) {
+        await cancelCta.first().click()
+        await expect(staleRow).toHaveCount(0, { timeout: 10_000 })
+      }
+    }
+
     // --- PRODUCT DETAIL → navigate to confirmation page ---
     await page.goto(`/productos/${SEEDED_SUBSCRIPTION_PRODUCT_SLUG}`)
     await expect(page.getByRole('heading', { name: /cesta mixta de huerta/i })).toBeVisible({ timeout: 10_000 })

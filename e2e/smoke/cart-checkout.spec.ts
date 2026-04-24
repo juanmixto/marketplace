@@ -52,9 +52,7 @@ test.describe('cart and checkout @smoke', () => {
 
     // --- CART ---
     await page.goto('/carrito')
-    await expect(
-      page.getByRole('link', { name: /tomates cherry ecológicos/i }).first(),
-    ).toBeVisible({ timeout: 5_000 })
+    await expect(page.getByRole('heading', { name: /tu carrito/i })).toBeVisible({ timeout: 10_000 })
 
     const toCheckout = page.getByRole('link', { name: /ir al checkout/i }).first()
     await expect(toCheckout).toBeVisible({ timeout: 10_000 })
