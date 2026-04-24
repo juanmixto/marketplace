@@ -167,6 +167,34 @@ export default async function ProductDetailPage({ params }: Props) {
       },
     ],
   }
+  // Only emit aggregateRating/review when there are real reviews.
+  // Google penalizes `aggregateRating` with 0 reviews and fakes values.
+  const ratingStructuredData =
+    reviewSummary.totalReviews > 0 && reviewSummary.averageRating !== null
+      ? {
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: reviewSummary.averageRating.toFixed(1),
+            reviewCount: reviewSummary.totalReviews,
+          },
+          review: reviewSummary.reviews.slice(0, 5).map(r => ({
+            '@type': 'Review',
+            reviewRating: {
+              '@type': 'Rating',
+              ratingValue: r.rating,
+              bestRating: 5,
+              worstRating: 1,
+            },
+            author: {
+              '@type': 'Person',
+              name: `${r.customer.firstName} ${r.customer.lastName.slice(0, 1)}.`,
+            },
+            ...(r.body ? { reviewBody: r.body } : {}),
+            datePublished: r.createdAt.toISOString(),
+          })),
+        }
+      : {}
+
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -189,6 +217,7 @@ export default async function ProductDetailPage({ params }: Props) {
         : 'https://schema.org/OutOfStock',
       itemCondition: 'https://schema.org/NewCondition',
     },
+    ...ratingStructuredData,
   }
 
   return (
