@@ -29,7 +29,7 @@ export const useFavoritesStore = create<FavoritesStore>()((set, get) => ({
     if (get().loaded || get().loading) return
     set({ loading: true })
     try {
-      const res = await fetch('/api/favoritos/ids')
+      const res = await fetch('/api/favoritos/ids', { cache: 'no-store' })
       if (!res.ok) {
         set({ loaded: true, loading: false })
         return

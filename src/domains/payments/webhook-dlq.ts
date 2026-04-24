@@ -4,6 +4,8 @@
  * a last resort so orphan events can be replayed manually by an operator.
  */
 
+import { logger } from '@/lib/logger'
+
 type WebhookDeadLetterInput = {
   provider?: string
   eventId?: string
@@ -53,10 +55,14 @@ export async function recordWebhookDeadLetter(
     await client.webhookDeadLetter.create({ data: buildWebhookDeadLetterRecord(input) })
     return true
   } catch (err) {
-    console.error('[stripe-webhook][dead-letter-write-failed]', {
+    // Surface via logger so Sentry/Datadog pick it up — a failure to persist
+    // a dead-letter means we are losing the orphan event entirely, which is
+    // exactly the kind of silent gap oncall needs to see.
+    logger.error('stripe.webhook.dead_letter_write_failed', {
       eventId: input.eventId ?? null,
       eventType: input.eventType,
-      error: err instanceof Error ? err.message : String(err),
+      providerRef: input.providerRef ?? null,
+      error: err,
     })
     return false
   }

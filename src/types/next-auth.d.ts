@@ -20,5 +20,8 @@ declare module 'next-auth/jwt' {
   interface JWT {
     id: string
     role: UserRole
+    has2fa?: boolean
+    /** Epoch ms of the last DB role check (see src/lib/auth.ts). */
+    roleCheckedAt?: number
   }
 }

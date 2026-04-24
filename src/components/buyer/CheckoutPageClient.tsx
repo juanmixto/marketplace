@@ -28,6 +28,7 @@ import {
 } from '@/domains/shipping/spain-provinces'
 import { useT } from '@/i18n'
 import { createAnalyticsItem, trackAnalyticsEvent } from '@/lib/analytics'
+import { CheckoutProgress } from '@/components/checkout/CheckoutProgress'
 
 function sanitizePhoneChar(input: string): string {
   return input.replace(/[^+\d\s()\-]/g, '')
@@ -51,6 +52,14 @@ interface Props {
    * dedupe double-clicks, tab refreshes, and concurrent races.
    */
   checkoutAttemptId: string
+  /**
+   * Addresses pre-fetched by the server component. When provided, the
+   * client skips the mount-time `fetch('/api/direcciones')` — which on
+   * the critical checkout path used to add 100–300 ms of "Loading…"
+   * before the buyer could pick an address. Optional so existing call
+   * sites fall back to the legacy client-fetch path.
+   */
+  initialAddresses?: SavedCheckoutAddress[]
 }
 
 export function CheckoutPageClient({
@@ -61,14 +70,23 @@ export function CheckoutPageClient({
   userFirstName = '',
   userLastName = '',
   checkoutAttemptId,
+  initialAddresses,
 }: Props) {
   const router = useRouter()
   const { items, subtotal, clearCart } = useCartStore()
+  const cartHydrated = useCartStore(state => state.hasHydrated)
   const [step, setStep] = useState<'address' | 'payment' | 'processing'>('address')
   const [serverError, setServerError] = useState<string | null>(null)
-  const [savedAddresses, setSavedAddresses] = useState<SavedCheckoutAddress[]>([])
-  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null)
-  const [loadingAddresses, setLoadingAddresses] = useState(true)
+  const hasInitialAddresses = initialAddresses !== undefined
+  const [savedAddresses, setSavedAddresses] = useState<SavedCheckoutAddress[]>(
+    initialAddresses ?? [],
+  )
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(() => {
+    if (!hasInitialAddresses) return null
+    return getPreferredCheckoutAddress(initialAddresses!)?.id ?? null
+  })
+  // If the server supplied addresses there is nothing to load.
+  const [loadingAddresses, setLoadingAddresses] = useState(!hasInitialAddresses)
   const [addressLoadError, setAddressLoadError] = useState<string | null>(null)
   const [showNewAddressForm, setShowNewAddressForm] = useState(false)
   const [completedOrderNumber, setCompletedOrderNumber] = useState<string | null>(null)
@@ -207,12 +225,26 @@ export function CheckoutPageClient({
   useEffect(() => {
     let cancelled = false
 
+    // Fast path: the server already handed us the address list, so we
+    // just seed the form from the preferred address and skip the
+    // network round-trip. The slow path keeps the previous behaviour
+    // intact for callers that don't pre-fetch.
+    if (hasInitialAddresses) {
+      const preferredAddress = getPreferredCheckoutAddress(initialAddresses!)
+      if (preferredAddress) {
+        reset(toCheckoutFormAddress(preferredAddress))
+      } else {
+        setShowNewAddressForm(true)
+      }
+      return
+    }
+
     async function loadSavedAddresses() {
       try {
         setLoadingAddresses(true)
         setAddressLoadError(null)
 
-        const response = await fetch('/api/direcciones')
+        const response = await fetch('/api/direcciones', { cache: 'no-store' })
         if (!response.ok) {
           throw new Error('No se pudieron cargar las direcciones')
         }
@@ -244,7 +276,7 @@ export function CheckoutPageClient({
     return () => {
       cancelled = true
     }
-  }, [reset])
+  }, [reset, hasInitialAddresses, initialAddresses])
 
   useEffect(() => {
     if (!completedOrderNumber) return
@@ -262,6 +294,20 @@ export function CheckoutPageClient({
     router.replace(`/checkout/confirmacion?orderNumber=${encodeURIComponent(completedOrderNumber)}`)
     router.refresh()
   }, [clearCart, completedOrderNumber, router])
+
+  if (!cartHydrated) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-24 sm:px-6 lg:px-8">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-6 py-10 text-center shadow-sm">
+          <p className="text-sm font-medium uppercase tracking-[0.16em] text-[var(--muted)]">
+            {t('checkout.flowLabel')}
+          </p>
+          <h1 className="mt-3 text-2xl font-bold text-[var(--foreground)]">{t('checkout.title')}</h1>
+          <p className="mt-2 text-sm text-[var(--muted)]">{t('cart.title')}…</p>
+        </div>
+      </div>
+    )
+  }
 
   if (items.length === 0 && step !== 'processing' && !completedOrderNumber) {
     router.replace('/carrito')
@@ -380,8 +426,19 @@ export function CheckoutPageClient({
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="mb-8 text-2xl font-bold text-[var(--foreground)]">{t('checkout.title')}</h1>
+      <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+      <div className="mb-6 space-y-4">
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">{t('checkout.title')}</h1>
+        <CheckoutProgress
+          title={t('checkout.flowLabel')}
+          subtitle={t('checkout.flowSubtitle')}
+          currentStep={1}
+          steps={[
+            { label: t('checkout.flowStepAddress'), description: t('checkout.flowStepAddressDesc') },
+            { label: t('checkout.flowStepPayment'), description: t('checkout.flowStepPaymentDesc') },
+          ]}
+        />
+      </div>
 
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
@@ -405,17 +462,18 @@ export function CheckoutPageClient({
                       </button>
                     )}
                   </div>
-                  <div className="grid gap-3">
-                    {savedAddresses.map(address => {
-                      const isSelected = selectedAddressId === address.id
-                      return (
-                        <button
-                          key={address.id}
-                          type="button"
-                          onClick={() => handleUseSavedAddress(address)}
-                          className={`rounded-lg border p-3 text-left transition ${
-                            isSelected
-                              ? 'border-emerald-500 bg-emerald-50/70 dark:border-emerald-400 dark:bg-emerald-950/20'
+                <div className="grid gap-3" data-testid="checkout-saved-addresses">
+                  {savedAddresses.map(address => {
+                    const isSelected = selectedAddressId === address.id
+                    return (
+                      <button
+                        key={address.id}
+                        type="button"
+                        onClick={() => handleUseSavedAddress(address)}
+                        data-testid="checkout-saved-address"
+                        className={`rounded-lg border p-3 text-left transition ${
+                          isSelected
+                            ? 'border-emerald-500 bg-emerald-50/70 dark:border-emerald-400 dark:bg-emerald-950/20'
                               : 'border-[var(--border)] bg-[var(--surface-raised)] hover:border-emerald-300 dark:hover:border-emerald-700'
                           }`}
                         >

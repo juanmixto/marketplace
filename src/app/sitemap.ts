@@ -5,11 +5,9 @@ import { getServerEnv } from '@/lib/env'
 
 export const revalidate = 300
 
-const siteUrl = new URL(getServerEnv().appUrl)
+type Absolutize = (path: string) => string
 
-const toAbsoluteUrl = (path: string) => new URL(path, siteUrl).toString()
-
-const staticRoutes: MetadataRoute.Sitemap = [
+const buildStaticRoutes = (toAbsoluteUrl: Absolutize): MetadataRoute.Sitemap => [
   { url: toAbsoluteUrl('/'), changeFrequency: 'weekly', priority: 1 },
   { url: toAbsoluteUrl('/productos'), changeFrequency: 'daily', priority: 0.9 },
   { url: toAbsoluteUrl('/productores'), changeFrequency: 'weekly', priority: 0.85 },
@@ -21,7 +19,7 @@ const staticRoutes: MetadataRoute.Sitemap = [
   { url: toAbsoluteUrl('/privacidad'), changeFrequency: 'yearly', priority: 0.2 },
 ]
 
-async function getActiveProductRoutes() {
+async function getActiveProductRoutes(toAbsoluteUrl: Absolutize) {
   const products = await db.product.findMany({
     where: getAvailableProductWhere(),
     orderBy: { updatedAt: 'desc' },
@@ -39,7 +37,7 @@ async function getActiveProductRoutes() {
   }))
 }
 
-async function getActiveVendorRoutes() {
+async function getActiveVendorRoutes(toAbsoluteUrl: Absolutize) {
   const vendors = await db.vendor.findMany({
     where: { status: 'ACTIVE' },
     orderBy: { updatedAt: 'desc' },
@@ -58,11 +56,14 @@ async function getActiveVendorRoutes() {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const entries: MetadataRoute.Sitemap = [...staticRoutes]
+  const siteUrl = new URL(getServerEnv().appUrl)
+  const toAbsoluteUrl: Absolutize = path => new URL(path, siteUrl).toString()
+
+  const entries: MetadataRoute.Sitemap = [...buildStaticRoutes(toAbsoluteUrl)]
 
   const [productsResult, vendorsResult] = await Promise.allSettled([
-    getActiveProductRoutes(),
-    getActiveVendorRoutes(),
+    getActiveProductRoutes(toAbsoluteUrl),
+    getActiveVendorRoutes(toAbsoluteUrl),
   ])
 
   if (productsResult.status === 'fulfilled') {

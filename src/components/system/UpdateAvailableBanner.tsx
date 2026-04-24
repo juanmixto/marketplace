@@ -2,7 +2,18 @@
 
 import { useEffect, useRef, useState } from 'react'
 
-const POLL_INTERVAL_MS = 60_000
+// Space the build-version check out to 5 minutes with ±15% jitter. The old
+// 60 s cadence meant every connected client hit /api/version at the same
+// wall-clock second after a deploy — a small but unnecessary thundering-
+// herd. Five minutes is well under the typical time between deploys and
+// the jitter desynchronises fleets of tabs opened at the same moment.
+const POLL_INTERVAL_MS = 5 * 60_000
+const POLL_JITTER_RATIO = 0.15
+
+function nextPollDelay(): number {
+  const jitter = POLL_INTERVAL_MS * POLL_JITTER_RATIO * (Math.random() * 2 - 1)
+  return POLL_INTERVAL_MS + jitter
+}
 
 /**
  * Captures the build SHA the page loaded with, then polls /api/version
@@ -44,10 +55,20 @@ export function UpdateAvailableBanner() {
     }
 
     void check()
-    const id = setInterval(check, POLL_INTERVAL_MS)
+
+    // Self-scheduling timeout (instead of setInterval) so each tick picks
+    // up a freshly jittered delay — keeps clients from resynchronising
+    // after transient network errors line them up on the same boundary.
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+    const tick = () => {
+      void check()
+      if (!cancelled) timeoutId = setTimeout(tick, nextPollDelay())
+    }
+    timeoutId = setTimeout(tick, nextPollDelay())
+
     return () => {
       cancelled = true
-      clearInterval(id)
+      if (timeoutId) clearTimeout(timeoutId)
     }
   }, [loadedSha])
 

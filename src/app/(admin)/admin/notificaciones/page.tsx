@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { requireRole } from '@/lib/auth-guard'
 import { ADMIN_ROLES } from '@/lib/roles'
 import { formatDate } from '@/lib/utils'
-import { NotificationDeliveryStatus } from '@/generated/prisma/enums'
+import { NotificationChannel, NotificationDeliveryStatus } from '@/generated/prisma/enums'
 
 export const metadata: Metadata = { title: 'Notificaciones | Admin' }
 export const revalidate = 30
@@ -15,7 +15,9 @@ const STATUS_PALETTE: Record<string, string> = {
 }
 
 type PageProps = {
-  searchParams?: Promise<{ status?: string; userId?: string }> | { status?: string; userId?: string }
+  searchParams?:
+    | Promise<{ status?: string; userId?: string; channel?: string }>
+    | { status?: string; userId?: string; channel?: string }
 }
 
 function parseStatus(raw: string | undefined): NotificationDeliveryStatus | null {
@@ -25,15 +27,24 @@ function parseStatus(raw: string | undefined): NotificationDeliveryStatus | null
   return null
 }
 
+function parseChannel(raw: string | undefined): NotificationChannel | null {
+  if (!raw) return null
+  const upper = raw.toUpperCase()
+  if (upper === 'TELEGRAM' || upper === 'WEB_PUSH') return upper
+  return null
+}
+
 export default async function AdminNotificationsPage({ searchParams }: PageProps) {
   await requireRole([...ADMIN_ROLES])
   const filters = await Promise.resolve(searchParams ?? {})
   const status = parseStatus(filters.status)
   const userId = filters.userId?.trim()
+  const channel = parseChannel(filters.channel)
 
   const deliveryWhere = {
     ...(status ? { status } : {}),
     ...(userId ? { userId } : {}),
+    ...(channel ? { channel } : {}),
   }
 
   const actionWhere = userId ? { userId } : {}
@@ -74,6 +85,11 @@ export default async function AdminNotificationsPage({ searchParams }: PageProps
     }),
   ])
 
+  const channelCounts = await db.notificationDelivery.groupBy({
+    by: ['channel'],
+    _count: { _all: true },
+  })
+
   const userIds = Array.from(
     new Set([
       ...deliveries.map(d => d.userId),
@@ -93,7 +109,7 @@ export default async function AdminNotificationsPage({ searchParams }: PageProps
       <div>
         <h1 className="text-2xl font-bold text-[var(--foreground)]">Notificaciones</h1>
         <p className="text-sm text-[var(--muted)] mt-0.5">
-          Auditoría de envíos salientes (Telegram) y de acciones recibidas desde inline buttons.
+          Auditoría de envíos salientes (Telegram + web push) y de acciones recibidas desde inline buttons.
         </p>
       </div>
 
@@ -104,6 +120,15 @@ export default async function AdminNotificationsPage({ searchParams }: PageProps
             className={`rounded-full px-3 py-1 text-xs font-medium ${STATUS_PALETTE[row.status] ?? ''}`}
           >
             {row.status}: {row._count._all}
+          </span>
+        ))}
+        <span className="mx-2 text-[var(--muted)]">·</span>
+        {channelCounts.map(row => (
+          <span
+            key={row.channel}
+            className="rounded-full bg-[var(--surface-raised)] px-3 py-1 text-xs font-medium text-[var(--foreground)]"
+          >
+            {row.channel}: {row._count._all}
           </span>
         ))}
       </section>

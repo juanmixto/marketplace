@@ -5,6 +5,7 @@
 
 import { Resend } from 'resend'
 import { getServerEnv } from '@/lib/env'
+import { logger } from '@/lib/logger'
 
 let resend: Resend | null = null
 
@@ -56,7 +57,7 @@ export async function sendEmail({
     console.info(`[Email] Sent to ${to}: ${subject}`)
     return result
   } catch (error) {
-    console.error(`[Email] Error sending to ${to}:`, error)
+    logger.error('email.send_failed', { to, subject, error })
     throw error
   }
 }
