@@ -35,6 +35,7 @@ export const vendorNavItems: LocalizedNavItem[] = [
 export const adminNavItems: AppNavItem[] = [
   { href: '/admin/dashboard', label: 'Dashboard', available: true },
   { href: '/admin/pedidos', label: 'Pedidos', available: true },
+  { href: '/admin/usuarios', label: 'Usuarios', available: true },
   { href: '/admin/productores', label: 'Productores', available: true },
   { href: '/admin/productos', label: 'Productos', available: true },
   { href: '/admin/promociones', label: 'Promociones', available: true },
