@@ -1682,3 +1682,27 @@ model IngestionUnextractableDedupeCandidate {
   @@index([riskClass, autoApplied], map: "IngUnxDedupe_riskClass_autoApplied_idx")
   @@index([createdAt], map: "IngUnxDedupe_createdAt_idx")
 }
+
+// Generic idempotency keys for admin/vendor mutations (#788).
+// Generalizes the `Order.checkoutAttemptId` pattern (see
+// docs/checkout-dedupe.md) to any server action that needs to be
+// safe against double-submit on degraded mobile networks.
+//
+// The (scope, token) UNIQUE is the dedupe pivot: scope isolates
+// different mutation types (so a `product.create` token can never
+// collide with a `promotion.update` token), and `userId` is enforced
+// at the wrapper level for cross-tenant safety (see
+// docs/authz-audit.md). Tokens auto-expire after 24h; a cleanup job
+// reads `expiresAt` to GC.
+model IdempotencyKey {
+  id        String   @id @default(cuid())
+  scope     String
+  token     String
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@unique([scope, token])
+  @@index([userId])
+  @@index([expiresAt])
+}

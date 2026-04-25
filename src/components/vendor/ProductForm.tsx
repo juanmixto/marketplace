@@ -58,6 +58,9 @@ interface ProductFormProps {
   categories: Category[]
   initialData?: VendorProductFormItem
   vendorLocation?: string | null
+  /** Server-issued idempotency token (#788). Required for new-product
+   *  creation; ignored when editing an existing product. */
+  idempotencyToken?: string
 }
 
 
@@ -94,12 +97,15 @@ function makeEmptyVariantRow(): VariantRow {
   }
 }
 
-export function ProductForm({ categories, initialData, vendorLocation }: ProductFormProps) {
+export function ProductForm({ categories, initialData, vendorLocation, idempotencyToken }: ProductFormProps) {
   const router = useRouter()
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [pendingAction, setPendingAction] = useState<'DRAFT' | 'PENDING_REVIEW' | null>(null)
   const t = useT()
+  // Capture the token in a ref so re-renders mid-submit don't regenerate
+  // it (mirrors CheckoutPageClient pattern from #524 / docs/checkout-dedupe.md).
+  const idempotencyTokenRef = useRef(idempotencyToken)
 
   const [variants, setVariants] = useState<VariantRow[]>(
     () => initialData?.variants?.map(variantRowFromDb) ?? [],
@@ -265,7 +271,7 @@ export function ProductForm({ categories, initialData, vendorLocation }: Product
           variants: normalizedVariants,
         })
       } else {
-        await createProduct(payload)
+        await createProduct(payload, idempotencyTokenRef.current)
       }
       const baseEventProps = {
         product_id: initialData?.id,

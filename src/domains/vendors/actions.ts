@@ -10,6 +10,7 @@ import { getActionSession } from '@/lib/action-session'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { isVendor } from '@/lib/roles'
 import { isAllowedImageUrl } from '@/lib/image-validation'
+import { withIdempotency } from '@/lib/idempotency'
 // eslint-disable-next-line no-restricted-imports -- Telegram bootstrap is server-only and intentionally excluded from the notifications barrel
 import { ensureTelegramHandlersRegistered } from '@/domains/notifications/telegram/ensure-registered'
 // eslint-disable-next-line no-restricted-imports -- Web-push bootstrap mirrors the Telegram one; same reason
@@ -58,33 +59,44 @@ ensureWebPushHandlersRegistered()
 /**
  * Creates a new product for the authenticated vendor.
  * Status defaults to DRAFT. Vendor must submit for review explicitly.
+ *
+ * `idempotencyToken` is optional (legacy callers without it still work);
+ * when provided, a double-submit on a flaky mobile network reuses the
+ * existing creation instead of producing a duplicate (#788).
  */
-export async function createProduct(input: ProductInput) {
-  const { vendor } = await requireVendor()
+export async function createProduct(input: ProductInput, idempotencyToken?: string) {
+  const { vendor, session } = await requireVendor()
 
   const data = productSchema.parse(input)
 
-  // Generate unique slug
-  let slug = slugify(data.name)
-  const existing = await db.product.findUnique({ where: { slug } })
-  if (existing) slug = `${slug}-${Date.now()}`
+  const doCreate = async () => {
+    // Generate unique slug
+    let slug = slugify(data.name)
+    const existing = await db.product.findUnique({ where: { slug } })
+    if (existing) slug = `${slug}-${Date.now()}`
 
-  const product = await db.product.create({
-    data: {
-      ...data,
-      slug,
-      vendorId: vendor.id,
-      compareAtPrice: data.compareAtPrice ?? null,
-      description: data.description ?? null,
-      categoryId: data.categoryId ?? null,
-      originRegion: data.originRegion ?? null,
-      expiresAt: parseExpirationDateInput(data.expiresAt),
-    },
-  })
+    const product = await db.product.create({
+      data: {
+        ...data,
+        slug,
+        vendorId: vendor.id,
+        compareAtPrice: data.compareAtPrice ?? null,
+        description: data.description ?? null,
+        categoryId: data.categoryId ?? null,
+        originRegion: data.originRegion ?? null,
+        expiresAt: parseExpirationDateInput(data.expiresAt),
+      },
+    })
 
-  safeRevalidatePath('/vendor/productos')
-  revalidateCatalogExperience({ productSlug: product.slug, vendorSlug: vendor.slug })
-  return product
+    safeRevalidatePath('/vendor/productos')
+    revalidateCatalogExperience({ productSlug: product.slug, vendorSlug: vendor.slug })
+    return product
+  }
+
+  if (idempotencyToken) {
+    return withIdempotency('product.create', idempotencyToken, session.user.id, doCreate)
+  }
+  return doCreate()
 }
 
 /**
