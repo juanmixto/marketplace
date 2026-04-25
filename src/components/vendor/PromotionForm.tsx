@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { createPromotion, updatePromotion, type SerializedPromotion } from '@/domains/promotions/actions'
+import { isAlreadyProcessedError } from '@/lib/idempotency-client'
 import { useT } from '@/i18n'
 import {
   ProductPicker,
@@ -115,13 +116,19 @@ interface Props {
   categories: { id: string; name: string }[]
   /** Pass a serialized promotion to render the form in edit mode. */
   initial?: SerializedPromotion
+  /** Server-issued idempotency token (#788). Required for new-promotion
+   *  creation; ignored when editing an existing promotion. */
+  idempotencyToken?: string
 }
 
-export function PromotionForm({ products, categories, initial }: Props) {
+export function PromotionForm({ products, categories, initial, idempotencyToken }: Props) {
   const t = useT()
   const router = useRouter()
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  // Capture in a ref so re-renders mid-submit don't regenerate the token
+  // (mirrors ProductForm + CheckoutPageClient).
+  const idempotencyTokenRef = useRef(idempotencyToken)
 
   const isEdit = Boolean(initial)
 
@@ -202,11 +209,19 @@ export function PromotionForm({ products, categories, initial }: Props) {
         if (initial) {
           await updatePromotion(initial.id, payload)
         } else {
-          await createPromotion(payload)
+          await createPromotion(payload, idempotencyTokenRef.current)
         }
         router.push('/vendor/promociones')
         router.refresh()
       } catch (err) {
+        // #788 replay UX: double-tap on flaky network → first request
+        // succeeded, second one threw AlreadyProcessedError. Treat
+        // as success — the promotion was created.
+        if (isAlreadyProcessedError(err)) {
+          router.push('/vendor/promociones')
+          router.refresh()
+          return
+        }
         const raw = err instanceof Error ? err.message : ''
         // Never surface raw ZodError JSON or stack-ish messages to the user.
         const looksLikeZod = raw.startsWith('[') || raw.includes('"code"') || raw.includes('"path"')
