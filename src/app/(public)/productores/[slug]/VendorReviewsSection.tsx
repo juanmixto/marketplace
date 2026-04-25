@@ -1,8 +1,7 @@
 'use client'
 
 import { StarIcon } from '@heroicons/react/24/solid'
-import { formatDistanceToNow } from 'date-fns'
-import { es as esLocale, enUS as enLocale } from 'date-fns/locale'
+import { formatRelativeTime } from '@/lib/format-relative-time'
 import { useT, useLocale } from '@/i18n'
 
 interface Review {
@@ -33,7 +32,6 @@ export function VendorReviewsSection({
 }: VendorReviewsSectionProps) {
   const t = useT()
   const { locale } = useLocale()
-  const dateLocale = locale === 'en' ? enLocale : esLocale
 
   if (totalReviews === 0 && !avgRating) {
     return (
@@ -79,10 +77,7 @@ export function VendorReviewsSection({
       {/* Reviews List */}
       <div className="space-y-4">
         {reviews.map(review => {
-          const timeAgo = formatDistanceToNow(new Date(review.createdAt), {
-            locale: dateLocale,
-            addSuffix: false,
-          })
+          const timeAgo = formatRelativeTime(review.createdAt, { locale })
           return (
             <article
               key={review.id}

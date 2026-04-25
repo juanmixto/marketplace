@@ -3,8 +3,7 @@
 import { useState, useTransition } from 'react'
 import { StarIcon } from '@heroicons/react/24/solid'
 import { ChatBubbleLeftIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline'
-import { formatDistanceToNow } from 'date-fns'
-import { es as esLocale, enUS as enLocale } from 'date-fns/locale'
+import { formatRelativeTime } from '@/lib/format-relative-time'
 import { useT, useLocale } from '@/i18n'
 import { respondToReview, deleteReviewResponse } from '@/domains/reviews/actions'
 
@@ -28,7 +27,6 @@ interface Props {
 export function VendorReviewsManager({ reviews, avgRating, totalReviews }: Props) {
   const t = useT()
   const { locale } = useLocale()
-  const dateLocale = locale === 'en' ? enLocale : esLocale
 
   const totalLabel =
     totalReviews === 1
@@ -62,7 +60,7 @@ export function VendorReviewsManager({ reviews, avgRating, totalReviews }: Props
 
       <div className="space-y-4">
         {reviews.map(review => (
-          <ReviewCard key={review.id} review={review} dateLocale={dateLocale} t={t} />
+          <ReviewCard key={review.id} review={review} locale={locale} t={t} />
         ))}
       </div>
     </div>
@@ -71,11 +69,11 @@ export function VendorReviewsManager({ reviews, avgRating, totalReviews }: Props
 
 function ReviewCard({
   review,
-  dateLocale,
+  locale,
   t,
 }: {
   review: Review
-  dateLocale: typeof esLocale
+  locale: string
   t: ReturnType<typeof useT>
 }) {
   const [editing, setEditing] = useState(false)
@@ -83,10 +81,7 @@ function ReviewCard({
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
-  const timeAgo = formatDistanceToNow(new Date(review.createdAt), {
-    locale: dateLocale,
-    addSuffix: false,
-  })
+  const timeAgo = formatRelativeTime(review.createdAt, { locale })
 
   const submit = () => {
     setError(null)
