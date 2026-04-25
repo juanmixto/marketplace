@@ -17,6 +17,7 @@ import { CartHydrationProvider } from '@/components/buyer/CartHydrationProvider'
 import { getServerLocale } from '@/i18n/server'
 import PwaRegister from '@/components/pwa/PwaRegister'
 import OfflineIndicator from '@/components/pwa/OfflineIndicator'
+import { SwAnalyticsBridge } from '@/components/pwa/SwAnalyticsBridge'
 import { BuildBadge } from '@/components/system/BuildBadge'
 import { UpdateAvailableBanner } from '@/components/system/UpdateAvailableBanner'
 
@@ -102,6 +103,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <WebVitalsReporter />
               <PwaRegister />
               <OfflineIndicator />
+              <SwAnalyticsBridge />
               <CartHydrationProvider />
               <UpdateAvailableBanner />
               {children}
