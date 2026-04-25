@@ -1,6 +1,9 @@
 const es = {
   /* Navigation */
   categories: 'Categorías',
+  settings: 'Ajustes',
+  explore: 'Explorar',
+  hello: 'Hola',
   producers: 'Productores',
   producer_portal: 'Portal productor',
   search_placeholder: 'Buscar productos, productores...',

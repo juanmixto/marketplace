@@ -9,6 +9,7 @@ import {
   Bars3Icon,
   XMarkIcon,
   ChevronDownIcon,
+  BuildingStorefrontIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import { SITE_NAME } from '@/lib/constants'
@@ -57,50 +58,75 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
   const [mobileOpen,  setMobileOpen]  = useState(false)
   const [catOpen,     setCatOpen]     = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
-
-  // Mobile-only: collapse the search bar when the user scrolls down past
-  // the header, reveal again when they scroll back up or return to the
-  // top. Keeps more of the viewport free on phones without losing quick
-  // access when the user signals "I want to do something".
-  const [hideMobileSearch, setHideMobileSearch] = useState(false)
-  const lastScrollYRef = useRef(0)
-  const mobileOpenRef = useRef(false)
-  useEffect(() => {
-    mobileOpenRef.current = mobileOpen
-    // When the drawer is open, we force the search bar visible and stop
-    // toggling it on scroll. Otherwise, background scroll events (or
-    // reflow from a collapsing search bar) would make the sticky header
-    // flicker as the drawer drags along.
-    if (mobileOpen) setHideMobileSearch(false)
-  }, [mobileOpen])
+  // Mobile search lives in a full-screen overlay triggered by a magnifier
+  // button in the top bar. Replaces the previous always-visible second row
+  // — phones at 360px were too cramped to read and tap that row.
+  const [searchOpen,  setSearchOpen]  = useState(false)
+  const searchInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     if (!mobileOpen) return
+    // `overflow: hidden` alone is not enough — iOS Safari and Android
+    // Chrome both still let the page scroll under a `fixed` overlay
+    // ("rubber band"). Pin the body to its current scroll position with
+    // `position: fixed; top: -scrollY`, then restore the scroll on
+    // cleanup. This is the standard scroll-lock pattern used by Modal,
+    // and removes the visible jump when toggling the drawer.
     const { body } = document
-    const previousOverflow = body.style.overflow
+    const scrollY = window.scrollY
+    const previous = {
+      overflow: body.style.overflow,
+      position: body.style.position,
+      top: body.style.top,
+      width: body.style.width,
+    }
     body.style.overflow = 'hidden'
+    body.style.position = 'fixed'
+    body.style.top = `-${scrollY}px`
+    body.style.width = '100%'
     return () => {
-      body.style.overflow = previousOverflow
+      body.style.overflow = previous.overflow
+      body.style.position = previous.position
+      body.style.top = previous.top
+      body.style.width = previous.width
+      window.scrollTo(0, scrollY)
     }
   }, [mobileOpen])
+
+  // Lock body scroll while the search overlay is open, focus the input,
+  // and listen for Escape so dismissing matches OS expectations. Uses
+  // the same `position: fixed + top: -scrollY` lock as the drawer so
+  // iOS / Android Chrome can't rubber-band-scroll the page underneath.
   useEffect(() => {
-    function handleScroll() {
-      if (mobileOpenRef.current) return
-      const currentY = window.scrollY
-      const lastY = lastScrollYRef.current
-      const delta = currentY - lastY
-      if (currentY < 80) {
-        setHideMobileSearch(false)
-      } else if (delta > 6) {
-        setHideMobileSearch(true)
-      } else if (delta < -6) {
-        setHideMobileSearch(false)
-      }
-      lastScrollYRef.current = currentY
+    if (!searchOpen) return
+    const { body } = document
+    const scrollY = window.scrollY
+    const previous = {
+      overflow: body.style.overflow,
+      position: body.style.position,
+      top: body.style.top,
+      width: body.style.width,
     }
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+    body.style.overflow = 'hidden'
+    body.style.position = 'fixed'
+    body.style.top = `-${scrollY}px`
+    body.style.width = '100%'
+    // Defer focus a tick so the input is mounted in the DOM tree.
+    const id = requestAnimationFrame(() => searchInputRef.current?.focus())
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setSearchOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      body.style.overflow = previous.overflow
+      body.style.position = previous.position
+      body.style.top = previous.top
+      body.style.width = previous.width
+      window.scrollTo(0, scrollY)
+      cancelAnimationFrame(id)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [searchOpen])
   // Note: `usePathname()` used to live here. Reading it at the top level
   // made the whole Header re-render on every `<Link>` navigation even
   // though only two sub-branches actually depend on the path (install CTA
@@ -124,6 +150,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
     : t('cart')
 
   return (
+    <>
     <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur-md supports-[backdrop-filter]:bg-[var(--surface)]/90">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center gap-3">
@@ -211,8 +238,13 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
           {/* Right actions */}
           <div className="ml-auto flex items-center gap-1">
             <InstallCtaGate />
-            <LanguageToggle />
-            <ThemeToggle />
+            {/* Language + theme toggles only show in the desktop bar.
+                On mobile they live inside the hamburger drawer under the
+                "Ajustes" section so the top bar stays uncluttered. */}
+            <div className="hidden items-center gap-1 lg:flex">
+              <LanguageToggle />
+              <ThemeToggle />
+            </div>
 
             {!userContextReady ? (
               // Neutral placeholder while we wait for client-side session
@@ -307,6 +339,16 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
               )}
             </Link>
 
+            {/* Mobile search trigger — opens the full-screen overlay. */}
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              aria-label={t('searchMobile')}
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl p-2.5 text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] lg:hidden"
+            >
+              <MagnifyingGlassIcon className="h-5 w-5" />
+            </button>
+
             {/* Mobile menu toggle */}
             <button
               onClick={() => setMobileOpen(v => !v)}
@@ -318,113 +360,220 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
             </button>
           </div>
         </div>
+      </div>
 
-        {/* Mobile search bar — collapses on scroll-down, reappears on
-            scroll-up or near the top of the page. */}
-        <div
-          className={cn(
-            'grid overflow-hidden transition-[grid-template-rows,opacity,padding] duration-200 ease-out lg:hidden',
-            hideMobileSearch
-              ? 'grid-rows-[0fr] pb-0 opacity-0'
-              : 'grid-rows-[1fr] pb-3 opacity-100'
-          )}
-          aria-hidden={hideMobileSearch}
-        >
-          <form action="/buscar" className="min-h-0">
+      {/* Mobile drawer — slides in from the right (matches the side
+          where the hamburger lives) and overlays the page with a tap-
+          dismiss backdrop. Width capped at ~88vw / 22rem so a sliver
+          of the page stays visible as a visual cue you can tap to
+          close. */}
+      {mobileOpen && (
+        <>
+          <button
+            type="button"
+            aria-label={t('close_menu')}
+            onClick={() => setMobileOpen(false)}
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
+          />
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('open_menu')}
+            className="fixed right-0 top-0 z-50 flex h-dvh w-[min(22rem,88vw)] flex-col overflow-y-auto border-l border-[var(--border)] bg-[var(--surface)] shadow-2xl lg:hidden"
+          >
+            {/* Drawer header — close button on the right matches the
+                hamburger position so the user closes from the same
+                spot they opened. */}
+            <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
+              <span className="text-sm font-semibold text-[var(--foreground)]">
+                {currentUser
+                  ? `${t('hello')}, ${(currentUser.name ?? currentUser.email ?? '').split(/[\s@]/)[0] || t('myAccount')}`
+                  : t('open_menu')}
+              </span>
+              <button
+                type="button"
+                onClick={() => setMobileOpen(false)}
+                aria-label={t('close_menu')}
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 space-y-5 p-4">
+
+              {/* ── 1. MI CUENTA ─────────────────────────────────────── */}
+              <section className="space-y-1">
+                {!userContextReady ? (
+                  <div className="h-12" aria-hidden />
+                ) : currentUser ? (
+                  <>
+                    {!isBuyerPortal && (
+                      <Link
+                        href={portalHref}
+                        onClick={() => setMobileOpen(false)}
+                        className="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
+                      >
+                        <BuildingStorefrontIcon className="h-5 w-5" />
+                        {portalLabel}
+                      </Link>
+                    )}
+                    <Link
+                      href="/cuenta"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
+                    >
+                      <UserCircleIcon className="h-5 w-5" />
+                      {t('myAccount')}
+                    </Link>
+                    <Link
+                      href="/cuenta/pedidos"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
+                    >
+                      <ShoppingCartIcon className="h-5 w-5" />
+                      {t('myOrders')}
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+                      {t('myAccount')}
+                    </p>
+                    <div className="flex gap-2">
+                      <Link
+                        href="/login"
+                        onClick={() => setMobileOpen(false)}
+                        className="flex-1 rounded-xl border border-[var(--border)] px-4 py-2.5 text-center text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
+                      >
+                        {t('signIn')}
+                      </Link>
+                      <Link
+                        href="/register"
+                        onClick={() => setMobileOpen(false)}
+                        className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
+                      >
+                        {t('register')}
+                      </Link>
+                    </div>
+                    <Link
+                      href="/login?callbackUrl=%2Fvendor%2Fdashboard"
+                      onClick={() => setMobileOpen(false)}
+                      className="mt-1 block rounded-xl px-3 py-2 text-center text-xs font-medium text-[var(--muted)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+                    >
+                      {t('producerPortal')}
+                    </Link>
+                  </>
+                )}
+              </section>
+
+              <div className="border-t border-[var(--border)]" />
+
+              {/* ── 2. AJUSTES (idioma + tema) ──────────────────────── */}
+              <section className="space-y-2">
+                <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+                  {t('settings')}
+                </p>
+                <div className="flex flex-wrap items-center gap-3 px-3">
+                  <LanguageToggle />
+                  <ThemeToggle />
+                </div>
+              </section>
+
+              <div className="border-t border-[var(--border)]" />
+
+              {/* ── 3. EXPLORAR ──────────────────────────────────────── */}
+              <section className="space-y-1">
+                <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+                  {t('explore')}
+                </p>
+                <Link
+                  href="/productores"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
+                >
+                  <BuildingStorefrontIcon className="h-5 w-5" />
+                  {t('producers')}
+                </Link>
+              </section>
+            </div>
+
+            {/* ── 4. SESIÓN (cerrar sesión, separado del resto) ───────
+                Destructive action lives at the bottom so a clumsy thumb
+                can't tap it while reaching for "Mis pedidos". Only
+                rendered when the user is logged in. */}
+            {userContextReady && currentUser && (
+              <div className="border-t border-[var(--border)] p-4">
+                <SignOutButton compact />
+              </div>
+            )}
+          </aside>
+        </>
+      )}
+    </header>
+
+    {/* Mobile search overlay — full-screen on phones, replaces the old
+        inline second row. Lives outside <header> so the sticky/backdrop-blur
+        stacking context doesn't trap it behind the body::before texture
+        gradient. Escape or the close button dismiss it; submit lets the
+        browser navigate to /buscar?q=… and the overlay unmounts on route
+        change naturally. */}
+    {searchOpen && (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('searchMobile')}
+        className="fixed inset-0 z-[100] flex flex-col bg-[var(--background)] lg:hidden"
+      >
+        <div className="flex items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)] px-3 py-3">
+          <button
+            type="button"
+            onClick={() => setSearchOpen(false)}
+            aria-label={t('close_menu')}
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+          >
+            <XMarkIcon className="h-5 w-5" />
+          </button>
+          <form action="/buscar" className="flex-1">
             <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--muted)]" />
+              <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--muted)]" />
               <input
+                ref={searchInputRef}
                 name="q"
                 type="search"
-                tabIndex={hideMobileSearch ? -1 : 0}
+                enterKeyHint="search"
+                autoComplete="off"
                 placeholder={t('searchMobile')}
                 aria-label={t('searchMobile')}
-                className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] py-2.5 pl-10 pr-4 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:border-emerald-500 focus:bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
+                className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] py-3 pl-10 pr-4 text-base text-[var(--foreground)] placeholder:text-[var(--muted)] focus:border-emerald-500 focus:bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
               />
             </div>
           </form>
         </div>
-      </div>
 
-      {/* Mobile drawer */}
-      {mobileOpen && (
-        <div className="border-t border-[var(--border)] bg-[var(--surface)] shadow-2xl lg:hidden">
-          <div className="space-y-1 p-4">
-            {/* Categories */}
-            <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">{t('categories')}</p>
+        {/* Suggestions: quick category links so the overlay never feels empty
+            while the user is staring at the keyboard. Tapping any of these
+            dismisses the overlay and navigates the user to the catalog. */}
+        <div className="flex-1 overflow-y-auto px-4 py-5">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+            {t('categories')}
+          </p>
+          <div className="space-y-1">
             {CATEGORIES.map(cat => (
               <Link
                 key={cat.slug}
                 href={`/productos?categoria=${cat.slug}`}
-                onClick={() => setMobileOpen(false)}
-                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
+                onClick={() => setSearchOpen(false)}
+                className="flex min-h-12 items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm font-medium text-[var(--foreground-soft)] transition-colors hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
               >
-                <span className="text-base">{cat.icon}</span>
-                {translateCategoryLabel(cat.slug, cat.name, locale)}
+                <span className="text-xl leading-none">{cat.icon}</span>
+                <span className="flex-1">{translateCategoryLabel(cat.slug, cat.name, locale)}</span>
               </Link>
             ))}
-
-            <div className="mx-0 my-2 border-t border-[var(--border)]" />
-
-            {!userContextReady ? (
-              <div className="h-12" aria-hidden />
-            ) : currentUser ? (
-              <>
-                {!isBuyerPortal && (
-                  <Link
-                    href={portalHref}
-                    onClick={() => setMobileOpen(false)}
-                    className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
-                  >
-                    {portalLabel}
-                  </Link>
-                )}
-                <Link
-                  href="/cuenta"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
-                >
-                  <UserCircleIcon className="h-5 w-5" /> {t('myAccount')}
-                </Link>
-                <Link
-                  href="/cuenta/pedidos"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
-                >
-                  {t('myOrders')}
-                </Link>
-                <div className="pt-1">
-                  <SignOutButton compact />
-                </div>
-              </>
-            ) : (
-              <div className="flex gap-2 pt-1">
-                <Link href="/login" onClick={() => setMobileOpen(false)} className="flex-1 rounded-xl border border-[var(--border)] px-4 py-2.5 text-center text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
-                  {t('signIn')}
-                </Link>
-                <Link href="/register" onClick={() => setMobileOpen(false)} className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
-                  {t('register')}
-                </Link>
-              </div>
-            )}
-
-            {userContextReady && !currentUser && (
-              <>
-                <div className="mx-0 my-2 border-t border-[var(--border)] sm:hidden" />
-                <div className="flex items-center justify-end px-1 pt-1 sm:hidden">
-                  <Link
-                    href="/login?callbackUrl=%2Fvendor%2Fdashboard"
-                    onClick={() => setMobileOpen(false)}
-                    className="text-xs font-medium text-[var(--muted)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 rounded"
-                  >
-                    {t('producerPortal')}
-                  </Link>
-                </div>
-              </>
-            )}
           </div>
         </div>
-      )}
-    </header>
+      </div>
+    )}
+    </>
   )
 }

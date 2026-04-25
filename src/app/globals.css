@@ -59,7 +59,11 @@
 * { box-sizing: border-box; }
 
 html {
-  color-scheme: light;
+  /* Default to "light dark" so the browser uses the system preference for
+   * the intermediate-paint colour during navigation, BEFORE our theme
+   * bootstrap script runs. We still set a precise color-scheme below
+   * once the script has classified the user as light or dark. */
+  color-scheme: light dark;
   background: var(--background);
   scroll-behavior: smooth;
   /* Defensive guard: if anything overflows in X, clip it instead of letting
@@ -68,8 +72,17 @@ html {
   overflow-x: clip;
 }
 
+/* In dark mode the system already paints a dark canvas thanks to the
+ * `color-scheme: light dark` above. Once our script tags <html> with .dark
+ * we lock the scheme so form controls and scrollbars don't flicker. */
 html.dark {
   color-scheme: dark;
+}
+
+/* Mirror for light mode users who have set the preference explicitly via
+ * the theme toggle: even if the OS reports dark, the user picked light. */
+html:not(.dark) {
+  color-scheme: light;
 }
 
 body {

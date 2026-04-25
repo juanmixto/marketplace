@@ -46,6 +46,7 @@ function MobileFiltersInner({ categories }: Props) {
           <ProductFiltersPanel
             categories={categories}
             onClose={() => setOpen(false)}
+            embedded
           />
         </div>
       </Modal>

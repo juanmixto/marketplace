@@ -63,7 +63,18 @@ export function buildHeaderRules(isDevelopment = process.env.NODE_ENV === 'devel
     },
   ]
 
-  if (!isDevelopment) {
+  if (isDevelopment) {
+    // In dev, every chunk recompiles on save — caching it for hours just
+    // serves yesterday's bundle to phones that hit /_next/static/* before
+    // the watcher picked up the change. Force every dev request to be a
+    // network revalidation. Next's own default for dev is `max-age=14400`,
+    // which is the wrong default when the underlying file changes minute
+    // to minute.
+    rules.unshift({
+      source: '/_next/static/:path*',
+      headers: [NO_STORE_CACHE_HEADER],
+    })
+  } else {
     rules.unshift(
       {
         source: '/_next/static/:path*',

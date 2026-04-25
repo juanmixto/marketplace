@@ -32,9 +32,16 @@ const CERT_SWATCH: Record<BadgeVariant, string> = {
 interface Props {
   categories: CategoryWithCount[]
   onClose?: () => void
+  /**
+   * When the panel is rendered inside a Modal/Drawer (mobile), set this to
+   * drop the standalone "card" chrome (title + sticky + rounded border) so
+   * the surrounding Modal owns those concerns. Without this, you end up
+   * with two stacked headers and a card-in-a-card.
+   */
+  embedded?: boolean
 }
 
-export function ProductFiltersPanel({ categories, onClose }: Props) {
+export function ProductFiltersPanel({ categories, onClose, embedded = false }: Props) {
   const { locale } = useLocale()
   const copy = getCatalogCopy(locale)
   const router = useRouter()
@@ -80,23 +87,39 @@ export function ProductFiltersPanel({ categories, onClose }: Props) {
   const hasFilters   = currentCat || currentCerts.length > 0
 
   return (
-    <div className="sticky top-24 space-y-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-[var(--foreground)]">{copy.filters.title}</h3>
-        {hasFilters && (
-          <button
-            type="button"
-            onClick={() => {
-              router.push(pathname)
-              onClose?.()
-            }}
-            aria-label={copy.filters.clearAllAria}
-            className="rounded-md text-xs text-emerald-600 underline-offset-2 hover:underline dark:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
-          >
-            {copy.filters.clearAll}
-          </button>
-        )}
-      </div>
+    <div
+      className={cn(
+        'space-y-6',
+        embedded
+          ? ''
+          : 'sticky top-24 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm',
+      )}
+    >
+      {/* Standalone header — hidden when embedded (Modal already shows the
+          title). The "Clear all" action is preserved either way. */}
+      {(!embedded || hasFilters) && (
+        <div className="flex items-center justify-between">
+          {!embedded && (
+            <h3 className="font-semibold text-[var(--foreground)]">{copy.filters.title}</h3>
+          )}
+          {hasFilters && (
+            <button
+              type="button"
+              onClick={() => {
+                router.push(pathname)
+                onClose?.()
+              }}
+              aria-label={copy.filters.clearAllAria}
+              className={cn(
+                'rounded-md text-xs text-emerald-600 underline-offset-2 hover:underline dark:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]',
+                embedded && 'ml-auto',
+              )}
+            >
+              {copy.filters.clearAll}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Categories */}
       <div>
