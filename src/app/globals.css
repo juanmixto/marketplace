@@ -3,6 +3,9 @@
 /* ─── Dark mode via class (.dark en <html>) ─────────────────────────────── */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ─── Touch devices (no hover) ──────────────────────────────────────────── */
+@custom-variant pointer-coarse (@media (hover: none));
+
 /* ─── Design tokens — Light ─────────────────────────────────────────────── */
 :root {
   --background:       #f5f2ec;
