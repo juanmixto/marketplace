@@ -3,8 +3,6 @@ import {
   type NotificationEventMap,
   type NotificationEventName,
 } from './events'
-import { ensureTelegramHandlersRegistered } from './telegram/ensure-registered'
-import { ensureWebPushHandlersRegistered } from './web-push/ensure-registered'
 
 type Handler<E extends NotificationEventName> = (
   payload: NotificationEventMap[E],
@@ -70,9 +68,6 @@ export function emit<E extends NotificationEventName>(
     })
     return
   }
-
-  ensureTelegramHandlersRegistered()
-  ensureWebPushHandlersRegistered()
 
   const { registry } = getState()
   const handlers = Array.from(registry[event])
