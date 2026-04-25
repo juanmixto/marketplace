@@ -59,6 +59,10 @@ html {
   color-scheme: light;
   background: var(--background);
   scroll-behavior: smooth;
+  /* Defensive guard: if anything overflows in X, clip it instead of letting
+   * the document gain a horizontal scrollbar. `clip` (vs `hidden`) does not
+   * create a new scroll context, so position: sticky descendants keep working. */
+  overflow-x: clip;
 }
 
 html.dark {
@@ -71,6 +75,7 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), sans-serif;
   -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
 }
 
 /* Safe-area insets for notch / home indicator on iOS (viewport-fit=cover). */

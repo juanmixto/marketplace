@@ -343,3 +343,42 @@ test('cart page renders a mobile-only sticky checkout bar', () => {
   assert.match(source, /fixed inset-x-0 bottom-0[^"]*lg:hidden/, 'cart must render a mobile-only fixed checkout bar')
   assert.match(source, /env\(safe-area-inset-bottom\)/, 'cart sticky bar must honour the home-indicator safe area')
 })
+
+test('html and body clip horizontal overflow so a stray wide child cannot scroll the page', () => {
+  const css = read('src/app/globals.css')
+  // `overflow-x: clip` on html+body is a defensive guard: any child that
+  // escapes its container is simply clipped, never gains a horizontal
+  // scrollbar at document level. We use `clip` (not `hidden`) so that
+  // descendants with `position: sticky` keep working.
+  assert.match(
+    css,
+    /html[\s\S]*?overflow-x:\s*clip/,
+    'globals.css must clip horizontal overflow on <html>',
+  )
+  assert.match(
+    css,
+    /body[\s\S]*?overflow-x:\s*clip/,
+    'globals.css must clip horizontal overflow on <body>',
+  )
+})
+
+test('public hero stats stack on mobile instead of squeezing into 3 narrow columns', () => {
+  const source = read('src/app/(public)/page.tsx')
+  assert.match(
+    source,
+    /grid-cols-1[^"]*sm:grid-cols-3/,
+    'hero stats must use grid-cols-1 on mobile and sm:grid-cols-3 from sm+',
+  )
+})
+
+test('vendor product list search input occupies the full row on mobile', () => {
+  const source = read('src/components/vendor/VendorProductListClient.tsx')
+  // The toolbar wraps already, but the search field had a 220px floor that
+  // pushed the view-toggle group below on every mobile viewport. We now
+  // collapse the floor below sm so the search and toggle line up cleanly.
+  assert.match(
+    source,
+    /min-w-0 basis-full sm:basis-auto sm:min-w-\[220px\]/,
+    'search input must drop its 220px min-width on mobile and span the row',
+  )
+})
