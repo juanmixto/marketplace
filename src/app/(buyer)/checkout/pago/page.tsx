@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
 import { getOrderDetail } from '@/domains/orders/actions'
 import { stripeCheckoutParamsSchema, isMockClientSecret } from '@/domains/payments/checkout'
-import { StripeCheckoutForm } from '@/components/checkout/StripeCheckoutForm'
+import { StripeCheckoutFormLazy } from '@/components/checkout/StripeCheckoutFormLazy'
 import { CheckoutProgress } from '@/components/checkout/CheckoutProgress'
 import { formatPrice } from '@/lib/utils'
 import { getServerEnv } from '@/lib/env'
@@ -78,7 +78,7 @@ export default async function CheckoutPaymentPage({ searchParams }: Props) {
         </div>
       </div>
 
-      <StripeCheckoutForm
+      <StripeCheckoutFormLazy
         clientSecret={parsed.data.secret}
         orderId={order.id}
         orderNumber={order.orderNumber}

@@ -8,6 +8,7 @@
     "dev": "next dev",
     "prebuild": "prisma generate && node ./scripts/build-sw.mjs",
     "build": "next build",
+    "analyze": "ANALYZE=true next build",
     "start": "next start",
     "test": "node ./scripts/run-node-tests.mjs",
     "test:parallel": "node ./scripts/run-node-tests.mjs --parallel",
@@ -79,6 +80,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.11.1",
     "@eslint/eslintrc": "^3.3.5",
+    "@next/bundle-analyzer": "^16.2.4",
     "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.39",

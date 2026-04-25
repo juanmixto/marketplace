@@ -36,18 +36,24 @@ export async function recordManualPaymentConfirmation(
   orderId: string,
   providerRef: string
 ): Promise<{ paymentUpdated: number; orderUpdated: number }> {
+  // Positive filters (= single legal predecessor) rather than `{ not: ... }`:
+  //
+  // With `status: { not: SUCCEEDED }`, two concurrent confirm calls for the
+  // same order can both pass the filter, both enter updateMany, and both
+  // flip Payment + Order + write an OrderEvent — producing duplicate audit
+  // rows even when the mutation is self-idempotent. Anchoring the `where`
+  // on the single allowed predecessor (`PENDING` → `SUCCEEDED`,
+  // `PLACED` → `PAYMENT_CONFIRMED`) makes the transition a single serialised
+  // edge: only the winning transaction matches, the second is a no-op.
+  //
+  // Symmetric with the webhook-side guard in
+  // src/app/api/webhooks/stripe/route.ts (see PR #711).
   const paymentUpdate = await tx.payment.updateMany({
-    where: { orderId, providerRef, status: { not: 'SUCCEEDED' } },
+    where: { orderId, providerRef, status: 'PENDING' },
     data: { status: 'SUCCEEDED' },
   })
   const orderUpdate = await tx.order.updateMany({
-    where: {
-      id: orderId,
-      OR: [
-        { paymentStatus: { not: 'SUCCEEDED' } },
-        { status: { not: 'PAYMENT_CONFIRMED' } },
-      ],
-    },
+    where: { id: orderId, status: 'PLACED' },
     data: { status: 'PAYMENT_CONFIRMED', paymentStatus: 'SUCCEEDED' },
   })
 

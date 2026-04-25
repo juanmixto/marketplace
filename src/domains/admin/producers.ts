@@ -1,6 +1,30 @@
 import { db } from '@/lib/db'
 import type { VendorStatus } from '@/generated/prisma/enums'
 import { requireAdmin } from '@/lib/auth-guard'
+import {
+  DEFAULT_PAGE_SIZE,
+  PRODUCER_SORT_KEYS,
+  PRODUCER_STATUS_FILTERS,
+  type EnrichedProducer,
+  type ProducerSortKey,
+  type ProducerStatusFilter,
+  type ProducersOverview,
+  type ProducersOverviewParams,
+} from './producers-schema'
+
+// Re-export the schema surface so existing callers (page.tsx, tests) keep
+// their single-file import path while the DB-free types live in a sibling
+// module the client can safely import.
+export {
+  DEFAULT_PAGE_SIZE,
+  PRODUCER_SORT_KEYS,
+  PRODUCER_STATUS_FILTERS,
+  type EnrichedProducer,
+  type ProducerSortKey,
+  type ProducerStatusFilter,
+  type ProducersOverview,
+  type ProducersOverviewParams,
+}
 
 // Order statuses that count as "billed revenue" for a producer.
 // REFUNDED/CANCELLED are intentionally excluded.
@@ -13,45 +37,6 @@ const BILLED_STATUSES = [
 ] as const
 
 const SPARKLINE_DAYS = 14
-
-export interface ProducerSparkPoint {
-  day: string
-  revenue: number
-}
-
-export interface EnrichedProducer {
-  id: string
-  slug: string
-  displayName: string
-  email: string
-  status: VendorStatus
-  description: string | null
-  location: string | null
-  logo: string | null
-  productsCount: number
-  stripeOnboarded: boolean
-  avgRating: number | null
-  totalReviews: number
-  createdAt: string
-  revenue: number
-  ordersCount: number
-  topProduct: { id: string; name: string; unitsSold: number } | null
-  lastSeenAt: string | null
-  sparkline: number[]
-}
-
-export interface ProducersOverview {
-  producers: EnrichedProducer[]
-  globals: {
-    total: number
-    active: number
-    pendingReview: number
-    suspended: number
-    gmv: number
-    orders: number
-  }
-  statusCounts: Record<VendorStatus, number>
-}
 
 interface RevenueRow {
   vendorId: string
@@ -85,8 +70,29 @@ function toNumber(value: string | number | bigint | null | undefined): number {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
-export async function getProducersOverview(): Promise<ProducersOverview> {
+export function normalizeProducersOverviewParams(
+  raw: ProducersOverviewParams | undefined
+): Required<Omit<ProducersOverviewParams, 'page'>> & { page: number; pageSize: number } {
+  const pageSize = DEFAULT_PAGE_SIZE
+  const page = Math.max(1, Math.floor(raw?.page ?? 1))
+  const search = (raw?.search ?? '').trim()
+  const status: ProducerStatusFilter = PRODUCER_STATUS_FILTERS.includes(
+    raw?.status as ProducerStatusFilter
+  )
+    ? (raw!.status as ProducerStatusFilter)
+    : 'ALL'
+  const sort: ProducerSortKey = PRODUCER_SORT_KEYS.includes(raw?.sort as ProducerSortKey)
+    ? (raw!.sort as ProducerSortKey)
+    : 'revenueDesc'
+  return { page, pageSize, search, status, sort }
+}
+
+export async function getProducersOverview(
+  rawParams: ProducersOverviewParams = {}
+): Promise<ProducersOverview> {
   await requireAdmin()
+  const params = normalizeProducersOverviewParams(rawParams)
+
   const [vendors, statusGroups, revenueRows, topProductRows, lastSeenRows, sparkRows] = await Promise.all([
     db.vendor.findMany({
       orderBy: { createdAt: 'desc' },
@@ -168,7 +174,6 @@ export async function getProducersOverview(): Promise<ProducersOverview> {
     lastSeenByVendor.set(row.vendorId, row.lastSeenAt ? row.lastSeenAt.toISOString() : null)
   }
 
-  // Build a 14-day index → 0 for each vendor, then fill from sparkRows.
   const today = new Date()
   today.setUTCHours(0, 0, 0, 0)
   const dayKeys: string[] = []
@@ -190,7 +195,7 @@ export async function getProducersOverview(): Promise<ProducersOverview> {
     arr[idx] = toNumber(row.revenue)
   }
 
-  const producers: EnrichedProducer[] = vendors.map(v => {
+  const allEnriched: EnrichedProducer[] = vendors.map(v => {
     const rev = revenueByVendor.get(v.id)
     return {
       id: v.id,
@@ -214,6 +219,47 @@ export async function getProducersOverview(): Promise<ProducersOverview> {
     }
   })
 
+  // Apply filter → sort → paginate server-side so the client only ever
+  // deserialises the visible page (~20 rows) instead of the whole table.
+  const searchLower = params.search.toLowerCase()
+  const filtered = allEnriched.filter(p => {
+    if (params.status !== 'ALL' && p.status !== params.status) return false
+    if (!searchLower) return true
+    return (
+      p.displayName.toLowerCase().includes(searchLower) ||
+      p.email.toLowerCase().includes(searchLower) ||
+      (p.location?.toLowerCase().includes(searchLower) ?? false)
+    )
+  })
+
+  const sorted = [...filtered]
+  switch (params.sort) {
+    case 'revenueDesc':
+      sorted.sort((a, b) => b.revenue - a.revenue)
+      break
+    case 'revenueAsc':
+      sorted.sort((a, b) => a.revenue - b.revenue)
+      break
+    case 'recent':
+      sorted.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      break
+    case 'lastSeen':
+      sorted.sort((a, b) => (b.lastSeenAt ?? '').localeCompare(a.lastSeenAt ?? ''))
+      break
+    case 'name':
+      sorted.sort((a, b) => a.displayName.localeCompare(b.displayName))
+      break
+    case 'orders':
+      sorted.sort((a, b) => b.ordersCount - a.ordersCount)
+      break
+  }
+
+  const totalFiltered = sorted.length
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / params.pageSize))
+  const safePage = Math.min(params.page, totalPages)
+  const pageStart = (safePage - 1) * params.pageSize
+  const pageItems = sorted.slice(pageStart, pageStart + params.pageSize)
+
   const statusCounts: Record<VendorStatus, number> = {
     APPLYING: 0,
     PENDING_DOCS: 0,
@@ -226,19 +272,30 @@ export async function getProducersOverview(): Promise<ProducersOverview> {
     statusCounts[g.status] = g._count._all
   }
 
-  const gmv = producers.reduce((acc, p) => acc + p.revenue, 0)
-  const orders = producers.reduce((acc, p) => acc + p.ordersCount, 0)
+  const gmv = allEnriched.reduce((acc, p) => acc + p.revenue, 0)
+  const orders = allEnriched.reduce((acc, p) => acc + p.ordersCount, 0)
 
   return {
-    producers,
-    statusCounts,
+    pageItems,
+    pagination: {
+      page: safePage,
+      pageSize: params.pageSize,
+      totalFiltered,
+      totalPages,
+    },
+    params: {
+      search: params.search,
+      status: params.status,
+      sort: params.sort,
+    },
     globals: {
-      total: producers.length,
+      total: allEnriched.length,
       active: statusCounts.ACTIVE,
       pendingReview: statusCounts.APPLYING + statusCounts.PENDING_DOCS,
       suspended: statusCounts.SUSPENDED_TEMP + statusCounts.SUSPENDED_PERM,
       gmv,
       orders,
     },
+    statusCounts,
   }
 }

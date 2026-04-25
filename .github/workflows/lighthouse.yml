@@ -1,13 +1,12 @@
 name: Lighthouse PWA
 
 on:
-  pull_request:
-    # Widened (Phase C) to also trigger on changes that can affect the
-    # public catalog / producer listings — the two new Lighthouse URLs
-    # (/productos, /productores) exercise those surfaces alongside the
-    # PWA shell. Without these path globs a regression that ships only
-    # JS changes under src/components/catalog/** would slip past this
-    # audit.
+  push:
+    branches:
+      - main
+    # Run post-merge so PRs do not wait on a perf audit that is not a
+    # merge blocker. Keep the same path filter so we still only pay for
+    # public-surface changes that can affect the Lighthouse URLs.
     paths:
       - 'src/app/manifest.ts'
       - 'public/sw.template.js'
