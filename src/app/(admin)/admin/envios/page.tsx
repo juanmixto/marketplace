@@ -104,7 +104,8 @@ export default async function AdminShippingPage() {
             </div>
 
             <div className="mt-4 overflow-hidden rounded-xl border border-[var(--border)]">
-              <div className="grid grid-cols-[1fr_0.8fr_0.8fr_0.8fr_auto] gap-4 border-b border-[var(--border)] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+             <div className="overflow-x-auto overscroll-x-contain touch-pan-x">
+              <div className="grid min-w-[680px] grid-cols-[1fr_0.8fr_0.8fr_0.8fr_auto] gap-4 border-b border-[var(--border)] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
                 <span>Tarifa</span>
                 <span>Mínimo</span>
                 <span>Precio</span>
@@ -113,7 +114,7 @@ export default async function AdminShippingPage() {
               </div>
               <div className="divide-y divide-[var(--border)]">
                 {zone.rates.map(rate => (
-                  <div key={rate.id} className="grid grid-cols-[1fr_0.8fr_0.8fr_0.8fr_auto] gap-4 px-4 py-3 text-sm items-center">
+                  <div key={rate.id} className="grid min-w-[680px] grid-cols-[1fr_0.8fr_0.8fr_0.8fr_auto] gap-4 px-4 py-3 text-sm items-center">
                     <span className="font-medium text-[var(--foreground)]">{rate.name}</span>
                     <span className="text-[var(--foreground-soft)]">{rate.minOrderAmount == null ? '0,00 EUR' : formatPrice(Number(rate.minOrderAmount))}</span>
                     <span className="text-[var(--foreground-soft)]">{formatPrice(Number(rate.price))}</span>
@@ -125,6 +126,7 @@ export default async function AdminShippingPage() {
                   <p className="px-4 py-6 text-sm text-[var(--muted)]">Esta zona aún no tiene tarifas.</p>
                 )}
               </div>
+             </div>
             </div>
           </div>
         ))}
@@ -143,7 +145,8 @@ export default async function AdminShippingPage() {
           </p>
         </div>
         <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
-          <div className="grid grid-cols-[1.2fr_1fr_0.8fr_1fr_1fr_auto] gap-4 border-b border-[var(--border)] px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+         <div className="overflow-x-auto overscroll-x-contain touch-pan-x">
+          <div className="grid min-w-[920px] grid-cols-[1.2fr_1fr_0.8fr_1fr_1fr_auto] gap-4 border-b border-[var(--border)] px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
             <span>Pedido / Productor</span>
             <span>Estado</span>
             <span>Carrier</span>
@@ -155,7 +158,7 @@ export default async function AdminShippingPage() {
             {shipments.map(s => (
               <div
                 key={s.id}
-                className="grid grid-cols-[1.2fr_1fr_0.8fr_1fr_1fr_auto] items-start gap-4 px-5 py-3 text-sm"
+                className="grid min-w-[920px] grid-cols-[1.2fr_1fr_0.8fr_1fr_1fr_auto] items-start gap-4 px-5 py-3 text-sm"
               >
                 <div className="min-w-0">
                   <p className="truncate font-medium text-[var(--foreground)]">{s.orderNumber}</p>
@@ -201,6 +204,7 @@ export default async function AdminShippingPage() {
               </p>
             )}
           </div>
+         </div>
         </div>
       </div>
     </div>

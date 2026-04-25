@@ -135,8 +135,8 @@ export default async function AdminNotificationsPage({ searchParams }: PageProps
 
       <section className="space-y-2">
         <h2 className="font-semibold text-[var(--foreground)]">Envíos salientes (últimos 100)</h2>
-        <div className="overflow-x-auto rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
-          <table className="min-w-full text-sm">
+        <div className="overflow-x-auto overscroll-x-contain touch-pan-x rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
+          <table className="w-full min-w-[760px] text-sm">
             <thead className="bg-[var(--surface-muted)] text-left">
               <tr>
                 <th className="px-3 py-2">Fecha</th>
@@ -186,8 +186,8 @@ export default async function AdminNotificationsPage({ searchParams }: PageProps
 
       <section className="space-y-2">
         <h2 className="font-semibold text-[var(--foreground)]">Acciones recibidas (últimas 50)</h2>
-        <div className="overflow-x-auto rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
-          <table className="min-w-full text-sm">
+        <div className="overflow-x-auto overscroll-x-contain touch-pan-x rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
+          <table className="w-full min-w-[680px] text-sm">
             <thead className="bg-[var(--surface-muted)] text-left">
               <tr>
                 <th className="px-3 py-2">Fecha</th>
