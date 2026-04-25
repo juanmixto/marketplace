@@ -350,6 +350,37 @@ test('PDP purchase panel renders a mobile-only sticky add-to-cart bar', () => {
   assert.match(source, /IntersectionObserver/, 'sticky CTA must toggle via IntersectionObserver on the inline CTA')
 })
 
+test('Tooltip primitive caps width to viewport, swaps left/right to bottom on <sm, and silences hover on touch', () => {
+  const source = read('src/components/ui/tooltip.tsx')
+  assert.match(
+    source,
+    /max-w-\[min\(14rem,calc\(100vw-2rem\)\)\]/,
+    'tooltip width must be capped to viewport minus a 1rem gutter so it never escapes on narrow screens',
+  )
+  assert.match(
+    source,
+    /max-sm:left-1\/2[\s\S]*max-sm:top-full/,
+    'side="right" must collapse to bottom on <sm to avoid escaping the right edge',
+  )
+  assert.match(
+    source,
+    /max-sm:left-1\/2[\s\S]*max-sm:top-full[\s\S]*max-sm:left-1\/2[\s\S]*max-sm:top-full/,
+    'side="left" must also collapse to bottom on <sm',
+  )
+  assert.match(
+    source,
+    /pointer-coarse:group-hover\/tooltip:opacity-0/,
+    'on touch (hover: none) the hover-stuck state must be suppressed so tooltips do not linger after a tap',
+  )
+
+  const css = read('src/app/globals.css')
+  assert.match(
+    css,
+    /@custom-variant pointer-coarse \(@media \(hover: none\)\)/,
+    'globals.css must declare the pointer-coarse custom variant the Tooltip relies on',
+  )
+})
+
 test('cart page renders a mobile-only sticky checkout bar', () => {
   const source = read('src/components/buyer/CartPageClient.tsx')
   assert.match(source, /fixed inset-x-0 bottom-0[^"]*lg:hidden/, 'cart must render a mobile-only fixed checkout bar')
