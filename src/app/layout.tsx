@@ -23,6 +23,7 @@ import { UpdateAvailableBanner } from '@/components/system/UpdateAvailableBanner
 const geist = Geist({
   variable: '--font-geist-sans',
   subsets: ['latin'],
+  display: 'swap',
 })
 
 export const metadata: Metadata = {
