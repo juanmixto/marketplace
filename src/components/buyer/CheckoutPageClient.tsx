@@ -17,13 +17,13 @@ import {
   type ShippingZoneLike,
 } from '@/domains/shipping/shared'
 import {
-  applyCartDiscounts,
   getPreferredCheckoutAddress,
   toCheckoutFormAddress,
   checkoutFormSchema,
   type CheckoutFormInput,
   type SavedCheckoutAddress,
 } from '@/domains/orders/checkout'
+import { applyCartDiscounts } from '@/domains/pricing'
 import {
   SPAIN_PROVINCES,
 } from '@/domains/shipping/spain-provinces'

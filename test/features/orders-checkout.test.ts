@@ -2,16 +2,18 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
-  applyCartDiscounts,
-  calculateOrderPricing,
-  calculateOrderTotals,
-  calculateOrderTotalsWithShippingCost,
   checkoutSchema,
-  getIncludedTaxAmount,
   getPreferredCheckoutAddress,
   orderItemsSchema,
   toCheckoutFormAddress,
 } from '@/domains/orders/checkout'
+import {
+  applyCartDiscounts,
+  calculateOrderPricing,
+  calculateOrderTotals,
+  calculateOrderTotalsWithShippingCost,
+  getIncludedTaxAmount,
+} from '@/domains/pricing'
 import { resolveMarketplaceSettings, toPublicMarketplaceSettings, calculateShippingCost, MARKETPLACE_SETTINGS_DEFAULTS } from '@/lib/marketplace-settings'
 import { calculateShippingCostFromTables, getProvinceFromPostalCode } from '@/domains/shipping/shared'
 
