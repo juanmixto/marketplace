@@ -86,7 +86,18 @@ export function buildContentSecurityPolicy(
     "frame-ancestors 'none'",
     `script-src ${scriptSrc.join(' ')}`,
     `style-src ${styleSrc.join(' ')}`,
-    "img-src 'self' data: blob: https:",
+    // img-src is the allowlist of every host user-generated or optimizer-bypass
+    // raw <img> tags may load from. Next.js-optimized images always resolve to
+    // `'self'` (they go through /_next/image), so only code paths that render
+    // external URLs directly (vendor hero/logo, blob storage previews) need
+    // explicit hosts. Keep this in lockstep with `remotePatterns` in
+    // `next.config.ts` — a generic `https:` opens img-sink XSS vectors
+    // (malicious SVG, cookieless beacon images) for no real benefit.
+    "img-src 'self' data: blob:" +
+      ' https://images.unsplash.com' +
+      ' https://*.cloudinary.com' +
+      ' https://*.uploadthing.com' +
+      ' https://*.public.blob.vercel-storage.com',
     "font-src 'self' data:",
     "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
     `connect-src 'self'${isDevelopment ? ' ws: wss:' : ''} https://api.stripe.com https://js.stripe.com`,

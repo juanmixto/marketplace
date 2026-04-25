@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next'
 import { execSync } from 'node:child_process'
+import withBundleAnalyzer from '@next/bundle-analyzer'
 import { getSecurityHeaders } from '@/lib/security-headers'
 
 type HeaderRule = {
@@ -138,4 +139,8 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default nextConfig
+// Gated by ANALYZE=true so the analyzer plugin is inert in normal builds.
+// Usage: `npm run analyze` — emits HTML reports to .next/analyze/*.html.
+const withAnalyzer = withBundleAnalyzer({ enabled: process.env.ANALYZE === 'true' })
+
+export default withAnalyzer(nextConfig)
