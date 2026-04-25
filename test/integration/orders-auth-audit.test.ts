@@ -141,7 +141,7 @@ test('admin loaders accept SUPERADMIN sessions', async () => {
   const orders = await getAdminOrdersPageData({})
   assert.ok(Array.isArray(orders.orders))
   const producers = await getProducersOverview()
-  assert.ok(Array.isArray(producers.producers))
+  assert.ok(Array.isArray(producers.pageItems))
   const promos = await getPromotionsOverview()
   assert.ok(Array.isArray(promos.promotions))
   const subs = await getSubscriptionsOverview()

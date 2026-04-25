@@ -22,16 +22,24 @@ this file and a workflow disagree, the workflow is wrong.
 
 ## 2. Pipeline topology
 
-Three workflows:
+Three PR-blocking checks in `ci.yml`, plus heavier post-merge auditors:
 
-| Workflow | Trigger | Jobs | Blocking? |
+| Workflow | Trigger | Jobs | PR blocker? |
 |---|---|---|---|
-| `ci.yml` | push to `main`, PRs | `verify`, `build`, `integration`, `e2e-smoke` | Yes (smoke currently `continue-on-error: true` — see §6) |
+| `ci.yml` | push to `main`, PRs | `verify`, `build`, `e2e-smoke`, `integration` (push-to-main only) | Yes (`Verify`, `Build And Migrate`, `E2E Smoke`) |
+| `doctor.yml` | push to `main`, manual | `doctor` | No, post-merge tripwire |
+| `security-scan.yml` | push to `main`, manual | `npm audit`, `gitleaks`, `semgrep` | No, post-merge scanner |
+| `lighthouse.yml` | push to `main`, manual | `lighthouse` | No, post-merge perf audit |
 | `nightly.yml` | cron `17 3 * * *`, manual | `full-e2e`, `coverage-trend`, `security-audit` | No (alerts on failure) |
-| _release.yml_ | n/a | n/a | Not implemented — project is trunk-based without formal releases. |
 
 `ci.yml` has `paths-ignore` for `**/*.md`, `docs/**`, `.vscode/**`,
 `LICENSE`, `.gitignore`. Docs-only PRs skip CI entirely.
+
+The PR fast gate is intentionally narrow: if a change can be merged
+without needing the heavier auditors to finish, it should not wait on
+them. `integration` now runs only after push to `main`, so PRs get
+faster feedback while we still keep DB-backed coverage on the merge
+result itself.
 
 ### Why no per-node matrix?
 
@@ -215,10 +223,12 @@ Rough, qualitative, pre/post this redesign (cold cache):
 | Scenario | Before | After |
 |---|---|---|
 | Docs-only PR | ~10 min (full CI) | **~0 min** (skipped by `paths-ignore`) |
-| Normal PR (no E2E before) | ~10 min (longest job) | ~10 min (smoke is split across 2 shards, hidden inside wall-clock) |
-| Normal PR (Playwright browsers cache warm) | — | ~10 min |
+| Normal PR (merge gate) | ~10 min (longest job) | ~10 min (required checks only) |
+| Normal PR + auditors | queued behind merge gate | no longer on the critical path |
+| Merge to `main` | PR gate + post-merge integration | integration runs after merge, not before |
 | Nightly full suite | not run | ~25 min |
 | Confidence in merge | _low for end-to-end flows_ | _high for the 5 critical flows_ |
 
-Trade-off accepted: PRs get ~2 min slower on a warm cache in exchange
-for end-to-end coverage of the flows that actually break in production.
+Trade-off accepted: PRs stay focused on the merge gate while the
+heavier auditors continue to run on `main` and nightly. That keeps
+feedback tight without giving up post-merge coverage.
