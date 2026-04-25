@@ -1,6 +1,6 @@
 ---
 title: AI Workflows — recipes for agents
-last_verified_against_main: 2026-04-16
+last_verified_against_main: 2026-04-25
 ---
 
 # AI Workflows — recipes for agents
@@ -152,6 +152,24 @@ From [`AGENTS.md`](../AGENTS.md):
 2. If the file is modified but **not yours**, stop. Ask the user or check the last commit author.
 3. Never `git stash` or `git restore` someone else's work.
 4. If the change is yours from an earlier session, proceed — but do a `git diff <file>` first to remember what's pending.
+
+---
+
+## Recipe 8 — Implement an issue from a codebase audit
+
+Audits go stale fast. By the time you pick up an audit-generated issue, the code may already be in the desired state — opening a PR for it would ship a no-op or churn. Read [`docs/audits/README.md`](./audits/README.md) for the full rationale; this recipe is the operational checklist.
+
+**Before writing any code:**
+
+1. **Re-read the cited file:line.** The issue says "X is missing at `file.tsx:42`". Use `Read` on that path. Does line 42 actually have the problem?
+   - If yes → continue to step 4.
+   - If no → continue to step 2.
+2. **Check recent commits for the file.** `git log --since=<audit-date> --oneline -- path/to/file.tsx`. A relevant commit means someone fixed it already.
+3. **If the finding no longer applies, close the issue with a `re-audit` comment** showing the current state of the cited line and explaining why no change is needed. Examples: [#782](https://github.com/juanmixto/marketplace/issues/782), [#785](https://github.com/juanmixto/marketplace/issues/785). Do **not** open a no-op PR.
+4. **If the finding partially applies, narrow the PR.** The audit may have flagged 3 components; only 1 is actually broken now. Fix the 1, mention the other 2 in the PR description with their current state. Don't ship cosmetic changes to "match the issue scope" — the issue is wrong, the code is right.
+5. **Implement the minimal change**, run typecheck/lint/tests, open the PR.
+
+**Why this matters:** the 2026-04-25 mobile audit produced 16 sub-issues. Three of them (`autoComplete` in auth forms, `saveData` guard in SW, modal close tap target) were already implemented. An agent that skipped this recipe would have shipped 3 no-op PRs, churned 3 reviewers, and eroded trust in the rest of the audit.
 
 ---
 
