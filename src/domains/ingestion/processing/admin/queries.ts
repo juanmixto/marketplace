@@ -326,6 +326,19 @@ export interface ReviewQueueDetailUnextractable {
   }>
 }
 
+export interface ReviewQueueTelegramLink {
+  // `https://t.me/c/{chatSlug}/{tgMessageId}` when the chat is a
+  // supergroup we can address by numeric id; `null` on legacy rows
+  // whose `tgChatId` doesn't fit the supergroup prefix pattern.
+  messageUrl: string | null
+  // `tg://user?id={tgAuthorId}`. Opens the producer's profile in
+  // Telegram if the admin shares a group / has contact. `null` when
+  // the message has no author id recorded.
+  profileUrl: string | null
+  // Sanitised display name we captured at ingest time, for context.
+  authorDisplayName: string | null
+}
+
 export interface ReviewQueueDetail {
   itemId: string
   state: IngestionReviewState
@@ -338,7 +351,33 @@ export interface ReviewQueueDetail {
     authorId: string | null
     chatId: string
   }
+  telegramLink: ReviewQueueTelegramLink
   target: ReviewQueueDetailProduct | ReviewQueueDetailUnextractable
+}
+
+function buildTelegramLink(
+  tgChatId: bigint | null,
+  tgMessageId: bigint | null,
+  tgAuthorId: bigint | null,
+  rawJson: unknown,
+): ReviewQueueTelegramLink {
+  // Supergroup ids come as -100xxxxxxxxxx; strip the -100 prefix to
+  // build the web URL. Anything that doesn't match the prefix format
+  // is skipped — legacy private-chat ids aren't addressable this way.
+  let messageUrl: string | null = null
+  if (tgChatId != null && tgMessageId != null) {
+    const chatIdStr = tgChatId.toString()
+    if (chatIdStr.startsWith('-100')) {
+      messageUrl = `https://t.me/c/${chatIdStr.slice(4)}/${tgMessageId.toString()}`
+    }
+  }
+  const profileUrl = tgAuthorId != null ? `tg://user?id=${tgAuthorId.toString()}` : null
+  const raw = rawJson as Record<string, unknown> | null
+  const authorDisplayName =
+    raw && typeof raw.authorDisplayName === 'string'
+      ? (raw.authorDisplayName as string)
+      : null
+  return { messageUrl, profileUrl, authorDisplayName }
 }
 
 /**
@@ -364,7 +403,10 @@ export async function getReviewQueueItem(
             text: true,
             postedAt: true,
             tgAuthorId: true,
+            tgMessageId: true,
+            rawJson: true,
             chatId: true,
+            chat: { select: { tgChatId: true } },
           },
         },
         sourceExtraction: true,
@@ -384,6 +426,12 @@ export async function getReviewQueueItem(
         authorId: draft.sourceMessage.tgAuthorId?.toString() ?? null,
         chatId: draft.sourceMessage.chatId,
       },
+      telegramLink: buildTelegramLink(
+        draft.sourceMessage.chat.tgChatId,
+        draft.sourceMessage.tgMessageId,
+        draft.sourceMessage.tgAuthorId,
+        draft.sourceMessage.rawJson,
+      ),
       target: {
         kind: 'PRODUCT_DRAFT',
         draft: {
@@ -434,7 +482,10 @@ export async function getReviewQueueItem(
             text: true,
             postedAt: true,
             tgAuthorId: true,
+            tgMessageId: true,
+            rawJson: true,
             chatId: true,
+            chat: { select: { tgChatId: true } },
           },
         },
         unextractableLefts: {
@@ -488,6 +539,12 @@ export async function getReviewQueueItem(
         authorId: extraction.message.tgAuthorId?.toString() ?? null,
         chatId: extraction.message.chatId,
       },
+      telegramLink: buildTelegramLink(
+        extraction.message.chat.tgChatId,
+        extraction.message.tgMessageId,
+        extraction.message.tgAuthorId,
+        extraction.message.rawJson,
+      ),
       target: {
         kind: 'UNEXTRACTABLE_PRODUCT',
         extraction: {
