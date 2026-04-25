@@ -7,6 +7,7 @@ import {
   loadServerCart,
   mergeLocalIntoServerCart,
 } from '@/domains/orders/cart-actions'
+import { installCartBroadcast } from '@/domains/orders/cart-broadcast'
 import {
   getCartHydrationAction,
 } from './cart-hydration-plan'
@@ -29,6 +30,13 @@ import { CART_MERGED_FLAG_KEY } from './cart-session'
 export function CartHydrationProvider() {
   const { data, status } = useSession()
   const hasHydratedRef = useRef<string | null>(null)
+
+  // #795: cross-tab cart sync. Mount once for the lifetime of the
+  // provider — installCartBroadcast is idempotent and gracefully
+  // no-ops in browsers without BroadcastChannel.
+  useEffect(() => {
+    return installCartBroadcast()
+  }, [])
 
   useEffect(() => {
     if (status !== 'authenticated') {
