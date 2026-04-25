@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { isAlreadyProcessedError } from '@/lib/idempotency-client'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -292,6 +293,16 @@ export function ProductForm({ categories, initialData, vendorLocation, idempoten
       router.push('/vendor/productos')
       router.refresh()
     } catch (error) {
+      // #788 replay UX: a double-tap on a flaky network triggers
+      // AlreadyProcessedError because the first request already
+      // committed. Treat it as success — navigate to the listing
+      // instead of leaving the user staring at an error they can't
+      // act on.
+      if (isAlreadyProcessedError(error)) {
+        router.push('/vendor/productos')
+        router.refresh()
+        return
+      }
       setServerError(error instanceof Error ? error.message : t('vendor.productForm.saveError'))
       setPendingAction(null)
     }

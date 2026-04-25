@@ -18,6 +18,7 @@
  */
 
 import { getServerEnv } from '@/lib/env'
+import { fetchWithTimeout, FetchTimeoutError } from '@/lib/fetch-with-timeout'
 
 interface RateLimitEntry {
   count: number
@@ -176,7 +177,9 @@ async function checkRateLimitUpstash(
 ): Promise<RateLimitResult> {
   const env = getServerEnv()
   try {
-    const response = await fetch(
+    // 3s timeout — rate-limit checks are in the hot path; if Upstash is
+    // slow we'd rather degrade to in-memory limits than block the request.
+    const response = await fetchWithTimeout(
       `${env.upstashRedisRestUrl}/incr/${limitKey}`,
       {
         method: 'POST',
@@ -184,6 +187,7 @@ async function checkRateLimitUpstash(
           Authorization: `Bearer ${env.upstashRedisRestToken}`,
           'Content-Type': 'application/json',
         },
+        timeoutMs: 3_000,
       }
     )
 
@@ -201,15 +205,18 @@ async function checkRateLimitUpstash(
       return degrade('upstash-malformed', limitKey, limit, windowSeconds, now, options)
     }
 
-    // Set expiry on first request
+    // Set expiry on first request. Fire-and-forget: if Upstash is
+    // slow here it just means the key may not have a TTL set this
+    // tick (it'll be set on the next request). Don't block.
     if (count === 1) {
-      await fetch(
+      await fetchWithTimeout(
         `${env.upstashRedisRestUrl}/expire/${limitKey}/${windowSeconds}`,
         {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${env.upstashRedisRestToken}`,
           },
+          timeoutMs: 2_000,
         }
       ).catch(() => undefined)
     }
@@ -231,8 +238,12 @@ async function checkRateLimitUpstash(
       resetAt,
     }
   } catch (error) {
-    logEvent('upstash:error', { action, key: limitKey, error: (error as Error)?.message })
-    return degrade('upstash-throw', limitKey, limit, windowSeconds, now, options)
+    // Distinguish a clean timeout from a generic throw so on-call can
+    // decide whether to scale Upstash or chase a code regression.
+    const reason =
+      error instanceof FetchTimeoutError ? 'upstash-timeout' : 'upstash-throw'
+    logEvent('upstash:error', { action, key: limitKey, error: (error as Error)?.message, reason })
+    return degrade(reason, limitKey, limit, windowSeconds, now, options)
   }
 }
 
