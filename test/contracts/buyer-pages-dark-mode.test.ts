@@ -109,7 +109,14 @@ describe('DireccionesClient — structure', () => {
   })
 
   test('validates Spanish postal code format', () => {
-    assert.ok(content.includes('\\d{5}'), 'should validate 5-digit Spanish postal code')
+    // DireccionesClient now consumes the shared buyer-address schema
+    // instead of redeclaring its own postal regex — the contract lives
+    // in `src/domains/auth/buyer-address-schema.ts`.
+    const schemaContent = read('src/domains/auth/buyer-address-schema.ts')
+    assert.ok(
+      content.includes('buyerAddressSchema') && schemaContent.includes('\\d{5}'),
+      'should validate 5-digit Spanish postal code via the shared schema',
+    )
   })
 })
 

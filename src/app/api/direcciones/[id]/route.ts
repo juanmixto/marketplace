@@ -7,18 +7,7 @@ import {
   enforceSingleDefault,
   promoteOldestAsDefault,
 } from '@/domains/auth/address-defaults'
-
-const addressSchema = z.object({
-  label: z.string().max(50).optional(),
-  firstName: z.string().min(1).max(50),
-  lastName: z.string().min(1).max(50),
-  line1: z.string().min(1).max(200),
-  line2: z.string().max(100).optional(),
-  city: z.string().min(1).max(100),
-  province: z.string().min(1).max(100),
-  postalCode: z.string().regex(/^\d{5}$/, 'Código postal español: 5 dígitos'),
-  isDefault: z.boolean().default(false),
-})
+import { buyerAddressSchema } from '@/domains/auth/buyer-address-schema'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -33,7 +22,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
 
     const { id } = await params
     const body = await req.json()
-    const validated = addressSchema.parse(body)
+    const validated = buyerAddressSchema.parse(body)
 
     // Scope ownership to the session user. findFirst with both predicates
     // returns null for both "not found" and "owned by someone else", so we

@@ -482,7 +482,7 @@ const en: Record<TranslationKeys, string> = {
   'vendor.dashboard.actionManage': 'Manage catalog',
   'vendor.dashboard.actionViewStore': 'View store',
 
-  // Vendor – welcome tour (navigable; shown once per vendor via localStorage)
+  // Vendor – welcome tour (shown once per vendor via localStorage)
   'vendor.welcome.badge': 'Welcome aboard',
   'vendor.welcome.stepCounter': 'Step {current} of {total}',
   'vendor.welcome.intro.title': 'Welcome, {name}!',
@@ -835,8 +835,8 @@ const en: Record<TranslationKeys, string> = {
   'vendor.shippingAddress.saveError': 'Could not save the address',
   'vendor.shippingAddress.provincePlaceholder': 'Select a province',
   'vendor.shippingAddress.errorContactName': 'Enter a contact name',
-  'vendor.shippingAddress.errorPhone': 'Invalid phone. Digits only, 9-15 characters',
-  'vendor.shippingAddress.errorLine1': 'Address is too short',
+  'vendor.shippingAddress.errorPhone': 'Enter a valid contact phone',
+  'vendor.shippingAddress.errorLine1': 'Enter the address',
   'vendor.shippingAddress.errorCity': 'Enter a city',
   'vendor.shippingAddress.errorProvince': 'Select a province',
   'vendor.shippingAddress.errorPostalCodeFormat': 'Postal code must be 5 digits',

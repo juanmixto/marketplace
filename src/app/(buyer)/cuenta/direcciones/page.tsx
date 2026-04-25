@@ -39,6 +39,7 @@ export default async function Direcciones() {
     ...a,
     label: a.label ?? undefined,
     line2: a.line2 ?? undefined,
+    phone: a.phone ?? undefined,
     createdAt: a.createdAt.toISOString(),
     updatedAt: a.updatedAt.toISOString(),
   }))

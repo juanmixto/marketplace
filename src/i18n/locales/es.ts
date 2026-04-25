@@ -480,7 +480,7 @@ const es = {
   'vendor.dashboard.actionManage': 'Gestionar catálogo',
   'vendor.dashboard.actionViewStore': 'Ver tienda',
 
-  // Vendor – welcome tour (navigable; shown once per vendor via localStorage)
+  // Vendor – welcome tour (shown once per vendor via localStorage)
   'vendor.welcome.badge': 'Bienvenido a bordo',
   'vendor.welcome.stepCounter': 'Paso {current} de {total}',
   'vendor.welcome.intro.title': '¡Bienvenido, {name}!',
@@ -834,8 +834,8 @@ const es = {
   'vendor.shippingAddress.saveError': 'No se pudo guardar la dirección',
   'vendor.shippingAddress.provincePlaceholder': 'Selecciona una provincia',
   'vendor.shippingAddress.errorContactName': 'Escribe el nombre de contacto',
-  'vendor.shippingAddress.errorPhone': 'Teléfono inválido. Usa solo dígitos, 9-15 cifras',
-  'vendor.shippingAddress.errorLine1': 'Dirección demasiado corta',
+  'vendor.shippingAddress.errorPhone': 'Escribe un teléfono de contacto válido',
+  'vendor.shippingAddress.errorLine1': 'Escribe la dirección',
   'vendor.shippingAddress.errorCity': 'Escribe la localidad',
   'vendor.shippingAddress.errorProvince': 'Selecciona una provincia',
   'vendor.shippingAddress.errorPostalCodeFormat': 'El código postal debe tener 5 dígitos',
