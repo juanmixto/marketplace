@@ -98,6 +98,7 @@ export function ProductCard({ product, locale = 'es' }: ProductCardProps) {
     >
       <Link
         href={`/productos/${product.slug}`}
+        prefetch={false}
         className="flex flex-1 flex-col focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
       >
         <div className="relative aspect-square overflow-hidden rounded-t-2xl bg-[var(--surface-raised)]">
@@ -108,6 +109,8 @@ export function ProductCard({ product, locale = 'es' }: ProductCardProps) {
               fill
               className="object-cover transition-transform duration-500 group-hover:scale-105"
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              placeholder="blur"
+              blurDataURL="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCA0IDMnPjxmaWx0ZXIgaWQ9J2InIGNvbG9yLWludGVycG9sYXRpb24tZmlsdGVycz0nc1JHQic+PGZlR2F1c3NpYW5CbHVyIHN0ZERldmlhdGlvbj0nMC41Jy8+PC9maWx0ZXI+PHJlY3Qgd2lkdGg9JzEwMCUnIGhlaWdodD0nMTAwJScgZmlsbD0nI2VlZWVlZScvPjwvc3ZnPg=="
             />
           ) : (
             <div className="flex h-full items-center justify-center text-5xl opacity-30">🌿</div>
@@ -221,6 +224,7 @@ export function ProductCard({ product, locale = 'es' }: ProductCardProps) {
         <div className="flex items-center gap-2">
           <Link
             href={`/productos/${product.slug}`}
+            prefetch={false}
             className="hidden h-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] px-3 text-sm font-semibold text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] lg:inline-flex"
           >
             {copy.actions.viewDetail}

@@ -137,6 +137,7 @@ jobs:
 
   integration-shard:
     name: Integration shard ${{ matrix.shard }}
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -185,6 +186,7 @@ jobs:
 
   integration:
     name: Integration
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     needs: integration-shard
     # Aggregates the matrix shards into a single status check that

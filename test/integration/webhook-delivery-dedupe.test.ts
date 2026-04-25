@@ -152,15 +152,29 @@ test('subscription events are now also deduplicated via WebhookDelivery', async 
   assert.equal(deliveries.length, 1)
 })
 
-test('events without an id still process (no delivery row created)', async () => {
-  // Edge case: mock events may omit the id field. The handler should
-  // still process them — just without dedupe protection.
-  const r = await postWebhook({
+test('events without an id are deduped via synthetic payload-hash id', async () => {
+  // Events missing `event.id` used to skip the WebhookDelivery row
+  // entirely and run without idempotency. Now they fall back to a
+  // deterministic `synthetic_<payloadHash>` key so identical payloads
+  // still collapse to a single delivery row.
+  const body = {
     type: 'payment_intent.succeeded',
     data: { object: { id: 'pi_no_event_id', amount: 100, currency: 'eur' } },
-  })
-  assert.equal(r.status, 200)
+  }
 
-  const deliveries = await db.webhookDelivery.findMany()
-  assert.equal(deliveries.length, 0, 'no delivery row for events without an id')
+  const r1 = await postWebhook(body)
+  assert.equal(r1.status, 200)
+
+  const r2 = await postWebhook(body)
+  assert.equal(r2.status, 200)
+  assert.equal(
+    (await r2.json()).skipped,
+    'duplicate',
+    'identical payload must collapse to a duplicate via synthetic id'
+  )
+
+  const deliveries = await db.webhookDelivery.findMany({
+    where: { eventId: { startsWith: 'synthetic_' } },
+  })
+  assert.equal(deliveries.length, 1, 'exactly one synthetic delivery row')
 })

@@ -59,16 +59,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function VendorPublicPage({ params }: Props) {
   const { slug } = await params
-  const locale = await getServerLocale()
+
+  // Bootstrap reads (locale cookie, i18n table, vendor row, session)
+  // are mutually independent — do them in parallel to save 3-4 RTTs.
+  const [locale, t, vendor, session] = await Promise.all([
+    getServerLocale(),
+    getServerT(),
+    getVendorBySlug(slug),
+    auth(),
+  ])
+
   const copy = getCatalogCopy(locale)
-  const t = await getServerT()
-  const vendor = await getVendorBySlug(slug)
   if (!vendor) notFound()
 
   const heroImage = getVendorHeroImage(vendor)
   const visualLabel = t(getVendorVisualLabelKey(vendor))
 
-  const [reviews, aggregate] = await Promise.all([
+  // Reviews + aggregate + the user's pending-review prompt are
+  // independent of each other.
+  const [reviews, aggregate, pendingForVendor] = await Promise.all([
     db.review.findMany({
       where: { vendorId: vendor.id },
       orderBy: { createdAt: 'desc' },
@@ -87,15 +96,13 @@ export default async function VendorPublicPage({ params }: Props) {
       _avg: { rating: true },
       _count: { _all: true },
     }),
+    session?.user?.id
+      ? getVendorPendingReviews(session.user.id, vendor.id)
+      : Promise.resolve({ total: 0, firstPendingOrderId: null }),
   ])
 
   const avgRating = aggregate._avg.rating ? Number(aggregate._avg.rating) : null
   const totalReviews = aggregate._count._all
-
-  const session = await auth()
-  const pendingForVendor = session?.user?.id
-    ? await getVendorPendingReviews(session.user.id, vendor.id)
-    : { total: 0, firstPendingOrderId: null }
 
   // Collect unique certifications across all products
   const allCertifications = [
