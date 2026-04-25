@@ -139,5 +139,17 @@ If you can't fill `Verification command` or `Current behavior`, the finding isn'
 | Date | Audit | False positives | Root cause |
 |------|-------|-----------------|------------|
 | 2026-04-25 | Mobile resilience & performance (#779) | 3 of 16 (`autoComplete`, `saveData` guard, modal tap target) | Auditor extrapolated from spot checks instead of grepping; relied on a "common gaps" mental model. |
+| 2026-04-25 | Follow-up cleanup of `advanceFulfillment` (#814) | 1 of 1 ("dead code" claim) | Re-audit grepped only `src/`, not `test/`. The function had 14 references across 5 integration test files pinning cross-tenant isolation, state-machine invariants, authz audit, and push-notification dispatcher wiring. **Lesson: never base a "dead code" call on a `src/`-only grep — tests are first-class callers.** |
 
 When you ship an audit, append a row here once any false positives surface. The pattern is the lesson.
+
+## Special case: dead-code claims
+
+Removing code is the most attractive form of work for a tidiness-minded reviewer. It's also where this doc has the worst track record so far. Before claiming a function/module/file is dead:
+
+1. **Grep BOTH `src/` AND `test/`** (and `scripts/`, `e2e/`, anywhere code lives). Tests pin behavior — a function used only by tests is not dead, it's a contract under test.
+2. **Check imports through barrel files.** `grep -rn "from '@/domains/foo'"` may miss a re-export from `@/domains/foo/index.ts` that surfaces the symbol elsewhere.
+3. **Check dynamic dispatchers.** Server actions, route handlers, and event-driven systems sometimes resolve callees by string name (e.g. notification dispatcher tags). Grep for the function name as a string literal too.
+4. **Check generated/bundled output.** A function unused at the source level may still appear in a tracked build artifact (rare in this repo but checkable via `git ls-files | xargs grep -l`).
+
+If any of those produce hits, the function is not dead. Close the cleanup issue with the grep output rather than opening a deletion PR.
