@@ -5,8 +5,7 @@ import { useTransition } from 'react'
 import { StarIcon } from '@heroicons/react/24/solid'
 import { StarIcon as StarOutlineIcon } from '@heroicons/react/24/outline'
 import { createReview } from '@/domains/reviews/actions'
-import { formatDistanceToNow } from 'date-fns'
-import { es as esLocale, enUS as enLocale } from 'date-fns/locale'
+import { formatRelativeTime } from '@/lib/format-relative-time'
 import { useT, useLocale } from '@/i18n'
 
 interface ReviewData {
@@ -40,7 +39,6 @@ export function ReviewSection({
 }: ReviewSectionProps) {
   const t = useT()
   const { locale } = useLocale()
-  const dateLocale = locale === 'en' ? enLocale : esLocale
   const [isPending, startTransition] = useTransition()
   const [rating, setRating] = useState<number>(0)
   const [body, setBody] = useState('')
@@ -124,10 +122,7 @@ export function ReviewSection({
         <div className="flex-1 space-y-4">
           {allReviews.length > 0 ? (
             allReviews.map(review => {
-              const timeAgo = formatDistanceToNow(new Date(review.createdAt), {
-                locale: dateLocale,
-                addSuffix: false,
-              })
+              const timeAgo = formatRelativeTime(review.createdAt, { locale })
               return (
                 <div
                   key={review.id}
