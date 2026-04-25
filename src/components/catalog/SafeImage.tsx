@@ -11,6 +11,7 @@ interface SafeImageProps {
   fill?: boolean
   className?: string
   sizes?: string
+  priority?: boolean
 }
 
 /**
@@ -24,6 +25,7 @@ export function SafeImage({
   fill,
   className,
   sizes,
+  priority = false,
 }: SafeImageProps) {
   const [hasError, setHasError] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -57,7 +59,7 @@ export function SafeImage({
         sizes={sizes}
         onError={() => setHasError(true)}
         onLoadingComplete={() => setIsLoading(false)}
-        priority={false}
+        priority={priority}
       />
     </>
   )

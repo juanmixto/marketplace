@@ -32,11 +32,18 @@ test('isMockWebhookAllowed: returns false when provider is stripe (not mock)', (
   assert.equal(isMockWebhookAllowed('stripe', 'production'), false)
 })
 
-test('isMockWebhookAllowed: treats unknown environments as production-safe (deny)', () => {
-  // An unrecognised NODE_ENV should not accidentally allow mock processing
-  assert.equal(isMockWebhookAllowed('mock', 'staging'), true)
-  // staging is not 'production' so it is currently allowed — document this:
-  // if stricter control is needed, add 'staging' to the blocklist
+test('isMockWebhookAllowed: BLOCKS mock events in staging', () => {
+  // Staging may be reachable from the public internet and can carry
+  // production-adjacent data, so unsigned webhooks must be rejected.
+  assert.equal(isMockWebhookAllowed('mock', 'staging'), false)
+})
+
+test('isMockWebhookAllowed: BLOCKS mock events in unknown environments (deny by default)', () => {
+  // Only `development` and `test` are on the allowlist — everything else
+  // (preview, staging, canary, unset) is treated as production-equivalent.
+  assert.equal(isMockWebhookAllowed('mock', ''), false)
+  assert.equal(isMockWebhookAllowed('mock', 'preview'), false)
+  assert.equal(isMockWebhookAllowed('mock', 'canary'), false)
 })
 
 // ─── getWebhookIdempotencyKey ─────────────────────────────────────────────────

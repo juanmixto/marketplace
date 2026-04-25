@@ -58,7 +58,19 @@ test('buildContentSecurityPolicy with nonce enforces strict script-src (#537)', 
   assert.match(csp, /script-src [^;]*'strict-dynamic'/)
   assert.match(csp, /script-src [^;]*https:\/\/js\.stripe\.com/)
   assert.match(csp, /frame-ancestors 'none'/)
-  assert.match(csp, /img-src 'self' data: blob: https:/)
+  // img-src is the allowlist of image hosts; must mirror remotePatterns in
+  // next.config.ts. Explicitly reject the historical `https:` wildcard so a
+  // regression cannot silently widen the policy.
+  assert.match(csp, /img-src 'self' data: blob:/)
+  assert.match(csp, /img-src [^;]*https:\/\/images\.unsplash\.com/)
+  assert.match(csp, /img-src [^;]*https:\/\/\*\.cloudinary\.com/)
+  assert.match(csp, /img-src [^;]*https:\/\/\*\.uploadthing\.com/)
+  assert.match(csp, /img-src [^;]*https:\/\/\*\.public\.blob\.vercel-storage\.com/)
+  assert.doesNotMatch(
+    csp,
+    /img-src[^;]* https:(?=\s|;|$)/,
+    'img-src must not contain a bare `https:` wildcard'
+  )
   assert.match(csp, /connect-src 'self' https:\/\/api\.stripe\.com https:\/\/js\.stripe\.com/)
 
   process.env.NEXT_PUBLIC_APP_URL = previousAppUrl

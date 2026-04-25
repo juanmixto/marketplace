@@ -34,7 +34,7 @@ test('next image config explicitly allows local demo SVG product artwork', () =>
 
 test('producer surfaces use realistic photo helpers instead of illustration-only placeholders', () => {
   const producersPage = readSource('../../src/app/(public)/productores/page.tsx')
-  const homePage = readSource('../../src/app/(public)/HomePageClient.tsx')
+  const homePage = readSource('../../src/app/(public)/page.tsx')
   const vendorVisuals = readSource('../../src/domains/vendors/visuals.ts')
 
   assert.match(producersPage, /getVendorHeroImage\(v\)/)
