@@ -3,7 +3,8 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { getVendors } from '@/domains/catalog/queries'
 import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
-import { buildPageMetadata } from '@/lib/seo'
+import { absoluteUrl, buildPageMetadata } from '@/lib/seo'
+import { JsonLd } from '@/components/seo/JsonLd'
 import { getVendorHeroImage, getVendorVisualLabelKey } from '@/domains/vendors/visuals'
 import { getServerT } from '@/i18n/server'
 
@@ -20,8 +21,20 @@ export const revalidate = 60
 export default async function ProductoresPage() {
   const [vendors, t] = await Promise.all([getVendors(50), getServerT()])
 
+  const itemListData = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    itemListElement: vendors.map((v, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      url: absoluteUrl(`/productores/${v.slug}`),
+      name: v.displayName,
+    })),
+  }
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <JsonLd data={itemListData} />
       <h1 className="text-3xl font-bold text-[var(--foreground)]">{t('producersPage.title')}</h1>
       <p className="mt-2 text-[var(--muted)]">{t('producersPage.subtitle')}</p>
 
@@ -34,6 +47,7 @@ export default async function ProductoresPage() {
             <Link
               key={v.slug}
               href={`/productores/${v.slug}`}
+              prefetch={false}
               className="group overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md dark:hover:border-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
             >
               <div className="relative h-44 overflow-hidden border-b border-[var(--border)] bg-slate-100 dark:bg-slate-900">
