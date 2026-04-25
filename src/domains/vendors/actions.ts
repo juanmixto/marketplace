@@ -408,13 +408,18 @@ const VALID_TRANSITIONS: Partial<Record<FulfillmentStatus, FulfillmentStatus>> =
 /**
  * Advances a fulfillment to the next state.
  * Validates the transition is legal.
+ *
+ * `idempotencyToken` (#788) prevents a vendor's double-tap on a flaky
+ * mobile network from producing two transitions (e.g. PENDING → CONFIRMED
+ * twice firing two SHIPPED notifications). Optional for legacy callers.
  */
 export async function advanceFulfillment(
   fulfillmentId: string,
   trackingNumber?: string,
-  carrier?: string
+  carrier?: string,
+  idempotencyToken?: string,
 ) {
-  const { vendor } = await requireVendor()
+  const { vendor, session } = await requireVendor()
 
   const fulfillment = await db.vendorFulfillment.findFirst({
     where: { id: fulfillmentId, vendorId: vendor.id },
@@ -424,6 +429,7 @@ export async function advanceFulfillment(
   const nextStatus = VALID_TRANSITIONS[fulfillment.status]
   if (!nextStatus) throw new Error(`No se puede avanzar desde el estado ${fulfillment.status}`)
 
+  const doAdvance = async () => {
   await db.$transaction(async tx => {
     await tx.vendorFulfillment.update({
       where: { id: fulfillmentId },
@@ -466,6 +472,17 @@ export async function advanceFulfillment(
   }
 
   safeRevalidatePath('/vendor/pedidos')
+  }
+
+  if (idempotencyToken) {
+    return withIdempotency(
+      'fulfillment.advance',
+      idempotencyToken,
+      session.user.id,
+      doAdvance,
+    )
+  }
+  return doAdvance()
 }
 
 async function notifyBuyerFulfillmentShipped(

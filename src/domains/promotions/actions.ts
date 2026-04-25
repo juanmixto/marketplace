@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { getActionSession } from '@/lib/action-session'
 import { isVendor } from '@/lib/roles'
 import { safeRevalidatePath } from '@/lib/revalidate'
+import { withIdempotency } from '@/lib/idempotency'
 
 // ─── Auth helper ──────────────────────────────────────────────────────────────
 
@@ -42,65 +43,75 @@ type PromotionInput = z.infer<typeof promotionSchema>
  * Creates a new promotion for the authenticated vendor. The promotion is
  * dormant until phase 2 of the RFC wires it into checkout — this endpoint
  * only persists the intent.
+ *
+ * `idempotencyToken` is optional (legacy callers without it still work);
+ * when provided, double-submit on a flaky network is deduped at the
+ * IdempotencyKey level (#788).
  */
-export async function createPromotion(input: PromotionInput) {
-  const { vendor } = await requireVendor()
+export async function createPromotion(input: PromotionInput, idempotencyToken?: string) {
+  const { vendor, session } = await requireVendor()
   const data = promotionSchema.parse(input)
 
-  // Normalize the code: empty string → null so the unique index is not tripped
-  // by two NULL-ish codes colliding on the empty string.
-  const code = data.code && data.code.length > 0 ? data.code.toUpperCase() : null
+  const doCreate = async () => {
+    // Normalize the code: empty string → null so the unique index is not tripped
+    // by two NULL-ish codes colliding on the empty string.
+    const code = data.code && data.code.length > 0 ? data.code.toUpperCase() : null
 
-  if (code) {
-    const existing = await db.promotion.findFirst({
-      where: { vendorId: vendor.id, code },
-      select: { id: true },
-    })
-    if (existing) {
-      throw new Error('Ya tienes otra promoción con ese código')
+    if (code) {
+      const existing = await db.promotion.findFirst({
+        where: { vendorId: vendor.id, code },
+        select: { id: true },
+      })
+      if (existing) {
+        throw new Error('Ya tienes otra promoción con ese código')
+      }
     }
-  }
 
-  // Scope ownership: product/category must belong to the same vendor (product)
-  // or exist at all (category — categories are global).
-  if (data.scope === 'PRODUCT' && data.productId) {
-    const product = await db.product.findFirst({
-      where: { id: data.productId, vendorId: vendor.id, deletedAt: null },
-      select: { id: true },
+    // Scope ownership: product/category must belong to the same vendor (product)
+    // or exist at all (category — categories are global).
+    if (data.scope === 'PRODUCT' && data.productId) {
+      const product = await db.product.findFirst({
+        where: { id: data.productId, vendorId: vendor.id, deletedAt: null },
+        select: { id: true },
+      })
+      if (!product) throw new Error('Producto no encontrado')
+    }
+    if (data.scope === 'CATEGORY' && data.categoryId) {
+      const category = await db.category.findUnique({
+        where: { id: data.categoryId },
+        select: { id: true },
+      })
+      if (!category) throw new Error('Categoría no encontrada')
+    }
+
+    const value = data.kind === 'FREE_SHIPPING' ? 0 : data.value
+
+    const promotion = await db.promotion.create({
+      data: {
+        vendorId: vendor.id,
+        name: data.name,
+        code,
+        kind: data.kind,
+        value,
+        scope: data.scope,
+        productId: data.scope === 'PRODUCT' ? data.productId ?? null : null,
+        categoryId: data.scope === 'CATEGORY' ? data.categoryId ?? null : null,
+        minSubtotal: data.minSubtotal ?? null,
+        maxRedemptions: data.maxRedemptions ?? null,
+        perUserLimit: data.perUserLimit ?? 1,
+        startsAt: new Date(data.startsAt),
+        endsAt: new Date(data.endsAt),
+      },
     })
-    if (!product) throw new Error('Producto no encontrado')
-  }
-  if (data.scope === 'CATEGORY' && data.categoryId) {
-    const category = await db.category.findUnique({
-      where: { id: data.categoryId },
-      select: { id: true },
-    })
-    if (!category) throw new Error('Categoría no encontrada')
+
+    safeRevalidatePath('/vendor/promociones')
+    return promotion
   }
 
-  const value =
-    data.kind === 'FREE_SHIPPING' ? 0 : data.value
-
-  const promotion = await db.promotion.create({
-    data: {
-      vendorId: vendor.id,
-      name: data.name,
-      code,
-      kind: data.kind,
-      value,
-      scope: data.scope,
-      productId: data.scope === 'PRODUCT' ? data.productId ?? null : null,
-      categoryId: data.scope === 'CATEGORY' ? data.categoryId ?? null : null,
-      minSubtotal: data.minSubtotal ?? null,
-      maxRedemptions: data.maxRedemptions ?? null,
-      perUserLimit: data.perUserLimit ?? 1,
-      startsAt: new Date(data.startsAt),
-      endsAt: new Date(data.endsAt),
-    },
-  })
-
-  safeRevalidatePath('/vendor/promociones')
-  return promotion
+  if (idempotencyToken) {
+    return withIdempotency('promotion.create', idempotencyToken, session.user.id, doCreate)
+  }
+  return doCreate()
 }
 
 /**
