@@ -17,6 +17,7 @@ import {
   type ShippingZoneLike,
 } from '@/domains/shipping/shared'
 import {
+  applyCartDiscounts,
   getPreferredCheckoutAddress,
   toCheckoutFormAddress,
   checkoutFormSchema,
@@ -137,10 +138,10 @@ export function CheckoutPageClient({
   const [promoError, setPromoError] = useState<string | null>(null)
   const [promoPending, setPromoPending] = useState(false)
 
-  const subtotalDiscount = promoPreview?.subtotalDiscount ?? 0
-  const shippingDiscount = promoPreview?.shippingDiscount ?? 0
-  const shipping = Math.max(0, baseShipping - shippingDiscount)
-  const total = Math.max(0, sub - subtotalDiscount + shipping)
+  const { subtotalDiscount, shippingDiscount, shipping, total } = applyCartDiscounts(sub, baseShipping, {
+    subtotalDiscount: promoPreview?.subtotalDiscount,
+    shippingDiscount: promoPreview?.shippingDiscount,
+  })
 
   useEffect(() => {
     let cancelled = false
