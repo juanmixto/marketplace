@@ -47,14 +47,23 @@ export function ProductModerationActions({ productId, productName, status }: Pro
 
   return (
     <>
-      <div className="flex items-center gap-2">
-        {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
-        <Button size="sm" isLoading={loading} onClick={handleApprove}>
-          Aprobar
-        </Button>
-        <Button size="sm" variant="danger" disabled={loading} onClick={() => setRejectModal(true)}>
-          Rechazar
-        </Button>
+      <div className="flex flex-col items-end gap-1.5">
+        <div className="flex items-center gap-2">
+          <Button size="sm" isLoading={loading} onClick={handleApprove}>
+            Aprobar
+          </Button>
+          <Button size="sm" variant="danger" disabled={loading} onClick={() => setRejectModal(true)}>
+            Rechazar
+          </Button>
+        </div>
+        {error && (
+          <p
+            className="max-w-[16rem] text-right text-xs leading-tight text-red-600 dark:text-red-400"
+            title={error}
+          >
+            {error}
+          </p>
+        )}
       </div>
 
       <Modal

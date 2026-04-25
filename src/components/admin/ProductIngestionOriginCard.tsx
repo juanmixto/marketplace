@@ -20,11 +20,18 @@ interface VendorClaimInfo {
   claimCodeExpiresAt: Date | null
 }
 
+interface TelegramLink {
+  messageUrl: string | null
+  profileUrl: string
+  authorDisplayName: string | null
+}
+
 interface Props {
   draftId: string
   sourceMessageId: string | null
   reviewItemId: string | null
   vendor?: VendorClaimInfo
+  telegramLink?: TelegramLink | null
 }
 
 function formatExpiry(date: Date | null): string {
@@ -36,7 +43,7 @@ function formatExpiry(date: Date | null): string {
   return `caduca en ${days} días`
 }
 
-export function ProductIngestionOriginCard({ draftId, sourceMessageId, reviewItemId, vendor }: Props) {
+export function ProductIngestionOriginCard({ draftId, sourceMessageId, reviewItemId, vendor, telegramLink }: Props) {
   // A ghost vendor is recognisable by `status=APPLYING` + an
   // unexpired `claimCode`. Once claimed, both fields are cleared.
   const isUnclaimedGhost =
@@ -78,6 +85,45 @@ export function ProductIngestionOriginCard({ draftId, sourceMessageId, reviewIte
           </Link>
         )}
       </div>
+
+      {telegramLink && (telegramLink.messageUrl || telegramLink.profileUrl) && (
+        <div className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+            Contactar con el productor
+          </p>
+          {telegramLink.authorDisplayName && (
+            <p className="mt-1 text-sm text-[var(--foreground)]">
+              <span className="text-[var(--muted-foreground)]">Autor: </span>
+              {telegramLink.authorDisplayName}
+            </p>
+          )}
+          <div className="mt-2 flex flex-wrap gap-2">
+            {telegramLink.messageUrl && (
+              <a
+                href={telegramLink.messageUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="inline-flex items-center gap-1 rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-sky-700 dark:bg-sky-500 dark:text-sky-950 dark:hover:bg-sky-400"
+              >
+                Ver mensaje en Telegram →
+              </a>
+            )}
+            <a
+              href={telegramLink.profileUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex items-center gap-1 rounded-lg border border-sky-500/40 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100 dark:text-sky-300 dark:hover:bg-sky-900/40"
+              title="Solo funciona si ya tienes contacto o compartes grupo con el productor"
+            >
+              Abrir chat con el productor →
+            </a>
+          </div>
+          <p className="mt-2 text-xs text-[var(--muted-foreground)]">
+            El enlace al mensaje abre la conversación dentro del grupo original.
+            Desde ahí, un click en el nombre del productor te abre chat privado.
+          </p>
+        </div>
+      )}
 
       {isUnclaimedGhost && (
         <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-50/60 p-4 dark:border-amber-500/20 dark:bg-amber-950/20">

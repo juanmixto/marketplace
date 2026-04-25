@@ -131,7 +131,7 @@ export default async function ReviewItemDetailPage({ params }: PageProps) {
           </div>
 
           <div className="grid min-w-[20rem] gap-2 sm:grid-cols-2">
-            <MiniStat label="Autor" value={item.message.authorId ?? '—'} />
+            <MiniStat label="Autor" value={item.telegramLink.authorDisplayName ?? item.message.authorId ?? '—'} />
             <MiniStat label="Publicado" value={formatDate(item.message.postedAt)} />
             <MiniStat label="Chat" value={item.message.chatId} />
             <MiniStat label="Mensaje id" value={String(item.message.id)} />
@@ -147,7 +147,34 @@ export default async function ReviewItemDetailPage({ params }: PageProps) {
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
             <section className="space-y-3">
-              <p className="text-sm font-semibold text-[var(--foreground)]">Mensaje original</p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-[var(--foreground)]">Mensaje original</p>
+                {(item.telegramLink.messageUrl || item.telegramLink.profileUrl) && (
+                  <div className="flex flex-wrap gap-2">
+                    {item.telegramLink.messageUrl && (
+                      <a
+                        href={item.telegramLink.messageUrl}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="inline-flex items-center gap-1 rounded-md bg-sky-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm hover:bg-sky-700 dark:bg-sky-500 dark:text-sky-950 dark:hover:bg-sky-400"
+                      >
+                        Abrir en Telegram →
+                      </a>
+                    )}
+                    {item.telegramLink.profileUrl && (
+                      <a
+                        href={item.telegramLink.profileUrl}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="inline-flex items-center gap-1 rounded-md border border-sky-500/40 px-2.5 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100 dark:text-sky-300 dark:hover:bg-sky-900/40"
+                        title="Solo funciona si ya tienes contacto o compartes grupo con el autor"
+                      >
+                        Chat con autor →
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
               <pre className="whitespace-pre-wrap break-words rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
                 {item.message.text ?? '(sin texto)'}
               </pre>
