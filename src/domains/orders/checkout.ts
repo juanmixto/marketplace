@@ -236,3 +236,40 @@ export function calculateOrderTotalsWithShippingCost(
     grandTotal,
   }
 }
+
+export interface CartDiscountInput {
+  subtotalDiscount?: number
+  shippingDiscount?: number
+}
+
+export interface CartTotalsBreakdown {
+  subtotal: number
+  subtotalDiscount: number
+  shippingDiscount: number
+  shipping: number
+  total: number
+}
+
+// Pure composition of the buyer-facing cart totals used by the checkout
+// preview. Lives here (not in CheckoutPageClient.tsx) so the math is
+// covered by unit tests and stays in lock-step with createOrder's
+// server-side totals. Inputs are clamped so a promotion can never
+// produce a negative shipping or grand total.
+export function applyCartDiscounts(
+  baseSubtotal: number,
+  baseShipping: number,
+  { subtotalDiscount = 0, shippingDiscount = 0 }: CartDiscountInput = {},
+): CartTotalsBreakdown {
+  const safeSubtotalDiscount = Math.max(0, subtotalDiscount)
+  const safeShippingDiscount = Math.max(0, shippingDiscount)
+  const shipping = roundCurrency(Math.max(0, baseShipping - safeShippingDiscount))
+  const total = roundCurrency(Math.max(0, baseSubtotal - safeSubtotalDiscount + shipping))
+
+  return {
+    subtotal: roundCurrency(baseSubtotal),
+    subtotalDiscount: roundCurrency(safeSubtotalDiscount),
+    shippingDiscount: roundCurrency(safeShippingDiscount),
+    shipping,
+    total,
+  }
+}
