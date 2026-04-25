@@ -6,6 +6,7 @@
 
 import * as Sentry from '@sentry/nextjs'
 import { sentryConfig } from '@/lib/sentry/config'
+import { buildTracesSampler } from '@/lib/sentry/sampler'
 import { scrubSentryEvent } from '@/lib/sentry/scrubber'
 
 if (sentryConfig) {
@@ -13,7 +14,7 @@ if (sentryConfig) {
     dsn: sentryConfig.dsn,
     environment: sentryConfig.environment,
     release: sentryConfig.release,
-    tracesSampleRate: sentryConfig.tracesSampleRate,
+    tracesSampler: buildTracesSampler(sentryConfig.tracesSampleRate),
     // Send default PII is OFF — we rely on explicit opt-in via
     // Sentry.setUser({ id }) to add the internal id, nothing else.
     sendDefaultPii: false,

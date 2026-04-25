@@ -1,31 +1,23 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import Link from 'next/link'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useT, useI18n } from '@/i18n'
 import type { TranslationKeys } from '@/i18n/locales'
 import { AdminStatusBadge } from '@/components/admin/AdminStatusBadge'
 import { VendorModerationActions } from '@/components/admin/VendorModerationActions'
 import { getVendorStatusTone } from '@/domains/admin/overview'
-import type { EnrichedProducer, ProducersOverview } from '@/domains/admin/producers'
+import {
+  PRODUCER_SORT_KEYS,
+  PRODUCER_STATUS_FILTERS,
+  type EnrichedProducer,
+  type ProducerStatusFilter,
+  type ProducersOverview,
+} from '@/domains/admin/producers-schema'
 import type { VendorStatus } from '@/generated/prisma/enums'
 
-const PAGE_SIZE = 20
-
-type StatusFilter = 'ALL' | VendorStatus
-type SortKey = 'revenueDesc' | 'revenueAsc' | 'recent' | 'lastSeen' | 'name' | 'orders'
-
-const STATUS_FILTERS: StatusFilter[] = [
-  'ALL',
-  'ACTIVE',
-  'APPLYING',
-  'PENDING_DOCS',
-  'SUSPENDED_TEMP',
-  'SUSPENDED_PERM',
-  'REJECTED',
-]
-
-const SORT_OPTIONS: SortKey[] = ['revenueDesc', 'revenueAsc', 'recent', 'lastSeen', 'name', 'orders']
+const SEARCH_DEBOUNCE_MS = 250
 
 interface Props {
   data: ProducersOverview
@@ -64,9 +56,7 @@ function relativeFromNow(
   if (!iso) return { label: t('adminProducers.lastSeen.never'), tone: 'slate' }
   const diffMs = Date.now() - new Date(iso).getTime()
   const minutes = Math.floor(diffMs / 60000)
-  if (minutes < 60) {
-    return { label: t('adminProducers.lastSeen.justNow'), tone: 'emerald' }
-  }
+  if (minutes < 60) return { label: t('adminProducers.lastSeen.justNow'), tone: 'emerald' }
   const hours = Math.floor(minutes / 60)
   if (hours < 24) {
     return {
@@ -149,67 +139,62 @@ function StatCard({
 export function AdminProducersClient({ data }: Props) {
   const t = useT()
   const { locale } = useI18n()
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParamsRO = useSearchParams()
+  const [isNavigating, startTransition] = useTransition()
 
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
-  const [sort, setSort] = useState<SortKey>('revenueDesc')
-  const [page, setPage] = useState(1)
+  // Keep search input local for snappy typing; debounce into the URL so
+  // each keystroke doesn't trigger a server roundtrip. Seeded from the
+  // server's normalised params so the input is the source of truth after
+  // a full reload.
+  const [searchInput, setSearchInput] = useState(data.params.search)
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    let out = data.producers
-    if (statusFilter !== 'ALL') {
-      out = out.filter(p => p.status === statusFilter)
-    }
-    if (q) {
-      out = out.filter(p =>
-        p.displayName.toLowerCase().includes(q) ||
-        p.email.toLowerCase().includes(q) ||
-        (p.location?.toLowerCase().includes(q) ?? false)
-      )
-    }
-    const sorted = [...out]
-    switch (sort) {
-      case 'revenueDesc':
-        sorted.sort((a, b) => b.revenue - a.revenue)
-        break
-      case 'revenueAsc':
-        sorted.sort((a, b) => a.revenue - b.revenue)
-        break
-      case 'recent':
-        sorted.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-        break
-      case 'lastSeen':
-        sorted.sort((a, b) => (b.lastSeenAt ?? '').localeCompare(a.lastSeenAt ?? ''))
-        break
-      case 'name':
-        sorted.sort((a, b) => a.displayName.localeCompare(b.displayName))
-        break
-      case 'orders':
-        sorted.sort((a, b) => b.ordersCount - a.ordersCount)
-        break
-    }
-    return sorted
-  }, [data.producers, search, statusFilter, sort])
+  // Keep the input in sync when the parent re-renders with different
+  // normalised params (e.g. after a back/forward navigation).
+  useEffect(() => {
+    setSearchInput(data.params.search)
+  }, [data.params.search])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const safePage = Math.min(page, totalPages)
-  const pageStart = (safePage - 1) * PAGE_SIZE
-  const pageItems = filtered.slice(pageStart, pageStart + PAGE_SIZE)
+  // Debounced URL write for the search box. Other controls commit
+  // immediately since they click-fire rather than type-fire.
+  useEffect(() => {
+    const trimmed = searchInput.trim()
+    if (trimmed === data.params.search) return
+    const handle = setTimeout(() => {
+      updateParams({ q: trimmed || undefined, page: undefined })
+    }, SEARCH_DEBOUNCE_MS)
+    return () => clearTimeout(handle)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput])
+
+  function updateParams(patch: Partial<Record<'q' | 'status' | 'sort' | 'page', string | undefined>>) {
+    const params = new URLSearchParams(searchParamsRO?.toString() ?? '')
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === undefined || value === '') params.delete(key)
+      else params.set(key, value)
+    }
+    const query = params.toString()
+    const href = query ? `${pathname}?${query}` : pathname
+    startTransition(() => router.replace(href, { scroll: false }))
+  }
 
   function statusLabel(s: VendorStatus): string {
     return t(`adminProducers.status.${s}` as TranslationKeys)
   }
 
-  function filterLabel(f: StatusFilter): string {
+  function filterLabel(f: ProducerStatusFilter): string {
     if (f === 'ALL') return t('adminProducers.filter.all')
     return statusLabel(f)
   }
 
-  function statusCount(f: StatusFilter): number {
+  function statusCount(f: ProducerStatusFilter): number {
     if (f === 'ALL') return data.globals.total
     return data.statusCounts[f] ?? 0
   }
+
+  const { pageItems, pagination, params, globals } = data
+  const pageStart = (pagination.page - 1) * pagination.pageSize
 
   return (
     <div className="space-y-6">
@@ -221,48 +206,43 @@ export function AdminProducersClient({ data }: Props) {
         <p className="mt-1 text-sm text-[var(--muted)]">{t('adminProducers.subtitle')}</p>
       </div>
 
-      {/* KPI cards */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label={t('adminProducers.kpi.gmv')}
-          value={fmtCurrency(data.globals.gmv, locale)}
+          value={fmtCurrency(globals.gmv, locale)}
           hint={t('adminProducers.kpi.gmvHint')}
           accent="emerald"
         />
         <StatCard
           label={t('adminProducers.kpi.orders')}
-          value={fmtNumber(data.globals.orders, locale)}
+          value={fmtNumber(globals.orders, locale)}
           hint={t('adminProducers.kpi.ordersHint')}
           accent="blue"
         />
         <StatCard
           label={t('adminProducers.kpi.active')}
-          value={fmtNumber(data.globals.active, locale)}
-          hint={t('adminProducers.kpi.totalHint').replace('{count}', String(data.globals.total))}
+          value={fmtNumber(globals.active, locale)}
+          hint={t('adminProducers.kpi.totalHint').replace('{count}', String(globals.total))}
           accent="emerald"
         />
         <StatCard
           label={t('adminProducers.kpi.pending')}
-          value={fmtNumber(data.globals.pendingReview, locale)}
-          hint={t('adminProducers.kpi.suspendedHint').replace(
-            '{count}',
-            String(data.globals.suspended)
-          )}
+          value={fmtNumber(globals.pendingReview, locale)}
+          hint={t('adminProducers.kpi.suspendedHint').replace('{count}', String(globals.suspended))}
           accent="amber"
         />
       </div>
 
-      {/* Filter row */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
+      <div
+        className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm"
+        aria-busy={isNavigating}
+      >
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex-1">
             <input
               type="search"
-              value={search}
-              onChange={e => {
-                setSearch(e.target.value)
-                setPage(1)
-              }}
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
               placeholder={t('adminProducers.search.placeholder')}
               className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
@@ -273,14 +253,11 @@ export function AdminProducersClient({ data }: Props) {
             </label>
             <select
               id="producers-sort"
-              value={sort}
-              onChange={e => {
-                setSort(e.target.value as SortKey)
-                setPage(1)
-              }}
+              value={params.sort}
+              onChange={e => updateParams({ sort: e.target.value, page: undefined })}
               className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-sm text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             >
-              {SORT_OPTIONS.map(opt => (
+              {PRODUCER_SORT_KEYS.map(opt => (
                 <option key={opt} value={opt}>
                   {t(`adminProducers.sort.${opt}` as TranslationKeys)}
                 </option>
@@ -289,16 +266,13 @@ export function AdminProducersClient({ data }: Props) {
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          {STATUS_FILTERS.map(f => {
-            const active = statusFilter === f
+          {PRODUCER_STATUS_FILTERS.map(f => {
+            const active = params.status === f
             return (
               <button
                 key={f}
                 type="button"
-                onClick={() => {
-                  setStatusFilter(f)
-                  setPage(1)
-                }}
+                onClick={() => updateParams({ status: f === 'ALL' ? undefined : f, page: undefined })}
                 className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition ${
                   active
                     ? 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
@@ -315,7 +289,6 @@ export function AdminProducersClient({ data }: Props) {
         </div>
       </div>
 
-      {/* Table */}
       <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
         <div className="overflow-x-auto overscroll-x-contain touch-pan-x">
           <table className="w-full min-w-[1100px] text-sm">
@@ -340,7 +313,7 @@ export function AdminProducersClient({ data }: Props) {
               {pageItems.length === 0 && (
                 <tr>
                   <td colSpan={10} className="px-4 py-12 text-center text-sm text-[var(--muted)]">
-                    {filtered.length === 0 && data.producers.length > 0
+                    {pagination.totalFiltered === 0 && globals.total > 0
                       ? t('adminProducers.noResults')
                       : t('adminProducers.empty')}
                   </td>
@@ -349,31 +322,37 @@ export function AdminProducersClient({ data }: Props) {
             </tbody>
           </table>
         </div>
-        {/* Pagination */}
-        {filtered.length > PAGE_SIZE && (
+        {pagination.totalFiltered > pagination.pageSize && (
           <div className="flex items-center justify-between gap-3 border-t border-[var(--border)] bg-[var(--background)] px-4 py-3 text-xs text-[var(--muted)]">
             <span>
               {t('adminProducers.pagination.range')
                 .replace('{from}', String(pageStart + 1))
-                .replace('{to}', String(Math.min(pageStart + PAGE_SIZE, filtered.length)))
-                .replace('{total}', String(filtered.length))}
+                .replace(
+                  '{to}',
+                  String(Math.min(pageStart + pagination.pageSize, pagination.totalFiltered))
+                )
+                .replace('{total}', String(pagination.totalFiltered))}
             </span>
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                disabled={safePage <= 1}
-                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={pagination.page <= 1}
+                onClick={() => updateParams({ page: String(Math.max(1, pagination.page - 1)) })}
                 className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] disabled:opacity-40"
               >
                 {t('adminProducers.pagination.prev')}
               </button>
               <span>
-                {safePage} / {totalPages}
+                {pagination.page} / {pagination.totalPages}
               </span>
               <button
                 type="button"
-                disabled={safePage >= totalPages}
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={pagination.page >= pagination.totalPages}
+                onClick={() =>
+                  updateParams({
+                    page: String(Math.min(pagination.totalPages, pagination.page + 1)),
+                  })
+                }
                 className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] disabled:opacity-40"
               >
                 {t('adminProducers.pagination.next')}
@@ -439,7 +418,10 @@ function ProducerRow({
       </td>
       <td className="px-4 py-3">
         <div className="flex flex-col items-start gap-1">
-          <AdminStatusBadge label={t(`adminProducers.status.${p.status}` as TranslationKeys)} tone={getVendorStatusTone(p.status)} />
+          <AdminStatusBadge
+            label={t(`adminProducers.status.${p.status}` as TranslationKeys)}
+            tone={getVendorStatusTone(p.status)}
+          />
           <span className="text-[10px] text-[var(--muted-light)]">
             {p.stripeOnboarded
               ? t('adminProducers.stripe.complete')
@@ -453,9 +435,7 @@ function ProducerRow({
       <td className="px-4 py-3 text-right tabular-nums text-[var(--foreground)]">
         {p.ordersCount}
         <span className="ml-1 text-xs text-[var(--muted-light)]">
-          · {p.productsCount}
-          {' '}
-          {t('adminProducers.col.products')}
+          · {p.productsCount} {t('adminProducers.col.products')}
         </span>
       </td>
       <td className="px-4 py-3">
@@ -463,10 +443,7 @@ function ProducerRow({
           <div className="min-w-0">
             <p className="truncate font-medium text-[var(--foreground)]">{p.topProduct.name}</p>
             <p className="text-xs text-[var(--muted)]">
-              {t('adminProducers.topProduct.units').replace(
-                '{count}',
-                String(p.topProduct.unitsSold)
-              )}
+              {t('adminProducers.topProduct.units').replace('{count}', String(p.topProduct.unitsSold))}
             </p>
           </div>
         ) : (

@@ -8,6 +8,7 @@
 
 import * as Sentry from '@sentry/nextjs'
 import { sentryConfig } from '@/lib/sentry/config'
+import { buildTracesSampler } from '@/lib/sentry/sampler'
 import { scrubSentryEvent } from '@/lib/sentry/scrubber'
 
 if (sentryConfig) {
@@ -15,7 +16,7 @@ if (sentryConfig) {
     dsn: sentryConfig.dsn,
     environment: sentryConfig.environment,
     release: sentryConfig.release,
-    tracesSampleRate: sentryConfig.tracesSampleRate,
+    tracesSampler: buildTracesSampler(sentryConfig.tracesSampleRate),
     replaysSessionSampleRate: sentryConfig.replaysSessionSampleRate,
     replaysOnErrorSampleRate: sentryConfig.replaysOnErrorSampleRate,
     sendDefaultPii: false,

@@ -211,3 +211,45 @@ test('scrubSentryEvent drops the event (returns null) if scrubbing itself throws
   // Either clean result or null — NEVER the original unscrubbed event.
   assert.ok(out === null || out !== event)
 })
+
+test('scrubSentryEvent logs to stderr when scrubbing crashes (no silent swallow)', () => {
+  const originalError = console.error
+  const calls: unknown[][] = []
+  console.error = (...args: unknown[]) => {
+    calls.push(args)
+  }
+  try {
+    const evilGetter = {
+      get value() {
+        throw new Error('cycle-or-crash')
+      },
+    }
+    const event = { exception: { values: [evilGetter] } } as unknown as Event
+    const out = scrubSentryEvent(event)
+    assert.equal(out, null, 'scrubber must drop the event when it crashes')
+    assert.ok(
+      calls.some(
+        args =>
+          typeof args[0] === 'string' && args[0].includes('sentry-scrubber')
+      ),
+      'scrubber crash must be reported to stderr so operators see observability dead-zones'
+    )
+  } finally {
+    console.error = originalError
+  }
+})
+
+test('scrubSentryEvent handles cyclic objects without throwing', () => {
+  // Cyclic references in error extras are a common shape once Prisma or
+  // Node internals surface. Any deep-walk that blows the stack must be
+  // absorbed by the catch-all rather than tumbling the whole beforeSend
+  // hook.
+  const cyclic: Record<string, unknown> = { name: 'root' }
+  cyclic.self = cyclic
+  const event: Event = {
+    extra: { payload: cyclic },
+  }
+  // Must not throw and must never return the untouched original.
+  const out = scrubSentryEvent(event)
+  assert.ok(out === null || out !== event)
+})

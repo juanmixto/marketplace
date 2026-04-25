@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useT } from '@/i18n'
 import {
   ArrowLeftIcon,
@@ -42,11 +42,15 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
   // the admin hasn't enrolled yet). Step 2, when needed, collects the
   // TOTP code plus an opt-in "remember this device 30 days" checkbox.
   const [step, setStep] = useState<Step>('credentials')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [totpCode, setTotpCode] = useState('')
   const [rememberDevice, setRememberDevice] = useState(true)
+  const [mounted, setMounted] = useState(false)
+  const [pendingCredentials, setPendingCredentials] = useState<{ email: string; password: string } | null>(null)
   const t = useT()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const portalContent = {
     buyer: {
@@ -85,16 +89,44 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
   const PortalIcon = currentPortal.icon
   const isAdminPortal = portalMode === 'admin'
 
-  async function completeSignIn(opts: { totp?: string; remember?: boolean }) {
-    const credentials: Record<string, string> = { email, password }
-    if (opts.totp) credentials.totpCode = opts.totp
-    if (opts.remember) credentials.rememberDevice = '1'
+  async function completeSignIn(
+    credentials: { email: string; password: string },
+    opts: { totp?: string; remember?: boolean }
+  ) {
+    const payload: Record<string, string> = { email: credentials.email, password: credentials.password }
+    if (opts.totp) payload.totpCode = opts.totp
+    if (opts.remember) payload.rememberDevice = '1'
 
-    const result = await signIn('credentials', {
-      ...credentials,
-      redirect: false,
-      callbackUrl: safeCallbackUrl,
-    })
+    const signInWithRetry = async () => {
+      let lastError: unknown = null
+
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          return await signIn('credentials', {
+            ...payload,
+            redirect: false,
+            callbackUrl: safeCallbackUrl,
+          })
+        } catch (error) {
+          lastError = error
+          if (attempt === 0) {
+            await new Promise(resolve => setTimeout(resolve, 250))
+            continue
+          }
+        }
+      }
+
+      throw lastError ?? new Error('signIn failed')
+    }
+
+    let result
+    try {
+      result = await signInWithRetry()
+    } catch {
+      setError(t('login.error.generic'))
+      setLoading(false)
+      return
+    }
 
     if (result?.error) {
       setError(t('login.error.invalidCredentials'))
@@ -114,11 +146,14 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
     e.preventDefault()
     setError(null)
     setLoading(true)
+    const formData = new FormData(e.currentTarget)
+    const email = String(formData.get('email') ?? '')
+    const password = String(formData.get('password') ?? '')
 
     // Buyer / vendor portals have no 2FA surface — go straight to
     // signIn and let authorize() do its thing.
     if (!isAdminPortal) {
-      await completeSignIn({})
+      await completeSignIn({ email, password }, {})
       return
     }
 
@@ -146,6 +181,7 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
       }
 
       if (data.needs2fa) {
+        setPendingCredentials({ email, password })
         setStep('totp')
         setLoading(false)
         return
@@ -155,7 +191,7 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
       // admin hasn't enrolled yet — in which case the proxy will
       // redirect to /admin/security/enroll — or a trusted-device
       // cookie is still valid).
-      await completeSignIn({})
+      await completeSignIn({ email, password }, {})
     } catch {
       setError(t('login.error.generic'))
       setLoading(false)
@@ -166,12 +202,18 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
     e.preventDefault()
     setError(null)
     setLoading(true)
-    await completeSignIn({ totp: totpCode, remember: rememberDevice })
+    if (!pendingCredentials) {
+      setError(t('login.error.generic'))
+      setLoading(false)
+      return
+    }
+    await completeSignIn(pendingCredentials, { totp: totpCode, remember: rememberDevice })
   }
 
   function backToCredentials() {
     setStep('credentials')
     setTotpCode('')
+    setPendingCredentials(null)
     setError(null)
   }
 
@@ -200,8 +242,6 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
             label="Email"
             placeholder="tu@email.com"
             autoComplete="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
             required
           />
           <div className="relative">
@@ -211,8 +251,6 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
               label="Contraseña"
               placeholder="••••••••"
               autoComplete="current-password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
               required
             />
             <button
@@ -239,7 +277,7 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
             </Link>
           </div>
 
-          <Button type="submit" className="w-full" isLoading={loading} size="lg">
+          <Button type="submit" className="w-full" disabled={!mounted} isLoading={loading} size="lg">
             {isAdminPortal ? t('login.continue') : 'Iniciar sesión'}
           </Button>
         </form>

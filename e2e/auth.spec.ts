@@ -15,9 +15,11 @@ test.describe('auth @smoke', () => {
 
   test('login with wrong credentials surfaces an error', async ({ page }) => {
     await page.goto('/login')
+    const submit = page.getByRole('button', { name: 'Iniciar sesión' })
+    await expect(submit).toBeEnabled({ timeout: 10_000 })
     await page.locator('input[name="email"]').fill('cliente@test.com')
     await page.locator('input[name="password"]').fill('definitely-wrong-password')
-    await page.getByRole('button', { name: 'Iniciar sesión' }).click()
+    await submit.click()
     // Stay on /login and show an inline error message. We don't pin the
     // exact wording — just that something user-facing surfaces.
     await expect(page).toHaveURL(/\/login/)

@@ -9,19 +9,9 @@ import { parseProductSort } from '@/domains/catalog/types'
 import { getCatalogCopy } from '@/i18n/catalog-copy'
 import { getServerLocale } from '@/i18n/server'
 import { translateCategoryLabel } from '@/lib/portals'
-import { buildPageMetadata } from '@/lib/seo'
+import { absoluteUrl, buildPageMetadata } from '@/lib/seo'
+import { JsonLd } from '@/components/seo/JsonLd'
 import { serializeProductForCard } from '@/lib/catalog-serialization'
-
-export async function generateMetadata(): Promise<Metadata> {
-  const locale = await getServerLocale()
-  const copy = getCatalogCopy(locale)
-
-  return buildPageMetadata({
-    title: copy.page.title,
-    description: copy.page.description,
-    path: '/productos',
-  })
-}
 
 interface Props {
   searchParams: Promise<{
@@ -31,6 +21,23 @@ interface Props {
     orden?: string
     cursor?: string
   }>
+}
+
+function hasFacetedParams(params: Awaited<Props['searchParams']>): boolean {
+  return Boolean(params.q || params.categoria || params.cert || params.orden || params.cursor)
+}
+
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  const locale = await getServerLocale()
+  const copy = getCatalogCopy(locale)
+  const params = await searchParams
+
+  return buildPageMetadata({
+    title: copy.page.title,
+    description: copy.page.description,
+    path: '/productos',
+    noindex: hasFacetedParams(params),
+  })
 }
 
 export default async function ProductosPage({ searchParams }: Props) {
@@ -59,8 +66,28 @@ export default async function ProductosPage({ searchParams }: Props) {
       ? translateCategoryLabel(selectedCategory.slug, selectedCategory.name, locale)
       : copy.page.allProducts
 
+  // Only emit ItemList on the un-faceted collection. Filtered/searched
+  // variants of this page should not be advertised to Google as a
+  // canonical list — they're different subsets with different ordering.
+  const isFaceted = Boolean(
+    params.q || params.categoria || params.cert || params.orden || params.cursor,
+  )
+  const itemListData = isFaceted
+    ? null
+    : {
+        '@context': 'https://schema.org',
+        '@type': 'ItemList',
+        itemListElement: products.map((p, i) => ({
+          '@type': 'ListItem',
+          position: i + 1,
+          url: absoluteUrl(`/productos/${p.slug}`),
+          name: p.name,
+        })),
+      }
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      {itemListData && <JsonLd data={itemListData} />}
       <div className="flex gap-8">
         {/* Sidebar filters */}
         <aside className="hidden w-56 shrink-0 lg:block">

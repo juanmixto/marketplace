@@ -83,8 +83,37 @@ The container image does not expose the port to all interfaces; the
 
 ## Phase 1 status
 
-The sidecar is NOT deployed in any environment yet. Only the Node bridge
-and the provider registry are wired in Phase 1 PR-B. The actual Telethon
-calls ship in PR-C together with the first sync handler. Auth endpoints
-return `501 Not Implemented` until then — intentional, so the surface
-is documented but non-functional.
+Phase 1 PR-C ships the real Telethon implementation for:
+
+- `POST /auth/start` — sends a Telegram login code to a phone number.
+- `POST /auth/verify` — completes login with the code. Returns
+  `409 { password_required: true }` if the account has 2FA; the
+  operator retries with the `password` field populated.
+- `POST /chats` — lists the account's groups / supergroups /
+  channels.
+- `POST /messages` — pulls messages from a chat in ascending order
+  using `min_id` as a cursor.
+
+`GET /media/{file_unique_id}` stays `501 Not Implemented` on
+purpose; the Phase 2 rules-only pipeline does not consume media, so
+wiring `client.download_media` without a consumer would just add
+attack surface. It will light up when the first consumer lands.
+
+## Operator workflow
+
+1. Register an app at <https://my.telegram.org/apps> with your
+   personal Telegram account. Copy `TELEGRAM_API_ID` + `TELEGRAM_API_HASH`
+   into the sidecar `.env` file.
+2. Set a strong `SIDECAR_SHARED_SECRET` and the matching
+   `TELEGRAM_SIDECAR_TOKEN` on the Node worker / web app side.
+3. Start the sidecar (`uvicorn` or Docker).
+4. In the admin UI, go to `/admin/ingestion/telegram`, enter a label
+   and phone number, hit "Enviar código". Telegram sends the code.
+5. Enter the code; if 2FA is enabled, also enter the Two-Step
+   Verification password. The connection flips to `ACTIVE` and the
+   session persists under `SIDECAR_SESSION_DIR`.
+6. Click "Listar chats…" and enable the groups you want to sync.
+7. "Sincronizar ahora" enqueues a `telegram.sync` job; the worker
+   picks it up and writes messages into `TelegramIngestionMessage`.
+   They appear in the review queue at `/admin/ingestion` once the
+   processing pipeline runs.

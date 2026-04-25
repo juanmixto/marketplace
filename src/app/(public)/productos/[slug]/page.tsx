@@ -101,16 +101,20 @@ export default async function ProductDetailPage({ params }: Props) {
   const localizedProduct = getLocalizedProductCopy(product, locale)
   const taxRate = Number(product.taxRate)
 
-  const related = await getProducts({
-    categorySlug: product.category?.slug,
-    limit: 4,
-  }).then(r => r.products.filter(p => p.id !== product.id).slice(0, 4))
-  const reviewSummary = await getProductReviews(product.id)
-  const activePromotions = await getActivePromotionsForProduct({
-    productId: product.id,
-    vendorId: product.vendor.id,
-    categoryId: product.categoryId ?? null,
-  })
+  // Three independent reads — fire in parallel to cut TTFB on the
+  // product page (SEO + CWV: each sequential hop is ~1 RTT).
+  const [related, reviewSummary, activePromotions] = await Promise.all([
+    getProducts({
+      categorySlug: product.category?.slug,
+      limit: 4,
+    }).then(r => r.products.filter(p => p.id !== product.id).slice(0, 4)),
+    getProductReviews(product.id),
+    getActivePromotionsForProduct({
+      productId: product.id,
+      vendorId: product.vendor.id,
+      categoryId: product.categoryId ?? null,
+    }),
+  ])
 
   // An "auto-applied" promo is one that a buyer gets without typing a
   // code and without needing to reach a minimum subtotal — i.e. it
@@ -163,6 +167,34 @@ export default async function ProductDetailPage({ params }: Props) {
       },
     ],
   }
+  // Only emit aggregateRating/review when there are real reviews.
+  // Google penalizes `aggregateRating` with 0 reviews and fakes values.
+  const ratingStructuredData =
+    reviewSummary.totalReviews > 0 && reviewSummary.averageRating !== null
+      ? {
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: reviewSummary.averageRating.toFixed(1),
+            reviewCount: reviewSummary.totalReviews,
+          },
+          review: reviewSummary.reviews.slice(0, 5).map(r => ({
+            '@type': 'Review',
+            reviewRating: {
+              '@type': 'Rating',
+              ratingValue: r.rating,
+              bestRating: 5,
+              worstRating: 1,
+            },
+            author: {
+              '@type': 'Person',
+              name: `${r.customer.firstName} ${r.customer.lastName.slice(0, 1)}.`,
+            },
+            ...(r.body ? { reviewBody: r.body } : {}),
+            datePublished: r.createdAt.toISOString(),
+          })),
+        }
+      : {}
+
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -185,6 +217,7 @@ export default async function ProductDetailPage({ params }: Props) {
         : 'https://schema.org/OutOfStock',
       itemCondition: 'https://schema.org/NewCondition',
     },
+    ...ratingStructuredData,
   }
 
   return (
