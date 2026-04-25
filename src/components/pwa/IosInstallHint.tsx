@@ -97,7 +97,7 @@ export default function IosInstallHint() {
           type="button"
           onClick={onDismiss}
           aria-label={t('pwa.ios.hint.dismiss')}
-          className="flex-none rounded-lg p-1 text-[var(--muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+          className="inline-flex min-h-11 min-w-11 flex-none items-center justify-center rounded-lg text-[var(--muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
         >
           <XMarkIcon className="h-5 w-5" />
         </button>
