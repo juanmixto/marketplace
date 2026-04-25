@@ -1,4 +1,3 @@
-import 'server-only'
 import { db } from '@/lib/db'
 import type { VendorStatus } from '@/generated/prisma/enums'
 import { requireAdmin } from '@/lib/auth-guard'
