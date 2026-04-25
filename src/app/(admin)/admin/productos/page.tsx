@@ -238,8 +238,8 @@ export default async function AdminProductsPage({ searchParams }: Props) {
         </CardBody>
       </Card>
 
-      <div className="overflow-x-auto rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
-        <table className="w-full table-auto border-collapse text-sm">
+      <div className="overflow-x-auto overscroll-x-contain touch-pan-x rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
+        <table className="w-full min-w-[840px] table-auto border-collapse text-sm">
           <thead>
             <tr className="border-b border-[var(--border)] text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
               <th className="px-5 py-3 text-left">Producto</th>

@@ -240,8 +240,8 @@ export default async function IngestionReviewQueuePage({ searchParams }: PagePro
         </CardHeader>
 
         <CardBody className="p-0">
-          <div>
-            <table className="w-full table-fixed text-sm">
+          <div className="overflow-x-auto overscroll-x-contain touch-pan-x">
+            <table className="w-full min-w-[880px] table-fixed text-sm">
               <colgroup>
                 <col />
                 <col className="w-[7rem]" />

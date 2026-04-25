@@ -95,6 +95,18 @@ test('admin tables contain horizontal overscroll and opt into touch-pan-x', () =
     'src/components/admin/AdminProducersClient.tsx',
     'src/components/admin/AdminSubscriptionsClient.tsx',
     'src/components/admin/analytics/OrdersTable.tsx',
+    // Page-level admin tables: each one has a min-w on the inner
+    // grid/table and an overflow-x-auto + touch-pan-x wrapper so
+    // mobile users get a contained scroll inside the card instead
+    // of the document growing wider than the viewport.
+    'src/app/(admin)/admin/comisiones/page.tsx',
+    'src/app/(admin)/admin/auditoria/page.tsx',
+    'src/app/(admin)/admin/envios/page.tsx',
+    'src/app/(admin)/admin/notificaciones/page.tsx',
+    'src/app/(admin)/admin/ingestion/page.tsx',
+    'src/app/(admin)/admin/ingestion/telegram/page.tsx',
+    'src/app/(admin)/admin/usuarios/page.tsx',
+    'src/app/(admin)/admin/productos/page.tsx',
   ]
   for (const file of files) {
     const source = read(file)

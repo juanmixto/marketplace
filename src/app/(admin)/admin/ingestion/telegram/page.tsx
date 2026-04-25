@@ -135,8 +135,8 @@ export default async function IngestionTelegramPage() {
           </p>
         </CardHeader>
         <CardBody className="p-0">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+          <div className="overflow-x-auto overscroll-x-contain touch-pan-x">
+            <table className="w-full min-w-[760px] text-sm">
               <thead className="bg-[var(--muted)]/40 text-left text-xs uppercase tracking-wider text-[var(--muted-foreground)]">
                 <tr>
                   <th className="px-4 py-3 font-medium">Chat</th>

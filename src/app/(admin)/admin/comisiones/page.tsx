@@ -120,7 +120,8 @@ export default async function AdminCommissionRulesPage() {
       </form>
 
       <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
-        <div className="grid grid-cols-[1fr_1fr_0.8fr_0.8fr_0.9fr_0.9fr_auto] gap-4 border-b border-[var(--border)] px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+       <div className="overflow-x-auto overscroll-x-contain touch-pan-x">
+        <div className="grid min-w-[820px] grid-cols-[1fr_1fr_0.8fr_0.8fr_0.9fr_0.9fr_auto] gap-4 border-b border-[var(--border)] px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
           <span>Ámbito</span>
           <span>Fallback</span>
           <span>Tipo</span>
@@ -137,7 +138,7 @@ export default async function AdminCommissionRulesPage() {
             const hasConflict = rule.isActive && activeConflictKeys.has(conflictKey)
 
             return (
-              <div key={rule.id} className="grid grid-cols-[1fr_1fr_0.8fr_0.8fr_0.9fr_0.9fr_auto] gap-4 px-5 py-4 text-sm items-start">
+              <div key={rule.id} className="grid min-w-[820px] grid-cols-[1fr_1fr_0.8fr_0.8fr_0.9fr_0.9fr_auto] gap-4 px-5 py-4 text-sm items-start">
                 <div>
                   <p className="font-medium text-[var(--foreground)]">{vendor?.displayName ?? category?.name ?? 'Global manual'}</p>
                   <p className="text-xs text-[var(--muted)]">
@@ -171,6 +172,7 @@ export default async function AdminCommissionRulesPage() {
             <p className="px-5 py-10 text-center text-sm text-[var(--muted)]">Todavía no hay reglas de comisión creadas.</p>
           )}
         </div>
+       </div>
       </div>
     </div>
   )

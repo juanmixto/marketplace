@@ -183,7 +183,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
         </CardHeader>
 
         <CardBody className="p-0">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overscroll-x-contain touch-pan-x">
             <table className="min-w-[920px] w-full table-fixed text-sm">
               <colgroup>
                 <col />
