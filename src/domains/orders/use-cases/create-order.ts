@@ -6,12 +6,12 @@ import { redirect } from 'next/navigation'
 import { generateOrderNumber } from '@/lib/utils'
 import { createPaymentIntent } from '@/domains/payments'
 import {
-  calculateOrderPricing,
   checkoutSchema,
   checkoutWithSavedAddressSchema,
   orderItemsSchema,
   type CheckoutFormData,
 } from '@/domains/orders/checkout'
+import { calculateOrderPricing } from '@/domains/pricing'
 import { orderAddressSnapshotSchema, orderLineSnapshotSchema } from '@/types/order'
 import { getServerEnv } from '@/lib/env'
 import { getAvailableProductWhere } from '@/domains/catalog'
