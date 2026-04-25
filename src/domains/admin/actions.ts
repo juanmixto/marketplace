@@ -9,16 +9,15 @@ import { requireAdmin, requireFinanceAdmin, requireOpsAdmin } from '@/lib/auth-g
 import { hasRole, ADMIN_ROLES as ADMIN_ROLE_LIST } from '@/lib/roles'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { assertVendorOnboarded } from '@/domains/vendors'
-import { sendToUser } from '@/domains/notifications/telegram/service'
-import { sendWebPushToUser } from '@/domains/notifications/web-push/service'
-import {
-  vendorApplicationApprovedTemplate,
-  vendorApplicationRejectedTemplate,
-} from '@/domains/notifications/telegram/templates'
-import {
-  vendorApplicationApprovedPush,
-  vendorApplicationRejectedPush,
-} from '@/domains/notifications/web-push/templates'
+
+/**
+ * Dynamic import to avoid closing a notifications → admin cycle at module
+ * load. Handlers are fire-and-forget via the dispatcher's queueMicrotask.
+ */
+async function emitNotification<E extends string>(event: E, payload: unknown): Promise<void> {
+  const mod = await import('@/domains/notifications/dispatcher')
+  ;(mod.emit as (e: E, p: unknown) => void)(event, payload)
+}
 
 function getVendorAuditSnapshot(vendor: {
   id: string
@@ -97,52 +96,15 @@ async function notifyVendorApplicationDecision(
   },
   decision: 'approved' | 'rejected',
 ): Promise<void> {
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: { firstName: true },
-  })
-  const firstName = user?.firstName ?? undefined
-
-  const telegramPayload =
+  const event =
     decision === 'approved'
-      ? vendorApplicationApprovedTemplate(
-          { userId, vendorId: vendor.id, displayName: vendor.displayName, vendorSlug: vendor.slug },
-          { firstName },
-        )
-      : vendorApplicationRejectedTemplate(
-          { userId, vendorId: vendor.id, displayName: vendor.displayName },
-          { firstName },
-        )
-
-  const webPushPayload =
+      ? 'vendor.application.approved'
+      : 'vendor.application.rejected'
+  const payload =
     decision === 'approved'
-      ? vendorApplicationApprovedPush(
-          { userId, vendorId: vendor.id, displayName: vendor.displayName, vendorSlug: vendor.slug },
-          { firstName },
-        )
-      : vendorApplicationRejectedPush(
-          { userId, vendorId: vendor.id, displayName: vendor.displayName },
-          { firstName },
-        )
-
-  await Promise.allSettled([
-    sendToUser(
-      userId,
-      decision === 'approved'
-        ? 'BUYER_VENDOR_APPLICATION_APPROVED'
-        : 'BUYER_VENDOR_APPLICATION_REJECTED',
-      telegramPayload,
-      { payloadRef: `vendor:${vendor.id}` },
-    ),
-    sendWebPushToUser(
-      userId,
-      decision === 'approved'
-        ? 'BUYER_VENDOR_APPLICATION_APPROVED'
-        : 'BUYER_VENDOR_APPLICATION_REJECTED',
-      webPushPayload,
-      { payloadRef: `vendor:${vendor.id}` },
-    ),
-  ])
+      ? { userId, vendorId: vendor.id, displayName: vendor.displayName, vendorSlug: vendor.slug }
+      : { userId, vendorId: vendor.id, displayName: vendor.displayName }
+  await emitNotification(event, payload)
 }
 
 // ─── Vendor moderation ────────────────────────────────────────────────────────
