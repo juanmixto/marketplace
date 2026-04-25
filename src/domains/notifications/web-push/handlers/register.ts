@@ -7,6 +7,10 @@ import { onBuyerOrderStatus } from './on-buyer-order-status'
 import { onFavoriteBackInStock } from './on-favorite-restock'
 import { onFavoritePriceDrop } from './on-favorite-price-drop'
 import {
+  onVendorApplicationApproved,
+  onVendorApplicationRejected,
+} from './on-vendor-application'
+import {
   onOrderDelivered,
   onLabelFailed,
   onIncidentOpened,
@@ -44,6 +48,8 @@ export function registerWebPushHandlers(): void {
   on('order.status_changed', onBuyerOrderStatus)
   on('favorite.back_in_stock', onFavoriteBackInStock)
   on('favorite.price_drop', onFavoritePriceDrop)
+  on('vendor.application.approved', onVendorApplicationApproved)
+  on('vendor.application.rejected', onVendorApplicationRejected)
 
   g[GLOBAL_KEY] = true
 }

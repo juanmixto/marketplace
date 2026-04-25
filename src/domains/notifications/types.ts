@@ -16,6 +16,8 @@ export const notificationEventTypeSchema = z.enum([
   'BUYER_ORDER_STATUS',
   'BUYER_FAVORITE_RESTOCK',
   'BUYER_FAVORITE_PRICE_DROP',
+  'BUYER_VENDOR_APPLICATION_APPROVED',
+  'BUYER_VENDOR_APPLICATION_REJECTED',
 ])
 export type NotificationEventType = z.infer<typeof notificationEventTypeSchema>
 

@@ -13,6 +13,8 @@ import {
   orderStatusChangedPush,
   favoriteBackInStockPush,
   favoritePriceDropPush,
+  vendorApplicationApprovedPush,
+  vendorApplicationRejectedPush,
 } from '@/domains/notifications/web-push/templates'
 
 /**
@@ -309,8 +311,38 @@ test('all templates emit a tag that references the entity id so repeat pings col
     orderStatusChangedPush({ orderId: 'o1', customerUserId: 'u1', status: 'SHIPPED' }),
     favoriteBackInStockPush({ productId: 'p1', productName: 'x' }),
     favoritePriceDropPush({ productId: 'p1', productName: 'x', oldPriceCents: 2, newPriceCents: 1, currency: 'EUR' }),
+    vendorApplicationApprovedPush({ userId: 'u1', vendorId: 'v1', displayName: 'x', vendorSlug: 'slug' }),
+    vendorApplicationRejectedPush({ userId: 'u1', vendorId: 'v1', displayName: 'x' }),
   ]
   for (const msg of msgs) {
     assertShape(msg)
   }
+})
+
+test('vendorApplicationApprovedPush — greets applicant and deep-links to dashboard', () => {
+  const msg = vendorApplicationApprovedPush(
+    {
+      userId: 'usr_1',
+      vendorId: 'vnd_1',
+      displayName: 'Quesería Los Olmos',
+      vendorSlug: 'queseria-los-olmos',
+    },
+    { firstName: 'Ana' },
+  )
+  assertShape(msg)
+  assert.ok(msg.title.includes('Ana'))
+  assert.ok(msg.body.includes('Quesería Los Olmos'))
+  assert.ok(msg.url.endsWith('/vendor/dashboard'))
+})
+
+test('vendorApplicationRejectedPush — falls back to support link', () => {
+  const msg = vendorApplicationRejectedPush({
+    userId: 'usr_1',
+    vendorId: 'vnd_1',
+    displayName: 'Quesería Los Olmos',
+  })
+  assertShape(msg)
+  assert.ok(msg.title.includes('no se ha aprobado'))
+  assert.ok(msg.body.includes('Quesería Los Olmos'))
+  assert.ok(msg.url.endsWith('/contacto'))
 })

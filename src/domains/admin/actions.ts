@@ -87,6 +87,26 @@ function getSettlementAuditSnapshot(settlement: {
   }
 }
 
+async function notifyVendorApplicationDecision(
+  userId: string,
+  vendor: {
+    id: string
+    displayName: string
+    slug: string
+  },
+  decision: 'approved' | 'rejected',
+): Promise<void> {
+  const event =
+    decision === 'approved'
+      ? 'vendor.application.approved'
+      : 'vendor.application.rejected'
+  const payload =
+    decision === 'approved'
+      ? { userId, vendorId: vendor.id, displayName: vendor.displayName, vendorSlug: vendor.slug }
+      : { userId, vendorId: vendor.id, displayName: vendor.displayName }
+  await emitNotification(event, payload)
+}
+
 // ─── Vendor moderation ────────────────────────────────────────────────────────
 
 /**
@@ -145,12 +165,7 @@ export async function approveVendor(vendorId: string) {
   safeRevalidatePath('/admin/productores')
   safeRevalidatePath('/admin/auditoria')
 
-  void emitNotification('vendor.application.approved', {
-    userId: vendor.user.id,
-    vendorId: vendor.id,
-    displayName: vendor.displayName,
-    vendorSlug: vendor.slug,
-  })
+  await notifyVendorApplicationDecision(vendor.user.id, vendor, 'approved')
 }
 
 /**
@@ -190,11 +205,7 @@ export async function rejectVendor(vendorId: string) {
   safeRevalidatePath('/admin/productores')
   safeRevalidatePath('/admin/auditoria')
 
-  void emitNotification('vendor.application.rejected', {
-    userId: vendor.user.id,
-    vendorId: vendor.id,
-    displayName: vendor.displayName,
-  })
+  await notifyVendorApplicationDecision(vendor.user.id, vendor, 'rejected')
 }
 
 /**
