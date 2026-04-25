@@ -148,11 +148,34 @@ function handleNavigation(event) {
       } catch {
         const cache = await caches.open(OFFLINE_CACHE)
         const cached = await cache.match(OFFLINE_URL)
-        if (cached) return cached
+        if (cached) {
+          // #793 telemetry: surface to PostHog via the client bridge
+          // how often users actually hit the offline fallback. PII-safe
+          // — only the pathname is sent, never query/fragment.
+          notifyClients({
+            type: 'analytics',
+            event: 'offline_fallback_shown',
+            props: {
+              attemptedPath: new URL(event.request.url).pathname,
+              swVersion: SW_VERSION,
+            },
+          })
+          return cached
+        }
         throw new Error('offline and no cached shell available')
       }
     })()
   )
+}
+
+function notifyClients(message) {
+  // Fire-and-forget broadcast to all controlled tabs. The bridge component
+  // forwards `type: 'analytics'` messages to PostHog.
+  self.clients.matchAll({ type: 'window' }).then((clients) => {
+    for (const client of clients) {
+      client.postMessage(message)
+    }
+  })
 }
 
 function handleStaticAsset(event) {
@@ -373,6 +396,17 @@ self.addEventListener('sync', (event) => {
           continue
         }
 
+        // #793: classify entry by URL pathname so PostHog can break down
+        // bg-sync replays per scope without exposing the raw URL.
+        const replayScope = url.pathname.startsWith('/api/cart')
+          ? url.pathname.includes('remove')
+            ? 'cart_remove'
+            : 'cart_add'
+          : url.pathname.includes('favorite')
+            ? 'favorite_toggle'
+            : 'other'
+        const ageMs = now - entry.createdAt
+
         try {
           const response = await fetch(entry.url, {
             method: entry.method,
@@ -382,9 +416,21 @@ self.addEventListener('sync', (event) => {
 
           if (response.ok || response.status === 409) {
             store.delete(entry.id)
+            notifyClients({
+              type: 'analytics',
+              event: 'bg_sync_replay',
+              props: { scope: replayScope, outcome: 'success', ageMs },
+            })
+          } else {
+            notifyClients({
+              type: 'analytics',
+              event: 'bg_sync_replay',
+              props: { scope: replayScope, outcome: 'failure', ageMs },
+            })
           }
         } catch {
-          // Network still down — leave in queue.
+          // Network still down — leave in queue. No analytics event
+          // here because we'll retry; only emit on terminal outcomes.
         }
       }
 
