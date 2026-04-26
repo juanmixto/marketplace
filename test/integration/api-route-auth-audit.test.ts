@@ -86,6 +86,10 @@ const PUBLIC_API_ROUTES: ReadonlyArray<{ path: string; why: string }> = [
     path: 'src/app/api/version/route.ts',
     why: 'Public build identity (commit SHA + build time + branch) for the floating BuildBadge and the UpdateAvailableBanner polling client. Same surface area as the visible badge — no secrets, no PII.',
   },
+  {
+    path: 'src/app/api/cron/cleanup-idempotency/route.ts',
+    why: 'Vercel cron sweep of expired IdempotencyKey rows. Authenticates via x-vercel-cron header or Bearer CRON_SECRET, not a session. Returns 401 to all other callers.',
+  },
 ]
 
 const SESSION_KEYWORDS = [
