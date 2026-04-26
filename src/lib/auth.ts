@@ -144,11 +144,25 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           provider: account.provider,
           isNewUser: !existing,
         })
+        // Canonical rollout event (audit doc §6 / google-setup.md):
+        // success = matrix allowed + Auth.js will emit a session.
+        // The dashboard ratio = success / start.
+        logger.info('auth.social.success', {
+          provider: account.provider,
+          isNewUser: !existing,
+        })
         return true
       }
 
       if (decision.kind === 'deny') {
         logger.warn('auth.social.deny', {
+          provider: account.provider,
+          reason: decision.reason,
+        })
+        // Canonical rollout event — error = matrix denied (kill
+        // switch / provider account mismatch / etc). Mirrors the
+        // narrower `deny` so the dashboard counts every refusal.
+        logger.warn('auth.social.error', {
           provider: account.provider,
           reason: decision.reason,
         })
