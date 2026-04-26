@@ -169,20 +169,23 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       const cookieStore = await cookies()
       const cookiePrefix = isSecureAuthDeployment(process.env) ? '__Secure-' : ''
       const rawCallback = cookieStore.get(`${cookiePrefix}authjs.callback-url`)?.value
-      // Auth.js stores the cookie as an ABSOLUTE URL (after running
-      // it through callbacks.redirect — see
-      // @auth/core/lib/utils/callback-url.js). sanitizeCallbackUrl
-      // only accepts paths starting with '/', so we extract path +
-      // search before validating. Cross-origin URLs are dropped.
+      // Auth.js stores the cookie as an ABSOLUTE URL after running
+      // it through callbacks.redirect (see @auth/core/lib/utils/
+      // callback-url.js → createCallbackUrl). Our redirect callback
+      // (auth-config.ts) is the gate that wrote that value, so the
+      // origin and path are both already vetted. Extract path +
+      // search and re-sanitize as defense in depth.
+      //
+      // We deliberately do NOT verify the cookie's origin against
+      // process.env.AUTH_URL: applyNormalizedAuthHostEnv strips that
+      // var when AUTH_URL points at a dynamic dev URL (so LAN
+      // access works), which means the env-var lookup is unreliable
+      // inside the OAuth callback request — root cause of #873.
       let safeCallback: string | undefined
       if (rawCallback) {
         try {
           const parsed = new URL(rawCallback)
-          const baseHost = process.env.AUTH_URL ? new URL(process.env.AUTH_URL).host : null
-          if (baseHost && parsed.host === baseHost) {
-            const pathish = `${parsed.pathname}${parsed.search}`
-            safeCallback = sanitizeCallbackUrl(pathish)
-          }
+          safeCallback = sanitizeCallbackUrl(`${parsed.pathname}${parsed.search}`)
         } catch {
           // Cookie wasn't a URL — assume it's already a path.
           safeCallback = sanitizeCallbackUrl(rawCallback)

@@ -75,25 +75,15 @@ test.describe('auth social round-trip @smoke', () => {
 
     // Confirm password and submit. The action verifies the password,
     // writes the Account row, and emits a session via signIn(
-    // 'credentials'). The post-action redirect target currently
-    // lands on '/' rather than the original callbackUrl ('/cuenta')
-    // — known gap tracked in #873. This spec asserts the security-
-    // critical invariants: password gate works, Account row is
-    // created, and a session is emitted. The session is verified by
-    // navigating to /cuenta after the form submit and confirming
-    // the proxy lets us through.
+    // 'credentials') redirecting to the original callbackUrl
+    // captured from the authjs.callback-url cookie at the OAuth
+    // signIn callback (#873). User lands on /cuenta directly.
     await page.locator('input[name="password"]').fill(TEST_USERS.customer.password)
     await Promise.all([
-      page.waitForURL(
-        /\/(cuenta|carrito|checkout|productos|productores|admin|vendor|onboarding)?(?:[/?]|$)/,
-        { timeout: 30_000 }
-      ),
+      page.waitForURL(/\/cuenta(?:[/?]|$)/, { timeout: 30_000 }),
       page.getByRole('button', { name: /Confirmar y vincular/i }).click(),
     ])
 
-    // Session emitted: /cuenta is buyer-protected; reaching it
-    // without redirect means the session cookie is set.
-    await page.goto('/cuenta')
     await expect(page).toHaveURL(/\/cuenta(?:[/?]|$)/, { timeout: 10_000 })
   })
 
