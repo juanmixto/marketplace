@@ -196,3 +196,53 @@ Hoy (verificado):
 ## 9. Cierre del issue #849
 
 Cuando este doc esté en `main`, #849 se cierra. El siguiente bloqueo es #850 (OAuth base + signIn callback que implementa §4).
+
+---
+
+## 10. Lecciones aprendidas durante la ejecución (post-mortem)
+
+Añadidas tras Phase 1-2 hardening completado para que futuros agentes no tropiecen con las mismas piedras.
+
+### `process.env.AUTH_URL` no es de fiar dentro de request handlers
+
+`src/lib/auth-host.ts` → `applyNormalizedAuthHostEnv()` **borra** `process.env.AUTH_URL` cuando el valor apunta a una URL dev dinámica (LAN-access support para móvil/tablet testing). Esto rompió el fix inicial del callbackUrl de case D (#876), que dependía de `new URL(process.env.AUTH_URL).host` para validar same-origin del cookie value. En test/dev, `AUTH_URL` es `undefined` → el host check siempre falla.
+
+**Reglas**:
+- No usar `process.env.AUTH_URL` para validación dentro del request lifecycle. Para detección de Secure cookies usar `isSecureAuthDeployment` (que tolera el unset) o leer del request headers.
+- Para extraer path+search de URLs absolutas guardadas como cookies, fíate del `redirect` callback que las escribió: la cookie ya pasó por nuestro allow-list al guardarse. Re-sanitiza el path como defense-in-depth, no fuerces equality checks de host.
+
+### `console.info` no se ve en CI webserver capture
+
+Playwright captura **stderr** del `webServer`, no stdout. Nuestro `logger.info()` usa `console.info` → stdout → invisible en CI. `logger.warn()` y `logger.error()` van a stderr → sí visibles. Para debug de server actions en CI, usar `console.error('[scope-debug]', ...)` directamente — bypasses el logger filter y siempre se ve.
+
+Documentado tras descubrirlo durante #879 (debug PR). Los logs de `auth.social.allow / deny / link.required` (todos info) no se ven en CI webserver capture, lo que ralentizó el debug de #873 ~3 horas.
+
+### Server-side `signIn(<oauth>)` desde un server action no completa el flow OAuth
+
+Auth.js v5 `signIn()` server-side simula la POST a `/api/auth/signin/<provider>` internamente, captura la respuesta (Location + cookies), las propaga al cookieJar de la action y emite redirect a la authorize URL. Pero el browser, al seguir la redirect, no completa el round-trip cleanly cuando el provider es OAuth con state/PKCE checks: el state cookie del primer signin choca con la del segundo. **Para OAuth providers, no llamar `signIn(<oauth>)` desde una action server-side**. Para credentials sí funciona (single round-trip a /api/auth/callback/credentials).
+
+Concretamente en case D (#854-lite): tras password gate, NO usar `signIn(<provider>)`; usar `signIn('credentials', { email, password, redirectTo })` con el password recién verificado. El usuario obtiene sesión en una sola hop.
+
+### Next.js trata folders prefijados con `_` como private (no routables)
+
+Documentado en `node_modules/next/dist/docs/01-app/01-getting-started/02-project-structure.md`. Los paths `__test__/` y `_anything/` son ignorados por el router. Para rutas test-only que necesiten URL real, usar `/dev/<route>` (gateado por `isDevRoute()` + el proxy 404 en producción) o `/api/dev-<thing>` (self-gate via env flag + `NODE_ENV !== production`).
+
+### Auth.js v5 `pages.signIn` cambia el comportamiento de GET `/api/auth/signin/<provider>`
+
+Cuando `pages.signIn` está configurado (ej. `/login`), GET sobre `/api/auth/signin/<provider>` redirige a `/login` en vez de iniciar el flow OAuth. Por lo tanto, **redirigir el browser a `/api/auth/signin/<provider>` no funciona** — solo POST inicia el flow. Para OAuth desde el cliente, usar `signIn(<provider>)` de `next-auth/react` que hace el POST con CSRF.
+
+### Auto-merge cascade en stacked PRs colapsa el contenido
+
+Cuando varios PRs stacked tienen `--auto --squash` habilitado, GitHub puede mergearlos en cascada hacia las bases intermedias en orden distinto al de creación. El resultado: los HEAD branches absorben el contenido de los PRs siguientes antes de mergear a main, y los PRs intermedios marcan como MERGED contra una base que ya no existe en main.
+
+Síntoma concreto durante el MVP rollout: PRs #861-#863 quedaron MERGED contra `feat/oauth-base-850` (head de #860). Después #860 mergeó a main con todo el contenido consolidado (22 ficheros, no 8). En la práctica funciona — main acaba con todo — pero el grafo PR queda confuso. Si te toca diagnosticar, mira el final state de main, no el grafo de PRs.
+
+---
+
+## 11. Cierre Phase 2
+
+Estado al cierre (2026-04-26):
+- MVP en main: #850/#851/#854/#856/#855 cerrados.
+- E2E coverage: cases A/B/D + defense smoke = 4/4 verde en CI shard 3.
+- Apple (#852) y Phase 8 UX/perf (#857) deferred — sin trigger explícito todavía.
+- `feat-auth-google` cleanup (#864) programado D+30 (2026-05-26).
