@@ -2,6 +2,7 @@
 
 import bcrypt from 'bcryptjs'
 import { headers } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { checkRateLimit, getClientIP } from '@/lib/ratelimit'
@@ -147,14 +148,35 @@ export async function linkSocialAccountAction(
   // enhancement can collect the TOTP on the link page when the
   // need lands.
   const callback = payload.callbackUrl ? sanitizeCallbackUrl(payload.callbackUrl) ?? '/' : '/'
-  await signIn('credentials', {
-    email: payload.email,
-    password,
-    redirectTo: callback,
-  })
-  // Unreachable — `signIn` throws Next's redirect signal. The throw
-  // is the success signal Next propagates as a navigation.
-  return { ok: false, reason: 'generic' }
+  // DEBUG (#873): use redirect: false so we can log the URL Auth.js
+  // would have redirected to, then redirect explicitly. This isolates
+  // whether the cookies-on-response part is the problem vs the
+  // redirect-target derivation.
+  // eslint-disable-next-line no-console -- temporary debug for #873
+  console.log('[case-d-debug] payload.callbackUrl=', payload.callbackUrl, 'callback=', callback)
+  let signInUrl: string | undefined
+  try {
+    const result = await signIn(
+      'credentials',
+      {
+        email: payload.email,
+        password,
+        redirectTo: callback,
+        redirect: false,
+      } as Parameters<typeof signIn>[1]
+    )
+    signInUrl = typeof result === 'string' ? result : undefined
+  } catch (err) {
+    // eslint-disable-next-line no-console -- temporary debug for #873
+    console.log('[case-d-debug] signIn threw:', err instanceof Error ? err.message : String(err))
+    throw err
+  }
+  // eslint-disable-next-line no-console -- temporary debug for #873
+  console.log('[case-d-debug] signIn returned URL=', signInUrl)
+  if (!signInUrl) {
+    return { ok: false, reason: 'generic' }
+  }
+  redirect(signInUrl)
 }
 
 /**
