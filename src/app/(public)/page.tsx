@@ -140,7 +140,7 @@ export default async function HomePage() {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(52,211,153,0.15),transparent_60%)]" />
           <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
 
-          <div className="relative mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
+          <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-16 lg:px-8 lg:py-32">
             <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
               <div>
                 <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-700/50 bg-emerald-800/40 px-4 py-1.5 text-xs font-medium text-emerald-300 backdrop-blur-sm">
@@ -209,14 +209,14 @@ export default async function HomePage() {
 
         <section className="border-b border-[var(--border)] bg-[var(--surface)]">
           <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
-            <div className="grid grid-cols-3 gap-2 sm:gap-4">
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-4">
               {TRUST_ITEMS.map(({ icon: Icon, textKey }) => (
                 <div
                   key={textKey}
-                  className="flex items-center gap-1.5 text-[11px] leading-tight text-[var(--foreground-soft)] sm:gap-2.5 sm:text-sm"
+                  className="flex items-center gap-1 text-[10px] leading-tight text-[var(--foreground-soft)] sm:gap-2.5 sm:text-sm"
                 >
-                  <Icon className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400 sm:h-5 sm:w-5" />
-                  {t(textKey)}
+                  <Icon className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400 sm:h-5 sm:w-5" />
+                  <span className="min-w-0">{t(textKey)}</span>
                 </div>
               ))}
             </div>
