@@ -98,3 +98,95 @@ export async function listChatIngestionStats(
   }
   return out
 }
+
+// ─── Per-topic breakdown ────────────────────────────────────────────────────
+
+export interface ChatTopicStats {
+  /** Serialized BigInt — never null, callers use `MAIN_FEED_TOPIC_ID`
+   *  for the synthetic main-feed bucket so React keys stay stable. */
+  topicId: string
+  topicTitle: string
+  rawMessages: number
+  processed: number
+  pending: number
+  drafts: number
+}
+
+export const MAIN_FEED_TOPIC_ID = '__main__'
+export const MAIN_FEED_TOPIC_TITLE = 'Tema principal (sin topic)'
+
+interface TopicStatsRow {
+  chatId: string
+  topicId: string | null
+  topicTitle: string | null
+  rawMessages: number
+  processed: number
+  pending: number
+  drafts: number
+}
+
+/**
+ * Stats broken down per `(chatId, topicId)`. Messages with topicId
+ * NULL collapse into a synthetic "main feed" bucket keyed by
+ * `MAIN_FEED_TOPIC_ID` so the UI can render it as a row alongside
+ * the real topics.
+ *
+ * Returns a Map keyed by chatId → ordered list of topic stats. The
+ * order is "main feed first, then by raw count desc" so the noisy
+ * topic the operator is most likely to ignore (the main discussion
+ * feed of a forum) lives at the top and doesn't get lost.
+ */
+export async function listChatTopicStats(
+  chatIds: string[],
+): Promise<Map<string, ChatTopicStats[]>> {
+  if (chatIds.length === 0) return new Map()
+
+  const rows = await db.$queryRawUnsafe<TopicStatsRow[]>(
+    `
+    WITH msg AS (
+      SELECT id, "chatId", "topicId", "topicTitle"
+      FROM "TelegramIngestionMessage"
+      WHERE "chatId" = ANY($1::text[])
+    )
+    SELECT
+      m."chatId" AS "chatId",
+      m."topicId"::text AS "topicId",
+      MAX(m."topicTitle") AS "topicTitle",
+      COUNT(*)::int AS "rawMessages",
+      COUNT(DISTINCT e."messageId")::int AS "processed",
+      (COUNT(*) - COUNT(DISTINCT e."messageId"))::int AS "pending",
+      COUNT(DISTINCT d.id)::int AS "drafts"
+    FROM msg m
+    LEFT JOIN "IngestionExtractionResult" e ON e."messageId" = m.id
+    LEFT JOIN "IngestionProductDraft" d ON d."sourceMessageId" = m.id
+    GROUP BY m."chatId", m."topicId"
+    `,
+    chatIds,
+  )
+
+  const grouped = new Map<string, ChatTopicStats[]>()
+  for (const r of rows) {
+    const list = grouped.get(r.chatId) ?? []
+    const isMain = r.topicId === null
+    list.push({
+      topicId: isMain ? MAIN_FEED_TOPIC_ID : r.topicId!,
+      topicTitle: isMain
+        ? MAIN_FEED_TOPIC_TITLE
+        : (r.topicTitle ?? `Topic ${r.topicId}`),
+      rawMessages: r.rawMessages,
+      processed: r.processed,
+      pending: r.pending,
+      drafts: r.drafts,
+    })
+    grouped.set(r.chatId, list)
+  }
+  // Sort: main feed first, then biggest topics first.
+  for (const list of grouped.values()) {
+    list.sort((a, b) => {
+      if (a.topicId === MAIN_FEED_TOPIC_ID) return -1
+      if (b.topicId === MAIN_FEED_TOPIC_ID) return 1
+      return b.rawMessages - a.rawMessages
+    })
+  }
+  return grouped
+}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { TelegramSyncButton } from './TelegramSyncButton'
 import { TelegramReprocessButton } from './TelegramReprocessButton'
@@ -28,6 +28,15 @@ export interface ChatMeta {
   connection: { id: string; label: string; status: string }
 }
 
+export interface TopicStatsSnapshot {
+  topicId: string
+  topicTitle: string
+  rawMessages: number
+  processed: number
+  pending: number
+  drafts: number
+}
+
 export interface ChatStatsSnapshot {
   chatId: string
   rawMessages: number
@@ -35,6 +44,7 @@ export interface ChatStatsSnapshot {
   pending: number
   drafts: number
   lastSync: { status: string; startedAt: string; finishedAt: string | null } | null
+  topics?: TopicStatsSnapshot[]
 }
 
 interface Props {
@@ -54,9 +64,18 @@ const IDLE_BACKOFF_MS = 60_000
 
 export function TelegramChatsTableBody({ chats, initialStats }: Props) {
   const [stats, setStats] = useState<ChatStatsSnapshot[]>(initialStats)
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
   // Per-chat rolling sample of processed counts for ETA.
   const samplesRef = useRef<Map<string, VelocitySample[]>>(new Map())
   const lastChangeAtRef = useRef<number>(Date.now())
+
+  const toggleExpanded = (chatId: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(chatId)) next.delete(chatId)
+      else next.add(chatId)
+      return next
+    })
 
   useEffect(() => {
     let cancelled = false
@@ -146,82 +165,156 @@ export function TelegramChatsTableBody({ chats, initialStats }: Props) {
         const ls = s?.lastSync ?? null
         const eta = pending > 0 ? estimateEta(samplesRef.current.get(chat.id), pending) : null
         const extractionPct = processed > 0 ? (drafts / processed) * 100 : null
+        const topics = s?.topics ?? []
+        const hasTopicBreakdown = topics.length > 1
+        const isExpanded = expanded.has(chat.id)
         return (
-          <tr key={chat.id}>
-            <td className="px-4 py-3">
-              <p className="font-medium text-[var(--foreground)]">{chat.title}</p>
-              <p className="text-xs text-[var(--muted-foreground)]">
-                {chat.connection.label} · {chat.kind} ·{' '}
-                <span className="font-mono">{chat.tgChatId}</span>
-              </p>
-            </td>
-            <td className="px-4 py-3 text-right align-top tabular-nums">{raw}</td>
-            <td className="px-4 py-3 text-right align-top tabular-nums text-[var(--muted-foreground)]">
-              {processed}
-            </td>
-            <td className="px-4 py-3 text-right align-top tabular-nums">
-              {pending > 0 ? (
-                <span className="inline-flex flex-col items-end leading-tight">
-                  <span className="font-semibold text-amber-600 dark:text-amber-400">
-                    {pending}
-                  </span>
-                  {eta && (
-                    <span className="text-[10px] text-[var(--muted-foreground)]">
-                      ETA {eta}
-                    </span>
+          <Fragment key={chat.id}>
+            <tr>
+              <td className="px-4 py-3">
+                <div className="flex items-start gap-1.5">
+                  {hasTopicBreakdown ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(chat.id)}
+                      className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                      aria-label={isExpanded ? 'Colapsar topics' : 'Expandir topics'}
+                      aria-expanded={isExpanded}
+                    >
+                      {isExpanded ? '▾' : '▸'}
+                    </button>
+                  ) : (
+                    <span className="mt-0.5 inline-block h-4 w-4 shrink-0" aria-hidden />
                   )}
-                </span>
-              ) : (
-                <span className="text-[var(--muted-foreground)]">0</span>
-              )}
-            </td>
-            <td className="px-4 py-3 text-right align-top tabular-nums">
-              {drafts > 0 ? (
-                <span className="font-semibold text-[var(--foreground)]">{drafts}</span>
-              ) : (
-                <span className="text-[var(--muted-foreground)]">0</span>
-              )}
-            </td>
-            <td
-              className="px-4 py-3 text-right align-top tabular-nums text-xs text-[var(--muted-foreground)]"
-              title={
-                extractionPct !== null && extractionPct < 1
-                  ? 'Tasa baja es habitual en chats de discusión / foro. Phase 2 usa reglas conservadoras: solo extrae mensajes con un precio claramente formateado (p. ej. "5€/kg"). Un canal de ventas directas dará un % mucho más alto.'
-                  : extractionPct !== null
-                    ? 'Drafts extraídos sobre mensajes procesados.'
-                    : undefined
-              }
-            >
-              {extractionPct !== null ? formatPct(extractionPct) : '—'}
-            </td>
-            <td className="px-4 py-3 text-xs text-[var(--muted-foreground)]">
-              {ls ? (
-                <>
-                  <Badge
-                    variant={
-                      ls.status === 'OK'
-                        ? 'green'
-                        : ls.status === 'FAILED'
-                          ? 'red'
-                          : 'outline'
-                    }
+                  <div>
+                    <p className="font-medium text-[var(--foreground)]">{chat.title}</p>
+                    <p className="text-xs text-[var(--muted-foreground)]">
+                      {chat.connection.label} · {chat.kind}
+                      {hasTopicBreakdown && (
+                        <>
+                          {' · '}
+                          <span className="text-[var(--foreground)]">
+                            {topics.length} topics
+                          </span>
+                        </>
+                      )}
+                      {' · '}
+                      <span className="font-mono">{chat.tgChatId}</span>
+                    </p>
+                  </div>
+                </div>
+              </td>
+              <td className="px-4 py-3 text-right align-middle tabular-nums">{raw}</td>
+              <td className="px-4 py-3 text-right align-middle tabular-nums text-[var(--muted-foreground)]">
+                {processed}
+              </td>
+              <td className="px-4 py-3 text-right align-middle tabular-nums">
+                {pending > 0 ? (
+                  <span className="inline-flex flex-col items-end leading-tight">
+                    <span className="font-semibold text-amber-600 dark:text-amber-400">
+                      {pending}
+                    </span>
+                    {eta && (
+                      <span className="text-[10px] text-[var(--muted-foreground)]">
+                        ETA {eta}
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-[var(--muted-foreground)]">0</span>
+                )}
+              </td>
+              <td className="px-4 py-3 text-right align-middle tabular-nums">
+                {drafts > 0 ? (
+                  <span className="font-semibold text-[var(--foreground)]">{drafts}</span>
+                ) : (
+                  <span className="text-[var(--muted-foreground)]">0</span>
+                )}
+              </td>
+              <td
+                className="px-4 py-3 text-right align-middle tabular-nums text-xs text-[var(--muted-foreground)]"
+                title={
+                  extractionPct !== null && extractionPct < 1
+                    ? 'Tasa baja es habitual en chats de discusión / foro. Phase 2 usa reglas conservadoras: solo extrae mensajes con un precio claramente formateado (p. ej. "5€/kg"). Un canal de ventas directas dará un % mucho más alto.'
+                    : extractionPct !== null
+                      ? 'Drafts extraídos sobre mensajes procesados.'
+                      : undefined
+                }
+              >
+                {extractionPct !== null ? formatPct(extractionPct) : '—'}
+              </td>
+              <td className="px-4 py-3 align-middle text-xs text-[var(--muted-foreground)]">
+                {ls ? (
+                  <>
+                    <Badge
+                      variant={
+                        ls.status === 'OK'
+                          ? 'green'
+                          : ls.status === 'FAILED'
+                            ? 'red'
+                            : 'outline'
+                      }
+                    >
+                      {ls.status}
+                    </Badge>
+                    <span className="ml-2">{formatRelative(ls.startedAt)}</span>
+                  </>
+                ) : (
+                  'nunca'
+                )}
+              </td>
+              <td className="px-4 py-3 align-middle">
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {chat.isEnabled && <TelegramSyncButton chatId={chat.id} chatTitle={chat.title} />}
+                  {pending > 0 && <TelegramReprocessButton chatId={chat.id} pending={pending} />}
+                  {!chat.isEnabled && <Badge variant="red">DESHABILITADO</Badge>}
+                </div>
+              </td>
+            </tr>
+            {isExpanded &&
+              topics.map((topic) => {
+                const topicExtractionPct =
+                  topic.processed > 0 ? (topic.drafts / topic.processed) * 100 : null
+                return (
+                  <tr
+                    key={`${chat.id}:${topic.topicId}`}
+                    className="bg-[var(--muted)]/20"
                   >
-                    {ls.status}
-                  </Badge>
-                  <span className="ml-2">{formatRelative(ls.startedAt)}</span>
-                </>
-              ) : (
-                'nunca'
-              )}
-            </td>
-            <td className="px-4 py-3">
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                {chat.isEnabled && <TelegramSyncButton chatId={chat.id} chatTitle={chat.title} />}
-                {pending > 0 && <TelegramReprocessButton chatId={chat.id} pending={pending} />}
-                {!chat.isEnabled && <Badge variant="red">DESHABILITADO</Badge>}
-              </div>
-            </td>
-          </tr>
+                    <td className="px-4 py-2 pl-12">
+                      <p className="text-sm text-[var(--foreground)]">{topic.topicTitle}</p>
+                    </td>
+                    <td className="px-4 py-2 text-right align-middle tabular-nums text-sm">
+                      {topic.rawMessages}
+                    </td>
+                    <td className="px-4 py-2 text-right align-middle tabular-nums text-sm text-[var(--muted-foreground)]">
+                      {topic.processed}
+                    </td>
+                    <td className="px-4 py-2 text-right align-middle tabular-nums text-sm">
+                      {topic.pending > 0 ? (
+                        <span className="font-semibold text-amber-600 dark:text-amber-400">
+                          {topic.pending}
+                        </span>
+                      ) : (
+                        <span className="text-[var(--muted-foreground)]">0</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 text-right align-middle tabular-nums text-sm">
+                      {topic.drafts > 0 ? (
+                        <span className="font-semibold text-[var(--foreground)]">
+                          {topic.drafts}
+                        </span>
+                      ) : (
+                        <span className="text-[var(--muted-foreground)]">0</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 text-right align-middle tabular-nums text-xs text-[var(--muted-foreground)]">
+                      {topicExtractionPct !== null ? formatPct(topicExtractionPct) : '—'}
+                    </td>
+                    <td className="px-4 py-2" colSpan={2} />
+                  </tr>
+                )
+              })}
+          </Fragment>
         )
       })}
     </tbody>
