@@ -37,7 +37,7 @@ export async function setMockOAuthUser(page: Page, user: MockOAuthUser): Promise
  * test that mutates auth state so spec ordering doesn't matter.
  */
 export async function resetMockOAuthState(page: Page): Promise<void> {
-  await page.request.post('/api/__test__/oauth/cleanup')
+  await page.request.post('/api/dev-oauth/cleanup')
 }
 
 /**
@@ -50,7 +50,7 @@ export async function startMockOAuth(
   callbackUrl: string,
   expectedUrlPattern: RegExp
 ): Promise<void> {
-  await page.goto(`/__test__/oauth-trigger?callbackUrl=${encodeURIComponent(callbackUrl)}`)
+  await page.goto(`/dev/oauth-trigger?callbackUrl=${encodeURIComponent(callbackUrl)}`)
   await Promise.all([
     page.waitForURL(expectedUrlPattern, { timeout: 30_000 }),
     page.getByTestId('mock-oauth-trigger').click(),

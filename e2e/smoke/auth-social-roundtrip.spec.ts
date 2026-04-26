@@ -67,7 +67,7 @@ test.describe('auth social round-trip @smoke', () => {
     })
 
     // First leg: signIn callback denies + redirects to /login/link.
-    await page.goto('/__test__/oauth-trigger?callbackUrl=' + encodeURIComponent('/cuenta'))
+    await page.goto('/dev/oauth-trigger?callbackUrl=' + encodeURIComponent('/cuenta'))
     await Promise.all([
       page.waitForURL(/\/login\/link\?token=/, { timeout: 30_000 }),
       page.getByTestId('mock-oauth-trigger').click(),
@@ -91,7 +91,7 @@ test.describe('auth social round-trip @smoke', () => {
     // doesn't pollute the DB silently. Hit the handler directly so we
     // can assert on the response status pattern.
     const resp = await page.request.get(
-      '/api/__test__/oauth/authorize?redirect_uri=' +
+      '/api/dev-oauth/authorize?redirect_uri=' +
         encodeURIComponent('http://localhost:3001/api/auth/callback/mock-oauth') +
         '&state=test'
     )
