@@ -169,6 +169,15 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       const cookieStore = await cookies()
       const cookiePrefix = isSecureAuthDeployment(process.env) ? '__Secure-' : ''
       const rawCallback = cookieStore.get(`${cookiePrefix}authjs.callback-url`)?.value
+      // eslint-disable-next-line no-console -- temporary debug for #873
+      console.error(
+        '[case-d-debug-signin] cookieName=',
+        `${cookiePrefix}authjs.callback-url`,
+        'rawCallback=',
+        rawCallback,
+        'allCookies=',
+        cookieStore.getAll().map(c => c.name).join(',')
+      )
       // Auth.js stores the cookie as an ABSOLUTE URL (after running
       // it through callbacks.redirect — see
       // @auth/core/lib/utils/callback-url.js). sanitizeCallbackUrl
