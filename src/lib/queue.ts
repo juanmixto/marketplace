@@ -107,13 +107,37 @@ export type JobHandler<TData = Record<string, unknown>> = (
   job: PgBoss.Job<TData>,
 ) => Promise<void>
 
+export interface RegisterHandlerOptions {
+  /**
+   * Number of jobs the worker pulls and executes in parallel. Default
+   * 1 keeps the conservative behaviour pg-boss had before v10. Raise
+   * for CPU-bound, idempotent handlers — e.g. the Phase 2 processor —
+   * to drain backlog faster. Avoid raising for handlers that talk to
+   * external rate-limited services (Telegram sync) without checking
+   * the rate limit budget first.
+   */
+  teamSize?: number
+  /**
+   * How often pg-boss polls `pgboss.job` for new work, in seconds.
+   * Lower = lower latency on the first job after a queue goes empty;
+   * higher = less idle DB load. Default 2 (pg-boss native default).
+   */
+  pollingIntervalSeconds?: number
+}
+
 export async function registerHandler<TData = Record<string, unknown>>(
   name: string,
   handler: JobHandler<TData>,
+  options: RegisterHandlerOptions = {},
 ): Promise<void> {
   const boss = await getQueue()
   await ensureQueue(boss, name)
-  await boss.work<TData>(name, async (job) => {
+  const workOpts: PgBoss.WorkOptions = {}
+  if (options.teamSize !== undefined) workOpts.teamSize = options.teamSize
+  if (options.pollingIntervalSeconds !== undefined) {
+    workOpts.pollingIntervalSeconds = options.pollingIntervalSeconds
+  }
+  await boss.work<TData>(name, workOpts, async (job) => {
     // pg-boss v10 delivers single-element batches by default; handle
     // both shapes so the API is stable across minor upgrades.
     const jobs = Array.isArray(job) ? job : [job]
@@ -121,7 +145,11 @@ export async function registerHandler<TData = Record<string, unknown>>(
       await handler(j)
     }
   })
-  logger.info('queue.handler_registered', { name })
+  logger.info('queue.handler_registered', {
+    name,
+    teamSize: options.teamSize ?? 1,
+    pollingIntervalSeconds: options.pollingIntervalSeconds ?? 2,
+  })
 }
 
 /**
