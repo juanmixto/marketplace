@@ -9,12 +9,13 @@
  * implement the authorize / token / userinfo endpoints. The flow:
  *
  *   1. Test sets `__mock_oauth_user` cookie (JSON: {email, name?, sub?}).
- *   2. Test navigates to `/api/auth/signin/mock-oauth?callbackUrl=...`.
- *   3. NextAuth → /api/__test__/oauth/authorize → reads the cookie,
+ *   2. Test clicks the trigger at /dev/oauth-trigger which calls
+ *      signIn('mock-oauth') (the production /login UI never exposes it).
+ *   3. NextAuth → /api/dev-oauth/authorize → reads the cookie,
  *      generates a code, redirects back to NextAuth's callback.
- *   4. NextAuth (server-side) → /api/__test__/oauth/token → exchanges
+ *   4. NextAuth (server-side) → /api/dev-oauth/token → exchanges
  *      code for an access_token (the code itself is the token).
- *   5. NextAuth → /api/__test__/oauth/userinfo with Bearer → returns
+ *   5. NextAuth → /api/dev-oauth/userinfo with Bearer → returns
  *      the user info from the cookie.
  *   6. NextAuth profile() runs → adapter.createUser/getUserByAccount
  *      → signIn callback applies the email-collision matrix.
@@ -53,11 +54,11 @@ export function mockOAuthProvider(): OAuthConfig<MockProfile> {
     clientId: 'mock-client',
     clientSecret: 'mock-secret',
     authorization: {
-      url: `${baseUrl}/api/__test__/oauth/authorize`,
+      url: `${baseUrl}/api/dev-oauth/authorize`,
       params: { scope: 'openid email profile' },
     },
-    token: `${baseUrl}/api/__test__/oauth/token`,
-    userinfo: `${baseUrl}/api/__test__/oauth/userinfo`,
+    token: `${baseUrl}/api/dev-oauth/token`,
+    userinfo: `${baseUrl}/api/dev-oauth/userinfo`,
     // Skip PKCE / state / nonce checks in test — Auth.js handles state
     // automatically and our mock endpoints don't depend on them.
     checks: ['state'],

@@ -17,6 +17,10 @@ interface Props {
 export const dynamic = 'force-dynamic'
 
 export default async function OAuthTriggerPage({ searchParams }: Props) {
+  // Defense in depth: src/proxy.ts 404s /dev/* in production via
+  // isDevRoute(). This inline check is the audit-mandated belt-and-
+  // suspenders gate (test/integration/dev-routes-audit.test.ts).
+  if (process.env.NODE_ENV === 'production') notFound()
   if (!isMockOAuthEnabled()) notFound()
   const { callbackUrl = '/' } = await searchParams
   return (
