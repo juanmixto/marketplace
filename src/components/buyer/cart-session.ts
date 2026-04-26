@@ -1,7 +1,7 @@
 'use client'
 
 import { signOut } from 'next-auth/react'
-import { useCartStore } from '@/domains/orders/cart-store'
+import { useCartStore } from '@/domains/cart/cart-store'
 
 export const CART_MERGED_FLAG_KEY = 'cart-merged-user'
 

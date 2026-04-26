@@ -21,7 +21,7 @@ import {
   setServerCartItem,
   type CartLineInput,
   type PersistedCartLine,
-} from '@/domains/orders/cart-persistence'
+} from './cart-persistence'
 import { getActionSession } from '@/lib/action-session'
 
 /** Empty-array on anonymous callers — a non-auth UI can render nothing. */
