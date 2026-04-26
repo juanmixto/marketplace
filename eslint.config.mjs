@@ -53,7 +53,8 @@ const DOMAINS = [
 // (the barrel is server-safe by construction). Consumers must keep
 // importing them by their full path.
 const ALLOWED_CLIENT_STORE_DEEP_IMPORTS = [
-  '@/domains/orders/cart-store',
+  '@/domains/cart/cart-store',
+  '@/domains/cart/cart-broadcast',
   '@/domains/catalog/favorites-store',
 ]
 
