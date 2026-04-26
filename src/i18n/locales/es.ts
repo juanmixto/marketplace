@@ -937,6 +937,10 @@ const es = {
   'vendor.webpush.permissionDenied': 'No has concedido permiso para notificaciones.',
   'vendor.webpush.enableError': 'No se pudo activar.',
   'vendor.webpush.disableError': 'No se pudo desactivar.',
+  'vendor.webpush.install': 'Instalar la app',
+  'vendor.webpush.installHint': 'Instala el portal como app para recibir notificaciones aunque no tengas el navegador abierto.',
+  'vendor.webpush.iosNeedsInstall': 'Instala la app en iPhone/iPad',
+  'vendor.webpush.iosInstallHint': 'En Safari, pulsa el botón Compartir y elige «Añadir a pantalla de inicio». Luego abre la app instalada y vuelve aquí para activar las notificaciones.',
 
   // Vendor – notification preferences
   'vendor.notifications.title': 'Notificaciones',
