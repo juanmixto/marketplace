@@ -270,7 +270,7 @@ export default async function ProductDetailPage({ params }: Props) {
             <FavoriteToggleButton
               productId={product.id}
               productName={localizedProduct.name}
-              compact
+              variant="compact"
               className="shrink-0 mt-1"
             />
           </div>

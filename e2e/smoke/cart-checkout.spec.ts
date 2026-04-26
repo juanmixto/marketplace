@@ -96,7 +96,10 @@ test.describe('cart and checkout @smoke', () => {
     }
 
     // Confirm button text includes the total price. Match on the verb.
-    const confirm = page.getByRole('button', { name: /confirmar pedido/i })
+    // The page renders a desktop submit AND a mobile sticky-bar submit
+    // (one is CSS-hidden depending on viewport); pick the first match —
+    // both submit the same form so either click is correct.
+    const confirm = page.getByRole('button', { name: /confirmar pedido/i }).first()
     await expect(confirm).toBeEnabled({ timeout: 5_000 })
     await Promise.all([
       page.waitForURL(/\/checkout\/confirmacion\?orderNumber=/, { timeout: 20_000 }),

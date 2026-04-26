@@ -266,11 +266,14 @@ test('buyer subscription action buttons clear the 44px floor', () => {
 })
 
 test('favoritos remove button is a 44px tap target', () => {
-  const source = read('src/app/(buyer)/cuenta/favoritos/FavoritosClient.tsx')
+  // The favorites grid renders the shared FavoriteToggleButton in overlay
+  // mode; that component owns the tap-target size for every heart-toggle
+  // surface (catalog grid, favorites grid, product detail).
+  const source = read('src/components/catalog/FavoriteToggleButton.tsx')
   assert.match(
     source,
-    /min-h-11 min-w-11/,
-    'favorites heart toggle must use min-h-11 min-w-11 so users can tap it on mobile',
+    /variant === 'overlay'[\s\S]*?min-h-11 min-w-11/,
+    'FavoriteToggleButton overlay variant must use min-h-11 min-w-11 so users can tap it on mobile',
   )
 })
 
