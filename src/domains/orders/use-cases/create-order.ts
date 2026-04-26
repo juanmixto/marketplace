@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { hashCartForDedupe } from '@/domains/orders/cart-dedupe'
+import { hashCartForDedupe } from '@/domains/cart'
 import { redirect } from 'next/navigation'
 import { generateOrderNumber } from '@/lib/utils'
 import { createPaymentIntent } from '@/domains/payments'
