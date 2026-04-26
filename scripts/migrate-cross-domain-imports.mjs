@@ -12,7 +12,8 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 
 const ALLOWED_DEEP_IMPORTS = new Set([
-  '@/domains/orders/cart-store',
+  '@/domains/cart/cart-store',
+  '@/domains/cart/cart-broadcast',
   '@/domains/catalog/favorites-store',
 ])
 

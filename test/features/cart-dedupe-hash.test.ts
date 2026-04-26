@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { hashCartForDedupe } from '@/domains/orders/cart-dedupe'
+import { hashCartForDedupe } from '@/domains/cart'
 
 test('hashCartForDedupe is stable for identical carts', () => {
   const items = [
