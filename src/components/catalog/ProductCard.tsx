@@ -6,6 +6,7 @@ import { formatPrice } from '@/lib/utils'
 import { AddToCartButton } from '@/components/catalog/AddToCartButton'
 import { FavoriteToggleButton } from '@/components/catalog/FavoriteToggleButton'
 import { AutoTranslatedBadge } from '@/components/catalog/AutoTranslatedBadge'
+import { OutOfStockOverlay } from '@/components/catalog/OutOfStockOverlay'
 import { StarRating } from '@/components/reviews/StarRating'
 import {
   getAvailableStockForPurchase,
@@ -122,13 +123,7 @@ export function ProductCard({ product, locale = 'es' }: ProductCardProps) {
             </span>
           )}
 
-          {isOutOfStock && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/55 backdrop-blur-[2px]">
-              <span className="rounded-full border border-white/20 bg-white/95 px-3 py-1 text-xs font-semibold text-gray-700 shadow dark:border-white/10 dark:bg-black/80 dark:text-gray-200">
-                {copy.actions.outOfStock}
-              </span>
-            </div>
-          )}
+          {isOutOfStock && <OutOfStockOverlay label={copy.actions.outOfStock} />}
 
           <div className="absolute right-2 top-2 z-10">
             <FavoriteToggleButton

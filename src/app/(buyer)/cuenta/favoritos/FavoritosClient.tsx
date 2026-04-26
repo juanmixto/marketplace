@@ -8,6 +8,7 @@ import { ShoppingCartIcon } from '@heroicons/react/24/outline'
 import { useT } from '@/i18n'
 import { useCartStore } from '@/domains/cart/cart-store'
 import { useFavoritesStore } from '@/domains/catalog/favorites-store'
+import { OutOfStockOverlay } from '@/components/catalog/OutOfStockOverlay'
 import type { FavoriteProductItem } from '@/lib/favorites-serialization'
 import { formatPrice } from '@/lib/utils'
 
@@ -107,12 +108,15 @@ export function FavoritosClient({ initialFavorites }: { initialFavorites: Favori
                 <button
                   onClick={() => handleRemove(fav.product.id)}
                   disabled={removing === fav.product.id}
-                  className="absolute right-2 top-2 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full bg-[var(--surface)] p-2.5 shadow-md transition hover:bg-red-50 disabled:opacity-50 dark:bg-[var(--surface-raised)] dark:hover:bg-red-950/30"
+                  className="absolute right-2 top-2 z-10 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full bg-[var(--surface)] p-2.5 shadow-md transition hover:bg-red-50 disabled:opacity-50 dark:bg-[var(--surface-raised)] dark:hover:bg-red-950/30"
                   title={t('favorites.removeTitle')}
                   aria-label={t('favorites.removeTitle')}
                 >
                   <HeartIcon className="h-5 w-5 text-red-600 dark:text-red-400" />
                 </button>
+                {fav.product.stock <= 0 && (
+                  <OutOfStockOverlay label={t('favorites.outOfStock')} />
+                )}
               </div>
 
               {/* Details */}
@@ -135,12 +139,10 @@ export function FavoritosClient({ initialFavorites }: { initialFavorites: Favori
                   <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
                     {formatPrice(fav.product.basePrice)}
                   </span>
-                  {fav.product.stock > 0 ? (
+                  {fav.product.stock > 0 && (
                     <span className="text-xs text-[var(--muted)]">
                       ({fav.product.stock} {t('favorites.available')})
                     </span>
-                  ) : (
-                    <span className="text-xs text-red-600 dark:text-red-400">{t('favorites.outOfStock')}</span>
                   )}
                 </div>
 
