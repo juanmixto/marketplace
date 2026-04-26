@@ -98,6 +98,21 @@ export const authConfig: NextAuthConfig = {
       } catch {
         return baseUrl
       }
+      // The OAuth signIn callback (#850 matrix case D) returns
+      // `/login/link?token=<HMAC>` to hand off a colliding signin
+      // to the password gate (#854-lite). sanitizeCallbackUrl
+      // rejects anything starting with `/login` (loop guard for
+      // generic callback URLs) so we whitelist the link path
+      // explicitly here. The token itself is HMAC-validated by
+      // the page; passing through unsanitized is safe.
+      const pathOnly = candidate.split('?')[0]!.split('#')[0]!
+      if (pathOnly === '/login/link' || pathOnly.startsWith('/login/link/')) {
+        try {
+          return new URL(candidate, baseUrl).toString()
+        } catch {
+          return baseUrl
+        }
+      }
       const safe = sanitizeCallbackUrl(candidate)
       if (!safe) return baseUrl
       try {

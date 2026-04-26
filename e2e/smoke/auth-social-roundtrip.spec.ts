@@ -85,20 +85,19 @@ test.describe('auth social round-trip @smoke', () => {
     await expect(page).toHaveURL(/\/cuenta(?:[/?]|$)/, { timeout: 10_000 })
   })
 
-  test('mock authorize 400s when no user cookie is set', async ({ page }) => {
-    // Without the cookie, the authorize handler returns the default
-    // mock-anon profile, but we want to verify a misconfigured test
-    // doesn't pollute the DB silently. Hit the handler directly so we
-    // can assert on the response status pattern.
+  test('mock authorize redirects to the callback URL (smoke route exists)', async ({ page }) => {
+    // Hit the handler directly with maxRedirects: 0 so we capture
+    // the FIRST hop (the 302 from /api/dev-oauth/authorize) without
+    // following the chain into the real OAuth callback (which would
+    // emit a session and pollute test state). The Location header
+    // should point at NextAuth's callback for the mock provider.
     const resp = await page.request.get(
       '/api/dev-oauth/authorize?redirect_uri=' +
         encodeURIComponent('http://localhost:3001/api/auth/callback/mock-oauth') +
-        '&state=test'
+        '&state=test',
+      { maxRedirects: 0 }
     )
-    // The handler 302s with the default fallback user, NOT 400, by
-    // design (lets manual exploration work). What we want to verify
-    // is that this path does NOT 200/JSON — i.e. the route exists,
-    // is a redirect.
     expect([302, 307]).toContain(resp.status())
+    expect(resp.headers().location ?? '').toMatch(/\/api\/auth\/callback\/mock-oauth/)
   })
 })

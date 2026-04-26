@@ -44,6 +44,11 @@ test('redirect: /login itself is rejected (loop guard)', async () => {
   assert.equal(result, baseUrl)
 })
 
+test('redirect: /login/link?token=… is allowed (OAuth case D handoff)', async () => {
+  const result = await call('/login/link?token=abc.def')
+  assert.equal(result, `${baseUrl}/login/link?token=abc.def`)
+})
+
 test('redirect: malformed URL falls back to baseUrl', async () => {
   const result = await call('not-a-url')
   assert.equal(result, baseUrl)
