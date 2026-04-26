@@ -163,8 +163,31 @@ gh pr create --title "fix(cart): clamp overflow on long product names (#123)"
 
 ### Finishing a task
 
+**Default merge command** (uses GitHub auto-merge — enabled in this repo since 2026-04-26):
+
+```bash
+gh pr merge <number> --auto --squash --delete-branch
+```
+
+GitHub queues the PR and merges it the moment all required checks pass and the head is up-to-date with `main`. You can move on to the next task immediately — no need to babysit the rebase loop. If `main` advances and your branch falls behind, GitHub posts a comment on the PR; rebase and force-push when convenient.
+
+**Synchronous merge** (only when you need the result *right now*, e.g. unblocking a chain of stacked PRs):
+
 ```bash
 gh pr merge <number> --squash --delete-branch
+```
+
+Returns immediately on success/failure. Will fail if checks aren't done or the branch is outdated — fix and retry.
+
+**`--admin` is reserved for emergencies.** Bypassing branch protection is a real cost: the change ships without the same safety net every other PR pays for. Use only when:
+- The change is provably risk-free (docs-only, hot-fix revert, etc.)
+- You've already passed CI on a recent ancestor
+- High-concurrency rebase loops would otherwise burn an hour
+- You explicitly tell the user / co-maintainer afterwards
+
+After the merge:
+
+```bash
 git checkout main && git pull
 git branch -D fix/123-cart-overflow
 git fetch --prune
