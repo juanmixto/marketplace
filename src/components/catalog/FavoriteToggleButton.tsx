@@ -74,7 +74,7 @@ export function FavoriteToggleButton({
         aria-label={label}
         title={label}
         className={cn(
-          'flex h-8 w-8 items-center justify-center rounded-full bg-white/80 shadow-sm backdrop-blur-sm transition hover:bg-white dark:bg-black/50 dark:hover:bg-black/70',
+          'flex min-h-11 min-w-11 items-center justify-center rounded-full bg-white/80 shadow-sm backdrop-blur-sm transition hover:bg-white dark:bg-black/50 dark:hover:bg-black/70',
           isFavorited
             ? 'text-red-600 dark:text-red-400'
             : 'text-[var(--foreground-soft)] hover:text-red-500 dark:hover:text-red-400',
