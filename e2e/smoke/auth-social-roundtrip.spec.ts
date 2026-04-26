@@ -87,6 +87,38 @@ test.describe('auth social round-trip @smoke', () => {
     await expect(page).toHaveURL(/\/cuenta(?:[/?]|$)/, { timeout: 10_000 })
   })
 
+  test('admin OAuth → 2FA enroll detour (admin path)', async ({ page }) => {
+    // Admin (admin@marketplace.com) is seeded without TOTP enrolled.
+    // Mock-oauth with the admin email exercises matrix case D
+    // (credentials user) + the proxy's 2FA enroll gate when the
+    // original callbackUrl points at /admin. Path:
+    //   click → matrix denies → /login/link → password gate →
+    //   credentials signin (has2fa=false) → JWT issued →
+    //   proxy detours /admin/* to /admin/security/enroll.
+    await setMockOAuthUser(page, {
+      email: TEST_USERS.admin.email,
+      name: 'Admin Test',
+    })
+
+    await page.goto(
+      '/dev/oauth-trigger?callbackUrl=' + encodeURIComponent('/admin/dashboard')
+    )
+    await Promise.all([
+      page.waitForURL(/\/login\/link\?token=/, { timeout: 30_000 }),
+      page.getByTestId('mock-oauth-trigger').click(),
+    ])
+
+    await page.locator('input[name="password"]').fill(TEST_USERS.admin.password)
+    // After credentials signin, the proxy's enroll gate (#: admin
+    // 2FA) sees has2fa=false on the JWT and redirects /admin/* to
+    // /admin/security/enroll. The session is real (verified by
+    // reaching enroll, which is a protected path).
+    await Promise.all([
+      page.waitForURL(/\/admin\/security\/enroll(?:[/?]|$)/, { timeout: 30_000 }),
+      page.getByRole('button', { name: /Confirmar y vincular/i }).click(),
+    ])
+  })
+
   test('mock authorize redirects to the callback URL (smoke route exists)', async ({ page }) => {
     // Hit the handler directly with maxRedirects: 0 so we capture
     // the FIRST hop (the 302 from /api/dev-oauth/authorize) without
