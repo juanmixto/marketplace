@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useCartStore } from '@/domains/orders/cart-store'
+import { useCartStore } from '@/domains/cart/cart-store'
 import { useRouter } from 'next/navigation'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -23,6 +23,7 @@ import {
   type CheckoutFormInput,
   type SavedCheckoutAddress,
 } from '@/domains/orders/checkout'
+import { applyCartDiscounts } from '@/domains/pricing'
 import {
   SPAIN_PROVINCES,
 } from '@/domains/shipping/spain-provinces'
@@ -137,10 +138,10 @@ export function CheckoutPageClient({
   const [promoError, setPromoError] = useState<string | null>(null)
   const [promoPending, setPromoPending] = useState(false)
 
-  const subtotalDiscount = promoPreview?.subtotalDiscount ?? 0
-  const shippingDiscount = promoPreview?.shippingDiscount ?? 0
-  const shipping = Math.max(0, baseShipping - shippingDiscount)
-  const total = Math.max(0, sub - subtotalDiscount + shipping)
+  const { subtotalDiscount, shippingDiscount, shipping, total } = applyCartDiscounts(sub, baseShipping, {
+    subtotalDiscount: promoPreview?.subtotalDiscount,
+    shippingDiscount: promoPreview?.shippingDiscount,
+  })
 
   useEffect(() => {
     let cancelled = false
@@ -290,7 +291,7 @@ export function CheckoutPageClient({
     // redirect below is the user-visible success path; a transient
     // failure just leaves a stale server cart that the next login
     // merge will reconcile.
-    void import('@/domains/orders/cart-actions')
+    void import('@/domains/cart/cart-actions')
       .then(mod => mod.clearMyServerCart())
       .catch(() => {})
     router.replace(`/checkout/confirmacion?orderNumber=${encodeURIComponent(completedOrderNumber)}`)

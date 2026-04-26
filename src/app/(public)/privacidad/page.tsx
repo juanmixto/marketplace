@@ -2,8 +2,10 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { LegalPage } from '@/components/legal/LegalPage'
 import { getLegalPageCopy } from '@/i18n/legal-page-copy'
-import { getServerLocale } from '@/i18n/server'
+import { getServerLocale, getServerT } from '@/i18n/server'
 import { buildPageMetadata } from '@/lib/seo'
+import { auth } from '@/lib/auth'
+import { GDPRActions } from '@/app/(buyer)/cuenta/GDPRActions'
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getServerLocale()
@@ -19,6 +21,8 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function PrivacyPage() {
   const locale = await getServerLocale()
   const copy = getLegalPageCopy(locale).privacy
+  const session = await auth()
+  const t = await getServerT()
 
   return (
     <main className="bg-surface text-foreground">
@@ -87,6 +91,14 @@ export default async function PrivacyPage() {
           ))}
         </ul>
         <p className="mt-4">{copy.sections.rights.footnote}</p>
+        {session && (
+          <div className="mt-6 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+            <p className="text-sm text-[var(--foreground-soft)]">{t('account.gdpr.desc')}</p>
+            <div className="mt-4">
+              <GDPRActions />
+            </div>
+          </div>
+        )}
       </section>
 
       <section>

@@ -50,10 +50,14 @@ test('SidebarProvider locks body scroll while the mobile drawer is open', () => 
   assert.match(source, /\[mobileOpen\]/, 'scroll-lock effect must depend on mobileOpen')
 })
 
-test('public Header locks body scroll while the mobile menu is open', () => {
+test('public Header locks scroll while the mobile menu is open', () => {
   const source = read('src/components/layout/Header.tsx')
-  const matches = source.match(/body\.style\.overflow\s*=\s*'hidden'/g) ?? []
-  assert.ok(matches.length >= 1, 'Header must lock body scroll when mobileOpen is true')
+  // Either body.style.overflow or html.style.overflow is acceptable; the
+  // <html>-based variant is preferred because it doesn't break the drawer's
+  // fixed-positioning containing block (see Header.tsx comment).
+  const matches =
+    source.match(/(?:body|html)\.style\.overflow\s*=\s*'hidden'/g) ?? []
+  assert.ok(matches.length >= 1, 'Header must lock scroll when mobileOpen is true')
 })
 
 test('Modal locks body scroll while it is open', () => {

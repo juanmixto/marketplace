@@ -2,15 +2,18 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
-  calculateOrderPricing,
-  calculateOrderTotals,
-  calculateOrderTotalsWithShippingCost,
   checkoutSchema,
-  getIncludedTaxAmount,
   getPreferredCheckoutAddress,
   orderItemsSchema,
   toCheckoutFormAddress,
 } from '@/domains/orders/checkout'
+import {
+  applyCartDiscounts,
+  calculateOrderPricing,
+  calculateOrderTotals,
+  calculateOrderTotalsWithShippingCost,
+  getIncludedTaxAmount,
+} from '@/domains/pricing'
 import { resolveMarketplaceSettings, toPublicMarketplaceSettings, calculateShippingCost, MARKETPLACE_SETTINGS_DEFAULTS } from '@/lib/marketplace-settings'
 import { calculateShippingCostFromTables, getProvinceFromPostalCode } from '@/domains/shipping/shared'
 
@@ -62,6 +65,53 @@ test('calculateOrderPricing returns subtotal and tax before shipping is added', 
   assert.deepEqual(pricing, {
     subtotal: 24,
     taxAmount: 1.97,
+  })
+})
+
+test('applyCartDiscounts composes subtotal, shipping discount and subtotal discount', () => {
+  const totals = applyCartDiscounts(40, 4.95, { subtotalDiscount: 5, shippingDiscount: 2 })
+
+  assert.deepEqual(totals, {
+    subtotal: 40,
+    subtotalDiscount: 5,
+    shippingDiscount: 2,
+    shipping: 2.95,
+    total: 37.95,
+  })
+})
+
+test('applyCartDiscounts clamps shipping at zero when shippingDiscount exceeds it', () => {
+  const totals = applyCartDiscounts(40, 4.95, { shippingDiscount: 999 })
+
+  assert.equal(totals.shipping, 0)
+  assert.equal(totals.total, 40)
+})
+
+test('applyCartDiscounts clamps total at zero when subtotalDiscount exceeds subtotal+shipping', () => {
+  const totals = applyCartDiscounts(10, 4.95, { subtotalDiscount: 999 })
+
+  assert.equal(totals.total, 0)
+  assert.equal(totals.shipping, 4.95)
+})
+
+test('applyCartDiscounts treats negative discounts as zero (defensive against bad promo previews)', () => {
+  const totals = applyCartDiscounts(40, 4.95, { subtotalDiscount: -10, shippingDiscount: -5 })
+
+  assert.equal(totals.subtotalDiscount, 0)
+  assert.equal(totals.shippingDiscount, 0)
+  assert.equal(totals.shipping, 4.95)
+  assert.equal(totals.total, 44.95)
+})
+
+test('applyCartDiscounts with no discounts returns the bare subtotal+shipping', () => {
+  const totals = applyCartDiscounts(40, 4.95)
+
+  assert.deepEqual(totals, {
+    subtotal: 40,
+    subtotalDiscount: 0,
+    shippingDiscount: 0,
+    shipping: 4.95,
+    total: 44.95,
   })
 })
 
