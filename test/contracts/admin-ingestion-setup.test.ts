@@ -33,6 +33,10 @@ test('telegram setup page keeps the operational flow compact and obvious', () =>
   assert.match(source, /Procesado/)
   assert.match(source, /Pendiente/)
   assert.match(source, /Drafts/)
+  // Extraction-rate column + explainer. Low % is normal in
+  // discussion-style chats; the explainer is what stops operators
+  // thinking the pipeline is broken when a forum chat yields ~0 %.
+  assert.match(source, /Extracción/)
 })
 
 test('telegram chats live tbody keeps the action surface and ETA', () => {
