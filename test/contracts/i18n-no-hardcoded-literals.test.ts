@@ -50,15 +50,12 @@ const ALLOWLIST_FILES: ReadonlySet<string> = new Set([
   // remove the entry from this set.
   //
   // Admin surfaces — internal-facing, not localized yet.
-  'src/app/(admin)/admin/analytics/page.tsx',
+  // Removed (now localized): analytics, configuracion, dashboard, informes.
   'src/app/(admin)/admin/auditoria/page.tsx',
   'src/app/(admin)/admin/comisiones/page.tsx',
-  'src/app/(admin)/admin/configuracion/page.tsx',
-  'src/app/(admin)/admin/dashboard/page.tsx',
   'src/app/(admin)/admin/envios/page.tsx',
   'src/app/(admin)/admin/incidencias/[id]/page.tsx',
   'src/app/(admin)/admin/incidencias/page.tsx',
-  'src/app/(admin)/admin/informes/page.tsx',
   'src/app/(admin)/admin/liquidaciones/page.tsx',
   'src/app/(admin)/admin/notificaciones/page.tsx', // Admin-only audit surface — not localized yet.
   'src/app/(admin)/admin/pedidos/page.tsx',
