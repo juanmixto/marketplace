@@ -2,52 +2,55 @@ import type { Metadata } from 'next'
 import { formatPrice } from '@/lib/utils'
 import { getAdminDailyRevenue, getAdminStats } from '@/domains/admin-stats/queries'
 import { AdminAnalyticsChartsLazy } from '@/components/admin/AdminAnalyticsChartsLazy'
+import { getServerT, getServerLocale } from '@/i18n/server'
 
 export const metadata: Metadata = { title: 'Analytics — Admin' }
 export const revalidate = 60
 
 export default async function AdminAnalyticsPage() {
   // Admin gate is enforced by src/app/(admin)/layout.tsx via requireAdmin().
-  const [stats, dailySeries] = await Promise.all([
+  const [stats, dailySeries, t, locale] = await Promise.all([
     getAdminStats(),
     getAdminDailyRevenue(30),
+    getServerT(),
+    getServerLocale(),
   ])
 
+  const numLocale = locale === 'en' ? 'en-US' : 'es-ES'
   const cards = [
     {
-      label: 'Usuarios totales',
-      value: stats.totalUsers.toLocaleString('es-ES'),
-      hint: `+${stats.newUsersLast30Days.toLocaleString('es-ES')} en 30 días`,
+      label: t('admin.analytics.kpi.totalUsers'),
+      value: stats.totalUsers.toLocaleString(numLocale),
+      hint: t('admin.analytics.kpi.plus30Days').replace('{count}', stats.newUsersLast30Days.toLocaleString(numLocale)),
     },
     {
-      label: 'Pedidos totales',
-      value: stats.totalOrders.toLocaleString('es-ES'),
-      hint: `${stats.ordersLast30Days.toLocaleString('es-ES')} en 30 días`,
+      label: t('admin.analytics.kpi.totalOrders'),
+      value: stats.totalOrders.toLocaleString(numLocale),
+      hint: t('admin.analytics.kpi.last30Days').replace('{count}', stats.ordersLast30Days.toLocaleString(numLocale)),
     },
     {
-      label: 'Ingresos totales',
+      label: t('admin.analytics.kpi.totalRevenue'),
       value: formatPrice(stats.totalRevenue),
-      hint: `${formatPrice(stats.revenueLast30Days)} en 30 días`,
+      hint: t('admin.analytics.kpi.last30Days').replace('{count}', formatPrice(stats.revenueLast30Days)),
     },
     {
-      label: 'Ticket medio',
+      label: t('admin.analytics.kpi.averageTicket'),
       value: formatPrice(stats.averageOrderValue),
-      hint: 'Promedio histórico',
+      hint: t('admin.analytics.kpi.historicAverage'),
     },
   ]
 
   return (
     <div className="space-y-6 max-w-6xl">
       <header>
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">Analytics</h1>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">{t('admin.analytics.title')}</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Métricas clave del marketplace en tiempo real. Este panel es complementario a PostHog
-          (no lo sustituye) y consulta directamente la base de datos.
+          {t('admin.analytics.subtitle')}
         </p>
       </header>
 
       <section
-        aria-label="KPIs"
+        aria-label={t('admin.analytics.kpisAriaLabel')}
         className="grid grid-cols-2 gap-4 sm:grid-cols-4"
       >
         {cards.map(card => (
@@ -67,10 +70,10 @@ export default async function AdminAnalyticsPage() {
       <AdminAnalyticsChartsLazy series={dailySeries} />
 
       <p className="text-xs text-[var(--muted)]">
-        Datos recalculados cada 60 segundos. APIs:{' '}
-        <code className="rounded bg-[var(--surface-raised)] px-1.5 py-0.5">/api/admin/stats</code>{' '}
-        y{' '}
-        <code className="rounded bg-[var(--surface-raised)] px-1.5 py-0.5">/api/admin/revenue</code>.
+        {t('admin.analytics.refreshNotice')}{' '}
+        <code className="rounded bg-[var(--surface-raised)] px-1.5 py-0.5">{'/api/admin/stats'}</code>{' '}
+        ·{' '}
+        <code className="rounded bg-[var(--surface-raised)] px-1.5 py-0.5">{'/api/admin/revenue'}</code>.
       </p>
     </div>
   )
