@@ -4,6 +4,30 @@ import {
   type NotificationEventName,
 } from './events'
 
+// Lazy server-only registration. Static imports of ensure-registered
+// would pull telegram/web-push handler chains (and their server-only
+// service code) into any client bundle that reaches this module via
+// the notifications barrel. Dynamic imports keep the dispatcher
+// client-safe while still bootstrapping handlers on the first emit
+// in any node process — covering Next.js server runtime AND the
+// node integration test runner that doesn't go through instrumentation.ts.
+let handlersBootstrapped = false
+async function ensureHandlersRegistered(): Promise<void> {
+  if (handlersBootstrapped) return
+  if (typeof window !== 'undefined') {
+    // Never bootstrap server-only handlers in the browser.
+    handlersBootstrapped = true
+    return
+  }
+  handlersBootstrapped = true
+  const [tg, wp] = await Promise.all([
+    import('./telegram/ensure-registered'),
+    import('./web-push/ensure-registered'),
+  ])
+  tg.ensureTelegramHandlersRegistered()
+  wp.ensureWebPushHandlersRegistered()
+}
+
 type Handler<E extends NotificationEventName> = (
   payload: NotificationEventMap[E],
 ) => Promise<void> | void
@@ -69,21 +93,26 @@ export function emit<E extends NotificationEventName>(
     return
   }
 
-  const { registry } = getState()
-  const handlers = Array.from(registry[event])
-
-  for (const handler of handlers) {
-    queueMicrotask(() => {
-      Promise.resolve()
-        .then(() => handler(parsed.data as NotificationEventMap[E]))
-        .catch(err => {
-          console.error('notifications.handler.failed', {
-            event,
-            error: err instanceof Error ? err.message : String(err),
+  // Register handlers lazily (dynamic import = no server-only chain
+  // in client bundles), then read the registry and fire. queueMicrotask
+  // already defers handler execution, so awaiting registration first
+  // adds no observable latency.
+  void ensureHandlersRegistered().then(() => {
+    const { registry } = getState()
+    const handlers = Array.from(registry[event])
+    for (const handler of handlers) {
+      queueMicrotask(() => {
+        Promise.resolve()
+          .then(() => handler(parsed.data as NotificationEventMap[E]))
+          .catch(err => {
+            console.error('notifications.handler.failed', {
+              event,
+              error: err instanceof Error ? err.message : String(err),
+            })
           })
-        })
-    })
-  }
+      })
+    }
+  })
 }
 
 export function clearHandlersForTest(): void {

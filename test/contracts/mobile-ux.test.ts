@@ -599,6 +599,27 @@ test('BuildBadge formats build time in Europe/Madrid, not UTC', () => {
   )
 })
 
+test('Recharts tooltips opt the wrapper into pointer events so touch devices can interact', () => {
+  // Recharts defaults the tooltip wrapper to `pointer-events: none`, which on
+  // touch devices traps the tooltip in a "stuck after tap" state. Setting
+  // wrapperStyle={{ pointerEvents: 'auto' }} lets the user dismiss it by
+  // tapping elsewhere on the chart.
+  const files = [
+    'src/components/admin/analytics/charts/RankedBarChart.tsx',
+    'src/components/admin/analytics/charts/CategoryPieChart.tsx',
+    'src/components/admin/analytics/charts/SalesEvolutionChart.tsx',
+    'src/components/admin/AdminAnalyticsCharts.tsx',
+  ]
+  for (const file of files) {
+    const source = read(file)
+    assert.match(
+      source,
+      /wrapperStyle=\{\{\s*pointerEvents:\s*'auto'\s*\}\}/,
+      `${file} must opt the Recharts <Tooltip> wrapper into pointerEvents: auto`,
+    )
+  }
+})
+
 test('html and body clip horizontal overflow so a stray wide child cannot scroll the page', () => {
   const css = read('src/app/globals.css')
   // `overflow-x: clip` on html+body is a defensive guard: any child that

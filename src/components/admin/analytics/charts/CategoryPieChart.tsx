@@ -28,6 +28,7 @@ export function CategoryPieChart({ data }: Props) {
             ))}
           </Pie>
           <Tooltip
+            wrapperStyle={{ pointerEvents: 'auto' }}
             contentStyle={{
               backgroundColor: 'var(--surface)',
               border: '1px solid var(--border)',
