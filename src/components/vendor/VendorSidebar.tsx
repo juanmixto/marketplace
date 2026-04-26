@@ -207,9 +207,9 @@ export function VendorSidebar({ vendor, user }: Props) {
           })}
         </nav>
 
-        {/* Mobile-only footer: "Ver tienda" link + settings (language +
-            theme), mirroring the public Header drawer pattern. */}
-        <div className="md:hidden border-t border-[var(--border)] p-2">
+        {/* Mobile-only footer: store + showcase quick-access + settings,
+            mirroring the public Header drawer pattern. */}
+        <div className="md:hidden border-t border-[var(--border)] p-2 space-y-0.5">
           <Link
             href="/"
             onClick={closeMobile}
@@ -218,6 +218,16 @@ export function VendorSidebar({ vendor, user }: Props) {
             <ArrowTopRightOnSquareIcon className="h-4 w-4 shrink-0" />
             {t('vendor.sidebar.viewStore')}
           </Link>
+          {vendor?.slug && (
+            <Link
+              href={`/productores/${vendor.slug}`}
+              onClick={closeMobile}
+              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
+            >
+              <ArrowTopRightOnSquareIcon className="h-4 w-4 shrink-0" />
+              {t('vendor.header.myShowcase')}
+            </Link>
+          )}
         </div>
         <div className="md:hidden border-t border-[var(--border)] px-3 py-3 space-y-2">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
