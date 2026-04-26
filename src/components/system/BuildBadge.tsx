@@ -20,7 +20,8 @@ export function BuildBadge() {
   const branch = process.env.NEXT_PUBLIC_GIT_BRANCH ?? null
 
   const shortTime = buildTime
-    ? new Date(buildTime).toLocaleString(undefined, {
+    ? new Date(buildTime).toLocaleString('es-ES', {
+        timeZone: 'Europe/Madrid',
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
@@ -33,13 +34,24 @@ export function BuildBadge() {
       type="button"
       onClick={() => setExpanded(v => !v)}
       aria-label={`Versión ${sha}${branch ? ` en ${branch}` : ''}`}
-      className="fixed bottom-2 right-2 z-50 select-none rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-mono leading-none text-white/75 shadow-sm backdrop-blur-sm transition hover:bg-black/75 hover:text-white focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+      className="fixed bottom-12 left-2 z-50 select-none rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-mono leading-none text-white/75 shadow-sm backdrop-blur-sm transition hover:bg-black/75 hover:text-white focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
     >
       {expanded ? (
         <span className="flex flex-col items-end gap-0.5 text-right">
           <span>{sha}</span>
           {branch && <span className="opacity-70">{branch}</span>}
-          {buildTime && <span className="opacity-70">{new Date(buildTime).toISOString().slice(0, 16).replace('T', ' ')}</span>}
+          {buildTime && (
+            <span className="opacity-70">
+              {new Date(buildTime).toLocaleString('es-ES', {
+                timeZone: 'Europe/Madrid',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </span>
+          )}
         </span>
       ) : (
         <span>
