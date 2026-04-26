@@ -2,12 +2,12 @@
 
 import { useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
-import { useCartStore, type CartItem } from '@/domains/orders/cart-store'
+import { useCartStore, type CartItem } from '@/domains/cart/cart-store'
 import {
   loadServerCart,
   mergeLocalIntoServerCart,
-} from '@/domains/orders/cart-actions'
-import { installCartBroadcast } from '@/domains/orders/cart-broadcast'
+} from '@/domains/cart'
+import { installCartBroadcast } from '@/domains/cart/cart-broadcast'
 import {
   getCartHydrationAction,
 } from './cart-hydration-plan'

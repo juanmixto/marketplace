@@ -6,7 +6,6 @@ import { ImpersonationBanner } from '@/components/vendor/ImpersonationBanner'
 import AppBadgeSync from '@/components/pwa/AppBadgeSync'
 import { db } from '@/lib/db'
 import { requireVendor } from '@/lib/auth-guard'
-import { getAvailablePortals } from '@/lib/portals'
 import { IMPERSONATION_COOKIE, verifyImpersonationToken } from '@/lib/impersonation'
 import { VendorWelcomeTour } from '@/components/vendor/VendorWelcomeTour'
 import { VendorFirstSaleCelebration } from '@/components/vendor/VendorFirstSaleCelebration'
@@ -29,7 +28,6 @@ export default async function VendorLayout({ children }: { children: React.React
 
   const impersonationCookie = cookieStore.get(IMPERSONATION_COOKIE)?.value
   const impersonation = verifyImpersonationToken(impersonationCookie)
-  const portals = getAvailablePortals(session.user.role)
 
   // Second parallel wave: fulfillment count depends on the vendor id, and
   // the impersonating admin's email depends on the verified impersonation
@@ -57,7 +55,7 @@ export default async function VendorLayout({ children }: { children: React.React
   return (
     <SidebarProvider>
       <div className="flex h-screen bg-[var(--background)]">
-        <VendorSidebar vendor={vendor} />
+        <VendorSidebar vendor={vendor} user={session.user} />
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           {impersonation && (
             <ImpersonationBanner
@@ -67,7 +65,7 @@ export default async function VendorLayout({ children }: { children: React.React
               readOnly={impersonation.readOnly}
             />
           )}
-          <VendorHeader user={session.user} vendor={vendor} portals={portals} />
+          <VendorHeader user={session.user} vendor={vendor} />
           <AppBadgeSync count={pendingFulfillments} />
           <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">{children}</main>
           {vendor && <VendorWelcomeTour vendorId={vendor.id} vendorName={vendor.displayName} />}
