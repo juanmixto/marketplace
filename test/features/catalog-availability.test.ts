@@ -16,6 +16,7 @@ test('getAvailableProductWhere excludes expired products from storefront queries
   assert.deepEqual(where, {
     status: 'ACTIVE',
     deletedAt: null,
+    archivedAt: null,
     // Phase 4 hardening: a Product only counts as "available" when
     // its owning Vendor is ACTIVE too. Prevents suspended vendors and
     // ingestion ghost vendors from leaking into the public catalog.

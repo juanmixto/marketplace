@@ -1058,6 +1058,7 @@ const en: Record<TranslationKeys, string> = {
   'vendor.productsList.filterPendingReview': 'Under review',
   'vendor.productsList.filterRejected': 'Rejected',
   'vendor.productsList.filterOutOfStock': 'Out of stock',
+  'vendor.productsList.filterArchived': 'Archived',
   'vendor.productsList.viewList': 'List view',
   'vendor.productsList.viewGrid': 'Grid view',
   'vendor.productsList.noResults': 'No products match the filters',
@@ -1374,6 +1375,14 @@ const en: Record<TranslationKeys, string> = {
   'vendor.productActions.deleteTitle': 'Delete product',
   'vendor.productActions.deleteConfirm': 'Delete {name}? This action cannot be undone.',
   'vendor.productActions.deleteError': 'Could not delete the product',
+  'vendor.productActions.archive': 'Archive',
+  'vendor.productActions.archiving': 'Archiving…',
+  'vendor.productActions.archiveError': 'Could not archive the product',
+  'vendor.productActions.restore': 'Restore',
+  'vendor.productActions.restoring': 'Restoring…',
+  'vendor.productActions.restoreError': 'Could not restore the product',
+  'vendor.productActions.archivedBadge': 'Archived',
+  'vendor.productActions.noImage': 'No image',
 
   // Vendor – perfil page
   'vendor.perfil.title': 'My profile',

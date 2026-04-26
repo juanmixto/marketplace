@@ -1057,6 +1057,7 @@ const es = {
   'vendor.productsList.filterPendingReview': 'En revisión',
   'vendor.productsList.filterRejected': 'Rechazados',
   'vendor.productsList.filterOutOfStock': 'Sin stock',
+  'vendor.productsList.filterArchived': 'Archivados',
   'vendor.productsList.viewList': 'Vista de lista',
   'vendor.productsList.viewGrid': 'Vista de mosaico',
   'vendor.productsList.noResults': 'Ningún producto coincide con los filtros',
@@ -1374,6 +1375,14 @@ const es = {
   'vendor.productActions.deleteTitle': 'Eliminar producto',
   'vendor.productActions.deleteConfirm': '¿Eliminar {name}? Esta acción no se puede deshacer.',
   'vendor.productActions.deleteError': 'No se pudo eliminar el producto',
+  'vendor.productActions.archive': 'Archivar',
+  'vendor.productActions.archiving': 'Archivando…',
+  'vendor.productActions.archiveError': 'No se pudo archivar el producto',
+  'vendor.productActions.restore': 'Restaurar',
+  'vendor.productActions.restoring': 'Restaurando…',
+  'vendor.productActions.restoreError': 'No se pudo restaurar el producto',
+  'vendor.productActions.archivedBadge': 'Archivado',
+  'vendor.productActions.noImage': 'Sin imagen',
 
   // Vendor – perfil page
   'vendor.perfil.title': 'Mi perfil',

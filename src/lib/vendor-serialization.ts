@@ -11,6 +11,7 @@ export type VendorCatalogItem = {
   basePrice: number
   unit: string
   expiresAt: Date | string | null
+  archivedAt: Date | string | null
   rejectionNote: string | null
   originRegion: string | null
   category: { name: string } | null
@@ -70,6 +71,7 @@ export function serializeVendorCatalogItem(product: MyProductsProduct): VendorCa
     basePrice: Number(product.basePrice),
     unit: product.unit,
     expiresAt: product.expiresAt,
+    archivedAt: product.archivedAt,
     rejectionNote: product.rejectionNote,
     originRegion: product.originRegion,
     category: product.category ? { name: product.category.name } : null,
