@@ -10,8 +10,7 @@ import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { TelegramAuthForm } from '@/components/admin/ingestion/TelegramAuthForm'
 import { TelegramChatPicker } from '@/components/admin/ingestion/TelegramChatPicker'
-import { TelegramSyncButton } from '@/components/admin/ingestion/TelegramSyncButton'
-import { TelegramReprocessButton } from '@/components/admin/ingestion/TelegramReprocessButton'
+import { TelegramChatsTableBody } from '@/components/admin/ingestion/TelegramChatsTableBody'
 import { listChatIngestionStats } from '@/domains/ingestion/telegram/queries'
 import { formatDate } from '@/lib/utils'
 
@@ -145,82 +144,37 @@ export default async function IngestionTelegramPage() {
                   <th className="px-4 py-3 font-medium text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--border)]">
-                {chats.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-[var(--muted-foreground)]">
-                      No hay chats registrados todavía. Lista los chats desde una
-                      conexión activa para empezar.
-                    </td>
-                  </tr>
-                )}
-                {chats.map((chat) => {
-                  const s = stats.get(chat.id)
-                  const raw = s?.rawMessages ?? 0
-                  const processed = s?.processed ?? 0
-                  const pending = s?.pending ?? 0
-                  const drafts = s?.drafts ?? 0
-                  const ls = s?.lastSync ?? null
-                  return (
-                    <tr key={chat.id}>
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-[var(--foreground)]">{chat.title}</p>
-                        <p className="text-xs text-[var(--muted-foreground)]">
-                          {chat.connection.label} · {chat.kind} ·{' '}
-                          <span className="font-mono">{chat.tgChatId.toString()}</span>
-                        </p>
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums">{raw}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-[var(--muted-foreground)]">
-                        {processed}
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums">
-                        {pending > 0 ? (
-                          <span className="font-semibold text-amber-600 dark:text-amber-400">
-                            {pending}
-                          </span>
-                        ) : (
-                          <span className="text-[var(--muted-foreground)]">0</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums">
-                        {drafts > 0 ? (
-                          <span className="font-semibold text-[var(--foreground)]">{drafts}</span>
-                        ) : (
-                          <span className="text-[var(--muted-foreground)]">0</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-[var(--muted-foreground)]">
-                        {ls ? (
-                          <>
-                            <Badge
-                              variant={ls.status === 'OK' ? 'green' : ls.status === 'FAILED' ? 'red' : 'outline'}
-                            >
-                              {ls.status}
-                            </Badge>
-                            <span className="ml-2">{formatDate(ls.startedAt)}</span>
-                          </>
-                        ) : (
-                          'nunca'
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap items-center justify-end gap-2">
-                          {chat.isEnabled && (
-                            <TelegramSyncButton chatId={chat.id} chatTitle={chat.title} />
-                          )}
-                          {pending > 0 && (
-                            <TelegramReprocessButton chatId={chat.id} pending={pending} />
-                          )}
-                          {!chat.isEnabled && (
-                            <Badge variant="red">DESHABILITADO</Badge>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )
+              <TelegramChatsTableBody
+                chats={chats.map((c) => ({
+                  id: c.id,
+                  title: c.title,
+                  kind: c.kind,
+                  tgChatId: c.tgChatId.toString(),
+                  isEnabled: c.isEnabled,
+                  connection: {
+                    id: c.connection.id,
+                    label: c.connection.label,
+                    status: c.connection.status,
+                  },
+                }))}
+                initialStats={chats.map((c) => {
+                  const s = stats.get(c.id)
+                  return {
+                    chatId: c.id,
+                    rawMessages: s?.rawMessages ?? 0,
+                    processed: s?.processed ?? 0,
+                    pending: s?.pending ?? 0,
+                    drafts: s?.drafts ?? 0,
+                    lastSync: s?.lastSync
+                      ? {
+                          status: s.lastSync.status,
+                          startedAt: s.lastSync.startedAt.toISOString(),
+                          finishedAt: s.lastSync.finishedAt?.toISOString() ?? null,
+                        }
+                      : null,
+                  }
                 })}
-              </tbody>
+              />
             </table>
           </div>
         </CardBody>
