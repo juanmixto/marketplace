@@ -2,6 +2,8 @@ import NextAuth from 'next-auth'
 import { PrismaAdapter } from '@auth/prisma-adapter'
 import type { Adapter } from 'next-auth/adapters'
 import Credentials from 'next-auth/providers/credentials'
+import Google from 'next-auth/providers/google'
+import type { Provider } from 'next-auth/providers'
 import { db } from '@/lib/db'
 import { authConfig } from './auth-config'
 import { applyNormalizedAuthHostEnv } from './auth-host'
@@ -178,7 +180,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       })
     },
   },
-  providers: [
+  providers: buildProviders(),
+})
+
+function buildProviders(): Provider[] {
+  const providers: Provider[] = [
     Credentials({
       credentials: {
         email: { label: 'Email', type: 'email' },
@@ -186,5 +192,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       authorize: authorizeCredentials,
     }),
-  ],
-})
+  ]
+
+  // Google is registered iff both env vars are set. Keeping the
+  // env-var presence as the boot-time gate (and `feat-auth-google`
+  // as the user-visible cohort gate) means a deploy that ships the
+  // code without secrets won't accidentally expose a broken button —
+  // the SocialButtons server component reads the same vars + flag.
+  // `allowDangerousEmailAccountLinking` stays false (default): the
+  // signIn callback (this file) decides linking via the matrix.
+  const googleId = process.env.AUTH_GOOGLE_ID
+  const googleSecret = process.env.AUTH_GOOGLE_SECRET
+  if (googleId && googleSecret) {
+    providers.push(
+      Google({
+        clientId: googleId,
+        clientSecret: googleSecret,
+        // openid scope is implicit; keep "email profile" minimal —
+        // we don't use Google APIs after login.
+        authorization: { params: { scope: 'openid email profile' } },
+      })
+    )
+  }
+
+  return providers
+}
+
+export const isGoogleProviderConfigured = (
+  env: Partial<NodeJS.ProcessEnv> = process.env
+): boolean => Boolean(env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET)
