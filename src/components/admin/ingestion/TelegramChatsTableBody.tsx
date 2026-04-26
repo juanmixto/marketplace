@@ -126,7 +126,7 @@ export function TelegramChatsTableBody({ chats, initialStats }: Props) {
     return (
       <tbody>
         <tr>
-          <td colSpan={7} className="px-4 py-10 text-center text-[var(--muted-foreground)]">
+          <td colSpan={8} className="px-4 py-10 text-center text-[var(--muted-foreground)]">
             No hay chats registrados todavía. Lista los chats desde una conexión
             activa para empezar.
           </td>
@@ -145,6 +145,7 @@ export function TelegramChatsTableBody({ chats, initialStats }: Props) {
         const drafts = s?.drafts ?? 0
         const ls = s?.lastSync ?? null
         const eta = pending > 0 ? estimateEta(samplesRef.current.get(chat.id), pending) : null
+        const extractionPct = processed > 0 ? (drafts / processed) * 100 : null
         return (
           <tr key={chat.id}>
             <td className="px-4 py-3">
@@ -154,13 +155,13 @@ export function TelegramChatsTableBody({ chats, initialStats }: Props) {
                 <span className="font-mono">{chat.tgChatId}</span>
               </p>
             </td>
-            <td className="px-4 py-3 text-right tabular-nums">{raw}</td>
-            <td className="px-4 py-3 text-right tabular-nums text-[var(--muted-foreground)]">
+            <td className="px-4 py-3 text-right align-top tabular-nums">{raw}</td>
+            <td className="px-4 py-3 text-right align-top tabular-nums text-[var(--muted-foreground)]">
               {processed}
             </td>
-            <td className="px-4 py-3 text-right tabular-nums">
+            <td className="px-4 py-3 text-right align-top tabular-nums">
               {pending > 0 ? (
-                <div className="flex flex-col items-end">
+                <span className="inline-flex flex-col items-end leading-tight">
                   <span className="font-semibold text-amber-600 dark:text-amber-400">
                     {pending}
                   </span>
@@ -169,17 +170,29 @@ export function TelegramChatsTableBody({ chats, initialStats }: Props) {
                       ETA {eta}
                     </span>
                   )}
-                </div>
+                </span>
               ) : (
                 <span className="text-[var(--muted-foreground)]">0</span>
               )}
             </td>
-            <td className="px-4 py-3 text-right tabular-nums">
+            <td className="px-4 py-3 text-right align-top tabular-nums">
               {drafts > 0 ? (
                 <span className="font-semibold text-[var(--foreground)]">{drafts}</span>
               ) : (
                 <span className="text-[var(--muted-foreground)]">0</span>
               )}
+            </td>
+            <td
+              className="px-4 py-3 text-right align-top tabular-nums text-xs text-[var(--muted-foreground)]"
+              title={
+                extractionPct !== null && extractionPct < 1
+                  ? 'Tasa baja es habitual en chats de discusión / foro. Phase 2 usa reglas conservadoras: solo extrae mensajes con un precio claramente formateado (p. ej. "5€/kg"). Un canal de ventas directas dará un % mucho más alto.'
+                  : extractionPct !== null
+                    ? 'Drafts extraídos sobre mensajes procesados.'
+                    : undefined
+              }
+            >
+              {extractionPct !== null ? formatPct(extractionPct) : '—'}
             </td>
             <td className="px-4 py-3 text-xs text-[var(--muted-foreground)]">
               {ls ? (
@@ -232,6 +245,13 @@ function estimateEta(samples: VelocitySample[] | undefined, pending: number): st
   const rate = dp / dt // jobs / second
   const seconds = pending / rate
   return formatDuration(seconds)
+}
+
+function formatPct(pct: number): string {
+  if (!Number.isFinite(pct) || pct <= 0) return '0%'
+  if (pct < 0.1) return '<0,1%'
+  if (pct < 10) return `${pct.toFixed(1).replace('.', ',')}%`
+  return `${Math.round(pct)}%`
 }
 
 function formatDuration(totalSeconds: number): string {

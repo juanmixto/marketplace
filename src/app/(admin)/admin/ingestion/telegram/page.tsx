@@ -122,12 +122,18 @@ export default async function IngestionTelegramPage() {
           <h2 className="text-sm font-semibold text-[var(--foreground)]">
             Chats sincronizables ({chats.length})
           </h2>
-          <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+          <p className="mt-1 max-w-3xl text-xs text-[var(--muted-foreground)]">
             <strong>Crudo</strong> son los mensajes ingestados de Telegram.
             <strong className="ml-1">Procesado</strong> son los que el clasificador
             ya ha analizado. <strong className="ml-1">Drafts</strong> son los
             productos extraídos que llegan a la cola de revisión. Los pendientes
-            son crudos sin procesar — pulsa <em>Reprocesar</em> si hay backlog.
+            son crudos sin procesar — pulsa <em>Reprocesar</em> si hay backlog.{' '}
+            <span className="block mt-1">
+              <strong>Extracción</strong> = drafts ÷ procesado. En un chat de
+              discusión es habitual ver &lt;1 % (Phase 2 solo extrae si hay
+              precio claramente formateado, p. ej. <span className="font-mono">5€/kg</span>).
+              Un canal de ventas dará un % mucho mayor.
+            </span>
           </p>
         </CardHeader>
         <CardBody className="p-0">
@@ -136,12 +142,18 @@ export default async function IngestionTelegramPage() {
               <thead className="bg-[var(--muted)]/40 text-left text-xs uppercase tracking-wider text-[var(--muted-foreground)]">
                 <tr>
                   <th className="px-4 py-3 font-medium">Chat</th>
-                  <th className="px-4 py-3 font-medium text-right">Crudo</th>
-                  <th className="px-4 py-3 font-medium text-right">Procesado</th>
-                  <th className="px-4 py-3 font-medium text-right">Pendiente</th>
-                  <th className="px-4 py-3 font-medium text-right">Drafts</th>
+                  <th className="w-[80px] px-4 py-3 text-right font-medium">Crudo</th>
+                  <th className="w-[100px] px-4 py-3 text-right font-medium">Procesado</th>
+                  <th className="w-[100px] px-4 py-3 text-right font-medium">Pendiente</th>
+                  <th className="w-[80px] px-4 py-3 text-right font-medium">Drafts</th>
+                  <th
+                    className="w-[90px] px-4 py-3 text-right font-medium"
+                    title="Drafts extraídos sobre mensajes procesados. Tasa baja es habitual en chats de discusión / foro."
+                  >
+                    Extracción
+                  </th>
                   <th className="px-4 py-3 font-medium">Última sync</th>
-                  <th className="px-4 py-3 font-medium text-right">Acciones</th>
+                  <th className="px-4 py-3 text-right font-medium">Acciones</th>
                 </tr>
               </thead>
               <TelegramChatsTableBody
