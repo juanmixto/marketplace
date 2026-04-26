@@ -938,6 +938,10 @@ const en: Record<TranslationKeys, string> = {
   'vendor.webpush.permissionDenied': 'You did not grant notification permission.',
   'vendor.webpush.enableError': 'Could not enable.',
   'vendor.webpush.disableError': 'Could not disable.',
+  'vendor.webpush.install': 'Install app',
+  'vendor.webpush.installHint': 'Install the portal as an app so you can get alerts even when the browser isn’t open.',
+  'vendor.webpush.iosNeedsInstall': 'Install the app on iPhone/iPad',
+  'vendor.webpush.iosInstallHint': 'In Safari, tap the Share button and choose “Add to Home Screen”. Then open the installed app and come back to enable notifications.',
 
   // Vendor – notification preferences
   'vendor.notifications.title': 'Notifications',

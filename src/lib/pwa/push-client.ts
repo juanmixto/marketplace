@@ -59,6 +59,13 @@ export async function requestPushSubscription(): Promise<PushSubscriptionKeys | 
 
 /**
  * Returns the current push subscription state without prompting the user.
+ *
+ * `navigator.serviceWorker.ready` only resolves once a SW has been
+ * registered. In dev (`next dev`) PwaRegister skips registration on
+ * purpose, and on iOS Safari the SW only registers after the user
+ * installs the PWA — in both cases `ready` would hang forever, so we
+ * race it against a short timeout and surface 'unsupported' instead of
+ * leaving the UI stuck on a spinner.
  */
 export async function getPushSubscriptionState(): Promise<
   'unsupported' | 'denied' | 'prompt' | 'subscribed' | 'unsubscribed'
@@ -70,7 +77,12 @@ export async function getPushSubscriptionState(): Promise<
   const permission = Notification.permission
   if (permission === 'denied') return 'denied'
 
-  const registration = await navigator.serviceWorker.ready
+  const registration = await Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<null>(resolve => setTimeout(() => resolve(null), 2500)),
+  ])
+  if (!registration) return 'unsupported'
+
   const existing = await registration.pushManager.getSubscription()
   if (existing) return 'subscribed'
 
