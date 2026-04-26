@@ -920,6 +920,7 @@ const en: Record<TranslationKeys, string> = {
   'vendor.telegram.connectHint': 'We will open the chat with @{bot}. Tap "Start" to finish linking.',
   'vendor.telegram.linkError': 'Could not generate the link.',
   'vendor.telegram.disconnectError': 'Could not disconnect.',
+  'vendor.telegram.waitingForLink': 'Waiting for confirmation from Telegram… you can return to this tab once you tap “Start”.',
 
   // Vendor – notification preferences
   'vendor.notifications.title': 'Notifications',
@@ -1621,6 +1622,7 @@ const en: Record<TranslationKeys, string> = {
   'account.telegram.disconnecting': 'Disconnecting…',
   'account.telegram.linkError': 'Could not generate the connection link.',
   'account.telegram.disconnectError': 'Could not disconnect.',
+  'account.telegram.waitingForLink': 'Waiting for confirmation from Telegram… you can return to this tab once you tap “Start”.',
   'account.telegram.sharedBotNotice': 'You are using the shared vendor bot for buyer alerts. If you want to split them, connect a dedicated buyer bot.',
   'account.telegram.connectOwnBot': 'Connect buyer bot',
 

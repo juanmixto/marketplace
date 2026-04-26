@@ -6,6 +6,7 @@ import { getActionSession } from '@/lib/action-session'
 import { safeRevalidatePath } from '@/lib/revalidate'
 import { getTelegramConfig } from './config'
 import { generateLinkToken } from './link-token'
+import { getTelegramLinkForUser, type TelegramLinkSummary } from './queries'
 
 async function requireSessionOrLogin() {
   const session = await getActionSession()
@@ -32,4 +33,9 @@ export async function disconnectTelegram(): Promise<void> {
   safeRevalidatePath('/vendor/ajustes/telegram')
   safeRevalidatePath('/vendor/ajustes/notificaciones')
   safeRevalidatePath('/cuenta/notificaciones')
+}
+
+export async function getMyTelegramLinkStatus(): Promise<TelegramLinkSummary> {
+  const session = await requireSessionOrLogin()
+  return getTelegramLinkForUser(session.user.id)
 }
