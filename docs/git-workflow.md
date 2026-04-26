@@ -76,6 +76,22 @@ Multiple Claude Code agents (or a human + agent) can be active in the same repo 
 
 This rule comes directly from the 2026-04-12 incident, where an agent overwrote a concurrent agent's WIP because it assumed the worktree was idle.
 
+### Structural enforcement (active 2026-04-26)
+
+A guard wrapper at `~/.local/bin/git` (laptop-local install, **not** committed to this repo) actively rejects HEAD-moving and working-tree-mutating subcommands inside `/home/whisper/marketplace` when invoked by a Claude Code agent. Detection is by the presence of the `CLAUDE_CODE_SESSION_ID` env var that the harness sets automatically; humans are never affected.
+
+| Behaviour | When it fires |
+|---|---|
+| **Block:** `checkout`, `switch`, `reset`, `restore`, `stash`, `merge`, `rebase`, `pull`, `cherry-pick`, `revert`, `am` | Agent + cwd inside `/home/whisper/marketplace` |
+| **Allow:** `fetch`, `worktree add/remove/list`, `log`, `status`, `diff`, `show`, `branch`, `remote`, etc. | Always |
+| **Bypass:** prefix with `CLAUDE_AGENT_BYPASS=1` for one invocation | Manual override (after explicit user confirmation) |
+
+When blocked, the wrapper prints a message pointing to this section and `AGENTS.md`, and exits with code 1.
+
+The wrapper's source lives at `~/.local/bin/git` on the laptop. Updating it requires editing that file directly — it is laptop tooling, not project tooling, because it depends on absolute paths (`/home/whisper/marketplace`) and the harness env var.
+
+History: motivated by an inventory pass on 2026-04-26 that found 21 long-lived stashes (oldest 13 days, 15 over the 24h limit) and 7 worktrees with stale uncommitted WIP, several self-labelled `wip-other-agent`. The previous mitigation (docs-only nudge in #833) was insufficient because it relied on every agent reading and obeying. The wrapper makes the rule structural rather than procedural.
+
 ### Concrete conventions
 
 **1 agent = 1 worktree.** Non-negotiable. The base checkout at `/home/whisper/marketplace` is for solo work; parallel agents must branch out.

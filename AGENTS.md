@@ -12,6 +12,18 @@ This repo is shared by several Claude Code agents at the same time. Skip this ch
 3. **`git status` in your worktree** — must be clean. If it shows uncommitted changes you didn't make, **stop and tell the user**; another agent left WIP and you must not stomp on it. Never `git stash` somebody else's working tree to "make room".
 4. **`scripts/agents-status.sh`** — single command that surveys all active worktrees, dirty WIP, stashes (flagging anything >24h per workflow rules), and listening dev servers. Read it once at session start to know what other agents have open before forking work that will conflict at merge time.
 
+### Structural enforcement (active 2026-04-26)
+
+A guard wrapper at `~/.local/bin/git` (installed on the laptop) actively blocks HEAD-moving and working-tree-mutating subcommands inside `/home/whisper/marketplace` when invoked by an agent (detected via `CLAUDE_CODE_SESSION_ID` env var):
+
+- **Blocked:** `checkout`, `switch`, `reset`, `restore`, `stash`, `merge`, `rebase`, `pull`, `cherry-pick`, `revert`, `am`
+- **Allowed:** `fetch`, `worktree add/remove/list`, `log`, `status`, `diff`, `show`, `branch -l`, `remote`, etc.
+- **Scope:** only the main repo path. Worktrees under `/home/whisper/worktrees/*` and any other repo are unaffected.
+- **Bypass:** if you genuinely need to override (emergency recovery, after explicit user confirmation), prefix one command with `CLAUDE_AGENT_BYPASS=1`.
+- **Humans:** never affected. The guard only fires when `CLAUDE_CODE_SESSION_ID` is in the environment.
+
+Wrapper source: `~/.local/bin/git`. The wrapper is part of the laptop setup, not committed to the repo.
+
 For the full policy and rationale see [`docs/git-workflow.md`](docs/git-workflow.md). For branch naming see the same doc § "Allowed branch prefixes". For deeper hygiene signals (gone branches, stale worktrees) run `scripts/git-hygiene.sh`.
 
 ## Conventions
