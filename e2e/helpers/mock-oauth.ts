@@ -44,15 +44,37 @@ export async function resetMockOAuthState(page: Page): Promise<void> {
  * Drives the mock-oauth flow end-to-end: navigate to the trigger
  * page, click, wait for the destination URL. Caller MUST call
  * `setMockOAuthUser` first.
+ *
+ * Brand-new OAuth users land on /onboarding before reaching the
+ * callbackUrl (proxy gate from #855). When `expectedUrlPattern`
+ * doesn't match /onboarding, this helper completes the consent
+ * form transparently so callers don't have to know about the
+ * detour. Existing users (case D — credentials with passwordHash
+ * set) skip the onboarding gate and land directly on callbackUrl.
  */
 export async function startMockOAuth(
   page: Page,
   callbackUrl: string,
   expectedUrlPattern: RegExp
 ): Promise<void> {
+  const onboardingPattern = /\/onboarding(?:[/?]|$)/
+  const expectsOnboarding = onboardingPattern.test(expectedUrlPattern.source)
   await page.goto(`/dev/oauth-trigger?callbackUrl=${encodeURIComponent(callbackUrl)}`)
   await Promise.all([
-    page.waitForURL(expectedUrlPattern, { timeout: 30_000 }),
+    page.waitForURL(expectsOnboarding ? expectedUrlPattern : /\/(onboarding|cuenta|admin|vendor|carrito|checkout|productos|productores)/, {
+      timeout: 30_000,
+    }),
     page.getByTestId('mock-oauth-trigger').click(),
   ])
+  if (expectsOnboarding) return
+  // If the proxy detoured us through /onboarding, accept the consent
+  // and continue to the original callbackUrl.
+  const url = new URL(page.url())
+  if (url.pathname === '/onboarding') {
+    await page.locator('input[name="consent"]').check()
+    await Promise.all([
+      page.waitForURL(expectedUrlPattern, { timeout: 30_000 }),
+      page.locator('button[type="submit"]').click(),
+    ])
+  }
 }
