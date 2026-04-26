@@ -7,6 +7,7 @@ import { getTelegramLinkForUser } from '@/domains/notifications/telegram/queries
 import { db } from '@/lib/db'
 import { NotificationPreferencesForm } from './NotificationPreferencesForm'
 import { TelegramConnectPanel } from './TelegramConnectPanel'
+import { WebPushConnectPanel } from './WebPushConnectPanel'
 
 export const metadata: Metadata = { title: 'Notificaciones' }
 
@@ -44,6 +45,14 @@ export default async function VendorNotificationsPage() {
           <p className="mt-0.5 text-sm text-[var(--muted)]">{t('vendor.telegram.subtitle')}</p>
         </div>
         <TelegramConnectPanel initialLink={link} botUsername={config.botUsername} />
+      </section>
+
+      <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
+        <div>
+          <h2 className="text-lg font-semibold text-[var(--foreground)]">{t('vendor.webpush.title')}</h2>
+          <p className="mt-0.5 text-sm text-[var(--muted)]">{t('vendor.webpush.subtitle')}</p>
+        </div>
+        <WebPushConnectPanel />
       </section>
 
       <section className="space-y-4">
