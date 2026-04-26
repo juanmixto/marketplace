@@ -11,7 +11,9 @@ import { Badge } from '@/components/ui/badge'
 import { TelegramAuthForm } from '@/components/admin/ingestion/TelegramAuthForm'
 import { TelegramChatPicker } from '@/components/admin/ingestion/TelegramChatPicker'
 import { TelegramSyncButton } from '@/components/admin/ingestion/TelegramSyncButton'
-import { cn, formatDate } from '@/lib/utils'
+import { TelegramReprocessButton } from '@/components/admin/ingestion/TelegramReprocessButton'
+import { listChatIngestionStats } from '@/domains/ingestion/telegram/queries'
+import { formatDate } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Ingestión · Telegram | Admin' }
 export const dynamic = 'force-dynamic'
@@ -46,6 +48,9 @@ export default async function IngestionTelegramPage() {
 
   const activeConnections = connections.filter((c) => c.status === 'ACTIVE')
   const pendingConnections = connections.filter((c) => c.status === 'PENDING')
+  const stats = await listChatIngestionStats(chats.map((c) => c.id))
+  const hasActiveConnection = activeConnections.length > 0
+  const hasPendingFlow = pendingConnections.length > 0
 
   return (
     <div className="space-y-6">
@@ -70,122 +75,151 @@ export default async function IngestionTelegramPage() {
       </div>
 
       <Card>
-        <CardHeader>
-          <h2 className="text-sm font-semibold text-[var(--foreground)]">
-            1 · Conectar cuenta de Telegram
-          </h2>
-          <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-            Primera vez: introduce el número de teléfono. Telegram mandará un
-            código por SMS o por la app. Si la cuenta tiene 2FA (contraseña
-            adicional), el sistema te la pedirá en un segundo paso.
-          </p>
-        </CardHeader>
-        <CardBody>
-          <TelegramAuthForm pendingConnections={pendingConnections} />
-        </CardBody>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <h2 className="text-sm font-semibold text-[var(--foreground)]">
-            2 · Conexiones activas ({activeConnections.length})
-          </h2>
-          <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-            Cada conexión representa una sesión de Telegram autenticada que
-            persiste entre reinicios del sidecar.
-          </p>
-        </CardHeader>
-        <CardBody className="p-0">
-          <div className="divide-y divide-[var(--border)]">
-            {activeConnections.length === 0 && (
-              <p className="px-5 py-6 text-center text-sm text-[var(--muted-foreground)]">
-                No hay conexiones activas todavía.
+        <details open={!hasActiveConnection || hasPendingFlow}>
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 hover:bg-[var(--muted)]/30">
+            <div>
+              <h2 className="text-sm font-semibold text-[var(--foreground)]">
+                Conectar cuenta de Telegram
+              </h2>
+              <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
+                {hasActiveConnection
+                  ? `${activeConnections.length} conexión(es) activa(s) — pulsa para añadir otra`
+                  : 'Introduce un teléfono y verifica con el código que recibas en Telegram.'}
               </p>
-            )}
-            {activeConnections.map((conn) => (
-              <div key={conn.id} className="flex items-center justify-between gap-4 px-5 py-4">
-                <div>
-                  <p className="text-sm font-semibold text-[var(--foreground)]">
-                    {conn.label}
-                  </p>
-                  <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
-                    Creada {formatDate(conn.createdAt)} · {conn._count.chats} chat(s)
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="green">ACTIVA</Badge>
-                  <TelegramChatPicker
-                    connectionId={conn.id}
-                    connectionLabel={conn.label}
-                  />
-                </div>
+            </div>
+            <span aria-hidden className="text-[var(--muted-foreground)]">▾</span>
+          </summary>
+          <div className="border-t border-[var(--border)] px-5 py-4">
+            <TelegramAuthForm pendingConnections={pendingConnections} />
+            {hasActiveConnection && (
+              <div className="mt-5 space-y-2 border-t border-[var(--border)] pt-4">
+                <p className="text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">
+                  Conexiones existentes
+                </p>
+                <ul className="divide-y divide-[var(--border)]">
+                  {activeConnections.map((conn) => (
+                    <li key={conn.id} className="flex items-center justify-between gap-4 py-2">
+                      <div>
+                        <p className="text-sm font-medium text-[var(--foreground)]">{conn.label}</p>
+                        <p className="text-xs text-[var(--muted-foreground)]">
+                          Creada {formatDate(conn.createdAt)} · {conn._count.chats} chat(s)
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="green">ACTIVA</Badge>
+                        <TelegramChatPicker connectionId={conn.id} connectionLabel={conn.label} />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               </div>
-            ))}
+            )}
           </div>
-        </CardBody>
+        </details>
       </Card>
 
       <Card>
         <CardHeader>
           <h2 className="text-sm font-semibold text-[var(--foreground)]">
-            3 · Chats sincronizables ({chats.length})
+            Chats sincronizables ({chats.length})
           </h2>
           <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-            Dispara una sincronización manual para traer los mensajes que no
-            estén ya en la DB. El sync avanza un cursor por chat; no re-ingesta
-            mensajes ya vistos.
+            <strong>Crudo</strong> son los mensajes ingestados de Telegram.
+            <strong className="ml-1">Procesado</strong> son los que el clasificador
+            ya ha analizado. <strong className="ml-1">Drafts</strong> son los
+            productos extraídos que llegan a la cola de revisión. Los pendientes
+            son crudos sin procesar — pulsa <em>Reprocesar</em> si hay backlog.
           </p>
         </CardHeader>
         <CardBody className="p-0">
           <div className="overflow-x-auto overscroll-x-contain touch-pan-x">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[900px] text-sm">
               <thead className="bg-[var(--muted)]/40 text-left text-xs uppercase tracking-wider text-[var(--muted-foreground)]">
                 <tr>
                   <th className="px-4 py-3 font-medium">Chat</th>
-                  <th className="px-4 py-3 font-medium">Conexión</th>
-                  <th className="px-4 py-3 font-medium">Kind</th>
-                  <th className="px-4 py-3 font-medium">Mensajes</th>
-                  <th className="px-4 py-3 font-medium">Estado</th>
-                  <th className="px-4 py-3 font-medium text-right">Acción</th>
+                  <th className="px-4 py-3 font-medium text-right">Crudo</th>
+                  <th className="px-4 py-3 font-medium text-right">Procesado</th>
+                  <th className="px-4 py-3 font-medium text-right">Pendiente</th>
+                  <th className="px-4 py-3 font-medium text-right">Drafts</th>
+                  <th className="px-4 py-3 font-medium">Última sync</th>
+                  <th className="px-4 py-3 font-medium text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
                 {chats.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-[var(--muted-foreground)]">
-                      No hay chats registrados todavía.
+                    <td colSpan={7} className="px-4 py-10 text-center text-[var(--muted-foreground)]">
+                      No hay chats registrados todavía. Lista los chats desde una
+                      conexión activa para empezar.
                     </td>
                   </tr>
                 )}
-                {chats.map((chat) => (
-                  <tr key={chat.id}>
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-[var(--foreground)]">{chat.title}</p>
-                      <p className="text-xs text-[var(--muted-foreground)]">
-                        tg: {chat.tgChatId.toString()}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-[var(--muted-foreground)]">
-                      {chat.connection.label}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge variant="outline">{chat.kind}</Badge>
-                    </td>
-                    <td className="px-4 py-3 text-[var(--muted-foreground)]">
-                      {chat._count.messages}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge variant={chat.isEnabled ? 'green' : 'red'}>
-                        {chat.isEnabled ? 'HABILITADO' : 'DESHABILITADO'}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {chat.isEnabled && (
-                        <TelegramSyncButton chatId={chat.id} chatTitle={chat.title} />
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {chats.map((chat) => {
+                  const s = stats.get(chat.id)
+                  const raw = s?.rawMessages ?? 0
+                  const processed = s?.processed ?? 0
+                  const pending = s?.pending ?? 0
+                  const drafts = s?.drafts ?? 0
+                  const ls = s?.lastSync ?? null
+                  return (
+                    <tr key={chat.id}>
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-[var(--foreground)]">{chat.title}</p>
+                        <p className="text-xs text-[var(--muted-foreground)]">
+                          {chat.connection.label} · {chat.kind} ·{' '}
+                          <span className="font-mono">{chat.tgChatId.toString()}</span>
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums">{raw}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-[var(--muted-foreground)]">
+                        {processed}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        {pending > 0 ? (
+                          <span className="font-semibold text-amber-600 dark:text-amber-400">
+                            {pending}
+                          </span>
+                        ) : (
+                          <span className="text-[var(--muted-foreground)]">0</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        {drafts > 0 ? (
+                          <span className="font-semibold text-[var(--foreground)]">{drafts}</span>
+                        ) : (
+                          <span className="text-[var(--muted-foreground)]">0</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-[var(--muted-foreground)]">
+                        {ls ? (
+                          <>
+                            <Badge
+                              variant={ls.status === 'OK' ? 'green' : ls.status === 'FAILED' ? 'red' : 'outline'}
+                            >
+                              {ls.status}
+                            </Badge>
+                            <span className="ml-2">{formatDate(ls.startedAt)}</span>
+                          </>
+                        ) : (
+                          'nunca'
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          {chat.isEnabled && (
+                            <TelegramSyncButton chatId={chat.id} chatTitle={chat.title} />
+                          )}
+                          {pending > 0 && (
+                            <TelegramReprocessButton chatId={chat.id} pending={pending} />
+                          )}
+                          {!chat.isEnabled && (
+                            <Badge variant="red">DESHABILITADO</Badge>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -194,6 +228,3 @@ export default async function IngestionTelegramPage() {
     </div>
   )
 }
-
-// Keep cn import from utils for possible future highlighting.
-void cn
