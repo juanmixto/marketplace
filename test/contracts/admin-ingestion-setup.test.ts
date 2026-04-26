@@ -19,8 +19,8 @@ test('telegram setup page keeps the operational flow compact and obvious', () =>
   const source = read('src/app/(admin)/admin/ingestion/telegram/page.tsx')
   assert.match(source, /TelegramAuthForm/)
   assert.match(source, /TelegramChatPicker/)
-  assert.match(source, /TelegramSyncButton/)
-  assert.match(source, /TelegramReprocessButton/)
+  // Live tbody owns the per-row sync/reprocess actions now.
+  assert.match(source, /TelegramChatsTableBody/)
   // The connect-account block collapses once a connection is active;
   // the chats table is the operator's primary surface and must stay.
   assert.match(source, /Conectar cuenta de Telegram/)
@@ -33,6 +33,16 @@ test('telegram setup page keeps the operational flow compact and obvious', () =>
   assert.match(source, /Procesado/)
   assert.match(source, /Pendiente/)
   assert.match(source, /Drafts/)
+})
+
+test('telegram chats live tbody keeps the action surface and ETA', () => {
+  const source = read('src/components/admin/ingestion/TelegramChatsTableBody.tsx')
+  assert.match(source, /TelegramSyncButton/)
+  assert.match(source, /TelegramReprocessButton/)
+  // Polling endpoint is the only live data source for stats.
+  assert.match(source, /\/api\/admin\/ingestion\/telegram\/stats/)
+  // ETA is computed from a rolling sample of `processed` counts.
+  assert.match(source, /estimateEta/)
 })
 
 test('telegram ingestion setup card explains the preflight checklist and current state', () => {
