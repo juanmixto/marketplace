@@ -29,6 +29,9 @@ import time
 from pathlib import Path
 from typing import Optional
 
+import base64
+from datetime import datetime, date
+
 from fastapi import FastAPI, Header, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -230,8 +233,31 @@ def _format_message(message: Message) -> dict:
         "text": message.message or None,
         "postedAt": message.date.isoformat() if message.date else None,
         "media": media_entries,
-        "raw": message.to_dict(),
+        # Telethon's to_dict() embeds datetime + raw bytes (file
+        # references, photo blobs) that the default json encoder
+        # cannot serialize. _json_safe normalizes recursively so the
+        # extractor still has the full provider payload available.
+        "raw": _json_safe(message.to_dict()),
     }
+
+
+def _json_safe(value):
+    """Recursively coerce Telethon payloads into JSON-safe primitives.
+
+    - datetime / date → ISO 8601 string
+    - bytes → base64 string (binary file references stay losslessly recoverable)
+    - dict / list / tuple → recurse
+    Anything else passes through; json.dumps will surface unknown types.
+    """
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, (bytes, bytearray)):
+        return base64.b64encode(bytes(value)).decode("ascii")
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    return value
 
 
 # ─── App ─────────────────────────────────────────────────────────────────────

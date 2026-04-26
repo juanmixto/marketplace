@@ -20,6 +20,21 @@ import { logger } from '@/lib/logger'
 
 let instance: PgBoss | null = null
 let startPromise: Promise<PgBoss> | null = null
+const ensuredQueues = new Set<string>()
+
+async function ensureQueue(boss: PgBoss, name: string): Promise<void> {
+  if (ensuredQueues.has(name)) return
+  // pg-boss v10 made queues an explicit registration: send()/work()
+  // silently no-op when the queue does not exist. createQueue is
+  // idempotent — it throws if the queue already exists, which we treat
+  // as success.
+  try {
+    await boss.createQueue(name)
+  } catch {
+    // already exists; fine
+  }
+  ensuredQueues.add(name)
+}
 
 async function createInstance(): Promise<PgBoss> {
   const { databaseUrl } = getServerEnv()
@@ -75,6 +90,7 @@ export async function enqueue<TData extends Record<string, unknown>>(
   opts: EnqueueOptions = {},
 ): Promise<string | null> {
   const boss = await getQueue()
+  await ensureQueue(boss, name)
   const options: PgBoss.SendOptions = {}
   if (opts.singletonKey) options.singletonKey = opts.singletonKey
   if (opts.retryLimit !== undefined) options.retryLimit = opts.retryLimit
@@ -96,6 +112,7 @@ export async function registerHandler<TData = Record<string, unknown>>(
   handler: JobHandler<TData>,
 ): Promise<void> {
   const boss = await getQueue()
+  await ensureQueue(boss, name)
   await boss.work<TData>(name, async (job) => {
     // pg-boss v10 delivers single-element batches by default; handle
     // both shapes so the API is stable across minor upgrades.
@@ -116,5 +133,6 @@ export async function stopQueue(): Promise<void> {
   await instance.stop({ graceful: true, timeout: 30_000 })
   instance = null
   startPromise = null
+  ensuredQueues.clear()
   logger.info('queue.stopped')
 }
