@@ -44,5 +44,5 @@ test('public layout no longer depends on auth() and stays cache-friendly', () =>
   const layout = readSource('../../src/app/(public)/layout.tsx')
 
   assert.doesNotMatch(layout, /auth\(\)/)
-  assert.match(layout, /<Header \/>/)
+  assert.match(layout, /<Header(\s|\/>)/)
 })

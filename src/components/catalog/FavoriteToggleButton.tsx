@@ -13,14 +13,21 @@ import { cn } from '@/lib/utils'
 interface Props {
   productId: string
   productName: string
-  compact?: boolean
+  /**
+   * Visual variant. `default` = inline pill ("Guardar / Guardado"),
+   * `compact` = small square icon button (account portal etc),
+   * `overlay` = circular icon button positioned over a product image
+   * (catalog cards, favorites grid). Use `overlay` whenever the
+   * button sits on top of an image so it contrasts against any photo.
+   */
+  variant?: 'default' | 'compact' | 'overlay'
   className?: string
 }
 
 export function FavoriteToggleButton({
   productId,
   productName,
-  compact = false,
+  variant = 'default',
   className,
 }: Props) {
   const { status } = useSession()
@@ -59,7 +66,31 @@ export function FavoriteToggleButton({
 
   const label = isFavorited ? t('favorites.saved') : t('favorites.save')
 
-  if (compact) {
+  if (variant === 'overlay') {
+    return (
+      <button
+        onClick={handleToggle}
+        disabled={toggling}
+        aria-label={label}
+        title={label}
+        className={cn(
+          'flex min-h-11 min-w-11 items-center justify-center rounded-full bg-white/80 shadow-sm backdrop-blur-sm transition hover:bg-white dark:bg-black/50 dark:hover:bg-black/70',
+          isFavorited
+            ? 'text-red-600 dark:text-red-400'
+            : 'text-[var(--foreground-soft)] hover:text-red-500 dark:hover:text-red-400',
+          toggling && 'opacity-50',
+          className,
+        )}
+      >
+        {isFavorited
+          ? <HeartSolid className="h-5 w-5" />
+          : <HeartOutline className="h-5 w-5" />
+        }
+      </button>
+    )
+  }
+
+  if (variant === 'compact') {
     return (
       <button
         onClick={handleToggle}

@@ -140,10 +140,10 @@ export default async function HomePage() {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(52,211,153,0.15),transparent_60%)]" />
           <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
 
-          <div className="relative mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
+          <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-16 lg:px-8 lg:py-32">
             <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
               <div>
-                <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-700/50 bg-emerald-800/40 px-4 py-1.5 text-xs font-medium text-emerald-300 backdrop-blur-sm">
+                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-700/50 bg-emerald-800/40 px-4 py-1.5 text-xs font-medium text-emerald-300 backdrop-blur-sm sm:mb-6">
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
                   {t('hero.badge')}
                 </div>
@@ -155,29 +155,29 @@ export default async function HomePage() {
                   </span>
                 </h1>
 
-                <p className="mt-5 text-lg leading-relaxed text-emerald-100/80">{t('hero.subtitle')}</p>
+                <p className="mt-3 text-lg leading-relaxed text-emerald-100/80 sm:mt-5">{t('hero.subtitle')}</p>
 
-                <div className="mt-8 flex flex-wrap gap-3">
+                <div className="mt-5 flex gap-3 sm:mt-8 sm:flex-wrap">
                   <Link
                     href="/productos"
-                    className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 font-semibold text-emerald-950 shadow-md transition-all hover:-translate-y-0.5 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-900"
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 font-semibold text-emerald-950 shadow-md transition-all hover:-translate-y-0.5 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-900 sm:flex-initial sm:px-6"
                   >
                     {t('hero.cta1')}
                     <ArrowRightIcon className="h-4 w-4" />
                   </Link>
                   <Link
                     href="/productores"
-                    className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-6 py-3 font-semibold text-white backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-900"
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-3 font-semibold text-white backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-900 sm:flex-initial sm:px-6"
                   >
                     {t('hero.cta2')}
                   </Link>
                 </div>
 
-                <div className="mt-10 grid grid-cols-1 gap-4 border-t border-white/10 pt-8 sm:grid-cols-3 sm:gap-6">
+                <div className="mt-6 grid grid-cols-1 gap-3 border-t border-white/10 pt-4 sm:mt-10 sm:grid-cols-3 sm:gap-6 sm:pt-8">
                   {heroStats.map(s => (
                     <div key={s.labelKey}>
-                      <p className="text-2xl font-bold text-white">{formatStat(s, locale, t)}</p>
-                      <p className="mt-0.5 text-sm text-emerald-300/80">{t(s.labelKey)}</p>
+                      <p className="text-lg font-bold text-white sm:text-2xl">{formatStat(s, locale, t)}</p>
+                      <p className="mt-0.5 text-[11px] leading-tight text-emerald-300/80 sm:text-sm">{t(s.labelKey)}</p>
                     </div>
                   ))}
                 </div>
@@ -208,22 +208,22 @@ export default async function HomePage() {
         </section>
 
         <section className="border-b border-[var(--border)] bg-[var(--surface)]">
-          <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-4">
               {TRUST_ITEMS.map(({ icon: Icon, textKey }) => (
                 <div
                   key={textKey}
-                  className="flex items-center gap-2.5 text-sm text-[var(--foreground-soft)]"
+                  className="flex items-center gap-1 text-[10px] leading-tight text-[var(--foreground-soft)] sm:gap-2.5 sm:text-sm"
                 >
-                  <Icon className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                  {t(textKey)}
+                  <Icon className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400 sm:h-5 sm:w-5" />
+                  <span className="min-w-0">{t(textKey)}</span>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
+        <section className="mx-auto max-w-7xl px-4 pb-12 pt-8 sm:px-6 sm:pt-10 lg:px-8">
           <div className="mb-6 flex items-end justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
@@ -240,10 +240,7 @@ export default async function HomePage() {
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {categories.map(cat => {
               const label = translateCategoryLabel(cat.slug, cat.name, locale)
-              const countLabel =
-                cat._count.products > 0
-                  ? `${cat._count.products} ${t('productsUnit')}`
-                  : t('comingSoon')
+              const countLabel = `${cat._count.products} ${t('productsUnit')}`
               return (
                 <Link
                   key={cat.slug}

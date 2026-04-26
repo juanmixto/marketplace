@@ -434,7 +434,7 @@ export function CheckoutPageClient({
   }
 
   return (
-      <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl px-4 py-10 pb-28 sm:px-6 sm:pb-10 lg:px-8">
       <div className="mb-6 space-y-4">
         <h1 className="text-2xl font-bold text-[var(--foreground)]">{t('checkout.title')}</h1>
         <CheckoutProgress
@@ -450,7 +450,7 @@ export function CheckoutPageClient({
 
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <form onSubmit={handleSubmit(onSubmit, handleInvalid)} className="space-y-6">
+          <form id="checkout-form" onSubmit={handleSubmit(onSubmit, handleInvalid)} className="space-y-6">
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <h2 className="mb-4 font-semibold text-[var(--foreground)]">{t('checkout.address')}</h2>
               {loadingAddresses && (
@@ -628,7 +628,7 @@ export function CheckoutPageClient({
             <Button
               type="submit"
               size="lg"
-              className="w-full"
+              className="hidden w-full sm:flex"
               onClick={handleConfirmClick}
               isLoading={isSubmitting || step === 'processing'}
             >
@@ -745,6 +745,29 @@ export function CheckoutPageClient({
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Mobile-only sticky CTA — mirrors the cart's "Ir al checkout" bar so
+          the buyer can submit without scrolling to the inline button. The
+          button submits via form="checkout-form" attribute, so the sole
+          submit handler still owns validation + onSubmit/handleInvalid. */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)] bg-[var(--surface)]/95 px-4 py-3 backdrop-blur-sm pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:hidden">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] uppercase tracking-wide text-[var(--muted)]">{t('cart.total')}</p>
+            <p className="truncate text-base font-bold text-[var(--foreground)]">{formatPrice(total)}</p>
+          </div>
+          <Button
+            form="checkout-form"
+            type="submit"
+            size="lg"
+            className="shrink-0"
+            onClick={handleConfirmClick}
+            isLoading={isSubmitting || step === 'processing'}
+          >
+            {step === 'processing' ? t('checkout.processing') : t('checkout.confirm')}
+          </Button>
         </div>
       </div>
     </div>

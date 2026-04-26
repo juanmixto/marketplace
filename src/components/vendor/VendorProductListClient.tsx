@@ -184,8 +184,8 @@ export function VendorProductListClient({ products }: Props) {
       ) : (
         <>
           {/* Toolbar: search + view toggle */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative flex-1 min-w-0 basis-full sm:basis-auto sm:min-w-[220px]">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="relative flex-1 min-w-0 basis-full sm:basis-auto sm:min-w-[220px] sm:flex-initial">
               <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--muted)]" />
               <input
                 type="search"
@@ -508,6 +508,13 @@ function ProductListRow({ product, now }: { product: VendorCatalogItem; now: Dat
         <span className="sr-only">{t('vendor.preview.ariaOpen').replace('{name}', product.name)}</span>
       </Link>
 
+      {/* Mobile-only: overflow menu pinned to top-right so it doesn't compete
+          with the primary CTA on the second row. On sm+, the menu lives in
+          the action cluster (rendered below) for desktop alignment. */}
+      <div className="absolute right-2 top-2 z-[3] sm:hidden">
+        <ProductActions product={product} />
+      </div>
+
       <div className="relative z-[1] flex gap-3 sm:contents">
         <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-[var(--surface-raised)] relative">
           {product.images?.[0]
@@ -520,7 +527,7 @@ function ProductListRow({ product, now }: { product: VendorCatalogItem; now: Dat
             )}
         </div>
 
-        <div className="flex-1 min-w-0 pointer-events-none">
+        <div className="flex-1 min-w-0 pointer-events-none pr-10 sm:pr-0">
           <p className={`font-medium break-words ${isArchived ? 'text-[var(--muted)]' : 'text-[var(--foreground)]'}`}>{product.name}</p>
           <div className="mt-1 flex items-center gap-1.5 flex-wrap">
             {isArchived
@@ -567,7 +574,9 @@ function ProductListRow({ product, now }: { product: VendorCatalogItem; now: Dat
 
         {canQuickSubmit && <QuickSubmitButton productId={product.id} />}
 
-        <ProductActions product={product} />
+        <div className="hidden sm:block">
+          <ProductActions product={product} />
+        </div>
       </div>
     </div>
   )

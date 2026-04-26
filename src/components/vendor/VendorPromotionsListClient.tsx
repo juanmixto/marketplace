@@ -192,33 +192,38 @@ function PromotionRow({ promo, now }: { promo: Promotion; now: Date }) {
 
   return (
     <div className="p-4">
-      <div className="flex items-start gap-4 flex-wrap">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-          <TagIcon className="h-5 w-5" />
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="font-medium text-[var(--foreground)] truncate">{promo.name}</p>
-            <Badge variant={stateVariant}>{t(stateLabelKey(state))}</Badge>
-            {promo.code && (
-              <span className="rounded-md border border-[var(--border)] bg-[var(--surface-raised)] px-2 py-0.5 font-mono text-xs text-[var(--foreground-soft)]">
-                {promo.code}
-              </span>
-            )}
+      {/* Mobile stacks the row: icon + text block on top, actions on a
+          second right-aligned row. Desktop keeps the original
+          icon | text | actions horizontal layout via sm: overrides. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4 sm:flex-wrap">
+        <div className="flex gap-3 sm:contents">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+            <TagIcon className="h-5 w-5" />
           </div>
-          <p className="mt-0.5 text-sm text-[var(--muted)]">
-            {formatPromotionValue(promo, t)} · {scopeLabel}: {targetLabel}
-          </p>
-          <p className="mt-0.5 text-xs text-[var(--muted)]">
-            {t('vendor.promotions.windowLabel')
-              .replace('{from}', formatDate(promo.startsAt))
-              .replace('{to}',   formatDate(promo.endsAt))}
-          </p>
-          {error && <p className="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{error}</p>}
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-medium text-[var(--foreground)] break-words">{promo.name}</p>
+              <Badge variant={stateVariant}>{t(stateLabelKey(state))}</Badge>
+              {promo.code && (
+                <span className="rounded-md border border-[var(--border)] bg-[var(--surface-raised)] px-2 py-0.5 font-mono text-xs text-[var(--foreground-soft)]">
+                  {promo.code}
+                </span>
+              )}
+            </div>
+            <p className="mt-0.5 text-sm text-[var(--muted)] break-words">
+              {formatPromotionValue(promo, t)} · {scopeLabel}: {targetLabel}
+            </p>
+            <p className="mt-0.5 text-xs text-[var(--muted)]">
+              {t('vendor.promotions.windowLabel')
+                .replace('{from}', formatDate(promo.startsAt))
+                .replace('{to}',   formatDate(promo.endsAt))}
+            </p>
+            {error && <p className="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{error}</p>}
+          </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2 sm:shrink-0 sm:flex-nowrap">
           {promo.archivedAt ? (
             <button
               type="button"
