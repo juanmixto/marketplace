@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { HeartIcon } from '@heroicons/react/24/solid'
@@ -9,36 +9,25 @@ import { useT } from '@/i18n'
 import { useCartStore } from '@/domains/cart/cart-store'
 import { useFavoritesStore } from '@/domains/catalog/favorites-store'
 import { OutOfStockOverlay } from '@/components/catalog/OutOfStockOverlay'
+import { FavoriteToggleButton } from '@/components/catalog/FavoriteToggleButton'
 import type { FavoriteProductItem } from '@/lib/favorites-serialization'
 import { formatPrice } from '@/lib/utils'
 
 export function FavoritosClient({ initialFavorites }: { initialFavorites: FavoriteProductItem[] }) {
   const t = useT()
   const addItem = useCartStore(s => s.addItem)
-  const storeFavRemove = useFavoritesStore(s => s.remove)
+  const storeProductIds = useFavoritesStore(s => s.productIds)
   const [favorites, setFavorites] = useState<FavoriteProductItem[]>(initialFavorites)
-  const [removing, setRemoving] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
 
-  const handleRemove = async (productId: string) => {
-    try {
-      setRemoving(productId)
-      setError(null)
-
-      const res = await fetch(`/api/favoritos/${productId}`, {
-        method: 'DELETE',
-      })
-
-      if (!res.ok) throw new Error(t('favorites.errorRemove'))
-
-      setFavorites(favorites.filter(f => f.product.id !== productId))
-      storeFavRemove(productId)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('favorites.errorRemove'))
-    } finally {
-      setRemoving(null)
-    }
-  }
+  // The shared FavoriteToggleButton dispatches to useFavoritesStore.
+  // When a buyer un-favorites an item from this page, the store loses
+  // the id; reflect that in the local list so the card disappears
+  // without us owning a parallel remove-mutation path. We only filter
+  // out (never add) so initialFavorites' richer shape — name, vendor,
+  // images, stock — stays the source of truth for items still listed.
+  useEffect(() => {
+    setFavorites(prev => prev.filter(f => storeProductIds.has(f.product.id)))
+  }, [storeProductIds])
 
   const handleAddToCart = (fav: FavoriteProductItem) => {
     addItem({
@@ -75,12 +64,6 @@ export function FavoritosClient({ initialFavorites }: { initialFavorites: Favori
 
   return (
     <div className="space-y-6">
-      {error && (
-        <div className="rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30 p-4 text-red-800 dark:text-red-300">
-          {error}
-        </div>
-      )}
-
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {favorites.map(fav => {
           const imageUrl = fav.product.images?.[0] || ''
@@ -105,15 +88,18 @@ export function FavoritosClient({ initialFavorites }: { initialFavorites: Favori
                     {t('favorites.noImage')}
                   </div>
                 )}
-                <button
-                  onClick={() => handleRemove(fav.product.id)}
-                  disabled={removing === fav.product.id}
-                  className="absolute right-2 top-2 z-10 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full bg-[var(--surface)] p-2.5 shadow-md transition hover:bg-red-50 disabled:opacity-50 dark:bg-[var(--surface-raised)] dark:hover:bg-red-950/30"
-                  title={t('favorites.removeTitle')}
-                  aria-label={t('favorites.removeTitle')}
-                >
-                  <HeartIcon className="h-5 w-5 text-red-600 dark:text-red-400" />
-                </button>
+                {/* Reuse the catalog overlay variant so /productos and
+                    /cuenta/favoritos render the same heart-on-image
+                    treatment. The component dispatches to the favorites
+                    store; the local list filters itself once the store
+                    confirms removal (see useEffect below). */}
+                <div className="absolute right-2 top-2 z-10">
+                  <FavoriteToggleButton
+                    productId={fav.product.id}
+                    productName={fav.product.name}
+                    variant="overlay"
+                  />
+                </div>
                 {fav.product.stock <= 0 && (
                   <OutOfStockOverlay label={t('favorites.outOfStock')} />
                 )}

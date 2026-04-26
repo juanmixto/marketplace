@@ -129,8 +129,7 @@ export function ProductCard({ product, locale = 'es' }: ProductCardProps) {
             <FavoriteToggleButton
               productId={product.id}
               productName={localizedProduct.name}
-              compact
-              className="h-8 w-8 rounded-full bg-white/80 shadow-sm backdrop-blur-sm hover:bg-white dark:bg-black/50 dark:hover:bg-black/70"
+              variant="overlay"
             />
           </div>
         </div>
