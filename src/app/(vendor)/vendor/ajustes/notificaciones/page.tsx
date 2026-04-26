@@ -5,10 +5,8 @@ import { getMyPreferences } from '@/domains/notifications'
 import { getTelegramConfig } from '@/domains/notifications/telegram/config'
 import { getTelegramLinkForUser } from '@/domains/notifications/telegram/queries'
 import { generateLinkToken } from '@/domains/notifications/telegram/link-token'
-import { db } from '@/lib/db'
 import { NotificationPreferencesForm } from './NotificationPreferencesForm'
 import { TelegramConnectPanel } from './TelegramConnectPanel'
-import { WebPushConnectPanel } from './WebPushConnectPanel'
 
 export const metadata: Metadata = { title: 'Notificaciones' }
 export const dynamic = 'force-dynamic'
@@ -27,12 +25,10 @@ export default async function VendorNotificationsPage() {
     )
   }
 
-  const [preferences, link, pushSubscriptionCount] = await Promise.all([
+  const [preferences, link] = await Promise.all([
     getMyPreferences(),
     getTelegramLinkForUser(session.user.id),
-    db.pushSubscription.count({ where: { userId: session.user.id } }),
   ])
-  const webPushSubscribed = pushSubscriptionCount > 0
 
   const initialLinkUrl = link.linked
     ? null
@@ -49,16 +45,11 @@ export default async function VendorNotificationsPage() {
         <TelegramConnectPanel initialLink={link} initialLinkUrl={initialLinkUrl} />
       </section>
 
-      <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
-        <WebPushConnectPanel />
-      </section>
-
       <section className="space-y-4">
         <h2 className="text-lg font-semibold text-[var(--foreground)]">{t('vendor.notifications.preferencesTitle')}</h2>
         <NotificationPreferencesForm
           preferences={preferences}
           telegramLinked={link.linked}
-          webPushSubscribed={webPushSubscribed}
         />
       </section>
     </div>
