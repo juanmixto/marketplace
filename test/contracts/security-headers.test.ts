@@ -128,11 +128,20 @@ test('buildContentSecurityPolicy keeps strict-dynamic and drops unsafe-inline in
   assert.doesNotMatch(csp, /script-src [^;]*'unsafe-eval'/)
 })
 
-test('buildHeaderRules skips Next asset cache overrides during development', () => {
+test('buildHeaderRules forces /_next/static no-store during development', () => {
   const headers = buildHeaderRules(true)
 
   assert.ok(headers.some(rule => rule.source === '/:path*'))
-  assert.ok(headers.every(rule => rule.source !== '/_next/static/:path*'))
+  // Dev must override the default Next cache for /_next/static/* with
+  // no-store so phones don't keep yesterday's recompiled chunk. The
+  // /_next/image rule stays disabled in dev.
+  const nextStatic = headers.find(rule => rule.source === '/_next/static/:path*')
+  assert.ok(nextStatic, 'expected a /_next/static/:path* rule in development')
+  assert.match(
+    nextStatic.headers.find(h => h.key === 'Cache-Control')?.value ?? '',
+    /no-store/,
+    'dev /_next/static rule must use no-store',
+  )
   assert.ok(headers.every(rule => rule.source !== '/_next/image'))
 })
 
