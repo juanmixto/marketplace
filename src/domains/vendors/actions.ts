@@ -325,13 +325,69 @@ export async function submitForReview(productId: string) {
   const { vendor } = await requireVendor()
 
   const product = await db.product.findFirst({
-    where: { id: productId, vendorId: vendor.id, status: { in: ['DRAFT', 'REJECTED'] } },
+    where: { id: productId, vendorId: vendor.id, archivedAt: null, status: { in: ['DRAFT', 'REJECTED'] } },
   })
   if (!product) throw new Error('Producto no encontrado o no se puede enviar a revisión')
 
   await db.product.update({
     where: { id: productId },
     data: { status: 'PENDING_REVIEW', rejectionNote: null },
+  })
+
+  safeRevalidatePath('/vendor/productos')
+  revalidateCatalogExperience({ productSlug: product.slug, vendorSlug: vendor.slug })
+}
+
+/**
+ * Archives a product: vendor-side soft hide. The product leaves the
+ * public catalog and the default vendor list view, but its status is
+ * preserved so restoreProduct can revive it as-is. Distinct from
+ * deleteProduct (deletedAt + SUSPENDED, not vendor-restorable).
+ */
+export async function archiveProduct(productId: string) {
+  const { vendor } = await requireVendor()
+
+  const product = await db.product.findFirst({
+    where: {
+      id: productId,
+      vendorId: vendor.id,
+      deletedAt: null,
+      archivedAt: null,
+    },
+  })
+  if (!product) throw new Error('Producto no encontrado o ya está archivado')
+
+  await db.product.update({
+    where: { id: productId },
+    data: { archivedAt: new Date() },
+  })
+
+  safeRevalidatePath('/vendor/productos')
+  revalidateCatalogExperience({ productSlug: product.slug, vendorSlug: vendor.slug })
+}
+
+/**
+ * Restores a previously archived product. The status (ACTIVE / DRAFT /
+ * etc.) is whatever it was when archived — we only flip archivedAt back
+ * to null. Deleted products (deletedAt set) are out of scope and
+ * require admin intervention.
+ */
+export async function restoreProduct(productId: string) {
+  const { vendor } = await requireVendor()
+
+  const product = await db.product.findFirst({
+    where: {
+      id: productId,
+      vendorId: vendor.id,
+      deletedAt: null,
+      archivedAt: { not: null },
+    },
+  })
+  if (!product) throw new Error('Producto no encontrado o no está archivado')
+
+  await db.product.update({
+    where: { id: productId },
+    data: { archivedAt: null },
   })
 
   safeRevalidatePath('/vendor/productos')
