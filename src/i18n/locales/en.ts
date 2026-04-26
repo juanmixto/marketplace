@@ -184,7 +184,6 @@ const en: Record<TranslationKeys, string> = {
   'login.onboarding.consent.terms': 'Terms and Conditions',
   'login.onboarding.consent.and': 'and the',
   'login.onboarding.consent.privacy': 'Privacy Policy',
-  'login.onboarding.consent.postLink': '.',
   'login.onboarding.submit': 'Continue',
   'login.onboarding.error.consentRequired': 'You must accept the Terms and the Privacy Policy to continue.',
   'login.onboarding.error.unauthenticated': 'Your session has expired. Please sign in again.',

@@ -75,7 +75,7 @@ export function OnboardingForm({ firstName, next }: Props) {
             <Link href="/privacidad" className="underline">
               {t('login.onboarding.consent.privacy')}
             </Link>
-            {t('login.onboarding.consent.postLink')}
+            .
           </span>
         </label>
 

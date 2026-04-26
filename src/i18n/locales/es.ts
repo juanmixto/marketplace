@@ -182,7 +182,6 @@ const es = {
   'login.onboarding.consent.terms': 'Términos y Condiciones',
   'login.onboarding.consent.and': 'y la',
   'login.onboarding.consent.privacy': 'Política de Privacidad',
-  'login.onboarding.consent.postLink': '.',
   'login.onboarding.submit': 'Continuar',
   'login.onboarding.error.consentRequired': 'Debes aceptar los Términos y la Política de Privacidad para continuar.',
   'login.onboarding.error.unauthenticated': 'Tu sesión ha caducado. Vuelve a iniciar sesión.',

@@ -9,12 +9,12 @@ type SessionParams = Parameters<NonNullable<typeof callbacks.session>>[0]
 function jwtParams(user: Record<string, unknown> | null): JwtParams {
   return {
     token: {},
-    user: user as JwtParams['user'],
+    user,
     trigger: 'signIn' as const,
     isNewUser: false,
     session: undefined,
     account: null,
-  } as JwtParams
+  } as unknown as JwtParams
 }
 
 test('jwt: needsOnboarding from user object propagates to token', async () => {
@@ -39,7 +39,7 @@ test('jwt: existing token without user is unchanged', async () => {
     isNewUser: false,
     session: undefined,
     account: null,
-  } as JwtParams)
+  } as unknown as JwtParams)
   assert.equal(Boolean(result?.needsOnboarding), true)
 })
 
@@ -50,10 +50,8 @@ test('session: needsOnboarding mirrors token', () => {
       expires: new Date('2030-01-01').toISOString(),
     },
     token: { id: 'u1', role: 'CUSTOMER', needsOnboarding: true },
-  } as SessionParams)
-  const sess = result as Awaited<ReturnType<NonNullable<typeof callbacks.session>>>
-  // session.user is augmented; extract via cast.
-  const user = (sess as { user: { needsOnboarding?: boolean } }).user
+  } as unknown as SessionParams)
+  const user = (result as { user: { needsOnboarding?: boolean } }).user
   assert.equal(user.needsOnboarding, true)
 })
 
@@ -64,7 +62,7 @@ test('session: needsOnboarding defaults to false when token omits it', () => {
       expires: new Date('2030-01-01').toISOString(),
     },
     token: { id: 'u1', role: 'CUSTOMER' },
-  } as SessionParams)
+  } as unknown as SessionParams)
   const user = (result as { user: { needsOnboarding?: boolean } }).user
   assert.equal(user.needsOnboarding, false)
 })
