@@ -14,6 +14,10 @@ export const DEV_ROUTES_ALLOWLIST: ReadonlyArray<{ path: string; why: string }> 
     path: 'src/app/dev/mock-shipment/[ref]/page.tsx',
     why: 'Fake carrier label + tracking rendered when MockShippingProvider is active in dev/local. Reads toAddressSnapshot/fromAddressSnapshot — would leak buyer PII if it rendered in prod. Gated at proxy AND inline NODE_ENV check.',
   },
+  {
+    path: 'src/app/dev/oauth-trigger/page.tsx',
+    why: 'Mock OAuth signin trigger for #856 full E2E specs. Renders a button that calls signIn("mock-oauth"). Gated at proxy (404 in production via isDevRoute), at the page (notFound() if MOCK_OAUTH_ENABLED!=1), AND the provider itself only registers when the env var is set + NODE_ENV !== production.',
+  },
 ]
 
 export function isDevRoute(pathname: string) {

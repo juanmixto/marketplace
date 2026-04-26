@@ -2,7 +2,6 @@
 
 import bcrypt from 'bcryptjs'
 import { headers } from 'next/headers'
-import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { checkRateLimit, getClientIP } from '@/lib/ratelimit'
@@ -11,11 +10,14 @@ import {
   verifyAuthLinkToken,
 } from '@/lib/auth-link-token'
 import { sanitizeCallbackUrl } from '@/lib/portals'
+import { signIn } from '@/lib/auth'
+import { sendEmail } from '@/lib/email'
+import { AccountLinkedEmail } from '@/emails/AccountLinked'
+import { getServerEnv } from '@/lib/env'
 
 const PASSWORD_ATTEMPTS_PER_IP_PER_HOUR = 5
 
 export type LinkActionResult =
-  | { ok: true; redirectTo: string }
   | {
       ok: false
       reason:
@@ -89,6 +91,8 @@ export async function linkSocialAccountAction(
     where: { email: payload.email },
     select: {
       id: true,
+      email: true,
+      firstName: true,
       passwordHash: true,
       isActive: true,
       accounts: {
@@ -130,28 +134,95 @@ export async function linkSocialAccountAction(
     logger.info('auth.link.completed', {
       provider: payload.provider,
     })
+    // Fire-and-forget security notification. If sendEmail throws
+    // (Resend unconfigured / 5xx) the user still gets through —
+    // the email is post-fact reassurance, not a gate.
+    void notifyAccountLinked({
+      to: user.email,
+      userName: user.firstName,
+      provider: payload.provider,
+      ipAddress: clientIp,
+    })
   }
 
-  // Re-trigger the provider so Auth.js emits a session. The newly-
-  // written Account row makes the matrix resolve to case B.
+  // Emit a session via the credentials flow with the password the
+  // user just proved. This is more reliable than re-triggering the
+  // OAuth provider server-side: Auth.js v5's `signIn(<oauth>)` from
+  // a server action calls Auth() internally to materialize the
+  // signin URL, but the subsequent browser-side authorize → callback
+  // round-trip dropped state cookies in our test environment and
+  // hung the flow. Credentials → callback is a single round-trip,
+  // already battle-tested by the public /login form.
+  //
+  // Tradeoff: users with 2FA-enrolled credentials will hit the TOTP
+  // requirement and the action fails with `generic`. That's
+  // acceptable today (admins are the only enrolled cohort and they
+  // don't typically link OAuth on top of credentials), and a future
+  // enhancement can collect the TOTP on the link page when the
+  // need lands.
   const callback = payload.callbackUrl ? sanitizeCallbackUrl(payload.callbackUrl) ?? '/' : '/'
-  return {
-    ok: true,
-    redirectTo: `/api/auth/signin/${encodeURIComponent(payload.provider)}?callbackUrl=${encodeURIComponent(callback)}`,
+  await signIn('credentials', {
+    email: payload.email,
+    password,
+    redirectTo: callback,
+  })
+  // Unreachable — `signIn` throws Next's redirect signal. The throw
+  // is the success signal Next propagates as a navigation.
+  return { ok: false, reason: 'generic' }
+}
+
+const PROVIDER_LABEL: Record<string, string> = {
+  google: 'Google',
+  apple: 'Apple',
+}
+
+/**
+ * Fires the security-notification email for a newly-linked OAuth
+ * account. Best-effort: any failure is logged and swallowed so the
+ * user doesn't lose their session because Resend is rate-limited.
+ */
+async function notifyAccountLinked(params: {
+  to: string
+  userName: string
+  provider: string
+  ipAddress: string
+}): Promise<void> {
+  try {
+    const { appUrl } = getServerEnv()
+    const providerLabel = PROVIDER_LABEL[params.provider] ?? params.provider
+    await sendEmail({
+      to: params.to,
+      subject: `Has vinculado ${providerLabel} a tu cuenta`,
+      react: AccountLinkedEmail({
+        userName: params.userName,
+        providerLabel: params.provider,
+        linkedAt: new Date(),
+        ipAddress: params.ipAddress,
+        securityUrl: `${appUrl}/cuenta/seguridad`,
+        supportEmail: 'soporte@feldescloud.com',
+      }),
+    })
+    logger.info('auth.account_linked_email.sent', {
+      provider: params.provider,
+    })
+  } catch (err) {
+    logger.warn('auth.account_linked_email.failed', {
+      provider: params.provider,
+      err: err instanceof Error ? err.message : String(err),
+    })
   }
 }
 
 /**
- * Server action wrapper that performs the redirect on success. Used
- * by the form submit handler — the page always renders the form,
- * the action either redirects (success) or returns an error to the
- * client.
+ * Server action wrapper. The inner action either:
+ *   - returns an error result the form renders, or
+ *   - throws Next's redirect signal via `signIn(provider)` which the
+ *     framework converts into a navigation to the OAuth provider.
+ * Either way, success never returns to the client as a value.
  */
 export async function submitLinkForm(formData: FormData): Promise<LinkActionResult> {
   const token = String(formData.get('token') ?? '')
   const password = String(formData.get('password') ?? '')
   if (!token || !password) return { ok: false, reason: 'generic' }
-  const result = await linkSocialAccountAction(token, password)
-  if (result.ok) redirect(result.redirectTo)
-  return result
+  return linkSocialAccountAction(token, password)
 }

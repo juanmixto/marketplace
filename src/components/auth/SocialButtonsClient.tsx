@@ -3,6 +3,7 @@
 import { signIn } from 'next-auth/react'
 import { useState } from 'react'
 import { useT } from '@/i18n'
+import { capturePostHog } from '@/lib/posthog'
 
 interface Props {
   callbackUrl: string
@@ -42,10 +43,16 @@ export function SocialButtonsClient({ callbackUrl, googleEnabled }: Props) {
 
   const onClick = async (provider: 'google') => {
     setPending(provider)
+    // Canonical rollout event: numerator-denominator pair with the
+    // server-side `auth.social.success` so PostHog can compute the
+    // success rate. Captured BEFORE the redirect so the event ships
+    // even if the navigation fails.
+    capturePostHog('auth.social.start', { provider, callbackUrl })
     try {
       await signIn(provider, { callbackUrl })
     } catch {
       setPending(null)
+      capturePostHog('auth.social.error', { provider, where: 'client_signin_threw' })
     }
   }
 
@@ -58,6 +65,8 @@ export function SocialButtonsClient({ callbackUrl, googleEnabled }: Props) {
         onClick={() => onClick('google')}
         disabled={pending !== null}
         aria-label={t('login.social.googleAria')}
+        aria-busy={pending === 'google'}
+        data-testid="social-google-button"
         className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-slate-100 dark:text-slate-900 min-h-[44px]"
       >
         <GoogleLogo />

@@ -4,14 +4,18 @@ import type { Adapter } from 'next-auth/adapters'
 import Credentials from 'next-auth/providers/credentials'
 import Google from 'next-auth/providers/google'
 import type { Provider } from 'next-auth/providers'
+import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
 import { authConfig } from './auth-config'
 import { applyNormalizedAuthHostEnv } from './auth-host'
+import { isSecureAuthDeployment } from '@/lib/auth-env'
 import { coerceUserRole } from '@/lib/roles'
 import { normalizeAuthEmail } from '@/lib/auth-email'
 import { splitProfileName } from '@/lib/auth-profile-name'
 import { decideSocialSignIn } from '@/lib/auth-social-policy'
+import { isMockOAuthEnabled, mockOAuthProvider } from '@/lib/auth-mock-oauth'
 import { signAuthLinkToken } from '@/lib/auth-link-token'
+import { sanitizeCallbackUrl } from '@/lib/portals'
 import { isFeatureEnabled } from '@/lib/flags'
 import { logger } from '@/lib/logger'
 // eslint-disable-next-line no-restricted-imports -- credentials.ts is Prisma-backed and stays out of the auth barrel; src/lib/auth.ts is the only consumer
@@ -68,7 +72,7 @@ function buildAdapter(): Adapter {
   }
 }
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   ...authConfig,
   adapter: buildAdapter(),
   trustHost: true,
@@ -140,11 +144,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           provider: account.provider,
           isNewUser: !existing,
         })
+        // Canonical rollout event (audit doc §6 / google-setup.md):
+        // success = matrix allowed + Auth.js will emit a session.
+        // The dashboard ratio = success / start.
+        logger.info('auth.social.success', {
+          provider: account.provider,
+          isNewUser: !existing,
+        })
         return true
       }
 
       if (decision.kind === 'deny') {
         logger.warn('auth.social.deny', {
+          provider: account.provider,
+          reason: decision.reason,
+        })
+        // Canonical rollout event — error = matrix denied (kill
+        // switch / provider account mismatch / etc). Mirrors the
+        // narrower `deny` so the dashboard counts every refusal.
+        logger.warn('auth.social.error', {
           provider: account.provider,
           reason: decision.reason,
         })
@@ -157,17 +175,49 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         logger.error('auth.social.missing_secret', { provider: account.provider })
         return false
       }
+      // Capture the callbackUrl Auth.js stashed when the user clicked
+      // the social button. Without this, the password gate at /login/
+      // link drops the user on `/` after re-trigger — breaking the
+      // case D conversion funnel (#873). Cookie name varies on
+      // Secure prefix; mirror Auth.js's own resolution.
+      const cookieStore = await cookies()
+      const cookiePrefix = isSecureAuthDeployment(process.env) ? '__Secure-' : ''
+      const rawCallback = cookieStore.get(`${cookiePrefix}authjs.callback-url`)?.value
+      // Auth.js stores the cookie as an ABSOLUTE URL after running
+      // it through callbacks.redirect (see @auth/core/lib/utils/
+      // callback-url.js → createCallbackUrl). Our redirect callback
+      // (auth-config.ts) is the gate that wrote that value, so the
+      // origin and path are both already vetted. Extract path +
+      // search and re-sanitize as defense in depth.
+      //
+      // We deliberately do NOT verify the cookie's origin against
+      // process.env.AUTH_URL: applyNormalizedAuthHostEnv strips that
+      // var when AUTH_URL points at a dynamic dev URL (so LAN
+      // access works), which means the env-var lookup is unreliable
+      // inside the OAuth callback request — root cause of #873.
+      let safeCallback: string | undefined
+      if (rawCallback) {
+        try {
+          const parsed = new URL(rawCallback)
+          safeCallback = sanitizeCallbackUrl(`${parsed.pathname}${parsed.search}`)
+        } catch {
+          // Cookie wasn't a URL — assume it's already a path.
+          safeCallback = sanitizeCallbackUrl(rawCallback)
+        }
+      }
       const token = await signAuthLinkToken(
         {
           email: decision.email,
           provider: decision.provider,
           providerAccountId: decision.providerAccountId,
+          ...(safeCallback ? { callbackUrl: safeCallback } : {}),
         },
         secret
       )
       logger.info('auth.link.required', {
         provider: account.provider,
         reason: decision.reason,
+        hasCallback: Boolean(safeCallback),
       })
       return `/login/link?token=${encodeURIComponent(token)}`
     },
@@ -177,15 +227,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const next = base ?? token
 
       // First OAuth login: the credentials authorize() path stamps
-      // `has2fa` on the user object, but PrismaAdapter doesn't — its
-      // `user` is the Prisma User row. Look it up here so admins who
-      // sign in via Google still get redirected to /admin/security/
-      // enroll by the proxy. Lookup runs once on initial signin only.
+      // `has2fa` + `needsOnboarding` on the user object, but
+      // PrismaAdapter doesn't — its `user` is the Prisma User row.
+      // Look up here so admins who sign in via Google still get
+      // redirected to /admin/security/enroll by the proxy, and
+      // brand-new OAuth users hit /onboarding before any protected
+      // route. Lookup runs once on initial signin only.
       if (user && account?.type === 'oauth') {
         const id = (user as { id?: string }).id
         if (typeof id === 'string') {
-          const has2fa = await isTwoFactorEnabled(id)
+          const [has2fa, fresh] = await Promise.all([
+            isTwoFactorEnabled(id),
+            db.user.findUnique({
+              where: { id },
+              select: { passwordHash: true, consentAcceptedAt: true },
+            }),
+          ])
           next.has2fa = has2fa
+          // OAuth-only user with no consent yet → onboard. Linked
+          // accounts (passwordHash present) skip — they consented at
+          // /register.
+          next.needsOnboarding = fresh
+            ? fresh.passwordHash === null && fresh.consentAcceptedAt === null
+            : false
         }
         return next
       }
@@ -208,11 +272,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       const fresh = await db.user.findUnique({
         where: { id },
-        select: { role: true, isActive: true },
+        select: {
+          role: true,
+          isActive: true,
+          passwordHash: true,
+          consentAcceptedAt: true,
+        },
       })
       if (!fresh || !fresh.isActive) return next
       next.role = coerceUserRole(fresh.role)
       next.roleCheckedAt = now
+      // Refresh onboarding flag too — the /onboarding action calls
+      // unstable_update with trigger='update' which lands here, and
+      // we want the new claim to reflect the freshly-set
+      // consentAcceptedAt without forcing a sign-out.
+      next.needsOnboarding =
+        fresh.passwordHash === null && fresh.consentAcceptedAt === null
       return next
     },
   },
@@ -257,6 +332,15 @@ function buildProviders(): Provider[] {
         authorization: { params: { scope: 'openid email profile' } },
       })
     )
+  }
+
+  // Test-only: a generic OAuth provider whose authorize / token /
+  // userinfo endpoints are local Next.js routes under /api/__test__/.
+  // Gate via the env var helper, which also refuses production. The
+  // provider goes through the same signIn callback as Google, so the
+  // matrix + adapter override + has2fa lookup all get exercised.
+  if (isMockOAuthEnabled()) {
+    providers.push(mockOAuthProvider())
   }
 
   return providers

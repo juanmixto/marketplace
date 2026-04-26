@@ -16,6 +16,7 @@ import {
   PaperAirplaneIcon,
   PencilSquareIcon,
   ArchiveBoxIcon,
+  PhotoIcon,
 } from '@heroicons/react/24/outline'
 import { ProductActions } from '@/components/vendor/ProductActions'
 import { setProductStock, submitForReview } from '@/domains/vendors/actions'
@@ -34,7 +35,7 @@ const STATUS_CONFIG: Record<string, { labelKey: TranslationKeys; variant: BadgeV
   SUSPENDED:      { labelKey: 'vendor.productsList.statusSuspended',     variant: 'default' },
 }
 
-type FilterKey = 'all' | 'active' | 'draft' | 'pendingReview' | 'rejected' | 'outOfStock'
+type FilterKey = 'all' | 'active' | 'draft' | 'pendingReview' | 'rejected' | 'outOfStock' | 'archived'
 type ViewMode = 'list' | 'grid'
 
 const VIEW_STORAGE_KEY = 'vendor.catalog.view'
@@ -46,9 +47,14 @@ const FILTERS: { key: FilterKey; labelKey: TranslationKeys }[] = [
   { key: 'pendingReview', labelKey: 'vendor.productsList.filterPendingReview' },
   { key: 'rejected',      labelKey: 'vendor.productsList.filterRejected' },
   { key: 'outOfStock',    labelKey: 'vendor.productsList.filterOutOfStock' },
+  { key: 'archived',      labelKey: 'vendor.productsList.filterArchived' },
 ]
 
 function matchesFilter(product: VendorCatalogItem, filter: FilterKey): boolean {
+  // Archived products are hidden from every view except the explicit
+  // "Archivados" filter, so they don't pollute counts and the regular
+  // workflow.
+  if (filter !== 'archived' && product.archivedAt) return false
   switch (filter) {
     case 'all':           return true
     case 'active':        return product.status === 'ACTIVE'
@@ -56,6 +62,7 @@ function matchesFilter(product: VendorCatalogItem, filter: FilterKey): boolean {
     case 'pendingReview': return product.status === 'PENDING_REVIEW'
     case 'rejected':      return product.status === 'REJECTED'
     case 'outOfStock':    return product.trackStock && product.stock === 0
+    case 'archived':      return !!product.archivedAt
   }
 }
 
@@ -487,10 +494,11 @@ function ProductListRow({ product, now }: { product: VendorCatalogItem; now: Dat
   const statusVariant: BadgeVariant = statusEntry?.variant ?? 'default'
   const expirationTone = getExpirationTone(product.expiresAt, now)
   const expirationLabel = formatExpirationLabel(product.expiresAt, now)
-  const canQuickSubmit = product.status === 'DRAFT' || product.status === 'REJECTED'
+  const isArchived = !!product.archivedAt
+  const canQuickSubmit = !isArchived && (product.status === 'DRAFT' || product.status === 'REJECTED')
 
   return (
-    <div className="group relative flex items-center gap-4 p-4 transition-colors hover:bg-[var(--surface-raised)]">
+    <div className="group relative gap-4 p-4 transition-colors hover:bg-[var(--surface-raised)] sm:flex sm:items-center">
       {/* Stretched link covering the whole row — buyer preview */}
       <Link
         href={`/vendor/productos/${product.id}/preview`}
@@ -500,43 +508,52 @@ function ProductListRow({ product, now }: { product: VendorCatalogItem; now: Dat
         <span className="sr-only">{t('vendor.preview.ariaOpen').replace('{name}', product.name)}</span>
       </Link>
 
-      <div className="relative z-[1] h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-[var(--surface-raised)]">
-        {product.images?.[0]
-          ? <Image src={product.images[0]} alt={product.name} fill className="object-cover" sizes="64px" />
-          : <div className="flex h-full items-center justify-center text-2xl">🌿</div>}
-      </div>
-
-      <div className="relative z-[1] flex-1 min-w-0 pointer-events-none">
-        <div className="flex items-center gap-2 flex-wrap">
-          <p className="font-medium text-[var(--foreground)] truncate">{product.name}</p>
-          <Badge variant={statusVariant}>{statusLabel}</Badge>
-          {expirationTone === 'expired' && <Badge variant="red">{t('vendor.expired')}</Badge>}
-          {expirationTone === 'today' && <Badge variant="amber">{t('vendor.expiresToday')}</Badge>}
-          {expirationTone === 'soon' && <Badge variant="amber">{t('vendor.expiresSoon')}</Badge>}
+      <div className="relative z-[1] flex gap-3 sm:contents">
+        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-[var(--surface-raised)] relative">
+          {product.images?.[0]
+            ? <Image src={product.images[0]} alt={product.name} fill className="object-cover" sizes="64px" />
+            : (
+              <div className="flex h-full flex-col items-center justify-center gap-0.5 text-[var(--muted)]">
+                <PhotoIcon className="h-5 w-5" aria-hidden="true" />
+                <span className="text-[9px] font-medium uppercase tracking-wide">{t('vendor.productActions.noImage')}</span>
+              </div>
+            )}
         </div>
-        <p className="text-sm text-[var(--muted)] mt-0.5">
-          {formatPrice(Number(product.basePrice))} / {product.unit}
-          {product.category && ` · ${product.category.name}`}
-        </p>
-        {expirationLabel && (
-          <p className={`mt-1 text-xs ${
-            expirationTone === 'expired'
-              ? 'text-red-600 dark:text-red-400'
-              : expirationTone === 'today' || expirationTone === 'soon'
-                ? 'text-amber-700 dark:text-amber-400'
-                : 'text-[var(--muted)]'
-          }`}>
-            {expirationLabel}
+
+        <div className="flex-1 min-w-0 pointer-events-none">
+          <p className={`font-medium break-words ${isArchived ? 'text-[var(--muted)]' : 'text-[var(--foreground)]'}`}>{product.name}</p>
+          <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+            {isArchived
+              ? <Badge variant="default">{t('vendor.productActions.archivedBadge')}</Badge>
+              : <Badge variant={statusVariant}>{statusLabel}</Badge>}
+            {!isArchived && expirationTone === 'expired' && <Badge variant="red">{t('vendor.expired')}</Badge>}
+            {!isArchived && expirationTone === 'today' && <Badge variant="amber">{t('vendor.expiresToday')}</Badge>}
+            {!isArchived && expirationTone === 'soon' && <Badge variant="amber">{t('vendor.expiresSoon')}</Badge>}
+          </div>
+          <p className="text-sm text-[var(--muted)] mt-1">
+            {formatPrice(Number(product.basePrice))} / {product.unit}
+            {product.category && ` · ${product.category.name}`}
           </p>
-        )}
-        {product.status === 'REJECTED' && product.rejectionNote && (
-          <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-            {t('vendor.productsList.rejectionReason').replace('{reason}', product.rejectionNote)}
-          </p>
-        )}
+          {expirationLabel && (
+            <p className={`mt-1 text-xs ${
+              expirationTone === 'expired'
+                ? 'text-red-600 dark:text-red-400'
+                : expirationTone === 'today' || expirationTone === 'soon'
+                  ? 'text-amber-700 dark:text-amber-400'
+                  : 'text-[var(--muted)]'
+            }`}>
+              {expirationLabel}
+            </p>
+          )}
+          {product.status === 'REJECTED' && product.rejectionNote && (
+            <p className="text-xs text-red-600 dark:text-red-400 mt-1 break-words">
+              {t('vendor.productsList.rejectionReason').replace('{reason}', product.rejectionNote)}
+            </p>
+          )}
+        </div>
       </div>
 
-      <div className="relative z-[2] shrink-0 text-right">
+      <div className="relative z-[2] mt-3 flex flex-wrap items-center justify-end gap-2 sm:mt-0 sm:flex-nowrap sm:shrink-0">
         {product.trackStock && product.variants.length === 0 ? (
           <QuickStockInput product={product} />
         ) : product.trackStock ? (
@@ -547,15 +564,9 @@ function ProductListRow({ product, now }: { product: VendorCatalogItem; now: Dat
             {product.stock === 0 ? t('vendor.noStock') : `${product.stock} ${t('vendor.inStock')}`}
           </p>
         ) : null}
-      </div>
 
-      {canQuickSubmit && (
-        <div className="relative z-[2]">
-          <QuickSubmitButton productId={product.id} />
-        </div>
-      )}
+        {canQuickSubmit && <QuickSubmitButton productId={product.id} />}
 
-      <div className="relative z-[2]">
         <ProductActions product={product} />
       </div>
     </div>
@@ -568,7 +579,8 @@ function ProductGridCard({ product, now }: { product: VendorCatalogItem; now: Da
   const statusLabel = statusEntry ? t(statusEntry.labelKey) : product.status
   const statusVariant: BadgeVariant = statusEntry?.variant ?? 'default'
   const expirationTone = getExpirationTone(product.expiresAt, now)
-  const canQuickSubmit = product.status === 'DRAFT' || product.status === 'REJECTED'
+  const isArchived = !!product.archivedAt
+  const canQuickSubmit = !isArchived && (product.status === 'DRAFT' || product.status === 'REJECTED')
 
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm transition hover:shadow-md">
@@ -583,7 +595,12 @@ function ProductGridCard({ product, now }: { product: VendorCatalogItem; now: Da
       <div className="relative z-[1] aspect-[4/3] w-full overflow-hidden bg-[var(--surface-raised)] pointer-events-none">
         {product.images?.[0]
           ? <Image src={product.images[0]} alt={product.name} fill className="object-cover transition group-hover:scale-[1.02]" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" />
-          : <div className="flex h-full items-center justify-center text-5xl">🌿</div>}
+          : (
+            <div className="flex h-full flex-col items-center justify-center gap-1.5 text-[var(--muted)]">
+              <PhotoIcon className="h-10 w-10" aria-hidden="true" />
+              <span className="text-xs font-medium uppercase tracking-wide">{t('vendor.productActions.noImage')}</span>
+            </div>
+          )}
         <div className="absolute right-2 top-2 z-[2] pointer-events-auto">
           <ProductActions product={product} />
         </div>
@@ -593,10 +610,12 @@ function ProductGridCard({ product, now }: { product: VendorCatalogItem; now: Da
           <p className="font-semibold text-[var(--foreground)] leading-snug line-clamp-2">{product.name}</p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <Badge variant={statusVariant}>{statusLabel}</Badge>
-          {expirationTone === 'expired' && <Badge variant="red">{t('vendor.expired')}</Badge>}
-          {expirationTone === 'today' && <Badge variant="amber">{t('vendor.expiresToday')}</Badge>}
-          {expirationTone === 'soon' && <Badge variant="amber">{t('vendor.expiresSoon')}</Badge>}
+          {isArchived
+            ? <Badge variant="default">{t('vendor.productActions.archivedBadge')}</Badge>
+            : <Badge variant={statusVariant}>{statusLabel}</Badge>}
+          {!isArchived && expirationTone === 'expired' && <Badge variant="red">{t('vendor.expired')}</Badge>}
+          {!isArchived && expirationTone === 'today' && <Badge variant="amber">{t('vendor.expiresToday')}</Badge>}
+          {!isArchived && expirationTone === 'soon' && <Badge variant="amber">{t('vendor.expiresSoon')}</Badge>}
         </div>
         <div className="flex items-center justify-between gap-2">
           <p className="min-w-0 truncate text-sm text-[var(--muted)]">
