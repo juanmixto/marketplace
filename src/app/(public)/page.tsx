@@ -9,7 +9,6 @@ import {
   TruckIcon,
 } from '@heroicons/react/24/outline'
 import { ProductCard } from '@/components/catalog/ProductCard'
-import { QuickAccessIsland } from '@/components/home/QuickAccessIsland'
 import { buildHomeStats, type HomeStat } from '@/domains/catalog/home'
 import { getHomeSnapshot } from '@/domains/catalog/queries'
 import { getVendorHeroImage, getVendorVisualLabelKey } from '@/domains/vendors/visuals'
@@ -18,7 +17,7 @@ import { serializeProductForCard } from '@/lib/catalog-serialization'
 import { getPublicMarketplaceConfig } from '@/lib/config'
 import { SITE_DESCRIPTION, SITE_NAME } from '@/lib/constants'
 import { SITE_METADATA_BASE, absoluteUrl } from '@/lib/seo'
-import { getPublicPortalLinks, translateCategoryLabel } from '@/lib/portals'
+import { translateCategoryLabel } from '@/lib/portals'
 import { getServerLocale, getServerT } from '@/i18n/server'
 import type { TranslationKeys } from '@/i18n/locales'
 
@@ -94,7 +93,6 @@ export default async function HomePage() {
   ])
 
   const heroStats = buildHomeStats(stats)
-  const portalLinks = getPublicPortalLinks(locale)
   const serializedFeatured = featured.map(serializeProductForCard)
 
   const structuredData = [
@@ -224,54 +222,6 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
-
-        <QuickAccessIsland>
-          <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-            <div className="rounded-3xl border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] via-emerald-50/35 to-teal-50/20 p-6 shadow-sm dark:from-[var(--surface)] dark:via-emerald-950/20 dark:to-teal-950/10 sm:p-7">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
-                    {t('hero.quickAccess')}
-                  </p>
-                  <h2 className="mt-1 text-xl font-bold text-[var(--foreground)]">
-                    {t('quickAccessTitle')}
-                  </h2>
-                  <p className="mt-2 max-w-2xl text-sm text-[var(--muted)]">
-                    {t('quickAccessDesc')}
-                  </p>
-                </div>
-                <Link
-                  href="/login"
-                  className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground-soft)] transition hover:border-emerald-300 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] dark:hover:border-emerald-700 dark:hover:text-emerald-300"
-                >
-                  {t('hero.loginCta')}
-                  <ArrowRightIcon className="h-4 w-4" />
-                </Link>
-              </div>
-              <div className="mt-5 grid gap-3 md:grid-cols-3">
-                {portalLinks.map(link => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className="group rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] dark:hover:border-emerald-700"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-[var(--foreground)] transition-colors group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
-                          {link.label}
-                        </p>
-                        <p className="mt-1 text-sm text-[var(--muted)]">{link.description}</p>
-                      </div>
-                      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-raised)] text-[var(--muted)] transition-colors group-hover:border-emerald-200 group-hover:text-emerald-700 dark:group-hover:border-emerald-800 dark:group-hover:text-emerald-300">
-                        <ArrowRightIcon className="h-4 w-4" />
-                      </span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </section>
-        </QuickAccessIsland>
 
         <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
           <div className="mb-6 flex items-end justify-between gap-4">
