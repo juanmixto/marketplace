@@ -3,32 +3,32 @@
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { triggerChatSync } from '@/domains/ingestion/telegram/actions'
+import { reprocessChatPending } from '@/domains/ingestion/telegram/actions'
 
 interface Props {
   chatId: string
-  chatTitle: string
+  pending: number
 }
 
-type Result = { kind: 'ok' } | { kind: 'err'; message: string } | null
+type Result = { kind: 'ok'; enqueued: number } | { kind: 'err'; message: string } | null
 
-export function TelegramSyncButton({ chatId }: Props) {
+export function TelegramReprocessButton({ chatId, pending }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [result, setResult] = useState<Result>(null)
 
   useEffect(() => {
     if (!result || result.kind !== 'ok') return
-    const t = setTimeout(() => setResult(null), 4000)
+    const t = setTimeout(() => setResult(null), 5000)
     return () => clearTimeout(t)
   }, [result])
 
-  const handleSync = () => {
+  const handleClick = () => {
     setResult(null)
     startTransition(async () => {
       try {
-        await triggerChatSync({ chatId })
-        setResult({ kind: 'ok' })
+        const res = await reprocessChatPending({ chatId })
+        setResult({ kind: 'ok', enqueued: res.enqueued })
         router.refresh()
       } catch (err) {
         setResult({
@@ -41,12 +41,12 @@ export function TelegramSyncButton({ chatId }: Props) {
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <Button size="sm" onClick={handleSync} disabled={isPending}>
-        {isPending ? 'Encolando…' : 'Sincronizar'}
+      <Button size="sm" variant="secondary" onClick={handleClick} disabled={isPending}>
+        {isPending ? 'Encolando…' : `Reprocesar ${pending}`}
       </Button>
       {result?.kind === 'ok' && (
         <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
-          Sync encolado · refrescando…
+          {result.enqueued} encolado(s)
         </p>
       )}
       {result?.kind === 'err' && (
