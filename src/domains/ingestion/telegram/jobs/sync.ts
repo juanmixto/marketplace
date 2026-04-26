@@ -47,6 +47,13 @@ export interface TelegramSyncDeps {
     fileUniqueId: string
     correlationId: string
   }) => Promise<void>
+  /** Best-effort: kick the Phase 2 processor for each message just
+   *  ingested. The processor is idempotent (keyed by messageId +
+   *  extractorVersion) so re-enqueueing on a no-op batch is harmless. */
+  enqueueProcessMessage?: (input: {
+    messageId: string
+    correlationId: string
+  }) => Promise<void>
   now: () => Date
   batchSize: number
   /** Injected kill-switch probe so tests don't depend on PostHog.
@@ -216,6 +223,12 @@ async function persistBatch(input: {
 }): Promise<{ mediaQueued: number }> {
   const { chat, fetched, deps, correlationId } = input
   const mediaToEnqueue: Array<{ messageMediaId: string; fileUniqueId: string }> = []
+  // Phase 2 processing: every message just upserted is a candidate
+  // for the rules pipeline. The processor handler is idempotent
+  // (`messageId + extractorVersion` keys the draft), so enqueuing on
+  // re-syncs is safe. We do this best-effort post-commit so a queue
+  // hiccup never rolls back the raw ingestion.
+  const messagesToProcess: string[] = []
   // Dedupe within the batch: if two messages reference the same
   // fileUniqueId, upsert returns the same PENDING row both times,
   // but we only want one download job.
@@ -240,6 +253,7 @@ async function persistBatch(input: {
         },
         update: {}, // existing rows preserved (including tombstones)
       })
+      messagesToProcess.push(createdMessage.id)
 
       for (const media of msg.media) {
         const mediaRow = await tx.telegramIngestionMessageMedia.upsert({
@@ -291,6 +305,24 @@ async function persistBatch(input: {
         error: err,
         correlationId,
       })
+    }
+  }
+
+  // 7. Best-effort processor fan-out. Same post-commit pattern as
+  //    media: a queue blip must not lose raw messages already on
+  //    disk. The processor's stage flag + kill switch decide whether
+  //    the work actually runs; this just hands it the candidate.
+  if (deps.enqueueProcessMessage) {
+    for (const messageId of messagesToProcess) {
+      try {
+        await deps.enqueueProcessMessage({ messageId, correlationId })
+      } catch (err) {
+        logger.warn(`${LOG_SCOPE}.process_enqueue_failed`, {
+          messageId,
+          error: err,
+          correlationId,
+        })
+      }
     }
   }
 
