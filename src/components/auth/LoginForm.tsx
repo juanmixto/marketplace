@@ -21,11 +21,14 @@ import {
 
 interface LoginFormProps {
   callbackUrl?: string
+  /** Server-rendered slot above the credentials form (e.g. social
+   *  buttons). Empty when no providers survive their flag/env gates. */
+  topSlot?: React.ReactNode
 }
 
 type Step = 'credentials' | 'totp'
 
-export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
+export function LoginForm({ callbackUrl = '/', topSlot }: LoginFormProps) {
   const router = useRouter()
   const safeCallbackUrl = sanitizeCallbackUrl(callbackUrl) ?? STOREFRONT_PATH
   const portalMode = getLoginPortalMode(safeCallbackUrl)
@@ -182,8 +185,10 @@ export function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
     <div>
       <h1 className="text-2xl font-bold text-[var(--foreground)]">Iniciar sesión</h1>
 
+      {step === 'credentials' && topSlot ? <div className="mt-6">{topSlot}</div> : null}
+
       {step === 'credentials' && (
-        <form onSubmit={handleCredentialsSubmit} className="mt-6 space-y-4">
+        <form onSubmit={handleCredentialsSubmit} className={`${topSlot ? 'mt-2' : 'mt-6'} space-y-4`}>
           <Input
             name="email"
             type="email"
