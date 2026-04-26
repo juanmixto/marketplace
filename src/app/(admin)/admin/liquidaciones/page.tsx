@@ -5,11 +5,13 @@ import { AdminStatusBadge } from '@/components/admin/AdminStatusBadge'
 import { formatAdminPeriodLabel, getSettlementStatusTone } from '@/domains/admin/overview'
 import { SettlementActions } from '@/components/admin/SettlementActions'
 import { resolveEffectiveCommissionRate } from '@/domains/finance/commission'
+import { getServerT } from '@/i18n/server'
 
 export const metadata: Metadata = { title: 'Liquidaciones | Admin' }
 export const revalidate = 30
 
 export default async function AdminSettlementsPage() {
+  const t = await getServerT()
   const [settlements, totals] = await Promise.all([
     db.settlement.findMany({
       orderBy: { createdAt: 'desc' },
@@ -36,26 +38,26 @@ export default async function AdminSettlementsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Finanzas</p>
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">Liquidaciones</h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">Control de periodos, comisiones y pagos a productor.</p>
+        <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">{t('admin.settlements.kicker')}</p>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">{t('admin.settlements.title')}</h1>
+        <p className="mt-1 text-sm text-[var(--muted)]">{t('admin.settlements.subtitle')}</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">Liquidaciones</p>
+          <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">{t('admin.settlements.kpi.count')}</p>
           <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">{totals._count._all}</p>
         </div>
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">Ventas brutas</p>
+          <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">{t('admin.settlements.kpi.grossSales')}</p>
           <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">{formatPrice(Number(totals._sum.grossSales ?? 0))}</p>
         </div>
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">Comisiones</p>
+          <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">{t('admin.settlements.kpi.commissions')}</p>
           <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">{formatPrice(Number(totals._sum.commissions ?? 0))}</p>
         </div>
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">Neto pagable</p>
+          <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">{t('admin.settlements.kpi.netPayable')}</p>
           <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">{formatPrice(Number(totals._sum.netPayable ?? 0))}</p>
         </div>
       </div>
@@ -77,22 +79,22 @@ export default async function AdminSettlementsPage() {
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div>
-                <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">Ventas</p>
+                <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">{t('admin.settlements.col.sales')}</p>
                 <p className="mt-1 font-medium text-[var(--foreground)]">{formatPrice(Number(settlement.grossSales))}</p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">Comisiones</p>
+                <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">{t('admin.settlements.col.commissions')}</p>
                 <p className="mt-1 font-medium text-[var(--foreground)]">{formatPrice(Number(settlement.commissions))}</p>
                 <p className="mt-1 text-xs text-[var(--muted)]">
-                  Regla actual {(settlementRates.get(settlement.id) ?? 0).toFixed(4)}
+                  {t('admin.settlements.currentRule').replace('{rate}', (settlementRates.get(settlement.id) ?? 0).toFixed(4))}
                 </p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">Refunds</p>
+                <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">{t('admin.settlements.col.refunds')}</p>
                 <p className="mt-1 font-medium text-[var(--foreground)]">{formatPrice(Number(settlement.refunds))}</p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">Neto</p>
+                <p className="text-xs uppercase tracking-wide text-[var(--muted-light)]">{t('admin.settlements.col.net')}</p>
                 <p className="mt-1 font-semibold text-[var(--foreground)]">{formatPrice(Number(settlement.netPayable))}</p>
               </div>
             </div>
@@ -103,7 +105,7 @@ export default async function AdminSettlementsPage() {
         ))}
         {settlements.length === 0 && (
           <p className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--muted)]">
-            Todavia no hay liquidaciones calculadas.
+            {t('admin.settlements.empty')}
           </p>
         )}
       </div>

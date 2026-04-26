@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { db } from '@/lib/db'
 import { formatDate } from '@/lib/utils'
+import { getServerT } from '@/i18n/server'
 
 export const metadata: Metadata = { title: 'Auditoria | Admin' }
 export const revalidate = 30
@@ -10,6 +11,7 @@ interface PageProps {
 }
 
 export default async function AdminAuditPage({ searchParams }: PageProps) {
+  const t = await getServerT()
   const filters = await Promise.resolve(searchParams ?? {})
   const actionFilter = filters.action?.trim()
   const entityTypeFilter = filters.entityType?.trim()
@@ -51,20 +53,20 @@ export default async function AdminAuditPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Seguridad</p>
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">Auditoria</h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">Historial de acciones administrativas y cambios sensibles.</p>
+        <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">{t('admin.audit.kicker')}</p>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">{t('admin.audit.title')}</h1>
+        <p className="mt-1 text-sm text-[var(--muted)]">{t('admin.audit.subtitle')}</p>
       </div>
 
       <form className="grid gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 md:grid-cols-[1fr_1fr_auto]">
         <label className="space-y-1.5">
-          <span className="text-sm font-medium text-[var(--foreground)]">Accion</span>
+          <span className="text-sm font-medium text-[var(--foreground)]">{t('admin.audit.action')}</span>
           <select
             name="action"
             defaultValue={actionFilter ?? ''}
             className={inputCls}
           >
-            <option value="">Todas</option>
+            <option value="">{t('admin.common.allFem')}</option>
             {actionGroups.map(group => (
               <option key={group.action} value={group.action}>
                 {group.action} ({group._count._all})
@@ -73,13 +75,13 @@ export default async function AdminAuditPage({ searchParams }: PageProps) {
           </select>
         </label>
         <label className="space-y-1.5">
-          <span className="text-sm font-medium text-[var(--foreground)]">Entidad</span>
+          <span className="text-sm font-medium text-[var(--foreground)]">{t('admin.audit.entity')}</span>
           <select
             name="entityType"
             defaultValue={entityTypeFilter ?? ''}
             className={inputCls}
           >
-            <option value="">Todas</option>
+            <option value="">{t('admin.common.allFem')}</option>
             {entityGroups.map(group => (
               <option key={group.entityType} value={group.entityType}>
                 {group.entityType} ({group._count._all})
@@ -89,10 +91,10 @@ export default async function AdminAuditPage({ searchParams }: PageProps) {
         </label>
         <div className="flex items-end gap-2">
           <button type="submit" className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400">
-            Filtrar
+            {t('admin.common.filter')}
           </button>
           <a href="/admin/auditoria" className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]">
-            Limpiar
+            {t('admin.common.clear')}
           </a>
         </div>
       </form>
@@ -100,12 +102,12 @@ export default async function AdminAuditPage({ searchParams }: PageProps) {
       <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
        <div className="overflow-x-auto overscroll-x-contain touch-pan-x">
         <div className="grid min-w-[840px] grid-cols-[1.1fr_0.9fr_0.8fr_1fr_0.9fr_1.2fr] gap-4 border-b border-[var(--border)] px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-          <span>Fecha</span>
-          <span>Accion</span>
-          <span>Entidad</span>
-          <span>Actor</span>
-          <span>IP</span>
-          <span>Cambio</span>
+          <span>{t('admin.audit.col.date')}</span>
+          <span>{t('admin.audit.col.action')}</span>
+          <span>{t('admin.audit.col.entity')}</span>
+          <span>{t('admin.audit.col.actor')}</span>
+          <span>{t('admin.audit.col.ip')}</span>
+          <span>{t('admin.audit.col.change')}</span>
         </div>
         <div className="divide-y divide-[var(--border)]">
           {logs.map(log => {
@@ -127,16 +129,16 @@ export default async function AdminAuditPage({ searchParams }: PageProps) {
                   </p>
                   <p className="text-xs text-[var(--muted)]">{actor?.email ?? log.actorRole}</p>
                 </div>
-                <div className="text-[var(--foreground-soft)]">{log.ip ?? 'N/D'}</div>
+                <div className="text-[var(--foreground-soft)]">{log.ip ?? t('admin.audit.ipUnknown')}</div>
                 <div className="space-y-1 text-xs text-[var(--foreground-soft)]">
                   {log.before && (
                     <p className="line-clamp-2">
-                      <span className="font-semibold text-[var(--foreground)]">Antes:</span> {JSON.stringify(log.before)}
+                      <span className="font-semibold text-[var(--foreground)]">{t('admin.audit.before')}</span> {JSON.stringify(log.before)}
                     </p>
                   )}
                   {log.after && (
                     <p className="line-clamp-2">
-                      <span className="font-semibold text-[var(--foreground)]">Despues:</span> {JSON.stringify(log.after)}
+                      <span className="font-semibold text-[var(--foreground)]">{t('admin.audit.after')}</span> {JSON.stringify(log.after)}
                     </p>
                   )}
                 </div>
@@ -145,7 +147,7 @@ export default async function AdminAuditPage({ searchParams }: PageProps) {
           })}
           {logs.length === 0 && (
             <p className="px-5 py-10 text-center text-sm text-[var(--muted)]">
-              No hay eventos de auditoria para los filtros seleccionados.
+              {t('admin.audit.empty')}
             </p>
           )}
         </div>

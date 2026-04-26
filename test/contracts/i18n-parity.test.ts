@@ -45,6 +45,35 @@ const INTENTIONAL_COPY_KEYS = new Set<string>([
   'account.notifications.channel.telegram', // brand name, same in both locales (buyer-side)
   'admin.reports.kpi.gmv',        // "GMV" is an untranslatable acronym
   'admin.reports.kpi.aov',        // "AOV" is an untranslatable acronym
+  // Admin pages: tokens identical in es and en by design.
+  'admin.audit.col.actor',        // "Actor" reads the same in both locales
+  'admin.audit.col.ip',           // "IP" is an untranslatable acronym
+  'admin.commissions.col.fallback', // "Fallback" reads the same
+  'admin.commissions.scopeGlobal', // "Global manual" reads the same
+  'admin.incidentDetail.customerEmail', // "Email" reads the same
+  'admin.incidentDetail.kpi.sla', // "SLA" is an untranslatable acronym
+  'admin.incidents.sla',          // "SLA {date}" — keep identical
+  'admin.notifications.col.chat', // "Chat" reads the same
+  'admin.notifications.col.error', // "Error" reads the same
+  'admin.notifications.col.ref',  // "Ref" reads the same
+  'admin.notifications.success.fail', // "FAIL" status code
+  'admin.notifications.success.ok',   // "OK" status code
+  'admin.orders.detailItems',     // "Items" reads the same
+  'admin.orders.events.actor',    // "Actor {id}" — keep identical
+  'admin.orders.fulfillment',     // "Fulfillment" reads the same
+  'admin.orders.incidents.sla',   // "SLA {date}" — keep identical
+  'admin.orders.itemPlural',      // "{count} items" — same word
+  'admin.orders.itemSingular',    // "{count} item" — same word
+  'admin.orders.moreVendors',     // "+{count} vendors" — same word
+  'admin.orders.subtotal',        // "Subtotal" reads the same
+  'admin.orders.total',           // "Total" reads the same
+  'admin.orders.vendorFallback',  // "Vendor" reads the same
+  'admin.products.col.stock',     // "Stock" reads the same
+  'admin.products.stock',         // "Stock" reads the same
+  'admin.settlements.col.refunds', // "Refunds" reads the same
+  'admin.shipments.col.carrier',  // "Carrier" reads the same
+  'admin.shipments.col.tracking', // "Tracking" reads the same
+  'admin.shipments.provincesPlaceholder', // numeric/postal codes
 ])
 
 /**

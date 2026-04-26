@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth-guard'
 import { ADMIN_ROLES } from '@/lib/roles'
 import { formatDate } from '@/lib/utils'
 import { NotificationChannel, NotificationDeliveryStatus } from '@/generated/prisma/enums'
+import { getServerT } from '@/i18n/server'
 
 export const metadata: Metadata = { title: 'Notificaciones | Admin' }
 export const revalidate = 30
@@ -36,6 +37,7 @@ function parseChannel(raw: string | undefined): NotificationChannel | null {
 
 export default async function AdminNotificationsPage({ searchParams }: PageProps) {
   await requireRole([...ADMIN_ROLES])
+  const t = await getServerT()
   const filters = await Promise.resolve(searchParams ?? {})
   const status = parseStatus(filters.status)
   const userId = filters.userId?.trim()
@@ -107,9 +109,9 @@ export default async function AdminNotificationsPage({ searchParams }: PageProps
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">Notificaciones</h1>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">{t('admin.notifications.title')}</h1>
         <p className="text-sm text-[var(--muted)] mt-0.5">
-          Auditoría de envíos salientes (Telegram + web push) y de acciones recibidas desde inline buttons.
+          {t('admin.notifications.subtitle')}
         </p>
       </div>
 
@@ -134,18 +136,18 @@ export default async function AdminNotificationsPage({ searchParams }: PageProps
       </section>
 
       <section className="space-y-2">
-        <h2 className="font-semibold text-[var(--foreground)]">Envíos salientes (últimos 100)</h2>
+        <h2 className="font-semibold text-[var(--foreground)]">{t('admin.notifications.outboundTitle')}</h2>
         <div className="overflow-x-auto overscroll-x-contain touch-pan-x rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
           <table className="w-full min-w-[760px] text-sm">
             <thead className="bg-[var(--surface-muted)] text-left">
               <tr>
-                <th className="px-3 py-2">Fecha</th>
-                <th className="px-3 py-2">Usuario</th>
-                <th className="px-3 py-2">Canal</th>
-                <th className="px-3 py-2">Evento</th>
-                <th className="px-3 py-2">Estado</th>
-                <th className="px-3 py-2">Ref</th>
-                <th className="px-3 py-2">Error</th>
+                <th className="px-3 py-2">{t('admin.notifications.col.date')}</th>
+                <th className="px-3 py-2">{t('admin.notifications.col.user')}</th>
+                <th className="px-3 py-2">{t('admin.notifications.col.channel')}</th>
+                <th className="px-3 py-2">{t('admin.notifications.col.event')}</th>
+                <th className="px-3 py-2">{t('admin.notifications.col.status')}</th>
+                <th className="px-3 py-2">{t('admin.notifications.col.ref')}</th>
+                <th className="px-3 py-2">{t('admin.notifications.col.error')}</th>
               </tr>
             </thead>
             <tbody>
@@ -175,7 +177,7 @@ export default async function AdminNotificationsPage({ searchParams }: PageProps
               {deliveries.length === 0 && (
                 <tr>
                   <td className="px-3 py-6 text-center text-[var(--muted)]" colSpan={7}>
-                    Sin envíos registrados.
+                    {t('admin.notifications.outboundEmpty')}
                   </td>
                 </tr>
               )}
@@ -185,17 +187,17 @@ export default async function AdminNotificationsPage({ searchParams }: PageProps
       </section>
 
       <section className="space-y-2">
-        <h2 className="font-semibold text-[var(--foreground)]">Acciones recibidas (últimas 50)</h2>
+        <h2 className="font-semibold text-[var(--foreground)]">{t('admin.notifications.actionsTitle')}</h2>
         <div className="overflow-x-auto overscroll-x-contain touch-pan-x rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
           <table className="w-full min-w-[680px] text-sm">
             <thead className="bg-[var(--surface-muted)] text-left">
               <tr>
-                <th className="px-3 py-2">Fecha</th>
-                <th className="px-3 py-2">Usuario</th>
-                <th className="px-3 py-2">Chat</th>
-                <th className="px-3 py-2">Acción</th>
-                <th className="px-3 py-2">Éxito</th>
-                <th className="px-3 py-2">Error</th>
+                <th className="px-3 py-2">{t('admin.notifications.col.date')}</th>
+                <th className="px-3 py-2">{t('admin.notifications.col.user')}</th>
+                <th className="px-3 py-2">{t('admin.notifications.col.chat')}</th>
+                <th className="px-3 py-2">{t('admin.notifications.col.action')}</th>
+                <th className="px-3 py-2">{t('admin.notifications.col.success')}</th>
+                <th className="px-3 py-2">{t('admin.notifications.col.error')}</th>
               </tr>
             </thead>
             <tbody>
@@ -213,7 +215,7 @@ export default async function AdminNotificationsPage({ searchParams }: PageProps
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs font-medium ${row.success ? STATUS_PALETTE.SENT : STATUS_PALETTE.FAILED}`}
                       >
-                        {row.success ? 'OK' : 'FAIL'}
+                        {row.success ? t('admin.notifications.success.ok') : t('admin.notifications.success.fail')}
                       </span>
                     </td>
                     <td className="px-3 py-2 text-xs text-red-700">{row.error ?? ''}</td>
@@ -223,7 +225,7 @@ export default async function AdminNotificationsPage({ searchParams }: PageProps
               {actions.length === 0 && (
                 <tr>
                   <td className="px-3 py-6 text-center text-[var(--muted)]" colSpan={6}>
-                    Sin acciones registradas.
+                    {t('admin.notifications.actionsEmpty')}
                   </td>
                 </tr>
               )}

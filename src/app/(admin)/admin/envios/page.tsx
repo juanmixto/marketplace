@@ -5,6 +5,7 @@ import { ShippingRateActions } from '@/components/admin/ShippingRateActions'
 import { AdminShipmentRowActions } from '@/components/admin/AdminShipmentRowActions'
 import { listShipmentsForAdmin } from '@/domains/shipping/admin-actions'
 import { formatPrice, formatDate } from '@/lib/utils'
+import { getServerT } from '@/i18n/server'
 
 export const metadata: Metadata = { title: 'Envios | Admin' }
 export const revalidate = 30
@@ -12,6 +13,7 @@ export const revalidate = 30
 const FAILED_STATUSES = ['FAILED', 'EXCEPTION']
 
 export default async function AdminShippingPage() {
+  const t = await getServerT()
   const [zones, shipments] = await Promise.all([
     db.shippingZone.findMany({
       orderBy: { createdAt: 'asc' },
@@ -29,38 +31,38 @@ export default async function AdminShippingPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Operaciones</p>
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">Envios</h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">Gestiona zonas y tarifas usadas por checkout para calcular el envío por código postal.</p>
+        <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">{t('admin.shipments.kicker')}</p>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">{t('admin.shipments.title')}</h1>
+        <p className="mt-1 text-sm text-[var(--muted)]">{t('admin.shipments.subtitle')}</p>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
         <form action={createShippingZone} className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-          <h2 className="text-lg font-semibold text-[var(--foreground)]">Nueva zona</h2>
+          <h2 className="text-lg font-semibold text-[var(--foreground)]">{t('admin.shipments.newZone')}</h2>
           <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-[var(--foreground)]">Nombre</span>
-            <input name="name" className={inputCls} placeholder="Península" />
+            <span className="text-sm font-medium text-[var(--foreground)]">{t('admin.shipments.zoneName')}</span>
+            <input name="name" className={inputCls} placeholder={t('admin.shipments.zoneNamePlaceholder')} />
           </label>
           <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-[var(--foreground)]">Provincias o prefijos</span>
+            <span className="text-sm font-medium text-[var(--foreground)]">{t('admin.shipments.provinces')}</span>
             <textarea
               name="provinces"
               rows={3}
               className={inputCls}
-              placeholder="28, 08, Sevilla, Madrid"
+              placeholder={t('admin.shipments.provincesPlaceholder')}
             />
           </label>
           <button type="submit" className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400">
-            Crear zona
+            {t('admin.shipments.createZone')}
           </button>
         </form>
 
         <form action={addShippingRate} className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-          <h2 className="text-lg font-semibold text-[var(--foreground)]">Nueva tarifa</h2>
+          <h2 className="text-lg font-semibold text-[var(--foreground)]">{t('admin.shipments.newRate')}</h2>
           <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-[var(--foreground)]">Zona</span>
+            <span className="text-sm font-medium text-[var(--foreground)]">{t('admin.shipments.zone')}</span>
             <select name="zoneId" defaultValue="" className={inputCls}>
-              <option value="" disabled>Selecciona una zona</option>
+              <option value="" disabled>{t('admin.shipments.selectZone')}</option>
               {zones.map(zone => (
                 <option key={zone.id} value={zone.id}>{zone.name}</option>
               ))}
@@ -68,24 +70,24 @@ export default async function AdminShippingPage() {
           </label>
           <div className="grid gap-4 md:grid-cols-2">
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-[var(--foreground)]">Nombre</span>
-              <input name="name" className={inputCls} placeholder="Estándar 3-5 días" />
+              <span className="text-sm font-medium text-[var(--foreground)]">{t('admin.shipments.rateName')}</span>
+              <input name="name" className={inputCls} placeholder={t('admin.shipments.rateNamePlaceholder')} />
             </label>
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-[var(--foreground)]">Precio</span>
+              <span className="text-sm font-medium text-[var(--foreground)]">{t('admin.shipments.price')}</span>
               <input name="price" type="number" step="0.01" min="0" className={inputCls} placeholder="4.95" />
             </label>
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-[var(--foreground)]">Importe mínimo</span>
+              <span className="text-sm font-medium text-[var(--foreground)]">{t('admin.shipments.minOrderAmount')}</span>
               <input name="minOrderAmount" type="number" step="0.01" min="0" className={inputCls} placeholder="0" />
             </label>
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium text-[var(--foreground)]">Envío gratis desde</span>
+              <span className="text-sm font-medium text-[var(--foreground)]">{t('admin.shipments.freeAbove')}</span>
               <input name="freeAbove" type="number" step="0.01" min="0" className={inputCls} placeholder="35" />
             </label>
           </div>
           <button type="submit" className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400">
-            Añadir tarifa
+            {t('admin.shipments.addRate')}
           </button>
         </form>
       </div>
@@ -99,18 +101,18 @@ export default async function AdminShippingPage() {
                 <p className="mt-1 text-sm text-[var(--muted)]">{zone.provinces.join(', ')}</p>
               </div>
               <span className={zone.isActive ? 'rounded-full bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-400' : 'rounded-full bg-[var(--surface-raised)] px-2.5 py-1 text-xs font-medium text-[var(--muted)]'}>
-                {zone.isActive ? 'Activa' : 'Inactiva'}
+                {zone.isActive ? t('admin.common.active') : t('admin.common.inactive')}
               </span>
             </div>
 
             <div className="mt-4 overflow-hidden rounded-xl border border-[var(--border)]">
              <div className="overflow-x-auto overscroll-x-contain touch-pan-x">
               <div className="grid min-w-[680px] grid-cols-[1fr_0.8fr_0.8fr_0.8fr_auto] gap-4 border-b border-[var(--border)] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-                <span>Tarifa</span>
-                <span>Mínimo</span>
-                <span>Precio</span>
-                <span>Gratis desde</span>
-                <span>Acciones</span>
+                <span>{t('admin.shipments.col.rate')}</span>
+                <span>{t('admin.shipments.col.minimum')}</span>
+                <span>{t('admin.shipments.col.price')}</span>
+                <span>{t('admin.shipments.col.freeAbove')}</span>
+                <span>{t('admin.shipments.col.actions')}</span>
               </div>
               <div className="divide-y divide-[var(--border)]">
                 {zone.rates.map(rate => (
@@ -118,12 +120,12 @@ export default async function AdminShippingPage() {
                     <span className="font-medium text-[var(--foreground)]">{rate.name}</span>
                     <span className="text-[var(--foreground-soft)]">{rate.minOrderAmount == null ? '0,00 EUR' : formatPrice(Number(rate.minOrderAmount))}</span>
                     <span className="text-[var(--foreground-soft)]">{formatPrice(Number(rate.price))}</span>
-                    <span className="text-[var(--foreground-soft)]">{rate.freeAbove == null ? 'No aplica' : formatPrice(Number(rate.freeAbove))}</span>
+                    <span className="text-[var(--foreground-soft)]">{rate.freeAbove == null ? t('admin.common.notApplicable') : formatPrice(Number(rate.freeAbove))}</span>
                     <ShippingRateActions rateId={rate.id} />
                   </div>
                 ))}
                 {zone.rates.length === 0 && (
-                  <p className="px-4 py-6 text-sm text-[var(--muted)]">Esta zona aún no tiene tarifas.</p>
+                  <p className="px-4 py-6 text-sm text-[var(--muted)]">{t('admin.shipments.zoneEmpty')}</p>
                 )}
               </div>
              </div>
@@ -132,27 +134,27 @@ export default async function AdminShippingPage() {
         ))}
         {zones.length === 0 && (
           <p className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--muted)]">
-            Todavía no hay zonas de envío creadas.
+            {t('admin.shipments.zonesEmpty')}
           </p>
         )}
       </div>
 
       <div className="space-y-4">
         <div>
-          <h2 className="text-lg font-semibold text-[var(--foreground)]">Etiquetas generadas</h2>
+          <h2 className="text-lg font-semibold text-[var(--foreground)]">{t('admin.shipments.labelsTitle')}</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            Últimos envíos gestionados por el proveedor logístico. Usa &quot;Reintentar&quot; si una etiqueta queda en estado fallido.
+            {t('admin.shipments.labelsSubtitle')}
           </p>
         </div>
         <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
          <div className="overflow-x-auto overscroll-x-contain touch-pan-x">
           <div className="grid min-w-[920px] grid-cols-[1.2fr_1fr_0.8fr_1fr_1fr_auto] gap-4 border-b border-[var(--border)] px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-            <span>Pedido / Productor</span>
-            <span>Estado</span>
-            <span>Carrier</span>
-            <span>Tracking</span>
-            <span>Creado</span>
-            <span className="text-right">Acciones</span>
+            <span>{t('admin.shipments.col.orderVendor')}</span>
+            <span>{t('admin.shipments.col.status')}</span>
+            <span>{t('admin.shipments.col.carrier')}</span>
+            <span>{t('admin.shipments.col.tracking')}</span>
+            <span>{t('admin.shipments.col.created')}</span>
+            <span className="text-right">{t('admin.shipments.col.actions')}</span>
           </div>
           <div className="divide-y divide-[var(--border)]">
             {shipments.map(s => (
@@ -200,7 +202,7 @@ export default async function AdminShippingPage() {
             ))}
             {shipments.length === 0 && (
               <p className="px-5 py-6 text-sm text-[var(--muted)]">
-                Aún no se ha generado ninguna etiqueta.
+                {t('admin.shipments.labelsEmpty')}
               </p>
             )}
           </div>
