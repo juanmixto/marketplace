@@ -3,7 +3,7 @@ import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import AppBadgeSync from '@/components/pwa/AppBadgeSync'
 import { getPendingReviewsCount } from '@/domains/reviews/pending'
-import { getCategories } from '@/domains/catalog/queries'
+import { getVisibleCategorySlugs } from '@/domains/catalog/queries'
 
 export default async function BuyerLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
@@ -11,15 +11,12 @@ export default async function BuyerLayout({ children }: { children: React.ReactN
   // Feed the installed-app badge with the number of delivered lines the
   // buyer still has to review. Cheap: reuses the existing helper already
   // called by the buyer dashboard, so we don't add a new N+1 query.
-  const [badgeCount, categories] = await Promise.all([
+  const [badgeCount, availableCategorySlugs] = await Promise.all([
     session?.user?.id
       ? getPendingReviewsCount(session.user.id).catch(() => undefined)
       : Promise.resolve(undefined),
-    getCategories(),
+    getVisibleCategorySlugs(),
   ])
-  const availableCategorySlugs = categories
-    .filter(c => c._count.products > 0)
-    .map(c => c.slug)
 
   return (
     <>

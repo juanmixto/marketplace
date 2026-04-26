@@ -1,13 +1,10 @@
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import IosInstallHint from '@/components/pwa/IosInstallHint'
-import { getCategories } from '@/domains/catalog/queries'
+import { getVisibleCategorySlugs } from '@/domains/catalog/queries'
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
-  const categories = await getCategories()
-  const availableCategorySlugs = categories
-    .filter(c => c._count.products > 0)
-    .map(c => c.slug)
+  const availableCategorySlugs = await getVisibleCategorySlugs()
   return (
     <>
       <Header availableCategorySlugs={availableCategorySlugs} />

@@ -2,6 +2,7 @@ import { unstable_cache } from 'next/cache'
 import { db } from '@/lib/db'
 import { PAGINATION_DEFAULTS } from '@/lib/constants'
 import { getAvailableProductWhere } from '@/domains/catalog/availability'
+import { isCategoryVisible } from '@/domains/catalog/types'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 import { getDemoProductImages } from '@/domains/catalog/demo-product-images'
 import { expandSearchQuery } from '@/domains/catalog/search-translation'
@@ -361,6 +362,16 @@ export async function getCategories() {
   return getCategoriesCached()
 }
 
+export async function getVisibleCategories() {
+  const all = await getCategories()
+  return all.filter(isCategoryVisible)
+}
+
+export async function getVisibleCategorySlugs(): Promise<string[]> {
+  const visible = await getVisibleCategories()
+  return visible.map(c => c.slug)
+}
+
 async function getVendorsUncached(limit = 12) {
   return db.vendor.findMany({
     where: { status: 'ACTIVE' },
@@ -387,7 +398,7 @@ export async function getVendors(limit = 12) {
 async function getHomeSnapshotUncached() {
   const [featured, categories, vendors, activeProducts, activeVendors, averageVendorRating] = await Promise.all([
     getFeaturedProducts(8),
-    getCategories(),
+    getVisibleCategories(),
     getVendors(6),
     db.product.count({
       where: getAvailableProductWhere(),
