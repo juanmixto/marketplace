@@ -188,6 +188,8 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         try {
           const parsed = new URL(rawCallback)
           const baseHost = process.env.AUTH_URL ? new URL(process.env.AUTH_URL).host : null
+          // eslint-disable-next-line no-console -- temporary debug for #873
+          console.error('[case-d-debug-signin] parsed.host=', parsed.host, 'baseHost=', baseHost, 'AUTH_URL=', process.env.AUTH_URL)
           if (baseHost && parsed.host === baseHost) {
             const pathish = `${parsed.pathname}${parsed.search}`
             safeCallback = sanitizeCallbackUrl(pathish)
@@ -197,6 +199,8 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           safeCallback = sanitizeCallbackUrl(rawCallback)
         }
       }
+      // eslint-disable-next-line no-console -- temporary debug for #873
+      console.error('[case-d-debug-signin] safeCallback=', safeCallback)
       const token = await signAuthLinkToken(
         {
           email: decision.email,
