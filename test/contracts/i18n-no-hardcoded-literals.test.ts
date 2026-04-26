@@ -66,6 +66,8 @@ const ALLOWLIST_FILES: ReadonlySet<string> = new Set([
   'src/components/admin/ingestion/TelegramChatPicker.tsx', // Phase 1 PR-C chat picker — admin-only, not localized yet.
   'src/components/admin/ingestion/TelegramSyncButton.tsx', // Phase 1 PR-C sync trigger — admin-only, not localized yet.
   // Auth flows — pending dedicated i18n PR.
+  'src/app/__test__/oauth-trigger/page.tsx', // Test-only: gated on MOCK_OAUTH_ENABLED + NODE_ENV !== production. Not shipped to prod users.
+  'src/app/__test__/oauth-trigger/OAuthTriggerButton.tsx', // Test-only: same gate, button label only visible in Playwright.
   'src/app/(auth)/forgot-password/page.tsx',
   'src/app/(auth)/recuperar-contrasena/nueva/ResetForm.tsx',
   'src/app/(auth)/register/page.tsx',
