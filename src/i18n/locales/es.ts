@@ -923,7 +923,6 @@ const es = {
 
   // Vendor – web push (Móvil/Web)
   'vendor.webpush.title': 'Móvil y navegador',
-  'vendor.webpush.subtitle': 'Recibe avisos en este dispositivo aunque no tengas la app abierta.',
   'vendor.webpush.checking': 'Comprobando soporte…',
   'vendor.webpush.unsupported': 'Tu navegador no admite notificaciones push. Prueba en Chrome o instala la web como app desde Safari (iOS 16.4+).',
   'vendor.webpush.denied': 'Bloqueado',

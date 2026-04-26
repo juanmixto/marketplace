@@ -49,11 +49,7 @@ export default async function VendorNotificationsPage() {
         <TelegramConnectPanel initialLink={link} initialLinkUrl={initialLinkUrl} />
       </section>
 
-      <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
-        <div>
-          <h2 className="text-lg font-semibold text-[var(--foreground)]">{t('vendor.webpush.title')}</h2>
-          <p className="mt-0.5 text-sm text-[var(--muted)]">{t('vendor.webpush.subtitle')}</p>
-        </div>
+      <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
         <WebPushConnectPanel />
       </section>
 

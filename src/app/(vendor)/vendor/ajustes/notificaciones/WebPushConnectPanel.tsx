@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useCallback, useEffect, useState, useTransition } from 'react'
 import { useT } from '@/i18n'
 import {
   getPushSubscriptionState,
@@ -17,9 +17,21 @@ export function WebPushConnectPanel() {
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    getPushSubscriptionState().then(setState)
+  const refresh = useCallback(async () => {
+    const next = await getPushSubscriptionState()
+    setState(next)
   }, [])
+
+  useEffect(() => {
+    void refresh()
+    const onFocus = () => void refresh()
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onFocus)
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onFocus)
+    }
+  }, [refresh])
 
   function handleEnable() {
     setError(null)
@@ -53,58 +65,79 @@ export function WebPushConnectPanel() {
     })
   }
 
+  const title = t('vendor.webpush.title')
+
   if (state === 'loading') {
-    return <p className="text-sm text-[var(--muted)]">{t('vendor.webpush.checking')}</p>
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-medium text-[var(--foreground)]">{title}</div>
+          <p className="text-sm text-[var(--muted)]">{t('vendor.webpush.checking')}</p>
+        </div>
+      </div>
+    )
   }
 
   if (state === 'unsupported') {
-    return <p className="text-sm text-[var(--muted)]">{t('vendor.webpush.unsupported')}</p>
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-medium text-[var(--foreground)]">{title}</div>
+          <p className="text-sm text-[var(--muted)]">{t('vendor.webpush.unsupported')}</p>
+        </div>
+      </div>
+    )
   }
 
   if (state === 'denied') {
     return (
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <span aria-hidden className="inline-block h-2 w-2 rounded-full bg-amber-500" />
-          <span className="font-medium text-[var(--foreground)]">{t('vendor.webpush.denied')}</span>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span aria-hidden className="inline-block h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+          <span className="font-medium text-[var(--foreground)]">{title}</span>
+          <span className="truncate text-sm text-[var(--muted)]">· {t('vendor.webpush.denied')}</span>
         </div>
-        <p className="text-sm text-[var(--muted)]">{t('vendor.webpush.deniedHint')}</p>
+        <p className="basis-full text-sm text-[var(--muted)]">{t('vendor.webpush.deniedHint')}</p>
       </div>
     )
   }
 
   if (state === 'subscribed') {
     return (
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <span aria-hidden className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
-          <span className="font-medium text-[var(--foreground)]">{t('vendor.webpush.subscribed')}</span>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span aria-hidden className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+          <span className="font-medium text-[var(--foreground)]">{title}</span>
+          <span className="truncate text-sm text-[var(--muted)]">· {t('vendor.webpush.subscribed')}</span>
         </div>
         <button
           type="button"
           onClick={handleDisable}
           disabled={pending}
-          className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] disabled:opacity-50"
+          className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] disabled:opacity-50"
         >
           {pending ? t('vendor.webpush.disabling') : t('vendor.webpush.disable')}
         </button>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="basis-full text-sm text-red-600">{error}</p>}
       </div>
     )
   }
 
   return (
-    <div className="space-y-3">
-      <p className="text-sm text-[var(--muted)]">{t('vendor.webpush.enableHint')}</p>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="min-w-0">
+        <div className="font-medium text-[var(--foreground)]">{title}</div>
+        <p className="text-sm text-[var(--muted)]">{t('vendor.webpush.enableHint')}</p>
+      </div>
       <button
         type="button"
         onClick={handleEnable}
         disabled={pending}
-        className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50"
+        className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50"
       >
         {pending ? t('vendor.webpush.enabling') : t('vendor.webpush.enable')}
       </button>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="basis-full text-sm text-red-600">{error}</p>}
     </div>
   )
 }
