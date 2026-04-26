@@ -74,6 +74,8 @@ const INTENTIONAL_COPY_KEYS = new Set<string>([
   'admin.shipments.col.carrier',  // "Carrier" reads the same
   'admin.shipments.col.tracking', // "Tracking" reads the same
   'admin.shipments.provincesPlaceholder', // numeric/postal codes
+  'admin.actions.trackingError',  // generic "Error" — same word in both locales
+  'admin.incidentDetail.adminBadge', // "Admin" — same word in both locales
 ])
 
 /**

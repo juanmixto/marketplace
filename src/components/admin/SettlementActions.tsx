@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { approveSettlement, markSettlementPaid } from '@/domains/admin/actions'
+import { useT } from '@/i18n'
 
 interface Props {
   settlementId: string
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function SettlementActions({ settlementId, status }: Props) {
+  const t = useT()
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -19,7 +21,7 @@ export function SettlementActions({ settlementId, status }: Props) {
     try {
       await action()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error')
+      setError(err instanceof Error ? err.message : t('admin.actions.trackingError'))
     } finally {
       setLoading(null)
     }
@@ -35,7 +37,7 @@ export function SettlementActions({ settlementId, status }: Props) {
           isLoading={loading === 'approve'}
           onClick={() => run(() => approveSettlement(settlementId), 'approve')}
         >
-          Aprobar
+          {t('admin.actions.approve')}
         </Button>
       )}
 
@@ -46,7 +48,7 @@ export function SettlementActions({ settlementId, status }: Props) {
           isLoading={loading === 'paid'}
           onClick={() => run(() => markSettlementPaid(settlementId), 'paid')}
         >
-          Marcar pagada
+          {t('admin.actions.markPaid')}
         </Button>
       )}
     </div>

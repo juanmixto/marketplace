@@ -4,23 +4,25 @@ import { useEffect, useMemo, useTransition } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import type { PresetRange, FilterOptionSet } from '@/domains/analytics/types'
 import { useAnalyticsFiltersStore } from './useAnalyticsFiltersStore'
+import { useT } from '@/i18n'
+import type { TranslationKeys } from '@/i18n/locales'
 
-const PRESET_LABELS: Array<{ value: PresetRange; label: string }> = [
-  { value: 'today', label: 'Hoy' },
-  { value: '7d', label: '7 días' },
-  { value: '30d', label: '30 días' },
-  { value: 'mtd', label: 'Este mes' },
-  { value: 'custom', label: 'Personalizado' },
+const PRESET_KEYS: Array<{ value: PresetRange; key: TranslationKeys }> = [
+  { value: 'today', key: 'admin.reportsFilters.preset.today' },
+  { value: '7d', key: 'admin.reportsFilters.preset.7d' },
+  { value: '30d', key: 'admin.reportsFilters.preset.30d' },
+  { value: 'mtd', key: 'admin.reportsFilters.preset.mtd' },
+  { value: 'custom', key: 'admin.reportsFilters.preset.custom' },
 ]
 
-const ORDER_STATUSES = [
-  { value: '', label: 'Todos' },
-  { value: 'PAYMENT_CONFIRMED', label: 'Pagado' },
-  { value: 'PROCESSING', label: 'Procesando' },
-  { value: 'SHIPPED', label: 'Enviado' },
-  { value: 'DELIVERED', label: 'Entregado' },
-  { value: 'CANCELLED', label: 'Cancelado' },
-  { value: 'REFUNDED', label: 'Reembolsado' },
+const ORDER_STATUS_KEYS: Array<{ value: string; key: TranslationKeys }> = [
+  { value: '', key: 'admin.reportsFilters.allMasc' },
+  { value: 'PAYMENT_CONFIRMED', key: 'admin.reportsFilters.status.paid' },
+  { value: 'PROCESSING', key: 'admin.reportsFilters.status.processing' },
+  { value: 'SHIPPED', key: 'admin.reportsFilters.status.shipped' },
+  { value: 'DELIVERED', key: 'admin.reportsFilters.status.delivered' },
+  { value: 'CANCELLED', key: 'admin.reportsFilters.status.cancelled' },
+  { value: 'REFUNDED', key: 'admin.reportsFilters.status.refunded' },
 ]
 
 interface Props {
@@ -36,6 +38,7 @@ interface Props {
 }
 
 export function AnalyticsFilters({ options, initial }: Props) {
+  const t = useT()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -79,7 +82,7 @@ export function AnalyticsFilters({ options, initial }: Props) {
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-wrap gap-1.5">
-          {PRESET_LABELS.map(p => {
+          {PRESET_KEYS.map(p => {
             const active = draft.preset === p.value
             return (
               <button
@@ -92,7 +95,7 @@ export function AnalyticsFilters({ options, initial }: Props) {
                     : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:border-emerald-300'
                 }`}
               >
-                {p.label}
+                {t(p.key)}
               </button>
             )
           })}
@@ -101,7 +104,7 @@ export function AnalyticsFilters({ options, initial }: Props) {
         {draft.preset === 'custom' && (
           <div className="flex items-end gap-2">
             <label className="flex flex-col text-xs text-[var(--muted)]">
-              Desde
+              {t('admin.reportsFilters.from')}
               <input
                 type="date"
                 value={draft.from}
@@ -110,7 +113,7 @@ export function AnalyticsFilters({ options, initial }: Props) {
               />
             </label>
             <label className="flex flex-col text-xs text-[var(--muted)]">
-              Hasta
+              {t('admin.reportsFilters.to')}
               <input
                 type="date"
                 value={draft.to}
@@ -122,13 +125,13 @@ export function AnalyticsFilters({ options, initial }: Props) {
         )}
 
         <label className="flex flex-col text-xs text-[var(--muted)]">
-          Productor
+          {t('admin.reportsFilters.vendor')}
           <select
             value={draft.vendorId}
             onChange={e => setField('vendorId', e.target.value)}
             className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-sm text-[var(--foreground)]"
           >
-            <option value="">Todos</option>
+            <option value="">{t('admin.reportsFilters.allMasc')}</option>
             {options.vendors.map(v => (
               <option key={v.id} value={v.id}>
                 {v.label}
@@ -138,13 +141,13 @@ export function AnalyticsFilters({ options, initial }: Props) {
         </label>
 
         <label className="flex flex-col text-xs text-[var(--muted)]">
-          Categoría
+          {t('admin.reportsFilters.category')}
           <select
             value={draft.categoryId}
             onChange={e => setField('categoryId', e.target.value)}
             className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-sm text-[var(--foreground)]"
           >
-            <option value="">Todas</option>
+            <option value="">{t('admin.reportsFilters.allFem')}</option>
             {options.categories.map(c => (
               <option key={c.id} value={c.id}>
                 {c.label}
@@ -154,15 +157,15 @@ export function AnalyticsFilters({ options, initial }: Props) {
         </label>
 
         <label className="flex flex-col text-xs text-[var(--muted)]">
-          Estado
+          {t('admin.reportsFilters.status')}
           <select
             value={draft.status}
             onChange={e => setField('status', e.target.value)}
             className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-sm text-[var(--foreground)]"
           >
-            {ORDER_STATUSES.map(s => (
+            {ORDER_STATUS_KEYS.map(s => (
               <option key={s.value} value={s.value}>
-                {s.label}
+                {t(s.key)}
               </option>
             ))}
           </select>
@@ -174,7 +177,7 @@ export function AnalyticsFilters({ options, initial }: Props) {
             onClick={clear}
             className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)] hover:border-[var(--border-strong)]"
           >
-            Limpiar
+            {t('admin.reportsFilters.clear')}
           </button>
           <button
             type="button"
@@ -182,7 +185,7 @@ export function AnalyticsFilters({ options, initial }: Props) {
             disabled={isPending}
             className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
           >
-            {isPending ? 'Aplicando…' : 'Aplicar filtros'}
+            {isPending ? t('admin.reportsFilters.applying') : t('admin.reportsFilters.apply')}
           </button>
         </div>
       </div>

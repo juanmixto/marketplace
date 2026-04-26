@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { reviewProduct } from '@/domains/admin/actions'
+import { useT } from '@/i18n'
 
 interface Props {
   productId: string
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function ProductModerationActions({ productId, productName, status }: Props) {
+  const t = useT()
   const [rejectModal, setRejectModal] = useState(false)
   const [reason, setReason] = useState('')
   const [loading, setLoading] = useState(false)
@@ -25,7 +27,7 @@ export function ProductModerationActions({ productId, productName, status }: Pro
     try {
       await reviewProduct(productId, 'approve')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al aprobar')
+      setError(err instanceof Error ? err.message : t('admin.products.moderation.errorApprove'))
     } finally {
       setLoading(false)
     }
@@ -39,7 +41,7 @@ export function ProductModerationActions({ productId, productName, status }: Pro
       setRejectModal(false)
       setReason('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al rechazar')
+      setError(err instanceof Error ? err.message : t('admin.products.moderation.errorReject'))
     } finally {
       setLoading(false)
     }
@@ -50,10 +52,10 @@ export function ProductModerationActions({ productId, productName, status }: Pro
       <div className="flex flex-col items-end gap-1.5">
         <div className="flex items-center gap-2">
           <Button size="sm" isLoading={loading} onClick={handleApprove}>
-            Aprobar
+            {t('admin.actions.approve')}
           </Button>
           <Button size="sm" variant="danger" disabled={loading} onClick={() => setRejectModal(true)}>
-            Rechazar
+            {t('admin.actions.reject')}
           </Button>
         </div>
         {error && (
@@ -69,16 +71,16 @@ export function ProductModerationActions({ productId, productName, status }: Pro
       <Modal
         open={rejectModal}
         onClose={() => setRejectModal(false)}
-        title="Rechazar producto"
+        title={t('admin.products.moderation.modalTitle')}
         size="sm"
       >
         <div className="p-5 space-y-4">
           <p className="text-sm text-[var(--foreground-soft)]">
-            Rechazar <strong>{productName}</strong>. El productor recibirá el motivo.
+            {t('admin.products.moderation.modalIntroPrefix')} <strong>{productName}</strong>{t('admin.products.moderation.modalIntroSuffix')}
           </p>
           <div className="space-y-1.5">
             <label htmlFor="reason" className="block text-sm font-medium text-[var(--foreground)]">
-              Motivo (opcional)
+              {t('admin.products.moderation.reasonLabel')}
             </label>
             <textarea
               id="reason"
@@ -88,16 +90,16 @@ export function ProductModerationActions({ productId, productName, status }: Pro
               value={reason}
               onChange={e => setReason(e.target.value)}
               className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:focus:border-red-300 dark:focus:ring-red-400/25"
-              placeholder="Las imágenes no cumplen los requisitos mínimos..."
+              placeholder={t('admin.products.moderation.reasonPlaceholder')}
             />
           </div>
           {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
           <div className="flex gap-3 justify-end">
             <Button variant="secondary" size="sm" onClick={() => setRejectModal(false)}>
-              Cancelar
+              {t('admin.actions.cancel')}
             </Button>
             <Button variant="danger" size="sm" isLoading={loading} onClick={handleReject}>
-              Rechazar producto
+              {t('admin.products.moderation.confirmReject')}
             </Button>
           </div>
         </div>

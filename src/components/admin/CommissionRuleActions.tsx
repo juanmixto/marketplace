@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { deleteCommissionRule, toggleCommissionRule } from '@/domains/admin/actions'
+import { useT } from '@/i18n'
 
 interface Props {
   ruleId: string
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function CommissionRuleActions({ ruleId, isActive }: Props) {
+  const t = useT()
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -19,7 +21,7 @@ export function CommissionRuleActions({ ruleId, isActive }: Props) {
     try {
       await action()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error')
+      setError(err instanceof Error ? err.message : t('admin.actions.trackingError'))
     } finally {
       setLoading(null)
     }
@@ -34,7 +36,7 @@ export function CommissionRuleActions({ ruleId, isActive }: Props) {
         isLoading={loading === 'toggle'}
         onClick={() => run(() => toggleCommissionRule(ruleId), 'toggle')}
       >
-        {isActive ? 'Desactivar' : 'Activar'}
+        {isActive ? t('admin.actions.deactivate') : t('admin.actions.activate')}
       </Button>
       <Button
         size="sm"
@@ -42,7 +44,7 @@ export function CommissionRuleActions({ ruleId, isActive }: Props) {
         isLoading={loading === 'delete'}
         onClick={() => run(() => deleteCommissionRule(ruleId), 'delete')}
       >
-        Eliminar
+        {t('admin.actions.delete')}
       </Button>
     </div>
   )
