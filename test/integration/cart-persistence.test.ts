@@ -6,7 +6,7 @@ import {
   mergeLocalCartIntoServer,
   removeServerCartItem,
   setServerCartItem,
-} from '@/domains/orders/cart-persistence'
+} from '@/domains/cart/cart-persistence'
 import { db } from '@/lib/db'
 import {
   createActiveProduct,

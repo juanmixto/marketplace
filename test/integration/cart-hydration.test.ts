@@ -5,8 +5,8 @@ import {
   loadServerCart,
   mergeLocalIntoServerCart,
   setCartItem,
-} from '@/domains/orders/cart-actions'
-import { setServerCartItem } from '@/domains/orders/cart-persistence'
+} from '@/domains/cart/cart-actions'
+import { setServerCartItem } from '@/domains/cart/cart-persistence'
 import { db } from '@/lib/db'
 import {
   buildSession,

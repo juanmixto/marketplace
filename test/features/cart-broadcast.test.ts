@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 // install/cleanup contract is what we care about for unit-level
 // regression coverage.
 
-import { installCartBroadcast } from '@/domains/orders/cart-broadcast'
+import { installCartBroadcast } from '@/domains/cart/cart-broadcast'
 
 test('installCartBroadcast returns a cleanup function in environments without BroadcastChannel', () => {
   // In the Node test runner there's no BroadcastChannel global by
