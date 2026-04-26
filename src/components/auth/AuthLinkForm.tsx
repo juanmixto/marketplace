@@ -17,7 +17,7 @@ const PROVIDER_LABEL: Record<string, string> = {
   apple: 'Apple',
 }
 
-function reasonToKey(reason: Exclude<LinkActionResult, { ok: true }>['reason']) {
+function reasonToKey(reason: LinkActionResult['reason']) {
   switch (reason) {
     case 'expired_token':
       return 'login.link.error.expired'
@@ -45,9 +45,16 @@ export function AuthLinkForm({ token, email, provider }: Props) {
     const formData = new FormData(e.currentTarget)
     formData.set('token', token)
     startTransition(async () => {
-      const result = await submitLinkForm(formData)
-      if (!result.ok) {
-        setError(t(reasonToKey(result.reason) as Parameters<typeof t>[0]))
+      try {
+        const result = await submitLinkForm(formData)
+        // The action throws a redirect on success (Auth.js signIn).
+        // If we get a value back, it's an error case.
+        if (result && !result.ok) {
+          setError(t(reasonToKey(result.reason) as Parameters<typeof t>[0]))
+        }
+      } catch {
+        // Redirect signal propagated to the client; the browser is
+        // already navigating to the OAuth provider. Nothing to do.
       }
     })
   }

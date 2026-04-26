@@ -2,7 +2,6 @@
 
 import bcrypt from 'bcryptjs'
 import { headers } from 'next/headers'
-import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { checkRateLimit, getClientIP } from '@/lib/ratelimit'
@@ -11,11 +10,11 @@ import {
   verifyAuthLinkToken,
 } from '@/lib/auth-link-token'
 import { sanitizeCallbackUrl } from '@/lib/portals'
+import { signIn } from '@/lib/auth'
 
 const PASSWORD_ATTEMPTS_PER_IP_PER_HOUR = 5
 
 export type LinkActionResult =
-  | { ok: true; redirectTo: string }
   | {
       ok: false
       reason:
@@ -132,26 +131,30 @@ export async function linkSocialAccountAction(
     })
   }
 
-  // Re-trigger the provider so Auth.js emits a session. The newly-
-  // written Account row makes the matrix resolve to case B.
+  // Re-trigger the provider via Auth.js's server-side `signIn` so the
+  // matrix resolves to case B (linked) on this second pass and emits
+  // the session. `signIn` throws Next.js's redirect signal — control
+  // never returns to the caller in the happy path. Bare `/api/auth/
+  // signin/<provider>` GET would just redirect to /login (Auth.js v5
+  // routes signin renders through `pages.signIn`), so this is the
+  // only path that completes the link end-to-end.
   const callback = payload.callbackUrl ? sanitizeCallbackUrl(payload.callbackUrl) ?? '/' : '/'
-  return {
-    ok: true,
-    redirectTo: `/api/auth/signin/${encodeURIComponent(payload.provider)}?callbackUrl=${encodeURIComponent(callback)}`,
-  }
+  await signIn(payload.provider, { redirectTo: callback })
+  // Unreachable — the line above always throws. The throw is the
+  // success signal Next propagates as a navigation.
+  return { ok: false, reason: 'generic' }
 }
 
 /**
- * Server action wrapper that performs the redirect on success. Used
- * by the form submit handler — the page always renders the form,
- * the action either redirects (success) or returns an error to the
- * client.
+ * Server action wrapper. The inner action either:
+ *   - returns an error result the form renders, or
+ *   - throws Next's redirect signal via `signIn(provider)` which the
+ *     framework converts into a navigation to the OAuth provider.
+ * Either way, success never returns to the client as a value.
  */
 export async function submitLinkForm(formData: FormData): Promise<LinkActionResult> {
   const token = String(formData.get('token') ?? '')
   const password = String(formData.get('password') ?? '')
   if (!token || !password) return { ok: false, reason: 'generic' }
-  const result = await linkSocialAccountAction(token, password)
-  if (result.ok) redirect(result.redirectTo)
-  return result
+  return linkSocialAccountAction(token, password)
 }
