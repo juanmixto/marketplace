@@ -25,9 +25,13 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url)
   const redirectUri = url.searchParams.get('redirect_uri')
+  // `state` is only present when provider.checks includes 'state'.
+  // Our mock provider uses checks: ['none'] (see auth-mock-oauth.ts)
+  // so Auth.js doesn't add it to the authorize URL. Forward it back
+  // when present, omit otherwise.
   const state = url.searchParams.get('state')
-  if (!redirectUri || !state) {
-    return new Response('missing redirect_uri or state', { status: 400 })
+  if (!redirectUri) {
+    return new Response('missing redirect_uri', { status: 400 })
   }
 
   const cookie = req.cookies.get(MOCK_OAUTH_USER_COOKIE)?.value
@@ -53,6 +57,6 @@ export async function GET(req: NextRequest) {
 
   const target = new URL(redirectUri)
   target.searchParams.set('code', code)
-  target.searchParams.set('state', state)
+  if (state) target.searchParams.set('state', state)
   return NextResponse.redirect(target.toString(), 302)
 }
