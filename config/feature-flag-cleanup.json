@@ -1,4 +1,9 @@
 {
+  "feat-auth-google": {
+    "issue": 864,
+    "owner": "@juanmixto",
+    "dueDate": "2026-05-26"
+  },
   "feat-buyer-subscriptions": {
     "issue": 753,
     "owner": "@juanmixto",
