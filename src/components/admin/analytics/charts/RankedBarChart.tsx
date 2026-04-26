@@ -23,6 +23,7 @@ export function RankedBarChart({ data, color = '#10b981' }: Props) {
           <XAxis type="number" tickFormatter={formatEur} stroke="var(--muted)" fontSize={11} />
           <YAxis type="category" dataKey="name" stroke="var(--muted)" fontSize={11} width={130} />
           <Tooltip
+            wrapperStyle={{ pointerEvents: 'auto' }}
             contentStyle={{
               backgroundColor: 'var(--surface)',
               border: '1px solid var(--border)',
