@@ -1,17 +1,17 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { hashCartForDedupe } from '@/domains/orders/cart-dedupe'
+import { hashCartForDedupe } from '@/domains/cart'
 import { redirect } from 'next/navigation'
 import { generateOrderNumber } from '@/lib/utils'
 import { createPaymentIntent } from '@/domains/payments'
 import {
-  calculateOrderPricing,
   checkoutSchema,
   checkoutWithSavedAddressSchema,
   orderItemsSchema,
   type CheckoutFormData,
 } from '@/domains/orders/checkout'
+import { calculateOrderPricing } from '@/domains/pricing'
 import { orderAddressSnapshotSchema, orderLineSnapshotSchema } from '@/types/order'
 import { getServerEnv } from '@/lib/env'
 import { getAvailableProductWhere } from '@/domains/catalog'

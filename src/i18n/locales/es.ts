@@ -386,7 +386,7 @@ const es = {
   'vendor.sidebar.statusActive': 'Activo',
   'vendor.sidebar.statusPending': 'Pendiente',
   'vendor.sidebar.soon': 'Próximamente',
-  'vendor.sidebar.viewStore': 'Ver mi tienda',
+  'vendor.sidebar.viewStore': 'Ver tienda',
   'vendor.sidebar.collapse': 'Contraer',
   'vendor.sidebar.expand': 'Expandir',
   'vendor.sidebar.openMenu': 'Abrir menú',

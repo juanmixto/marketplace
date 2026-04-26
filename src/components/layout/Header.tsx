@@ -13,7 +13,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import { SITE_NAME } from '@/lib/constants'
-import { useCartStore } from '@/domains/orders/cart-store'
+import { useCartStore } from '@/domains/cart/cart-store'
 import { getPortalLabel, getPrimaryPortalHref, translateCategoryLabel } from '@/lib/portals'
 import type { UserRole } from '@/generated/prisma/enums'
 import { SignOutButton } from '@/components/auth/SignOutButton'
@@ -22,6 +22,7 @@ import { LanguageToggle } from '@/components/LanguageToggle'
 import { InstallCtaGate, LoginLink } from '@/components/layout/HeaderPathnameParts'
 import { useLocale, useT } from '@/i18n'
 import { useSession } from 'next-auth/react'
+import { useSwipeToClose } from '@/lib/hooks/useSwipeToClose'
 
 const CATEGORIES = [
   { name: 'Verduras y Hortalizas', slug: 'verduras', icon: '🥦' },
@@ -63,66 +64,60 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
   // — phones at 360px were too cramped to read and tap that row.
   const [searchOpen,  setSearchOpen]  = useState(false)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
+  // Swipe-to-close gesture for the mobile drawer. The hook tracks finger
+  // displacement, exposes the live translateX, and fires onClose when the
+  // user drags past the threshold or flicks fast.
+  const swipe = useSwipeToClose({
+    isOpen: mobileOpen,
+    onClose: () => setMobileOpen(false),
+    direction: 'right',
+  })
 
   useEffect(() => {
     if (!mobileOpen) return
-    // `overflow: hidden` alone is not enough — iOS Safari and Android
-    // Chrome both still let the page scroll under a `fixed` overlay
-    // ("rubber band"). Pin the body to its current scroll position with
-    // `position: fixed; top: -scrollY`, then restore the scroll on
-    // cleanup. This is the standard scroll-lock pattern used by Modal,
-    // and removes the visible jump when toggling the drawer.
-    const { body } = document
-    const scrollY = window.scrollY
+    // Lock scroll by setting overflow on <html> (which Safari/Chrome
+    // respect) and freezing the scrollbar gutter so layout doesn't
+    // shift. We deliberately do NOT use the `position: fixed; top:
+    // -scrollY` pattern — that breaks fixed-positioned children
+    // (like our right-side drawer) because their containing block
+    // becomes the moved body, not the viewport.
+    const html = document.documentElement
     const previous = {
-      overflow: body.style.overflow,
-      position: body.style.position,
-      top: body.style.top,
-      width: body.style.width,
+      overflow: html.style.overflow,
+      paddingRight: html.style.paddingRight,
     }
-    body.style.overflow = 'hidden'
-    body.style.position = 'fixed'
-    body.style.top = `-${scrollY}px`
-    body.style.width = '100%'
+    // Compensate for scrollbar disappearance on desktop (no-op on mobile).
+    const scrollbarWidth = window.innerWidth - html.clientWidth
+    html.style.overflow = 'hidden'
+    if (scrollbarWidth > 0) html.style.paddingRight = `${scrollbarWidth}px`
     return () => {
-      body.style.overflow = previous.overflow
-      body.style.position = previous.position
-      body.style.top = previous.top
-      body.style.width = previous.width
-      window.scrollTo(0, scrollY)
+      html.style.overflow = previous.overflow
+      html.style.paddingRight = previous.paddingRight
     }
   }, [mobileOpen])
 
-  // Lock body scroll while the search overlay is open, focus the input,
-  // and listen for Escape so dismissing matches OS expectations. Uses
-  // the same `position: fixed + top: -scrollY` lock as the drawer so
-  // iOS / Android Chrome can't rubber-band-scroll the page underneath.
+  // Lock scroll on <html> (not body) so the search overlay's fixed
+  // children stay anchored to the viewport. Same pattern as the drawer
+  // above — see comment there for why we avoid the position:fixed body
+  // trick.
   useEffect(() => {
     if (!searchOpen) return
-    const { body } = document
-    const scrollY = window.scrollY
+    const html = document.documentElement
     const previous = {
-      overflow: body.style.overflow,
-      position: body.style.position,
-      top: body.style.top,
-      width: body.style.width,
+      overflow: html.style.overflow,
+      paddingRight: html.style.paddingRight,
     }
-    body.style.overflow = 'hidden'
-    body.style.position = 'fixed'
-    body.style.top = `-${scrollY}px`
-    body.style.width = '100%'
-    // Defer focus a tick so the input is mounted in the DOM tree.
+    const scrollbarWidth = window.innerWidth - html.clientWidth
+    html.style.overflow = 'hidden'
+    if (scrollbarWidth > 0) html.style.paddingRight = `${scrollbarWidth}px`
     const id = requestAnimationFrame(() => searchInputRef.current?.focus())
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') setSearchOpen(false)
     }
     window.addEventListener('keydown', onKey)
     return () => {
-      body.style.overflow = previous.overflow
-      body.style.position = previous.position
-      body.style.top = previous.top
-      body.style.width = previous.width
-      window.scrollTo(0, scrollY)
+      html.style.overflow = previous.overflow
+      html.style.paddingRight = previous.paddingRight
       cancelAnimationFrame(id)
       window.removeEventListener('keydown', onKey)
     }
@@ -369,17 +364,31 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
           close. */}
       {mobileOpen && (
         <>
+          {/* Backdrop — heavier blur + dim than a typical overlay so
+              the page behind reads as "frozen" and the drawer reads as
+              the only interactive surface. opacity falls off as the
+              drawer is dragged closed for a finger-tracked feel. */}
           <button
             type="button"
             aria-label={t('close_menu')}
             onClick={() => setMobileOpen(false)}
-            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
+            style={{
+              opacity: swipe.backdropOpacity,
+              transition: swipe.isDragging ? 'none' : 'opacity 200ms ease-out',
+            }}
+            className="fixed inset-0 z-40 bg-black/65 backdrop-blur-md lg:hidden"
           />
           <aside
             role="dialog"
             aria-modal="true"
             aria-label={t('open_menu')}
-            className="fixed right-0 top-0 z-50 flex h-dvh w-[min(22rem,88vw)] flex-col overflow-y-auto border-l border-[var(--border)] bg-[var(--surface)] shadow-2xl lg:hidden"
+            {...swipe.handlers}
+            style={{
+              transform: `translateX(${swipe.dragX}px)`,
+              transition: swipe.isDragging ? 'none' : 'transform 200ms ease-out',
+              touchAction: 'pan-y',
+            }}
+            className="fixed right-0 top-0 z-50 flex h-dvh w-[min(22rem,88vw)] flex-col overflow-y-auto overscroll-contain border-l border-[var(--border)] bg-[var(--surface)] shadow-2xl lg:hidden"
           >
             {/* Drawer header — close button on the right matches the
                 hamburger position so the user closes from the same

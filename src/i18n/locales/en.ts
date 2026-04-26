@@ -388,7 +388,7 @@ const en: Record<TranslationKeys, string> = {
   'vendor.sidebar.statusActive': 'Active',
   'vendor.sidebar.statusPending': 'Pending',
   'vendor.sidebar.soon': 'Soon',
-  'vendor.sidebar.viewStore': 'View my store',
+  'vendor.sidebar.viewStore': 'View store',
   'vendor.sidebar.collapse': 'Collapse',
   'vendor.sidebar.expand': 'Expand',
   'vendor.sidebar.openMenu': 'Open menu',

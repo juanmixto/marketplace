@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useCartStore } from '@/domains/orders/cart-store'
+import { useCartStore } from '@/domains/cart/cart-store'
 import { useRouter } from 'next/navigation'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -17,13 +17,13 @@ import {
   type ShippingZoneLike,
 } from '@/domains/shipping/shared'
 import {
-  applyCartDiscounts,
   getPreferredCheckoutAddress,
   toCheckoutFormAddress,
   checkoutFormSchema,
   type CheckoutFormInput,
   type SavedCheckoutAddress,
 } from '@/domains/orders/checkout'
+import { applyCartDiscounts } from '@/domains/pricing'
 import {
   SPAIN_PROVINCES,
 } from '@/domains/shipping/spain-provinces'
@@ -291,7 +291,7 @@ export function CheckoutPageClient({
     // redirect below is the user-visible success path; a transient
     // failure just leaves a stale server cart that the next login
     // merge will reconcile.
-    void import('@/domains/orders/cart-actions')
+    void import('@/domains/cart/cart-actions')
       .then(mod => mod.clearMyServerCart())
       .catch(() => {})
     router.replace(`/checkout/confirmacion?orderNumber=${encodeURIComponent(completedOrderNumber)}`)
