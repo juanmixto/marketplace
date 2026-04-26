@@ -47,16 +47,8 @@ export default async function BuyerNotificationsPage() {
         <p className="mt-0.5 text-sm text-[var(--muted)]">{t('account.notifications.subtitle')}</p>
       </div>
 
-      <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
-        <div>
-          <h2 className="text-lg font-semibold text-[var(--foreground)]">{t('account.telegram.title')}</h2>
-          <p className="mt-0.5 text-sm text-[var(--muted)]">{t('account.telegram.subtitle')}</p>
-        </div>
-        <BuyerTelegramConnectPanel
-          initialLink={link}
-          botUsername={config.botUsername}
-          initialLinkUrl={initialLinkUrl}
-        />
+      <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
+        <BuyerTelegramConnectPanel initialLink={link} initialLinkUrl={initialLinkUrl} />
       </section>
 
       <section className="space-y-4">

@@ -11,11 +11,9 @@ import type { TelegramLinkSummary } from '@/domains/notifications/telegram/queri
 
 export function BuyerTelegramConnectPanel({
   initialLink,
-  botUsername,
   initialLinkUrl,
 }: {
   initialLink: TelegramLinkSummary
-  botUsername: string
   initialLinkUrl: string | null
 }) {
   const t = useT()
@@ -85,36 +83,42 @@ export function BuyerTelegramConnectPanel({
       ? t('account.telegram.connectedAs').replace('{username}', link.username)
       : t('account.telegram.connected')
     return (
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <span aria-hidden className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
-          <span className="font-medium text-[var(--foreground)]">{label}</span>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span aria-hidden className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+          <span className="font-medium text-[var(--foreground)]">{t('account.telegram.title')}</span>
+          <span className="truncate text-sm text-[var(--muted)]">· {label}</span>
         </div>
         <button
           type="button"
           onClick={handleDisconnect}
           disabled={pending}
-          className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] disabled:opacity-50"
+          className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] disabled:opacity-50"
         >
           {pending ? t('account.telegram.disconnecting') : t('account.telegram.disconnect')}
         </button>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="basis-full text-sm text-red-600">{error}</p>}
       </div>
     )
   }
 
   return (
-    <div className="space-y-3">
-      <p className="text-sm text-[var(--muted)]">
-        {t('account.telegram.connectHint').replace('{bot}', botUsername)}
-      </p>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="min-w-0">
+        <div className="font-medium text-[var(--foreground)]">{t('account.telegram.title')}</div>
+        <p className="text-sm text-[var(--muted)]">
+          {waitingForLink
+            ? t('account.telegram.waitingForLink')
+            : t('account.telegram.subtitle')}
+        </p>
+      </div>
       {linkUrl ? (
         <a
           href={linkUrl}
           target="_blank"
           rel="noopener noreferrer"
           onClick={handleConnectClick}
-          className="inline-block rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700"
+          className="inline-block rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-700"
         >
           {t('account.telegram.connect')}
         </a>
@@ -123,15 +127,12 @@ export function BuyerTelegramConnectPanel({
           type="button"
           onClick={handleRegenerate}
           disabled={pending}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50"
+          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50"
         >
           {pending ? t('account.telegram.connecting') : t('account.telegram.connect')}
         </button>
       )}
-      {waitingForLink && (
-        <p className="text-sm text-[var(--muted)]">{t('account.telegram.waitingForLink')}</p>
-      )}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="basis-full text-sm text-red-600">{error}</p>}
     </div>
   )
 }
