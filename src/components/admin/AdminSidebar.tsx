@@ -113,7 +113,7 @@ export function AdminSidebar({ user }: Props = {}) {
           collapsed ? 'md:w-16' : 'md:w-56',
           mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
         )}
-        aria-label="Panel Admin"
+        aria-label={t('admin.sidebar.portalKicker')}
       >
         <div className="relative flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] px-4">
           <div
@@ -122,8 +122,8 @@ export function AdminSidebar({ user }: Props = {}) {
               collapsed && 'md:invisible md:opacity-0',
             )}
           >
-            <p className="text-[9px] font-semibold uppercase leading-none tracking-widest text-[var(--muted)]">Panel Admin</p>
-            <p className="mt-1 text-sm font-bold leading-none text-[var(--foreground)] truncate">Mercado Productor</p>
+            <p className="text-[9px] font-semibold uppercase leading-none tracking-widest text-[var(--muted)]">{t('admin.sidebar.portalKicker')}</p>
+            <p className="mt-1 text-sm font-bold leading-none text-[var(--foreground)] truncate">{t('admin.sidebar.portalTitle')}</p>
           </div>
           {collapsed && (
             <div
@@ -139,17 +139,18 @@ export function AdminSidebar({ user }: Props = {}) {
             type="button"
             onClick={closeMobile}
             className="md:hidden inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2.5 text-[var(--muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
-            aria-label="Cerrar menú"
-            title="Cerrar menú"
+            aria-label={t('admin.sidebar.closeMenu')}
+            title={t('admin.sidebar.closeMenu')}
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
         </div>
 
         <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
-          {visibleNavItems.map(({ href, label, available }) => {
+          {visibleNavItems.map(({ href, labelKey, available }) => {
             const Icon = NAV_META[href as keyof typeof NAV_META]
             const isActive = pathname === href || pathname.startsWith(href + '/')
+            const label = t(labelKey)
 
             if (!available) {
               return (
@@ -159,7 +160,7 @@ export function AdminSidebar({ user }: Props = {}) {
                     'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--muted)]',
                     collapsed && 'md:h-10 md:justify-center md:gap-0 md:px-0 md:py-0',
                   )}
-                  title={collapsed ? `${label} (próximamente)` : undefined}
+                  title={collapsed ? `${label} ${t('admin.sidebar.itemSoonSuffix')}` : undefined}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
                   <span className={cn('flex-1', labelCls)} style={labelStyle}>{label}</span>
@@ -170,7 +171,7 @@ export function AdminSidebar({ user }: Props = {}) {
                       collapsed && 'md:opacity-0 md:w-0 md:p-0 md:overflow-hidden',
                     )}
                   >
-                    Soon
+                    {t('admin.sidebar.soon')}
                   </span>
                 </div>
               )
@@ -227,8 +228,8 @@ export function AdminSidebar({ user }: Props = {}) {
           <Link
             href="/"
             target="_blank"
-            title={collapsed ? 'Ver tienda' : undefined}
-            aria-label="Ver tienda"
+            title={collapsed ? t('admin.sidebar.viewStore') : undefined}
+            aria-label={t('admin.sidebar.viewStore')}
             style={labelStyle}
             className={cn(
               'flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[var(--muted)] transition-[width,height,padding,margin] ease-out hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]',
@@ -236,7 +237,7 @@ export function AdminSidebar({ user }: Props = {}) {
             )}
           >
             <ArrowTopRightOnSquareIcon className="h-4 w-4 shrink-0" />
-            <span className={labelCls} style={labelStyle}>Ver tienda</span>
+            <span className={labelCls} style={labelStyle}>{t('admin.sidebar.viewStore')}</span>
           </Link>
           <button
             type="button"
@@ -246,9 +247,9 @@ export function AdminSidebar({ user }: Props = {}) {
               'hidden md:flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-[var(--muted)] transition-[width,height,padding,margin] ease-out hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]',
               collapsed && 'md:h-10 md:justify-center md:gap-0 md:px-0 md:py-0',
             )}
-            aria-label={collapsed ? 'Expandir menú' : 'Contraer menú'}
+            aria-label={collapsed ? t('admin.sidebar.expand') : t('admin.sidebar.collapse')}
             aria-pressed={collapsed}
-            title={collapsed ? 'Expandir menú' : 'Contraer menú'}
+            title={collapsed ? t('admin.sidebar.expand') : t('admin.sidebar.collapse')}
           >
             <span
               className={cn(
@@ -258,7 +259,7 @@ export function AdminSidebar({ user }: Props = {}) {
             >
               <ChevronDoubleLeftIcon className="h-4 w-4" />
             </span>
-            <span className={labelCls} style={labelStyle}>Contraer</span>
+            <span className={labelCls} style={labelStyle}>{t('admin.sidebar.collapse')}</span>
           </button>
         </div>
 

@@ -18,6 +18,11 @@ export interface LocalizedNavItem {
   href: string
   labelKey: TranslationKeys
   available: boolean
+  /**
+   * When set, the entry is only rendered if the named PostHog flag
+   * resolves strictly true (fail-closed). See AppNavItem.flag.
+   */
+  flag?: string
 }
 
 export const vendorNavItems: LocalizedNavItem[] = [
@@ -32,33 +37,33 @@ export const vendorNavItems: LocalizedNavItem[] = [
   { href: '/vendor/ajustes/notificaciones', labelKey: 'vendor.nav.notifications', available: true },
 ]
 
-export const adminNavItems: AppNavItem[] = [
-  { href: '/admin/dashboard', label: 'Dashboard', available: true },
-  { href: '/admin/pedidos', label: 'Pedidos', available: true },
-  { href: '/admin/usuarios', label: 'Usuarios', available: true },
-  { href: '/admin/productores', label: 'Productores', available: true },
-  { href: '/admin/productos', label: 'Productos', available: true },
-  { href: '/admin/promociones', label: 'Promociones', available: true },
-  { href: '/admin/suscripciones', label: 'Suscripciones', available: true },
-  { href: '/admin/envios', label: 'Envios', available: true },
-  { href: '/admin/comisiones', label: 'Comisiones', available: true },
-  { href: '/admin/configuracion', label: 'Configuracion', available: true },
-  { href: '/admin/auditoria', label: 'Auditoria', available: true },
-  { href: '/admin/liquidaciones', label: 'Liquidaciones', available: true },
-  { href: '/admin/incidencias', label: 'Incidencias', available: true },
-  { href: '/admin/informes', label: 'Informes', available: true },
-  { href: '/admin/analytics', label: 'Analytics', available: true },
-  { href: '/admin/notificaciones', label: 'Notificaciones', available: true },
-  { href: '/admin/ingestion', label: 'Ingestion', available: true, flag: 'feat-ingestion-admin' },
+export const adminNavItems: LocalizedNavItem[] = [
+  { href: '/admin/dashboard',      labelKey: 'admin.nav.dashboard',     available: true },
+  { href: '/admin/pedidos',        labelKey: 'admin.nav.orders',        available: true },
+  { href: '/admin/usuarios',       labelKey: 'admin.nav.users',         available: true },
+  { href: '/admin/productores',    labelKey: 'admin.nav.producers',     available: true },
+  { href: '/admin/productos',      labelKey: 'admin.nav.products',      available: true },
+  { href: '/admin/promociones',    labelKey: 'admin.nav.promotions',    available: true },
+  { href: '/admin/suscripciones',  labelKey: 'admin.nav.subscriptions', available: true },
+  { href: '/admin/envios',         labelKey: 'admin.nav.shipments',     available: true },
+  { href: '/admin/comisiones',     labelKey: 'admin.nav.commissions',   available: true },
+  { href: '/admin/configuracion',  labelKey: 'admin.nav.settings',      available: true },
+  { href: '/admin/auditoria',      labelKey: 'admin.nav.audit',         available: true },
+  { href: '/admin/liquidaciones',  labelKey: 'admin.nav.settlements',   available: true },
+  { href: '/admin/incidencias',    labelKey: 'admin.nav.incidents',     available: true },
+  { href: '/admin/informes',       labelKey: 'admin.nav.reports',       available: true },
+  { href: '/admin/analytics',      labelKey: 'admin.nav.analytics',     available: true },
+  { href: '/admin/notificaciones', labelKey: 'admin.nav.notifications', available: true },
+  { href: '/admin/ingestion',      labelKey: 'admin.nav.ingestion',     available: true, flag: 'feat-ingestion-admin' },
 ]
 
-export const buyerAccountItems: AppNavItem[] = [
-  { href: '/cuenta/pedidos', label: 'Mis pedidos', available: true },
-  { href: '/cuenta/suscripciones', label: 'Mis suscripciones', available: true },
-  { href: '/cuenta/direcciones', label: 'Mis direcciones', available: true },
-  { href: '/cuenta/favoritos', label: 'Mis favoritos', available: true },
-  { href: '/cuenta/perfil', label: 'Datos personales', available: true },
-  { href: '/cuenta/notificaciones', label: 'Notificaciones', available: true },
+export const buyerAccountItems: LocalizedNavItem[] = [
+  { href: '/cuenta/pedidos',        labelKey: 'account.nav.orders.label',        available: true },
+  { href: '/cuenta/suscripciones',  labelKey: 'account.nav.subscriptions.label', available: true },
+  { href: '/cuenta/direcciones',    labelKey: 'account.nav.addresses.label',     available: true },
+  { href: '/cuenta/favoritos',      labelKey: 'account.nav.favorites.label',     available: true },
+  { href: '/cuenta/perfil',         labelKey: 'account.nav.profile.label',       available: true },
+  { href: '/cuenta/notificaciones', labelKey: 'account.nav.notifications.label', available: true },
 ]
 
 export const buyerAccountMeta = {
