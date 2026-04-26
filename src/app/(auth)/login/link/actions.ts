@@ -131,17 +131,29 @@ export async function linkSocialAccountAction(
     })
   }
 
-  // Re-trigger the provider via Auth.js's server-side `signIn` so the
-  // matrix resolves to case B (linked) on this second pass and emits
-  // the session. `signIn` throws Next.js's redirect signal — control
-  // never returns to the caller in the happy path. Bare `/api/auth/
-  // signin/<provider>` GET would just redirect to /login (Auth.js v5
-  // routes signin renders through `pages.signIn`), so this is the
-  // only path that completes the link end-to-end.
+  // Emit a session via the credentials flow with the password the
+  // user just proved. This is more reliable than re-triggering the
+  // OAuth provider server-side: Auth.js v5's `signIn(<oauth>)` from
+  // a server action calls Auth() internally to materialize the
+  // signin URL, but the subsequent browser-side authorize → callback
+  // round-trip dropped state cookies in our test environment and
+  // hung the flow. Credentials → callback is a single round-trip,
+  // already battle-tested by the public /login form.
+  //
+  // Tradeoff: users with 2FA-enrolled credentials will hit the TOTP
+  // requirement and the action fails with `generic`. That's
+  // acceptable today (admins are the only enrolled cohort and they
+  // don't typically link OAuth on top of credentials), and a future
+  // enhancement can collect the TOTP on the link page when the
+  // need lands.
   const callback = payload.callbackUrl ? sanitizeCallbackUrl(payload.callbackUrl) ?? '/' : '/'
-  await signIn(payload.provider, { redirectTo: callback })
-  // Unreachable — the line above always throws. The throw is the
-  // success signal Next propagates as a navigation.
+  await signIn('credentials', {
+    email: payload.email,
+    password,
+    redirectTo: callback,
+  })
+  // Unreachable — `signIn` throws Next's redirect signal. The throw
+  // is the success signal Next propagates as a navigation.
   return { ok: false, reason: 'generic' }
 }
 
