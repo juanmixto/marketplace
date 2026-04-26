@@ -59,9 +59,14 @@ export function mockOAuthProvider(): OAuthConfig<MockProfile> {
     },
     token: `${baseUrl}/api/dev-oauth/token`,
     userinfo: `${baseUrl}/api/dev-oauth/userinfo`,
-    // Skip PKCE / state / nonce checks in test — Auth.js handles state
-    // automatically and our mock endpoints don't depend on them.
-    checks: ['state'],
+    // Skip PKCE / state / nonce checks in the mock provider only.
+    // Auth.js core only runs a check when `provider.checks.includes(name)`
+    // is true (see node_modules/@auth/core/lib/actions/callback/oauth/checks.js).
+    // ['none'] matches none of pkce/state/nonce, so every check
+    // short-circuits. Production providers (Google / Apple) keep the
+    // default ['pkce', 'state']; this is exclusively for the mock
+    // round-trip in tests.
+    checks: ['none'],
     // Cast: ProfileCallback<MockProfile> expects a (profile, tokens) =>
     // Awaitable<User> where User has all-optional fields. We hand back
     // a strict shape that the adapter override consumes; the runtime
