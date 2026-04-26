@@ -3,6 +3,9 @@ import type { TranslationKeys } from './es'
 const en: Record<TranslationKeys, string> = {
   /* Navigation */
   categories: 'Categories',
+  settings: 'Settings',
+  explore: 'Explore',
+  hello: 'Hi',
   producers: 'Producers',
   producer_portal: 'Producer portal',
   search_placeholder: 'Search products, producers...',
@@ -385,7 +388,7 @@ const en: Record<TranslationKeys, string> = {
   'vendor.sidebar.statusActive': 'Active',
   'vendor.sidebar.statusPending': 'Pending',
   'vendor.sidebar.soon': 'Soon',
-  'vendor.sidebar.viewStore': 'View my store',
+  'vendor.sidebar.viewStore': 'View store',
   'vendor.sidebar.collapse': 'Collapse',
   'vendor.sidebar.expand': 'Expand',
   'vendor.sidebar.openMenu': 'Open menu',

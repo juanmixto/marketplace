@@ -5,19 +5,17 @@ import { UserCircleIcon, ChevronDownIcon, Bars3Icon } from '@heroicons/react/24/
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { LanguageToggle } from '@/components/LanguageToggle'
 import { useT } from '@/i18n'
 import { useSidebar } from '@/components/layout/SidebarProvider'
-import { PortalSwitcher } from '@/components/layout/PortalSwitcher'
-import type { AvailablePortal } from '@/lib/portals'
 import { signOutAndClearCart } from '@/components/buyer/cart-session'
 
 interface Props {
   user: { name?: string | null; email?: string | null }
   vendor?: { displayName: string; status: string; slug: string } | null
-  portals?: AvailablePortal[]
 }
 
-export function VendorHeader({ user, vendor, portals = [] }: Props) {
+export function VendorHeader({ user, vendor }: Props) {
   const [open, setOpen] = useState(false)
   const t = useT()
   const { openMobile } = useSidebar()
@@ -51,8 +49,16 @@ export function VendorHeader({ user, vendor, portals = [] }: Props) {
         )}
       </div>
 
-      <div className="flex items-center gap-1">
-        <PortalSwitcher portals={portals} current="vendor" />
+      {/* Mobile: just the user name as a personal touch — language,
+          theme and sign-out live inside the sidebar drawer (one drawer
+          to rule them all, matching the public Header pattern). */}
+      <div className="md:hidden flex items-center gap-2 text-sm text-[var(--foreground-soft)]">
+        <UserCircleIcon className="h-5 w-5 shrink-0" />
+        <span className="max-w-[140px] truncate">{user.name ?? user.email}</span>
+      </div>
+
+      <div className="hidden md:flex items-center gap-1">
+        <LanguageToggle />
         <ThemeToggle />
 
         <div className="relative">
