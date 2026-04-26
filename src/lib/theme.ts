@@ -6,6 +6,18 @@ export const THEME_COLORS = {
 export type ThemePreference = 'light' | 'dark' | 'system'
 export type ResolvedThemeMode = 'light' | 'dark'
 
+/**
+ * Cookie that mirrors next-themes' resolvedTheme. We need a server-readable
+ * source so the SSR pass can emit `<html style="background-color:...">`
+ * with the right colour from frame 0 — localStorage alone is not visible
+ * to the server and was producing a white-or-black flash on full reloads.
+ *
+ * Set/refreshed by ThemeCookieSync on the client. SameSite=Lax so it
+ * survives top-level navigations (search submit, etc.) but doesn't leak
+ * cross-site.
+ */
+export const THEME_COOKIE_NAME = 'marketplace-theme-resolved'
+
 export function normalizeThemePreference(theme?: string | null): ThemePreference {
   return theme === 'light' || theme === 'dark' || theme === 'system' ? theme : 'system'
 }
