@@ -37,9 +37,19 @@ const CATEGORIES = [
 interface HeaderProps {
   user?: { name?: string | null; email?: string | null; role?: UserRole } | null
   cartCount?: number
+  /**
+   * Slugs of categories that currently have at least one publicly
+   * available product. Used to filter the hard-coded CATEGORIES list
+   * so empty branches don't show in the dropdown or search overlay.
+   * Optional: when undefined, all categories render (legacy behavior).
+   */
+  availableCategorySlugs?: string[]
 }
 
-export function Header({ user, cartCount = 0 }: HeaderProps) {
+export function Header({ user, cartCount = 0, availableCategorySlugs }: HeaderProps) {
+  const visibleCategories = availableCategorySlugs
+    ? CATEGORIES.filter(c => availableCategorySlugs.includes(c.slug))
+    : CATEGORIES
   const { data: session } = useSession()
   const currentUser = user ?? session?.user ?? null
   // When the parent layout cannot pass `user` (e.g. the public layout, which
@@ -183,7 +193,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                 <div className="fixed inset-0" onClick={() => setCatOpen(false)} />
                 <div className="absolute left-0 top-full mt-2 w-64 rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl ring-1 ring-black/5 dark:ring-white/10">
                   <div className="p-1.5">
-                    {CATEGORIES.map(cat => (
+                    {visibleCategories.map(cat => (
                       <Link
                         key={cat.slug}
                         href={`/productos?categoria=${cat.slug}`}
@@ -559,7 +569,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
             {t('categories')}
           </p>
           <div className="space-y-1">
-            {CATEGORIES.map(cat => (
+            {visibleCategories.map(cat => (
               <Link
                 key={cat.slug}
                 href={`/productos?categoria=${cat.slug}`}
