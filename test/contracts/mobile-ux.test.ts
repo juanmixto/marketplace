@@ -391,6 +391,214 @@ test('cart page renders a mobile-only sticky checkout bar', () => {
   assert.match(source, /env\(safe-area-inset-bottom\)/, 'cart sticky bar must honour the home-indicator safe area')
 })
 
+test('mobile filters drawer renders the panel embedded (no double header / card-in-card)', () => {
+  // Without `embedded`, the panel renders its own "Filtros" header and a
+  // sticky+rounded card surface — but the Modal already supplies both,
+  // so on mobile users see two stacked "Filtros" titles plus a card-in-a-card
+  // visual glitch.
+  const mobileSrc = read('src/components/catalog/MobileFilters.tsx')
+  assert.match(
+    mobileSrc,
+    /<ProductFiltersPanel[\s\S]*?embedded[\s\S]*?\/>/,
+    'MobileFilters must pass `embedded` to the inner ProductFiltersPanel',
+  )
+
+  const panelSrc = read('src/components/catalog/ProductFiltersPanel.tsx')
+  assert.match(
+    panelSrc,
+    /embedded\s*=\s*false/,
+    'ProductFiltersPanel must accept an `embedded` prop with default false',
+  )
+  assert.match(
+    panelSrc,
+    /embedded[\s\S]*?\?\s*''[\s\S]*?:\s*'sticky top-24/,
+    'ProductFiltersPanel must drop the sticky/rounded card chrome when embedded',
+  )
+})
+
+test('next.config.ts forces no-store on /_next/static in dev so phones never see stale chunks', () => {
+  // The same root cause as the SW cache, one layer higher: Next dev's
+  // default `cache-control: max-age=14400` on /_next/static/* gets
+  // pinned in Chrome's HTTP cache, so a refresh on the device serves
+  // the chunk it had before today's fix even after the dev server
+  // recompiled. Force every dev-mode static request to revalidate.
+  const cfg = read('next.config.ts')
+  assert.match(
+    cfg,
+    /if\s*\(isDevelopment\)[\s\S]*?source:\s*'\/_next\/static\/:path\*'[\s\S]*?NO_STORE_CACHE_HEADER/,
+    'next.config.ts must apply NO_STORE_CACHE_HEADER to /_next/static/* in dev',
+  )
+})
+
+test('mobile header replaces the always-on second search row with a magnifier + overlay', () => {
+  // The previous design rendered a full-width search input in a second
+  // row of the header that scroll-collapsed. On 360px screens it was
+  // cramped, easy to mistap, and the scroll-collapse animation reflowed
+  // the sticky header on every scroll. We now render a magnifier button
+  // in the top bar and open a full-screen overlay on tap (Twitter/IG
+  // pattern), which gives the user the full viewport for typing.
+  const src = read('src/components/layout/Header.tsx')
+  assert.match(
+    src,
+    /searchOpen,\s*setSearchOpen/,
+    'Header must own a searchOpen state for the overlay',
+  )
+  assert.match(
+    src,
+    /aria-modal="true"[\s\S]*?fixed inset-0[\s\S]*?z-\[100\]/,
+    'mobile search overlay must be a full-screen role=dialog with z-[100]',
+  )
+  assert.match(
+    src,
+    /enterKeyHint="search"/,
+    'mobile search input must declare enterKeyHint="search" so the keyboard shows the lupa key',
+  )
+  // The previous always-visible bar and its scroll-collapse logic must
+  // be gone — those caused the original UX issues.
+  assert.doesNotMatch(
+    src,
+    /hideMobileSearch/,
+    'the legacy hideMobileSearch scroll-collapse logic must be removed',
+  )
+})
+
+test('root html reads the theme cookie and ships an inline background to suppress the FOUC flash', () => {
+  // The previous version hardcoded dark and produced a black flash for
+  // light-theme users on refresh. Now the SSR pass reads the
+  // THEME_COOKIE_NAME cookie that ThemeCookieSync mirrors from
+  // next-themes' resolvedTheme — frame 0 already matches the user's
+  // palette in BOTH directions, with a dark fallback on first visit
+  // (corrected by the head-resident bootstrap script the moment it runs).
+  const src = read('src/app/layout.tsx')
+  assert.match(
+    src,
+    /THEME_COOKIE_NAME/,
+    'layout.tsx must read THEME_COOKIE_NAME from next/headers cookies()',
+  )
+  assert.match(
+    src,
+    /backgroundColor:\s*initialBg/,
+    'root <html> must inline backgroundColor=initialBg derived from the cookie',
+  )
+  assert.match(
+    src,
+    /colorScheme:\s*initialTheme/,
+    'root <html> must set colorScheme=initialTheme so form controls match the cookie value',
+  )
+  assert.match(
+    src,
+    /<head>[\s\S]*?color-scheme[\s\S]*?dark light[\s\S]*?<script/,
+    'theme bootstrap script must live in <head> after the color-scheme meta',
+  )
+  assert.match(
+    src,
+    /h\.style\.backgroundColor=d\?'#0d1117':'#f5f2ec'/,
+    'bootstrap script must paint the inline backgroundColor based on the resolved theme',
+  )
+  assert.match(
+    src,
+    /<ThemeCookieSync\s*\/>/,
+    'layout.tsx must mount <ThemeCookieSync /> inside <ThemeProvider> so the cookie is kept in sync',
+  )
+
+  const sync = read('src/components/ThemeCookieSync.tsx')
+  assert.match(
+    sync,
+    /document\.cookie\s*=[\s\S]*?THEME_COOKIE_NAME/,
+    'ThemeCookieSync must write THEME_COOKIE_NAME based on resolvedTheme',
+  )
+  assert.match(sync, /SameSite=Lax/, 'cookie must be SameSite=Lax')
+
+  const css = read('src/app/globals.css')
+  assert.match(
+    css,
+    /html\s*\{[^}]*color-scheme:\s*light\s+dark/,
+    'globals.css must default <html> to color-scheme: light dark so the browser respects the system preference before our JS runs',
+  )
+})
+
+test('mobile header drawer is reorganised into Mi cuenta / Ajustes / Explorar (no categories)', () => {
+  // The old drawer mixed catalog browsing (8 category links) with account
+  // links and Cerrar sesión. Categories now live exclusively in the
+  // search overlay. The drawer is dedicated to personal/configurable
+  // concerns: Mi cuenta, Ajustes (idioma + tema, removed from the always-
+  // on top bar to free 360px space), Explorar (Productores).
+  const src = read('src/components/layout/Header.tsx')
+  assert.match(src, /1\. MI CUENTA/, 'drawer must contain a MI CUENTA section')
+  assert.match(src, /2\. AJUSTES/, 'drawer must contain an AJUSTES section')
+  assert.match(src, /3\. EXPLORAR/, 'drawer must contain an EXPLORAR section')
+  assert.match(src, /4\. SESI/, 'drawer must contain a SESIÓN section for sign-out')
+  // The drawer must slide from the right (where the hamburger lives)
+  // and NOT occupy the full viewport — leave a sliver for tap-to-close.
+  assert.match(
+    src,
+    /fixed right-0 top-0[\s\S]*?w-\[min\(22rem,88vw\)\]/,
+    'drawer must be a right-aligned panel capped at min(22rem, 88vw)',
+  )
+  assert.match(
+    src,
+    /backdrop-blur-sm lg:hidden[\s\S]*?aria-label=\{t\('close_menu'\)\}/,
+    'drawer must render a tap-to-close backdrop',
+  )
+  // Sign-out should not be tucked in next to "Mi cuenta" anymore;
+  // it lives in its own bottom section that only appears when logged in.
+  assert.match(
+    src,
+    /\/\* ── 4\. SESI[\s\S]*?currentUser && \(\s*<div className="border-t border-\[var\(--border\)\] p-4">[\s\S]*?<SignOutButton/,
+    'sign-out must live in a bottom section separated from "Mi cuenta" links',
+  )
+  // The lang+theme toggles must be inside the drawer (mobile) and hidden
+  // from the top bar wrapper.
+  assert.match(
+    src,
+    /<div className="hidden items-center gap-1 lg:flex">[\s\S]*?<LanguageToggle\s*\/>[\s\S]*?<ThemeToggle\s*\/>/,
+    'top-bar lang+theme toggles must be wrapped in a hidden lg:flex div on mobile',
+  )
+  // Categories should NOT be rendered inside {mobileOpen && ...}; loosely
+  // enforced by checking that the drawer no longer maps over CATEGORIES.
+  const drawerStart = src.indexOf('{/* Mobile drawer')
+  const drawerEnd = src.indexOf('</header>', drawerStart)
+  const drawerSrc = src.slice(drawerStart, drawerEnd)
+  assert.doesNotMatch(
+    drawerSrc,
+    /CATEGORIES\.map/,
+    'drawer must not iterate CATEGORIES — those live in the search overlay now',
+  )
+})
+
+test('service worker disables /_next/static SWR cache on dev hostnames', () => {
+  // Stale chunks in the SW's static cache caused real "I fixed it on disk
+  // but the device serves yesterday's bundle" confusion on dev.feldescloud.com
+  // until the SWR revalidate happened to race a fresh navigation. On dev
+  // hosts we now bypass the cache entirely; production keeps it.
+  const sw = read('public/sw.template.js')
+  assert.match(sw, /const DEV_HOSTNAMES = new Set\(/, 'sw.template.js must declare DEV_HOSTNAMES')
+  assert.match(sw, /'dev\.feldescloud\.com'/, 'DEV_HOSTNAMES must include dev.feldescloud.com')
+  assert.match(sw, /'localhost'/, 'DEV_HOSTNAMES must include localhost')
+  assert.match(
+    sw,
+    /DEV_HOSTNAMES\.has\(self\.location\.hostname\)\)\s*return false/,
+    'isCacheableStatic must short-circuit to false on dev hostnames so chunks are passthrough',
+  )
+})
+
+test('BuildBadge formats build time in Europe/Madrid, not UTC', () => {
+  const source = read('src/components/system/BuildBadge.tsx')
+  // Anchor that timestamps are always rendered in Madrid time so dev /
+  // staging users can match the badge against their wall clock without
+  // doing a +1/+2 conversion in their head.
+  const matches = source.match(/timeZone:\s*'Europe\/Madrid'/g) ?? []
+  assert.ok(
+    matches.length >= 2,
+    `BuildBadge must use timeZone: 'Europe/Madrid' on both the short and expanded timestamps (found ${matches.length})`,
+  )
+  assert.doesNotMatch(
+    source,
+    /toISOString\(\)\.slice/,
+    'BuildBadge must not slice toISOString() for display (it bakes UTC into the badge)',
+  )
+})
+
 test('Recharts tooltips opt the wrapper into pointer events so touch devices can interact', () => {
   // Recharts defaults the tooltip wrapper to `pointer-events: none`, which on
   // touch devices traps the tooltip in a "stuck after tap" state. Setting
