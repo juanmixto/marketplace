@@ -209,7 +209,7 @@ export function AdminSidebar({ user }: Props = {}) {
             className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
           >
             <ArrowTopRightOnSquareIcon className="h-4 w-4 shrink-0" />
-            Ver tienda
+            {t('admin.sidebar.viewStore')}
           </Link>
         </div>
         <div className="md:hidden border-t border-[var(--border)] px-3 py-3 space-y-2">

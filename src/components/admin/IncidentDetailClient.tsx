@@ -8,18 +8,19 @@ import { Button } from '@/components/ui/button'
 import { UserCircleIcon } from '@heroicons/react/24/outline'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/i18n'
+import type { TranslationKeys } from '@/i18n/locales'
 
 // Mirror the Prisma IncidentResolution enum values
-const RESOLUTION_OPTIONS = [
-  { value: 'REFUND_FULL',    label: 'Reembolso total' },
-  { value: 'REFUND_PARTIAL', label: 'Reembolso parcial' },
-  { value: 'REPLACEMENT',   label: 'Reenvío / sustitución' },
-  { value: 'STORE_CREDIT',  label: 'Crédito en tienda' },
-  { value: 'REJECTED',      label: 'Rechazo de reclamación' },
-] as const
+const RESOLUTION_KEYS: Array<{ value: 'REFUND_FULL' | 'REFUND_PARTIAL' | 'REPLACEMENT' | 'STORE_CREDIT' | 'REJECTED'; key: TranslationKeys }> = [
+  { value: 'REFUND_FULL',    key: 'admin.incidentDetail.resolutionType.refundFull' },
+  { value: 'REFUND_PARTIAL', key: 'admin.incidentDetail.resolutionType.refundPartial' },
+  { value: 'REPLACEMENT',    key: 'admin.incidentDetail.resolutionType.replacement' },
+  { value: 'STORE_CREDIT',   key: 'admin.incidentDetail.resolutionType.storeCredit' },
+  { value: 'REJECTED',       key: 'admin.incidentDetail.resolutionType.rejected' },
+]
 
 const messageSchema = z.object({
-  body: z.string().min(1, 'El mensaje no puede estar vacío').max(5000),
+  body: z.string().min(1).max(5000),
 })
 
 const resolutionSchema = z.object({
@@ -64,12 +65,12 @@ export function IncidentDetailClient({ incidentId, status, messages: initial }: 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       })
-      if (!res.ok) throw new Error((await res.json()).message ?? 'Error al enviar')
+      if (!res.ok) throw new Error((await res.json()).message ?? t('admin.incidentDetail.errorSend'))
       const msg: Message = await res.json()
       setMessages(prev => [...prev, msg])
       msgForm.reset()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al enviar mensaje')
+      setError(e instanceof Error ? e.message : t('admin.incidentDetail.errorSendMessage'))
     } finally {
       setBusy(false)
     }
@@ -84,11 +85,11 @@ export function IncidentDetailClient({ incidentId, status, messages: initial }: 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       })
-      if (!res.ok) throw new Error((await res.json()).message ?? 'Error al resolver')
+      if (!res.ok) throw new Error((await res.json()).message ?? t('admin.incidentDetail.errorResolve'))
       setResolved(true)
       setShowResolve(false)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al resolver incidencia')
+      setError(e instanceof Error ? e.message : t('admin.incidentDetail.errorResolveIncident'))
     } finally {
       setBusy(false)
     }
@@ -108,12 +109,12 @@ export function IncidentDetailClient({ incidentId, status, messages: initial }: 
       {/* ── Message thread ─────────────────────────────────────── */}
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
         <h2 className="mb-4 font-semibold text-[var(--foreground)]">
-          Conversación ({messages.length})
+          {t('admin.incidentDetail.conversationTitle').replace('{count}', String(messages.length))}
         </h2>
 
         {messages.length === 0 ? (
           <p className="py-8 text-center text-sm text-[var(--muted)]">
-            Sin mensajes aún. Sé el primero en escribir.
+            {t('admin.incidentDetail.empty')}
           </p>
         ) : (
           <ul className="mb-6 max-h-96 space-y-3 overflow-y-auto">
@@ -127,7 +128,7 @@ export function IncidentDetailClient({ incidentId, status, messages: initial }: 
                         {msg.authorName}
                         {msg.authorRole === 'ADMIN' || msg.authorRole.startsWith('ADMIN') ? (
                           <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
-                            Admin
+                            {t('admin.incidentDetail.adminBadge')}
                           </span>
                         ) : null}
                       </span>
@@ -146,21 +147,21 @@ export function IncidentDetailClient({ incidentId, status, messages: initial }: 
         {/* Add message */}
         <form onSubmit={msgForm.handleSubmit(onAddMessage)} className="space-y-3 border-t border-[var(--border)] pt-4">
           <label className="block text-sm font-medium text-[var(--foreground)]">
-            Añadir comentario
+            {t('admin.incidentDetail.addCommentLabel')}
           </label>
           <textarea
             {...msgForm.register('body')}
             rows={3}
             spellCheck
             autoCapitalize="sentences"
-            placeholder="Escribe tu respuesta o nota interna…"
+            placeholder={t('admin.incidentDetail.addCommentPlaceholder')}
             className={inputCls}
           />
           {msgForm.formState.errors.body && (
-            <p className="text-xs text-red-600 dark:text-red-400">{msgForm.formState.errors.body.message}</p>
+            <p className="text-xs text-red-600 dark:text-red-400">{t('admin.incidentDetail.errorMessageEmpty')}</p>
           )}
           <Button type="submit" disabled={busy}>
-            {busy ? 'Enviando…' : 'Enviar mensaje'}
+            {busy ? t('admin.incidentDetail.sending') : t('admin.incidentDetail.sendMessage')}
           </Button>
         </form>
       </div>
@@ -168,7 +169,7 @@ export function IncidentDetailClient({ incidentId, status, messages: initial }: 
       {/* ── Resolve panel ──────────────────────────────────────── */}
       {!resolved ? (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
-          <h2 className="mb-4 font-semibold text-[var(--foreground)]">Resolver incidencia</h2>
+          <h2 className="mb-4 font-semibold text-[var(--foreground)]">{t('admin.incidentDetail.resolvePanelTitle')}</h2>
 
           {!showResolve ? (
             <Button onClick={() => setShowResolve(true)}>{t('incident.markResolved')}</Button>
@@ -176,12 +177,12 @@ export function IncidentDetailClient({ incidentId, status, messages: initial }: 
             <form onSubmit={resForm.handleSubmit(onResolve)} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-[var(--foreground)]">
-                  Tipo de resolución *
+                  {t('admin.incidentDetail.resolutionTypeLabel')}
                 </label>
                 <select {...resForm.register('resolution')} className={inputCls}>
                   <option value="">{t('incident.selectOption')}</option>
-                  {RESOLUTION_OPTIONS.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
+                  {RESOLUTION_KEYS.map(o => (
+                    <option key={o.value} value={o.value}>{t(o.key)}</option>
                   ))}
                 </select>
                 {resForm.formState.errors.resolution && (
@@ -193,21 +194,21 @@ export function IncidentDetailClient({ incidentId, status, messages: initial }: 
 
               <div>
                 <label className="block text-sm font-medium text-[var(--foreground)]">
-                  Nota interna (opcional)
+                  {t('admin.incidentDetail.internalNoteLabel')}
                 </label>
                 <textarea
                   {...resForm.register('internalNote')}
                   rows={3}
                   spellCheck
                   autoCapitalize="sentences"
-                  placeholder="Detalles adicionales para el equipo…"
+                  placeholder={t('admin.incidentDetail.internalNotePlaceholder')}
                   className={inputCls}
                 />
               </div>
 
               <div className="flex gap-2">
                 <Button type="submit" disabled={busy}>
-                  {busy ? 'Resolviendo…' : 'Confirmar resolución'}
+                  {busy ? t('admin.incidentDetail.resolving') : t('admin.incidentDetail.confirmResolution')}
                 </Button>
                 <Button
                   type="button"
@@ -215,7 +216,7 @@ export function IncidentDetailClient({ incidentId, status, messages: initial }: 
                   onClick={() => setShowResolve(false)}
                   disabled={busy}
                 >
-                  Cancelar
+                  {t('admin.actions.cancel')}
                 </Button>
               </div>
             </form>
@@ -223,7 +224,7 @@ export function IncidentDetailClient({ incidentId, status, messages: initial }: 
         </div>
       ) : (
         <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-5 text-sm text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
-          Esta incidencia está marcada como resuelta.
+          {t('admin.incidentDetail.resolvedNotice')}
         </div>
       )}
     </div>

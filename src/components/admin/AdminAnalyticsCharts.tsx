@@ -11,6 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { useT, useLocale } from '@/i18n'
 
 interface DailyPoint {
   date: string
@@ -31,8 +32,8 @@ const tooltipStyle = {
   color: 'var(--foreground)',
 }
 
-function formatShortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })
+function formatShortDate(iso: string, locale: string): string {
+  return new Date(iso).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-ES', { day: '2-digit', month: 'short' })
 }
 
 function formatEur(value: number): string {
@@ -41,17 +42,19 @@ function formatEur(value: number): string {
 }
 
 export function AdminAnalyticsCharts({ series }: Props) {
+  const t = useT()
+  const { locale } = useLocale()
   const chartData = series.map(point => ({
     ...point,
-    label: formatShortDate(point.date),
+    label: formatShortDate(point.date, locale),
   }))
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
         <header className="mb-3">
-          <h2 className="text-sm font-semibold text-[var(--foreground)]">Ventas por día</h2>
-          <p className="text-xs text-[var(--muted)]">Ingresos brutos (excluye cancelados y reembolsos)</p>
+          <h2 className="text-sm font-semibold text-[var(--foreground)]">{t('admin.charts.salesPerDay')}</h2>
+          <p className="text-xs text-[var(--muted)]">{t('admin.charts.salesPerDayHint')}</p>
         </header>
         <div className="h-[280px] w-full">
           <ResponsiveContainer width="100%" height="100%">
@@ -68,8 +71,8 @@ export function AdminAnalyticsCharts({ series }: Props) {
               <Tooltip
                 wrapperStyle={{ pointerEvents: 'auto' }}
                 contentStyle={tooltipStyle}
-                formatter={(value) => [formatEur(Number(value)), 'Ingresos']}
-                labelFormatter={label => `Día: ${label}`}
+                formatter={(value) => [formatEur(Number(value)), t('admin.charts.tooltip.revenue')]}
+                labelFormatter={label => `${t('admin.charts.tooltip.dayPrefix')}: ${label}`}
               />
               <Area
                 type="monotone"
@@ -85,8 +88,8 @@ export function AdminAnalyticsCharts({ series }: Props) {
 
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
         <header className="mb-3">
-          <h2 className="text-sm font-semibold text-[var(--foreground)]">Nuevos usuarios por día</h2>
-          <p className="text-xs text-[var(--muted)]">Cuentas creadas en el periodo</p>
+          <h2 className="text-sm font-semibold text-[var(--foreground)]">{t('admin.charts.newUsersPerDay')}</h2>
+          <p className="text-xs text-[var(--muted)]">{t('admin.charts.newUsersPerDayHint')}</p>
         </header>
         <div className="h-[280px] w-full">
           <ResponsiveContainer width="100%" height="100%">
@@ -97,8 +100,8 @@ export function AdminAnalyticsCharts({ series }: Props) {
               <Tooltip
                 wrapperStyle={{ pointerEvents: 'auto' }}
                 contentStyle={tooltipStyle}
-                formatter={(value) => [Number(value), 'Nuevos usuarios']}
-                labelFormatter={label => `Día: ${label}`}
+                formatter={(value) => [Number(value), t('admin.charts.tooltip.newUsers')]}
+                labelFormatter={label => `${t('admin.charts.tooltip.dayPrefix')}: ${label}`}
               />
               <Bar dataKey="newUsers" fill="#6366f1" radius={[4, 4, 0, 0]} />
             </BarChart>

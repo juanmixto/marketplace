@@ -49,17 +49,9 @@ const ALLOWLIST_FILES: ReadonlySet<string> = new Set([
   // visible strings to useT() / getServerT() or to an *-copy.ts and then
   // remove the entry from this set.
   //
-  // Admin surfaces — internal-facing, not localized yet.
-  // Removed (now localized): analytics, configuracion, dashboard, informes.
-  'src/app/(admin)/admin/auditoria/page.tsx',
-  'src/app/(admin)/admin/comisiones/page.tsx',
-  'src/app/(admin)/admin/envios/page.tsx',
-  'src/app/(admin)/admin/incidencias/[id]/page.tsx',
-  'src/app/(admin)/admin/incidencias/page.tsx',
-  'src/app/(admin)/admin/liquidaciones/page.tsx',
-  'src/app/(admin)/admin/notificaciones/page.tsx', // Admin-only audit surface — not localized yet.
-  'src/app/(admin)/admin/pedidos/page.tsx',
-  'src/app/(admin)/admin/productos/page.tsx',
+  // Admin surfaces — internal-facing.
+  // Localized: chrome (#826), dashboard, configuracion, analytics, informes (#834),
+  // pedidos, productos, envios, comisiones, auditoria, liquidaciones, incidencias, notificaciones (#835).
   'src/app/(admin)/admin/productos/[id]/edit/page.tsx', // Admin-only edit surface — not localized yet.
   'src/app/(admin)/admin/productores/[id]/edit/page.tsx', // Admin-only edit surface — not localized yet.
   'src/app/(admin)/admin/promociones/[id]/edit/page.tsx', // Admin-only edit surface — not localized yet.
