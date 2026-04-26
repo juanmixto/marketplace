@@ -155,11 +155,11 @@ export function TelegramChatsTableBody({ chats, initialStats }: Props) {
                 <span className="font-mono">{chat.tgChatId}</span>
               </p>
             </td>
-            <td className="px-4 py-3 text-right align-top tabular-nums">{raw}</td>
-            <td className="px-4 py-3 text-right align-top tabular-nums text-[var(--muted-foreground)]">
+            <td className="px-4 py-3 text-right align-middle tabular-nums">{raw}</td>
+            <td className="px-4 py-3 text-right align-middle tabular-nums text-[var(--muted-foreground)]">
               {processed}
             </td>
-            <td className="px-4 py-3 text-right align-top tabular-nums">
+            <td className="px-4 py-3 text-right align-middle tabular-nums">
               {pending > 0 ? (
                 <span className="inline-flex flex-col items-end leading-tight">
                   <span className="font-semibold text-amber-600 dark:text-amber-400">
@@ -175,7 +175,7 @@ export function TelegramChatsTableBody({ chats, initialStats }: Props) {
                 <span className="text-[var(--muted-foreground)]">0</span>
               )}
             </td>
-            <td className="px-4 py-3 text-right align-top tabular-nums">
+            <td className="px-4 py-3 text-right align-middle tabular-nums">
               {drafts > 0 ? (
                 <span className="font-semibold text-[var(--foreground)]">{drafts}</span>
               ) : (
@@ -183,7 +183,7 @@ export function TelegramChatsTableBody({ chats, initialStats }: Props) {
               )}
             </td>
             <td
-              className="px-4 py-3 text-right align-top tabular-nums text-xs text-[var(--muted-foreground)]"
+              className="px-4 py-3 text-right align-middle tabular-nums text-xs text-[var(--muted-foreground)]"
               title={
                 extractionPct !== null && extractionPct < 1
                   ? 'Tasa baja es habitual en chats de discusión / foro. Phase 2 usa reglas conservadoras: solo extrae mensajes con un precio claramente formateado (p. ej. "5€/kg"). Un canal de ventas directas dará un % mucho más alto.'
