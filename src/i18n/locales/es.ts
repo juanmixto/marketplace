@@ -905,8 +905,6 @@ const es = {
   'vendor.nav.notifications': 'Notificaciones',
 
   // Vendor – telegram settings
-  'vendor.notifications.channel.telegram': 'Telegram',
-  'vendor.notifications.channel.webPush': 'Móvil/Web',
   'vendor.telegram.title': 'Telegram',
   'vendor.telegram.subtitle': 'Recibe avisos de pedidos nuevos y responde con un toque.',
   'vendor.telegram.comingSoon': 'Próximamente. Podrás recibir avisos de pedidos en tu Telegram.',
@@ -921,28 +919,12 @@ const es = {
   'vendor.telegram.disconnectError': 'No se pudo desvincular.',
   'vendor.telegram.waitingForLink': 'Esperando confirmación de Telegram… vuelve a esta pestaña cuando hayas pulsado «Start».',
 
-  // Vendor – web push (Móvil/Web)
-  'vendor.webpush.title': 'Móvil y navegador',
-  'vendor.webpush.checking': 'Comprobando soporte…',
-  'vendor.webpush.unsupported': 'Tu navegador no admite notificaciones push. Prueba en Chrome o instala la web como app desde Safari (iOS 16.4+).',
-  'vendor.webpush.denied': 'Bloqueado',
-  'vendor.webpush.deniedHint': 'Has bloqueado las notificaciones para este sitio. Cámbialo en los permisos del navegador para volver a activarlas.',
-  'vendor.webpush.subscribed': 'Activadas en este dispositivo',
-  'vendor.webpush.enableHint': 'Te pediremos permiso para mostrar notificaciones. Solo afecta a este navegador o app instalada.',
-  'vendor.webpush.enable': 'Activar en este dispositivo',
-  'vendor.webpush.enabling': 'Activando…',
-  'vendor.webpush.disable': 'Desactivar',
-  'vendor.webpush.disabling': 'Desactivando…',
-  'vendor.webpush.permissionDenied': 'No has concedido permiso para notificaciones.',
-  'vendor.webpush.enableError': 'No se pudo activar.',
-  'vendor.webpush.disableError': 'No se pudo desactivar.',
-
   // Vendor – notification preferences
   'vendor.notifications.title': 'Notificaciones',
-  'vendor.notifications.subtitle': 'Elige qué avisos quieres recibir por cada canal.',
+  'vendor.notifications.subtitle': 'Elige qué avisos quieres recibir.',
   'vendor.notifications.preferencesTitle': 'Tipos de aviso',
   'vendor.notifications.comingSoon': 'Próximamente.',
-  'vendor.notifications.needsLink': 'Conecta Telegram o activa las notificaciones en este dispositivo para empezar a recibir avisos.',
+  'vendor.notifications.needsLink': 'Conecta Telegram arriba para empezar a recibir avisos.',
   'vendor.notifications.event.ORDER_CREATED': 'Nuevos pedidos',
   'vendor.notifications.event.ORDER_PENDING': 'Pedidos que requieren acción',
   'vendor.notifications.event.MESSAGE_RECEIVED': 'Mensajes de clientes',
