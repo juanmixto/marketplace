@@ -1,8 +1,12 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import { useT } from '@/i18n'
-import { generateMyTelegramLinkUrl, disconnectTelegram } from '@/domains/notifications/telegram/link-actions'
+import {
+  generateMyTelegramLinkUrl,
+  disconnectTelegram,
+  getMyTelegramLinkStatus,
+} from '@/domains/notifications/telegram/link-actions'
 import type { TelegramLinkSummary } from '@/domains/notifications/telegram/queries'
 
 export function TelegramConnectPanel({
@@ -16,14 +20,49 @@ export function TelegramConnectPanel({
   const [link, setLink] = useState(initialLink)
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [waitingForLink, setWaitingForLink] = useState(false)
+  const popupRef = useRef<Window | null>(null)
+
+  const refreshStatus = useCallback(async () => {
+    try {
+      const next = await getMyTelegramLinkStatus()
+      setLink(next)
+      if (next.linked) setWaitingForLink(false)
+    } catch {
+      // ignore transient errors; next tick will retry
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!waitingForLink) return
+    const interval = window.setInterval(() => {
+      void refreshStatus()
+    }, 3000)
+    const onFocus = () => void refreshStatus()
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onFocus)
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onFocus)
+    }
+  }, [waitingForLink, refreshStatus])
 
   function handleConnect() {
     setError(null)
+    const popup = window.open('about:blank', '_blank', 'noopener,noreferrer')
+    popupRef.current = popup
     startTransition(async () => {
       try {
         const url = await generateMyTelegramLinkUrl()
-        window.open(url, '_blank', 'noopener,noreferrer')
+        if (popup && !popup.closed) {
+          popup.location.href = url
+        } else {
+          window.location.href = url
+        }
+        setWaitingForLink(true)
       } catch (err) {
+        if (popup && !popup.closed) popup.close()
         setError(err instanceof Error ? err.message : t('vendor.telegram.linkError'))
       }
     })
@@ -35,6 +74,7 @@ export function TelegramConnectPanel({
       try {
         await disconnectTelegram()
         setLink({ linked: false, username: null, linkedAt: null })
+        setWaitingForLink(false)
       } catch (err) {
         setError(err instanceof Error ? err.message : t('vendor.telegram.disconnectError'))
       }
@@ -77,6 +117,9 @@ export function TelegramConnectPanel({
       >
         {pending ? t('vendor.telegram.connecting') : t('vendor.telegram.connect')}
       </button>
+      {waitingForLink && (
+        <p className="text-sm text-[var(--muted)]">{t('vendor.telegram.waitingForLink')}</p>
+      )}
       {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
   )

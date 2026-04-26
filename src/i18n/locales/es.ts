@@ -919,6 +919,7 @@ const es = {
   'vendor.telegram.connectHint': 'Te llevaremos al chat con el bot @{bot}. Toca «Start» para completar la vinculación.',
   'vendor.telegram.linkError': 'No se pudo generar el enlace.',
   'vendor.telegram.disconnectError': 'No se pudo desvincular.',
+  'vendor.telegram.waitingForLink': 'Esperando confirmación de Telegram… vuelve a esta pestaña cuando hayas pulsado «Start».',
 
   // Vendor – notification preferences
   'vendor.notifications.title': 'Notificaciones',
@@ -1621,6 +1622,7 @@ const es = {
   'account.telegram.disconnecting': 'Desconectando…',
   'account.telegram.linkError': 'No se ha podido generar el enlace de conexión.',
   'account.telegram.disconnectError': 'No se ha podido desconectar.',
+  'account.telegram.waitingForLink': 'Esperando confirmación de Telegram… vuelve a esta pestaña cuando hayas pulsado «Start».',
   'account.telegram.sharedBotNotice': 'Ahora estás usando el bot compartido de vendedor para los avisos de comprador. Si quieres separarlos, conecta tu propio bot de comprador.',
   'account.telegram.connectOwnBot': 'Conectar bot de comprador',
 
