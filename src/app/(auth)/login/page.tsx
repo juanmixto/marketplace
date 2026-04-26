@@ -1,4 +1,5 @@
 import { LoginForm } from '@/components/auth/LoginForm'
+import { SocialButtons } from '@/components/auth/SocialButtons'
 import { auth } from '@/lib/auth'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
@@ -50,5 +51,11 @@ export default async function LoginPage({ searchParams }: Props) {
     )
   }
 
-  return <LoginForm callbackUrl={params.callbackUrl ?? '/'} />
+  const callbackUrl = params.callbackUrl ?? '/'
+  return (
+    <LoginForm
+      callbackUrl={callbackUrl}
+      topSlot={<SocialButtons callbackUrl={callbackUrl} />}
+    />
+  )
 }
