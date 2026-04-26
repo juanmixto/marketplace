@@ -153,7 +153,7 @@ export async function linkSocialAccountAction(
   // whether the cookies-on-response part is the problem vs the
   // redirect-target derivation.
   // eslint-disable-next-line no-console -- temporary debug for #873
-  console.log('[case-d-debug] payload.callbackUrl=', payload.callbackUrl, 'callback=', callback)
+  console.error('[case-d-debug] payload.callbackUrl=', payload.callbackUrl, 'callback=', callback)
   let signInUrl: string | undefined
   try {
     const result = await signIn(
@@ -168,11 +168,11 @@ export async function linkSocialAccountAction(
     signInUrl = typeof result === 'string' ? result : undefined
   } catch (err) {
     // eslint-disable-next-line no-console -- temporary debug for #873
-    console.log('[case-d-debug] signIn threw:', err instanceof Error ? err.message : String(err))
+    console.error('[case-d-debug] signIn threw:', err instanceof Error ? err.message : String(err))
     throw err
   }
   // eslint-disable-next-line no-console -- temporary debug for #873
-  console.log('[case-d-debug] signIn returned URL=', signInUrl)
+  console.error('[case-d-debug] signIn returned URL=', signInUrl)
   if (!signInUrl) {
     return { ok: false, reason: 'generic' }
   }
