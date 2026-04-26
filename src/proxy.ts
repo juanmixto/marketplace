@@ -206,6 +206,28 @@ export async function proxy(request: NextRequest) {
     return finalizeResponse(NextResponse.redirect(createLoginRedirectUrl(request)))
   }
 
+  // Onboarding gate (#855). Issued by the OAuth path in
+  // src/lib/auth.ts when a fresh OAuth user has no passwordHash and
+  // no consentAcceptedAt yet. Forces them through /onboarding before
+  // any protected mutation. Public browsing (/, /productos, /
+  // productores) is unaffected — those paths short-circuit above
+  // (`!isProtectedPath`). Within the protected set, /onboarding and
+  // its API endpoint are exempt so the user can actually complete
+  // the flow.
+  const needsOnboarding = Boolean(token.needsOnboarding)
+  const ONBOARDING_PATH = '/onboarding'
+  const onboardingExempt =
+    pathname === ONBOARDING_PATH ||
+    pathname.startsWith(`${ONBOARDING_PATH}/`) ||
+    pathname.startsWith('/api/onboarding')
+  if (needsOnboarding && !onboardingExempt) {
+    const onboardingUrl = new URL(ONBOARDING_PATH, request.url)
+    const next = `${pathname}${request.nextUrl.search}`
+    const safe = sanitizeCallbackUrl(next)
+    if (safe) onboardingUrl.searchParams.set('next', safe)
+    return finalizeResponse(NextResponse.redirect(onboardingUrl))
+  }
+
   const role = typeof token.role === 'string' ? (token.role as UserRole) : undefined
 
   if (pathname.startsWith('/admin') && !isAdmin(role)) {

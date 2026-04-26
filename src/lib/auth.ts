@@ -69,7 +69,7 @@ function buildAdapter(): Adapter {
   }
 }
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   ...authConfig,
   adapter: buildAdapter(),
   trustHost: true,
@@ -178,15 +178,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const next = base ?? token
 
       // First OAuth login: the credentials authorize() path stamps
-      // `has2fa` on the user object, but PrismaAdapter doesn't — its
-      // `user` is the Prisma User row. Look it up here so admins who
-      // sign in via Google still get redirected to /admin/security/
-      // enroll by the proxy. Lookup runs once on initial signin only.
+      // `has2fa` + `needsOnboarding` on the user object, but
+      // PrismaAdapter doesn't — its `user` is the Prisma User row.
+      // Look up here so admins who sign in via Google still get
+      // redirected to /admin/security/enroll by the proxy, and
+      // brand-new OAuth users hit /onboarding before any protected
+      // route. Lookup runs once on initial signin only.
       if (user && account?.type === 'oauth') {
         const id = (user as { id?: string }).id
         if (typeof id === 'string') {
-          const has2fa = await isTwoFactorEnabled(id)
+          const [has2fa, fresh] = await Promise.all([
+            isTwoFactorEnabled(id),
+            db.user.findUnique({
+              where: { id },
+              select: { passwordHash: true, consentAcceptedAt: true },
+            }),
+          ])
           next.has2fa = has2fa
+          // OAuth-only user with no consent yet → onboard. Linked
+          // accounts (passwordHash present) skip — they consented at
+          // /register.
+          next.needsOnboarding = fresh
+            ? fresh.passwordHash === null && fresh.consentAcceptedAt === null
+            : false
         }
         return next
       }
@@ -209,11 +223,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       const fresh = await db.user.findUnique({
         where: { id },
-        select: { role: true, isActive: true },
+        select: {
+          role: true,
+          isActive: true,
+          passwordHash: true,
+          consentAcceptedAt: true,
+        },
       })
       if (!fresh || !fresh.isActive) return next
       next.role = coerceUserRole(fresh.role)
       next.roleCheckedAt = now
+      // Refresh onboarding flag too — the /onboarding action calls
+      // unstable_update with trigger='update' which lands here, and
+      // we want the new claim to reflect the freshly-set
+      // consentAcceptedAt without forcing a sign-out.
+      next.needsOnboarding =
+        fresh.passwordHash === null && fresh.consentAcceptedAt === null
       return next
     },
   },
