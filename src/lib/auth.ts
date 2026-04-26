@@ -169,7 +169,25 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       const cookieStore = await cookies()
       const cookiePrefix = isSecureAuthDeployment(process.env) ? '__Secure-' : ''
       const rawCallback = cookieStore.get(`${cookiePrefix}authjs.callback-url`)?.value
-      const safeCallback = rawCallback ? sanitizeCallbackUrl(rawCallback) : undefined
+      // Auth.js stores the cookie as an ABSOLUTE URL (after running
+      // it through callbacks.redirect — see
+      // @auth/core/lib/utils/callback-url.js). sanitizeCallbackUrl
+      // only accepts paths starting with '/', so we extract path +
+      // search before validating. Cross-origin URLs are dropped.
+      let safeCallback: string | undefined
+      if (rawCallback) {
+        try {
+          const parsed = new URL(rawCallback)
+          const baseHost = process.env.AUTH_URL ? new URL(process.env.AUTH_URL).host : null
+          if (baseHost && parsed.host === baseHost) {
+            const pathish = `${parsed.pathname}${parsed.search}`
+            safeCallback = sanitizeCallbackUrl(pathish)
+          }
+        } catch {
+          // Cookie wasn't a URL — assume it's already a path.
+          safeCallback = sanitizeCallbackUrl(rawCallback)
+        }
+      }
       const token = await signAuthLinkToken(
         {
           email: decision.email,
