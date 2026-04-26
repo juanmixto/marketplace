@@ -13,7 +13,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import { SITE_NAME } from '@/lib/constants'
-import { useCartStore } from '@/domains/orders/cart-store'
+import { useCartStore } from '@/domains/cart/cart-store'
 import { getPortalLabel, getPrimaryPortalHref, translateCategoryLabel } from '@/lib/portals'
 import type { UserRole } from '@/generated/prisma/enums'
 import { SignOutButton } from '@/components/auth/SignOutButton'
