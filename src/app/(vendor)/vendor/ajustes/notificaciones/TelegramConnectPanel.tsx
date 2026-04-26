@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
+import { useCallback, useEffect, useState, useTransition } from 'react'
 import { useT } from '@/i18n'
 import {
   generateMyTelegramLinkUrl,
@@ -12,16 +12,18 @@ import type { TelegramLinkSummary } from '@/domains/notifications/telegram/queri
 export function TelegramConnectPanel({
   initialLink,
   botUsername,
+  initialLinkUrl,
 }: {
   initialLink: TelegramLinkSummary
   botUsername: string
+  initialLinkUrl: string | null
 }) {
   const t = useT()
   const [link, setLink] = useState(initialLink)
+  const [linkUrl, setLinkUrl] = useState(initialLinkUrl)
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [waitingForLink, setWaitingForLink] = useState(false)
-  const popupRef = useRef<Window | null>(null)
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -48,21 +50,18 @@ export function TelegramConnectPanel({
     }
   }, [waitingForLink, refreshStatus])
 
-  function handleConnect() {
+  function handleConnectClick() {
     setError(null)
-    const popup = window.open('about:blank', '_blank', 'noopener,noreferrer')
-    popupRef.current = popup
+    setWaitingForLink(true)
+  }
+
+  function handleRegenerate() {
+    setError(null)
     startTransition(async () => {
       try {
         const url = await generateMyTelegramLinkUrl()
-        if (popup && !popup.closed) {
-          popup.location.href = url
-        } else {
-          window.location.href = url
-        }
-        setWaitingForLink(true)
+        setLinkUrl(url)
       } catch (err) {
-        if (popup && !popup.closed) popup.close()
         setError(err instanceof Error ? err.message : t('vendor.telegram.linkError'))
       }
     })
@@ -109,14 +108,26 @@ export function TelegramConnectPanel({
       <p className="text-sm text-[var(--muted)]">
         {t('vendor.telegram.connectHint').replace('{bot}', botUsername)}
       </p>
-      <button
-        type="button"
-        onClick={handleConnect}
-        disabled={pending}
-        className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50"
-      >
-        {pending ? t('vendor.telegram.connecting') : t('vendor.telegram.connect')}
-      </button>
+      {linkUrl ? (
+        <a
+          href={linkUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={handleConnectClick}
+          className="inline-block rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700"
+        >
+          {t('vendor.telegram.connect')}
+        </a>
+      ) : (
+        <button
+          type="button"
+          onClick={handleRegenerate}
+          disabled={pending}
+          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50"
+        >
+          {pending ? t('vendor.telegram.connecting') : t('vendor.telegram.connect')}
+        </button>
+      )}
       {waitingForLink && (
         <p className="text-sm text-[var(--muted)]">{t('vendor.telegram.waitingForLink')}</p>
       )}
