@@ -9,7 +9,9 @@ import { ThemeProvider } from '@/components/ThemeProvider'
 import { AnalyticsProvider } from '@/components/analytics/AnalyticsProvider'
 import { PostHogProvider } from '@/components/analytics/PostHogProvider'
 import { WebVitalsReporter } from '@/components/analytics/WebVitalsReporter'
-import { THEME_COLORS } from '@/lib/theme'
+import { cookies } from 'next/headers'
+import { THEME_COLORS, THEME_COOKIE_NAME } from '@/lib/theme'
+import { ThemeCookieSync } from '@/components/ThemeCookieSync'
 import { SITE_METADATA_BASE } from '@/lib/seo'
 import { SessionProvider } from '@/components/SessionProvider'
 import { LanguageProvider } from '@/i18n'
@@ -81,21 +83,64 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = await getServerLocale()
+  // Read the resolved-theme cookie that ThemeCookieSync mirrors from
+  // next-themes. If absent (first visit) we default to dark; the
+  // bootstrap script in <head> will demote to light immediately if the
+  // user prefers light, but having ANY value here means frame 0 is
+  // never the browser's default white.
+  const themeCookie = (await cookies()).get(THEME_COOKIE_NAME)?.value
+  const initialTheme: 'light' | 'dark' = themeCookie === 'light' ? 'light' : 'dark'
+  const initialBg = THEME_COLORS[initialTheme]
+  const initialClass = initialTheme === 'dark' ? 'dark' : ''
 
   return (
     <html
       lang={locale}
-      className={`${geist.variable} h-full antialiased`}
+      className={`${geist.variable} h-full antialiased ${initialClass}`.trim()}
+      // Inline background-color comes from the THEME_COOKIE_NAME cookie
+      // mirrored by ThemeCookieSync. This means frame 0 (the very first
+      // paint, before any CSS or JS runs) already matches the user's
+      // theme — no white flash for dark users on refresh, no black flash
+      // for light users either. First-time visitors fall back to dark
+      // and the bootstrap script in <head> corrects the moment it can.
+      style={{ backgroundColor: initialBg, colorScheme: initialTheme }}
       suppressHydrationWarning
     >
-      <body className="flex min-h-full flex-col bg-[var(--background)] text-[var(--foreground)]">
+      <head>
+        {/*
+          Tells the browser this document supports both schemes; when a
+          full-page navigation lands and the browser is showing the
+          intermediate "blank" document before our CSS or script run, this
+          hints it to honour the system preference instead of defaulting
+          to white. Combined with the inline-style fallback below, this
+          eliminates the white flash on navigations like the mobile
+          search submit.
+        */}
+        <meta name="color-scheme" content="dark light" />
+        {/*
+          Anti-FOUC theme bootstrap. Must run BEFORE the first paint, which
+          means it lives in <head> ahead of any stylesheet — running it from
+          <body> caused a brief white flash on full-page navigations
+          (e.g. mobile search submit) because the browser already painted
+          the default white html background before this executed.
+
+          Sets:
+            - .dark on <html> for the design tokens
+            - colorScheme so form controls match
+            - inline backgroundColor on <html> so the very first paint
+              uses our background colour, even before the CSS bundle has
+              parsed.
+        */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var s=localStorage.getItem('marketplace-theme');var m=window.matchMedia('(prefers-color-scheme: dark)').matches;var d=s==='dark'||((!s||s==='system')&&m);if(d)document.documentElement.classList.add('dark');document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();`,
+            __html: `(function(){try{var s=localStorage.getItem('marketplace-theme');var m=window.matchMedia('(prefers-color-scheme: dark)').matches;var d=s==='dark'||((!s||s==='system')&&m);var h=document.documentElement;if(d){h.classList.add('dark');}else{h.classList.remove('dark');}h.style.colorScheme=d?'dark':'light';h.style.backgroundColor=d?'#0d1117':'#f5f2ec';}catch(e){}})();`,
           }}
         />
+      </head>
+      <body className="flex min-h-full flex-col bg-[var(--background)] text-[var(--foreground)]">
         <SessionProvider>
           <ThemeProvider>
+            <ThemeCookieSync />
             <LanguageProvider initialLocale={locale}>
               <Suspense fallback={null}>
                 <AnalyticsProvider />
