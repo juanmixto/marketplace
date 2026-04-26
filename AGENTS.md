@@ -3,6 +3,17 @@
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 
+## Before your first tool call (multi-agent contract)
+
+This repo is shared by several Claude Code agents at the same time. Skip this checklist and you will silently overwrite somebody else's WIP. The 2026-04-12 hygiene incident lost real work because of exactly this.
+
+1. **`pwd`** — confirm you are NOT in `/home/whisper/marketplace`. That repo is shared infrastructure; agents work in worktrees, not in main.
+2. **If you ARE in `/home/whisper/marketplace`:** create a worktree from `origin/main` (`git fetch origin main && git worktree add /home/whisper/worktrees/<task-slug> -b <prefix>/<slug> origin/main`) and `cd` into it. Do not `git checkout` here — another agent's branch is probably checked out.
+3. **`git status` in your worktree** — must be clean. If it shows uncommitted changes you didn't make, **stop and tell the user**; another agent left WIP and you must not stomp on it. Never `git stash` somebody else's working tree to "make room".
+4. **`scripts/agents-status.sh`** — single command that surveys all active worktrees, dirty WIP, stashes (flagging anything >24h per workflow rules), and listening dev servers. Read it once at session start to know what other agents have open before forking work that will conflict at merge time.
+
+For the full policy and rationale see [`docs/git-workflow.md`](docs/git-workflow.md). For branch naming see the same doc § "Allowed branch prefixes". For deeper hygiene signals (gone branches, stale worktrees) run `scripts/git-hygiene.sh`.
+
 ## Conventions
 
 - **Project conventions (stack, imports, Prisma fields, server-action pattern)** — see [`docs/conventions.md`](docs/conventions.md). Read this before implementing any ticket.
@@ -25,7 +36,4 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Telegram ingestion processing (drafts, classifier, extractor, dedupe)** — see [`docs/ingestion/processing.md`](docs/ingestion/processing.md). Read before touching `src/domains/ingestion/processing/` or the `Ingestion{ExtractionResult,ProductDraft,VendorDraft,ReviewQueueItem,DedupeCandidate}` Prisma models. Rules-only in Phase 2 (LLM deferred to Phase 2.5). Gated by `kill-ingestion-processing` (default killed) + stage flags `feat-ingestion-{classifier,rules-extractor,dedupe}`. Locked contracts: confidence bands `HIGH ≥ 0.80 / MEDIUM ≥ 0.50 / LOW < 0.50`, draft idempotency key `(sourceMessageId, extractorVersion, productOrdinal)`, LOW-risk only auto-merge, review queue states limited to `ENQUEUED` + `AUTO_RESOLVED`.
 - **Audit hygiene (verify before flagging, re-verify before fixing)** — see [`docs/audits/README.md`](docs/audits/README.md). Required reading before producing OR consuming a codebase audit. Every finding must cite a current `file:line`; before opening a PR for an audit issue, re-`Read` the cited path to confirm the finding still applies. Audits older than ~2 weeks are likely partially stale, especially in form attributes, Tailwind utilities, SW logic, and `loading.tsx` coverage. The 2026-04-25 mobile audit (#779) shipped 3 false positives out of 16 findings — that's the bar this rule exists to prevent.
 
-## Concurrent-agent safety
-
-Multiple agents (or a human + agent) may be active in this repo at the same time. **Before touching a worktree, run `git status`. If you see uncommitted changes that are not yours, stop and ask** — those may be another agent's WIP. Never `git stash` somebody else's working tree to "make room". This is a direct lesson from the 2026-04-12 hygiene incident; see [`docs/git-workflow.md`](docs/git-workflow.md) for the full policy.
 <!-- END:nextjs-agent-rules -->
