@@ -173,11 +173,11 @@ export default async function HomePage() {
                   </Link>
                 </div>
 
-                <div className="mt-10 grid grid-cols-1 gap-4 border-t border-white/10 pt-8 sm:grid-cols-3 sm:gap-6">
+                <div className="mt-8 grid grid-cols-3 gap-3 border-t border-white/10 pt-5 sm:mt-10 sm:gap-6 sm:pt-8">
                   {heroStats.map(s => (
                     <div key={s.labelKey}>
-                      <p className="text-2xl font-bold text-white">{formatStat(s, locale, t)}</p>
-                      <p className="mt-0.5 text-sm text-emerald-300/80">{t(s.labelKey)}</p>
+                      <p className="text-lg font-bold text-white sm:text-2xl">{formatStat(s, locale, t)}</p>
+                      <p className="mt-0.5 text-[11px] leading-tight text-emerald-300/80 sm:text-sm">{t(s.labelKey)}</p>
                     </div>
                   ))}
                 </div>
@@ -208,14 +208,14 @@ export default async function HomePage() {
         </section>
 
         <section className="border-b border-[var(--border)] bg-[var(--surface)]">
-          <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
               {TRUST_ITEMS.map(({ icon: Icon, textKey }) => (
                 <div
                   key={textKey}
-                  className="flex items-center gap-2.5 text-sm text-[var(--foreground-soft)]"
+                  className="flex items-center gap-1.5 text-[11px] leading-tight text-[var(--foreground-soft)] sm:gap-2.5 sm:text-sm"
                 >
-                  <Icon className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <Icon className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400 sm:h-5 sm:w-5" />
                   {t(textKey)}
                 </div>
               ))}
@@ -223,7 +223,7 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
+        <section className="mx-auto max-w-7xl px-4 pb-12 pt-8 sm:px-6 sm:pt-10 lg:px-8">
           <div className="mb-6 flex items-end justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
