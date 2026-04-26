@@ -66,6 +66,7 @@ export function AdminAnalyticsCharts({ series }: Props) {
               <XAxis dataKey="label" stroke="var(--muted)" fontSize={11} />
               <YAxis stroke="var(--muted)" fontSize={11} tickFormatter={formatEur} />
               <Tooltip
+                wrapperStyle={{ pointerEvents: 'auto' }}
                 contentStyle={tooltipStyle}
                 formatter={(value) => [formatEur(Number(value)), 'Ingresos']}
                 labelFormatter={label => `Día: ${label}`}
@@ -94,6 +95,7 @@ export function AdminAnalyticsCharts({ series }: Props) {
               <XAxis dataKey="label" stroke="var(--muted)" fontSize={11} />
               <YAxis stroke="var(--muted)" fontSize={11} allowDecimals={false} />
               <Tooltip
+                wrapperStyle={{ pointerEvents: 'auto' }}
                 contentStyle={tooltipStyle}
                 formatter={(value) => [Number(value), 'Nuevos usuarios']}
                 labelFormatter={label => `Día: ${label}`}
