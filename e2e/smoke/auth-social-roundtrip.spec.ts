@@ -75,26 +75,48 @@ test.describe('auth social round-trip @smoke', () => {
 
     // Confirm password and submit. The action verifies the password,
     // writes the Account row, and emits a session via signIn(
-    // 'credentials'). The post-action redirect target currently
-    // lands on '/' rather than the original callbackUrl ('/cuenta')
-    // — known gap tracked in #873. This spec asserts the security-
-    // critical invariants: password gate works, Account row is
-    // created, and a session is emitted. The session is verified by
-    // navigating to /cuenta after the form submit and confirming
-    // the proxy lets us through.
+    // 'credentials') redirecting to the original callbackUrl
+    // captured from the authjs.callback-url cookie at the OAuth
+    // signIn callback (#873). User lands on /cuenta directly.
     await page.locator('input[name="password"]').fill(TEST_USERS.customer.password)
     await Promise.all([
-      page.waitForURL(
-        /\/(cuenta|carrito|checkout|productos|productores|admin|vendor|onboarding)?(?:[/?]|$)/,
-        { timeout: 30_000 }
-      ),
+      page.waitForURL(/\/cuenta(?:[/?]|$)/, { timeout: 30_000 }),
       page.getByRole('button', { name: /Confirmar y vincular/i }).click(),
     ])
 
-    // Session emitted: /cuenta is buyer-protected; reaching it
-    // without redirect means the session cookie is set.
-    await page.goto('/cuenta')
     await expect(page).toHaveURL(/\/cuenta(?:[/?]|$)/, { timeout: 10_000 })
+  })
+
+  test('admin OAuth → 2FA enroll detour (admin path)', async ({ page }) => {
+    // Admin (admin@marketplace.com) is seeded without TOTP enrolled.
+    // Mock-oauth with the admin email exercises matrix case D
+    // (credentials user) + the proxy's 2FA enroll gate when the
+    // original callbackUrl points at /admin. Path:
+    //   click → matrix denies → /login/link → password gate →
+    //   credentials signin (has2fa=false) → JWT issued →
+    //   proxy detours /admin/* to /admin/security/enroll.
+    await setMockOAuthUser(page, {
+      email: TEST_USERS.admin.email,
+      name: 'Admin Test',
+    })
+
+    await page.goto(
+      '/dev/oauth-trigger?callbackUrl=' + encodeURIComponent('/admin/dashboard')
+    )
+    await Promise.all([
+      page.waitForURL(/\/login\/link\?token=/, { timeout: 30_000 }),
+      page.getByTestId('mock-oauth-trigger').click(),
+    ])
+
+    await page.locator('input[name="password"]').fill(TEST_USERS.admin.password)
+    // After credentials signin, the proxy's enroll gate (#: admin
+    // 2FA) sees has2fa=false on the JWT and redirects /admin/* to
+    // /admin/security/enroll. The session is real (verified by
+    // reaching enroll, which is a protected path).
+    await Promise.all([
+      page.waitForURL(/\/admin\/security\/enroll(?:[/?]|$)/, { timeout: 30_000 }),
+      page.getByRole('button', { name: /Confirmar y vincular/i }).click(),
+    ])
   })
 
   test('mock authorize redirects to the callback URL (smoke route exists)', async ({ page }) => {
