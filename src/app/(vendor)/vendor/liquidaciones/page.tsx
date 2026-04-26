@@ -202,35 +202,35 @@ export default async function Liquidaciones({ searchParams }: PageProps) {
         <p className="mt-2 text-gray-600 dark:text-[var(--muted)]">{t('vendor.liquidaciones.subtitle')}</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-[var(--border)] dark:bg-[var(--surface)]">
-          <p className="text-sm text-gray-600 dark:text-[var(--muted)]">{t('vendor.liquidaciones.kpiThisMonth')}</p>
-          <p className="mt-2 text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
+        <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-[var(--border)] dark:bg-[var(--surface)] sm:p-6">
+          <p className="text-xs text-gray-600 dark:text-[var(--muted)] sm:text-sm">{t('vendor.liquidaciones.kpiThisMonth')}</p>
+          <p className="mt-1 text-xl font-bold text-emerald-600 dark:text-emerald-400 sm:mt-2 sm:text-3xl">
             {formatEUR(thisMonthData._sum.netPayable)}
           </p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-[var(--border)] dark:bg-[var(--surface)]">
-          <p className="text-sm text-gray-600 dark:text-[var(--muted)]">{t('vendor.liquidaciones.kpiPending')}</p>
-          <p className="mt-2 text-3xl font-bold text-blue-600 dark:text-blue-400">
+        <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-[var(--border)] dark:bg-[var(--surface)] sm:p-6">
+          <p className="text-xs text-gray-600 dark:text-[var(--muted)] sm:text-sm">{t('vendor.liquidaciones.kpiPending')}</p>
+          <p className="mt-1 text-xl font-bold text-blue-600 dark:text-blue-400 sm:mt-2 sm:text-3xl">
             {formatEUR(pendingData._sum.netPayable)}
           </p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-[var(--border)] dark:bg-[var(--surface)]">
-          <p className="text-sm text-gray-600 dark:text-[var(--muted)]">{t('vendor.liquidaciones.kpiCommissions')}</p>
-          <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-[var(--foreground)]">
+        <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-[var(--border)] dark:bg-[var(--surface)] sm:p-6">
+          <p className="text-xs text-gray-600 dark:text-[var(--muted)] sm:text-sm">{t('vendor.liquidaciones.kpiCommissions')}</p>
+          <p className="mt-1 text-xl font-bold text-gray-900 dark:text-[var(--foreground)] sm:mt-2 sm:text-3xl">
             {formatEUR(thisMonthData._sum.commissions)}
           </p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-[var(--border)] dark:bg-[var(--surface)]">
-          <p className="text-sm text-gray-600 dark:text-[var(--muted)]">{t('vendor.liquidaciones.kpiNextPayment')}</p>
-          <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-[var(--foreground)]">{nextPaymentDay}</p>
+        <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-[var(--border)] dark:bg-[var(--surface)] sm:p-6">
+          <p className="text-xs text-gray-600 dark:text-[var(--muted)] sm:text-sm">{t('vendor.liquidaciones.kpiNextPayment')}</p>
+          <p className="mt-1 text-base font-semibold text-gray-900 dark:text-[var(--foreground)] sm:mt-2 sm:text-lg">{nextPaymentDay}</p>
         </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-5">
         <section className="rounded-lg border border-gray-200 bg-white p-6 dark:border-[var(--border)] dark:bg-[var(--surface)] lg:col-span-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
               <h2 className="text-base font-semibold text-gray-900 dark:text-[var(--foreground)]">
                 {trendTitle}
               </h2>
@@ -239,7 +239,7 @@ export default async function Liquidaciones({ searchParams }: PageProps) {
               </p>
             </div>
             <div
-              className="inline-flex rounded-md border border-gray-200 bg-gray-50 p-0.5 text-xs dark:border-[var(--border)] dark:bg-[var(--surface-raised)]"
+              className="inline-flex shrink-0 rounded-md border border-gray-200 bg-gray-50 p-0.5 text-xs dark:border-[var(--border)] dark:bg-[var(--surface-raised)]"
               role="tablist"
               aria-label={t('vendor.liquidaciones.trendGranAria')}
             >
