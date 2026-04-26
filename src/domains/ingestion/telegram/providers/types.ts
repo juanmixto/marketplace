@@ -46,8 +46,19 @@ export interface RawTelegramMessage {
   text: string | null
   postedAt: string // ISO-8601
   media: RawTelegramMessageMedia[]
+  /** Forum-topic id (serialized 64-bit int) for supergroups partitioned
+   *  into topics. `null` for the main feed of a forum or for any chat
+   *  that is not a forum. The worker resolves the human-readable
+   *  topic title separately via `fetchTopics`. */
+  topicId?: string | null
   /** Raw provider payload preserved verbatim as source of truth. */
   raw: unknown
+}
+
+export interface RawTelegramTopic {
+  /** Serialized 64-bit int (Telegram topic message id). */
+  id: string
+  title: string
 }
 
 // ─── Input / output shapes ───────────────────────────────────────────────────
@@ -89,6 +100,14 @@ export interface FetchMediaResult {
   sizeBytes: number | null
 }
 
+export interface FetchTopicsInput {
+  connectionId: string
+  tgChatId: string
+}
+export interface FetchTopicsResult {
+  topics: RawTelegramTopic[]
+}
+
 // ─── Provider interface ──────────────────────────────────────────────────────
 
 export interface TelegramIngestionProvider {
@@ -96,4 +115,8 @@ export interface TelegramIngestionProvider {
   fetchChats(input: FetchChatsInput): Promise<FetchChatsResult>
   fetchMessages(input: FetchMessagesInput): Promise<FetchMessagesResult>
   fetchMedia(input: FetchMediaInput): Promise<FetchMediaResult>
+  /** Optional: list forum topics for supergroups configured as forums.
+   *  Implementations that don't support topics return an empty list.
+   *  The mock provider ships this as a stub returning `[]`. */
+  fetchTopics?(input: FetchTopicsInput): Promise<FetchTopicsResult>
 }

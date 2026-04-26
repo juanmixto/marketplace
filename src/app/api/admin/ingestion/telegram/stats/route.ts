@@ -4,7 +4,10 @@ import {
   IngestionFeatureUnavailableError,
   requireIngestionAdmin,
 } from '@/domains/ingestion/authz'
-import { listChatIngestionStats } from '@/domains/ingestion/telegram/queries'
+import {
+  listChatIngestionStats,
+  listChatTopicStats,
+} from '@/domains/ingestion/telegram/queries'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,7 +33,11 @@ export async function GET() {
     select: { id: true },
     orderBy: { createdAt: 'desc' },
   })
-  const stats = await listChatIngestionStats(chats.map((c) => c.id))
+  const ids = chats.map((c) => c.id)
+  const [stats, topics] = await Promise.all([
+    listChatIngestionStats(ids),
+    listChatTopicStats(ids),
+  ])
   const payload = chats.map((c) => {
     const s = stats.get(c.id)
     return {
@@ -46,6 +53,7 @@ export async function GET() {
             finishedAt: s.lastSync.finishedAt?.toISOString() ?? null,
           }
         : null,
+      topics: topics.get(c.id) ?? [],
     }
   })
   return NextResponse.json({ chats: payload, generatedAt: new Date().toISOString() })
