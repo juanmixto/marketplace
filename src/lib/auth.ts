@@ -9,6 +9,7 @@ import { authConfig } from './auth-config'
 import { applyNormalizedAuthHostEnv } from './auth-host'
 import { coerceUserRole } from '@/lib/roles'
 import { normalizeAuthEmail } from '@/lib/auth-email'
+import { splitProfileName } from '@/lib/auth-profile-name'
 import { decideSocialSignIn } from '@/lib/auth-social-policy'
 import { signAuthLinkToken } from '@/lib/auth-link-token'
 import { isFeatureEnabled } from '@/lib/flags'
@@ -24,9 +25,52 @@ const ROLE_REFRESH_INTERVAL_MS = 60_000
 
 export const AUTH_FLAG_KILL_SOCIAL = 'kill-auth-social'
 
+/**
+ * The base PrismaAdapter ships a `createUser` that does:
+ *   p.user.create({ data: { id, email, name, image, emailVerified } })
+ *
+ * Our `User` schema has `firstName` + `lastName` (required, non-null)
+ * and NO `name` column. Without an override, the first OAuth signin
+ * for any new email would 500 in production: Prisma rejects the
+ * unknown `name` field AND the missing required `firstName`.
+ *
+ * `splitProfileName` maps Google's `name` → first/last with sensible
+ * fallbacks (email local-part if name is empty). The cast is needed
+ * because `AdapterUser` doesn't expose firstName/lastName, but the
+ * adapter's `getUser*` methods just return whatever Prisma gives back
+ * — Auth.js only consumes `id` / `email` / `emailVerified` from it.
+ */
+function buildAdapter(): Adapter {
+  const base = PrismaAdapter(db) as Adapter
+  return {
+    ...base,
+    async createUser(data) {
+      const email = (data as { email?: string | null }).email ?? ''
+      const name = (data as { name?: string | null }).name
+      const { firstName, lastName } = splitProfileName(name, email)
+      const created = await db.user.create({
+        data: {
+          email,
+          emailVerified: data.emailVerified ?? null,
+          image: (data as { image?: string | null }).image ?? null,
+          firstName,
+          lastName,
+        },
+      })
+      logger.info('auth.user.created_via_oauth', {
+        userId: created.id,
+        hasName: Boolean(name),
+      })
+      // Cast: AdapterUser's required shape is { id, email, emailVerified } —
+      // our User has all of those plus extras Auth.js ignores.
+      return created as unknown as Awaited<ReturnType<NonNullable<Adapter['createUser']>>>
+    },
+  }
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
-  adapter: PrismaAdapter(db) as Adapter,
+  adapter: buildAdapter(),
   trustHost: true,
   session: { strategy: 'jwt' },
   callbacks: {
