@@ -8,6 +8,7 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { LanguageToggle } from '@/components/LanguageToggle'
 import { useSidebar } from '@/components/layout/SidebarProvider'
 import { signOutAndClearCart } from '@/components/buyer/cart-session'
+import { useT } from '@/i18n'
 
 interface Props {
   user: { name?: string | null; email?: string | null; role: string }
@@ -16,6 +17,7 @@ interface Props {
 export function AdminHeader({ user }: Props) {
   const [open, setOpen] = useState(false)
   const { openMobile } = useSidebar()
+  const t = useT()
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-4 md:px-6">
@@ -24,20 +26,20 @@ export function AdminHeader({ user }: Props) {
           type="button"
           onClick={openMobile}
           className="md:hidden inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2.5 text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
-          aria-label="Abrir menú"
-          title="Abrir menú"
+          aria-label={t('admin.header.openMenu')}
+          title={t('admin.header.openMenu')}
         >
           <Bars3Icon className="h-5 w-5" />
         </button>
         <span className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-[var(--muted)]">
           <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          En vivo
+          {t('admin.header.live')}
         </span>
         <Link
           href="/"
           className="hidden sm:inline-flex rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
         >
-          Ver tienda
+          {t('admin.header.viewStore')}
         </Link>
       </div>
 
@@ -76,13 +78,13 @@ export function AdminHeader({ user }: Props) {
                 onClick={() => setOpen(false)}
                 className="block rounded-lg px-3 py-2.5 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] mx-1"
               >
-                Ir a la tienda
+                {t('admin.header.goToStore')}
               </Link>
               <button
                 onClick={() => void signOutAndClearCart('/login')}
                 className="mt-1 w-full rounded-lg border-t border-[var(--border)] px-3 py-2.5 text-left text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40 mx-1 pt-2"
               >
-                Cerrar sesión
+                {t('admin.header.signOut')}
               </button>
             </div>
           </>

@@ -43,6 +43,8 @@ const INTENTIONAL_COPY_KEYS = new Set<string>([
   'account.telegram.title',       // brand name, same in both locales (buyer-side)
   'vendor.notifications.channel.telegram', // brand name, same in both locales
   'account.notifications.channel.telegram', // brand name, same in both locales (buyer-side)
+  'admin.reports.kpi.gmv',        // "GMV" is an untranslatable acronym
+  'admin.reports.kpi.aov',        // "AOV" is an untranslatable acronym
 ])
 
 /**
