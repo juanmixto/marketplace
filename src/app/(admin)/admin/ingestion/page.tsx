@@ -185,13 +185,21 @@ export default async function IngestionReviewQueuePage({ searchParams }: PagePro
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-[var(--foreground)]">
-          Ingesta · Cola de revisión
-        </h1>
-        <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-          Drafts y mensajes de productor sin precio pendientes de revisión humana. Nada de lo que haya aquí toca todavía el catálogo público.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-[var(--foreground)]">
+            Ingesta · Cola de revisión
+          </h1>
+          <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+            Drafts y mensajes de productor sin precio pendientes de revisión humana. Nada de lo que haya aquí toca todavía el catálogo público.
+          </p>
+        </div>
+        <Link
+          href="/admin/ingestion/telegram"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--card)] px-3 py-1.5 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--muted)]"
+        >
+          Conexiones de Telegram →
+        </Link>
       </div>
 
       {flash && (
