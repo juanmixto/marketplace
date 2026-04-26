@@ -84,11 +84,24 @@ export default defineConfig({
           // the subscriptions smoke can exercise the full mock checkout
           // flow. No-op if the running server already has it set.
           SUBSCRIPTIONS_BUYER_BETA: 'true',
-          // #856 full: enable the test-only OAuth provider + endpoints
-          // under /api/__test__/. The provider/handlers all gate on
-          // this flag AND NODE_ENV !== production, so prod is doubly
-          // safe — but never set this anywhere except Playwright.
+          // #856 full: enable the test-only OAuth provider +
+          // endpoints under /api/dev-oauth/ (and the trigger page at
+          // /dev/oauth-trigger). All handlers and the provider gate
+          // on this flag AND NODE_ENV !== production, so prod is
+          // doubly safe — but never set this anywhere except
+          // Playwright.
           MOCK_OAUTH_ENABLED: '1',
+          // Force the kill switch off + the WIP gate on for the
+          // mock provider. Without this, isFeatureEnabled() fails
+          // OPEN (returns true) when PostHog is unconfigured —
+          // correct in prod for kill-* semantics (kill on doubt) but
+          // it means every OAuth signin in test is denied with
+          // reason: 'kill_switch'. The override only affects this
+          // Playwright webServer.
+          FEATURE_FLAGS_OVERRIDE: JSON.stringify({
+            'kill-auth-social': false,
+            'feat-auth-google': true,
+          }),
           // Inherit from the parent process (CI workflow step sets
           // DISABLE_LOGIN_RATELIMIT=1). Playwright's `env` overrides
           // the whole env map, so we forward it explicitly.

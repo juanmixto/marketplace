@@ -57,6 +57,11 @@ export const authConfig: NextAuthConfig = {
         // 2FA claim — set on initial login, consumed by src/proxy.ts
         // to force admins without 2FA to /admin/security/enroll.
         token.has2fa = (user as { has2fa?: boolean }).has2fa ?? false
+        // Onboarding claim — proxy.ts redirects to /onboarding when
+        // true. Defaults false for credentials (they consent at
+        // /register); the OAuth jwt callback in src/lib/auth.ts
+        // overrides this on first OAuth signin via a DB lookup.
+        token.needsOnboarding = (user as { needsOnboarding?: boolean }).needsOnboarding ?? false
       }
       return token
     },
@@ -65,6 +70,9 @@ export const authConfig: NextAuthConfig = {
         session.user.id = token.id as string
         session.user.role = coerceUserRole(token.role)
         ;(session.user as { has2fa?: boolean }).has2fa = Boolean(token.has2fa)
+        ;(session.user as { needsOnboarding?: boolean }).needsOnboarding = Boolean(
+          token.needsOnboarding
+        )
       }
       return session
     },
