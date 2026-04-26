@@ -11,6 +11,7 @@ import { coerceUserRole } from '@/lib/roles'
 import { normalizeAuthEmail } from '@/lib/auth-email'
 import { splitProfileName } from '@/lib/auth-profile-name'
 import { decideSocialSignIn } from '@/lib/auth-social-policy'
+import { isMockOAuthEnabled, mockOAuthProvider } from '@/lib/auth-mock-oauth'
 import { signAuthLinkToken } from '@/lib/auth-link-token'
 import { isFeatureEnabled } from '@/lib/flags'
 import { logger } from '@/lib/logger'
@@ -257,6 +258,15 @@ function buildProviders(): Provider[] {
         authorization: { params: { scope: 'openid email profile' } },
       })
     )
+  }
+
+  // Test-only: a generic OAuth provider whose authorize / token /
+  // userinfo endpoints are local Next.js routes under /api/__test__/.
+  // Gate via the env var helper, which also refuses production. The
+  // provider goes through the same signIn callback as Google, so the
+  // matrix + adapter override + has2fa lookup all get exercised.
+  if (isMockOAuthEnabled()) {
+    providers.push(mockOAuthProvider())
   }
 
   return providers
