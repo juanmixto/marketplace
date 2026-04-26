@@ -4,15 +4,18 @@ import type { Adapter } from 'next-auth/adapters'
 import Credentials from 'next-auth/providers/credentials'
 import Google from 'next-auth/providers/google'
 import type { Provider } from 'next-auth/providers'
+import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
 import { authConfig } from './auth-config'
 import { applyNormalizedAuthHostEnv } from './auth-host'
+import { isSecureAuthDeployment } from '@/lib/auth-env'
 import { coerceUserRole } from '@/lib/roles'
 import { normalizeAuthEmail } from '@/lib/auth-email'
 import { splitProfileName } from '@/lib/auth-profile-name'
 import { decideSocialSignIn } from '@/lib/auth-social-policy'
 import { isMockOAuthEnabled, mockOAuthProvider } from '@/lib/auth-mock-oauth'
 import { signAuthLinkToken } from '@/lib/auth-link-token'
+import { sanitizeCallbackUrl } from '@/lib/portals'
 import { isFeatureEnabled } from '@/lib/flags'
 import { logger } from '@/lib/logger'
 // eslint-disable-next-line no-restricted-imports -- credentials.ts is Prisma-backed and stays out of the auth barrel; src/lib/auth.ts is the only consumer
@@ -158,17 +161,28 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         logger.error('auth.social.missing_secret', { provider: account.provider })
         return false
       }
+      // Capture the callbackUrl Auth.js stashed when the user clicked
+      // the social button. Without this, the password gate at /login/
+      // link drops the user on `/` after re-trigger — breaking the
+      // case D conversion funnel (#873). Cookie name varies on
+      // Secure prefix; mirror Auth.js's own resolution.
+      const cookieStore = await cookies()
+      const cookiePrefix = isSecureAuthDeployment(process.env) ? '__Secure-' : ''
+      const rawCallback = cookieStore.get(`${cookiePrefix}authjs.callback-url`)?.value
+      const safeCallback = rawCallback ? sanitizeCallbackUrl(rawCallback) : undefined
       const token = await signAuthLinkToken(
         {
           email: decision.email,
           provider: decision.provider,
           providerAccountId: decision.providerAccountId,
+          ...(safeCallback ? { callbackUrl: safeCallback } : {}),
         },
         secret
       )
       logger.info('auth.link.required', {
         provider: account.provider,
         reason: decision.reason,
+        hasCallback: Boolean(safeCallback),
       })
       return `/login/link?token=${encodeURIComponent(token)}`
     },
