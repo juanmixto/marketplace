@@ -20,9 +20,19 @@ test('telegram setup page keeps the operational flow compact and obvious', () =>
   assert.match(source, /TelegramAuthForm/)
   assert.match(source, /TelegramChatPicker/)
   assert.match(source, /TelegramSyncButton/)
-  assert.match(source, /1 · Conectar cuenta de Telegram/)
-  assert.match(source, /2 · Conexiones activas/)
-  assert.match(source, /3 · Chats sincronizables/)
+  assert.match(source, /TelegramReprocessButton/)
+  // The connect-account block collapses once a connection is active;
+  // the chats table is the operator's primary surface and must stay.
+  assert.match(source, /Conectar cuenta de Telegram/)
+  assert.match(source, /Chats sincronizables/)
+  // Per-chat stats — raw / processed / pending / drafts — are the
+  // numbers operators triage from. Keep them pinned so a future
+  // refactor does not silently drop them.
+  assert.match(source, /listChatIngestionStats/)
+  assert.match(source, /Crudo/)
+  assert.match(source, /Procesado/)
+  assert.match(source, /Pendiente/)
+  assert.match(source, /Drafts/)
 })
 
 test('telegram ingestion setup card explains the preflight checklist and current state', () => {
