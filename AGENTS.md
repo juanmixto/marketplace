@@ -1,4 +1,66 @@
 <!-- BEGIN:nextjs-agent-rules -->
+# Agente: lee esto antes de tocar nada
+
+Este repo es un **marketplace digital curado** de productores artesanales. La infraestructura técnica está descrita más abajo (Next.js, multi-agente, etc.). Pero antes del código, el contexto **de negocio y producto** es obligatorio:
+
+## Contexto obligatorio antes de trabajar
+
+Cualquier agente que vaya a (a) escribir código de producto, (b) abrir issues, (c) priorizar trabajo o (d) proponer features **debe leer**:
+
+1. [`docs/business/00-index.md`](docs/business/00-index.md) — visión, productores, modelo de comisiones, roadmap.
+2. [`docs/product/00-index.md`](docs/product/00-index.md) — principios, flujos críticos, fricciones conocidas.
+3. [`docs/business/09-decisiones-estrategicas.md`](docs/business/09-decisiones-estrategicas.md) — qué ya se decidió y **no** se discute de nuevo.
+4. La sección "Hacer / No hacer" inmediatamente abajo.
+
+Si la tarea es puramente técnica (refactor, bug, infra), basta con esa sección + las convenciones técnicas. Si la tarea toca catálogo, productores, checkout, copy, onboarding o cualquier UX visible al usuario final, lee también `docs/product/`.
+
+## Estado actual del marketplace (resumen para agentes)
+
+- **Etapa**: pre-tracción. Catálogo pequeño y curado. La prioridad es **validar demanda real**, no escalar.
+- **Productores**: artesanales, pocos, seleccionados a mano. Cada uno se contacta de forma personal.
+- **Usuarios objetivo**: compradores que valoran origen, calidad y confianza por encima de precio.
+- **Plataforma dominante**: móvil. La conversión móvil manda sobre la desktop.
+- **Lo que NO somos**: Amazon, ni un agregador, ni un dropshipper. No competimos en surtido ni en precio.
+
+## Hacer / No hacer (regla de decisión rápida)
+
+**Hacer:**
+- Priorizar **confianza** (fichas claras, fotos reales, origen verificable, copy honesto).
+- Priorizar **conversión móvil** (latencia, tap targets, formularios cortos, checkout sin fricciones).
+- Priorizar **validación de demanda** (medir, no construir): un experimento manual antes que una abstracción.
+- Cerrar el bucle: cada cambio en el catálogo o en checkout debe poder medirse (PostHog).
+- Documentar la decisión de negocio detrás de cada feature no trivial en `docs/business/09-decisiones-estrategicas.md`.
+
+**No hacer:**
+- No añadir features que asumen tracción que aún no existe (recomendadores, programas de fidelización, multi-currency, multi-país, marketplace B2B, etc.).
+- No construir abstracciones para "futuros productores" hipotéticos. Tres productores parecidos NO justifican un framework.
+- No tocar copy de productor / fichas / checkout sin leer `docs/product/02-flujos-criticos.md` y `docs/business/07-copy-contacto-productores.md`.
+- No introducir nuevos proveedores externos (pagos, email, push, analytics) sin justificación en `docs/business/09-decisiones-estrategicas.md`.
+- No crear tablas / campos / endpoints "por si acaso". Cada nuevo modelo Prisma necesita una pregunta de negocio que responda.
+
+## Criterios para decidir si una feature tiene sentido
+
+Una feature solo entra al backlog si responde **sí** a las cuatro:
+
+1. **¿Mueve una métrica que importa hoy?** (conversión móvil, productor activado, pedido completado, repetición). Si la métrica es "engagement genérico" o "DAU", no.
+2. **¿Existe el problema con el catálogo y los pedidos actuales?** Si solo aparece "cuando tengamos 10× productores", aplázala.
+3. **¿El coste de NO hacerla es real?** (pérdida medible de pedidos, abandono observado, queja repetida de productor). Si es teórico, aplázala.
+4. **¿La versión más barata posible cabe en ≤ 1 PR?** Si necesita epic multi-PR antes de validar, parte primero la versión manual / wizard-of-oz.
+
+Si una de las cuatro es "no", la feature **no se construye**: se documenta en `docs/business/08-roadmap-negocio.md` como hipótesis pendiente de validar.
+
+## Prioridades actuales (orden, no lista)
+
+1. **Confianza visible**: ficha de producto y de productor que un comprador frío entendería en 10 s.
+2. **Checkout móvil sin fricciones**: cada paso eliminado vale más que cualquier feature nueva.
+3. **Onboarding de productor**: que un productor real pueda publicar sin intervención manual del equipo.
+4. **Medición de demanda**: PostHog en los flujos críticos antes de optimizar nada.
+5. **Operaciones (logística, atención)**: manuales hasta que duela; automatizar solo cuando duele.
+
+Todo lo demás (recomendadores, búsqueda avanzada, reviews, programas de afiliados, app nativa) está **fuera** hasta que estas cinco estén verdes.
+
+---
+
 # This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
