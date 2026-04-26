@@ -49,22 +49,24 @@ export default async function IngestionTelegramPage() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-[var(--foreground)]">
+            Ingestión · Telegram
+          </h1>
+          <p className="mt-1 max-w-3xl text-sm text-[var(--muted-foreground)]">
+            Conexiones a cuentas de Telegram, chats registrados para sincronización
+            y disparo manual del sync. Toda la actividad pasa por el sidecar
+            Telethon — si no está corriendo, las acciones fallan con un error
+            claro.
+          </p>
+        </div>
         <Link
           href="/admin/ingestion"
-          className="text-xs text-[var(--muted-foreground)] hover:underline"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--card)] px-3 py-1.5 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--muted)]"
         >
-          ← Volver a la cola de ingestión
+          ← Cola de revisión
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-[var(--foreground)]">
-          Ingestión · Telegram
-        </h1>
-        <p className="mt-1 max-w-3xl text-sm text-[var(--muted-foreground)]">
-          Conexiones a cuentas de Telegram, chats registrados para sincronización
-          y disparo manual del sync. Toda la actividad pasa por el sidecar
-          Telethon — si no está corriendo, las acciones fallan con un error
-          claro.
-        </p>
       </div>
 
       <Card>
