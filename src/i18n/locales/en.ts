@@ -924,7 +924,6 @@ const en: Record<TranslationKeys, string> = {
 
   // Vendor – web push (Mobile/Web)
   'vendor.webpush.title': 'Mobile & browser',
-  'vendor.webpush.subtitle': 'Get alerts on this device even when the app is closed.',
   'vendor.webpush.checking': 'Checking support…',
   'vendor.webpush.unsupported': 'Your browser does not support push notifications. Try Chrome, or install the site as an app from Safari (iOS 16.4+).',
   'vendor.webpush.denied': 'Blocked',
