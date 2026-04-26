@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Claude Code agent guard for /home/whisper/marketplace
+# Multi-agent guard for /home/whisper/marketplace
 #
 # REFERENCE COPY of the wrapper that lives at ~/.local/bin/git on the
 # laptop and intercepts `git` invocations before /usr/bin/git. This
@@ -9,36 +9,45 @@
 # enforcement" for context.
 #
 # Blocks HEAD-moving + working-tree-mutating git operations on the
-# shared main repo when invoked by a Claude Code agent. Prevents the
-# "branch changed under my feet" + "stash defensively over another
-# agent's WIP" failure modes documented in docs/git-workflow.md.
+# shared main repo when invoked by ANY automated agent (Claude Code,
+# Codex, Copilot CLI, future agents). Prevents the "branch changed
+# under my feet" + "stash defensively over another agent's WIP"
+# failure modes documented in docs/git-workflow.md.
 #
-# - Detects agent via CLAUDE_CODE_SESSION_ID env var (set by harness)
-# - Only blocks when cwd is inside /home/whisper/marketplace
-# - Allow-list: fetch, worktree, log, status, diff, show, branch -l, etc.
-# - Block-list: checkout, reset --hard, stash, merge, rebase, pull, cherry-pick, revert
-# - Override: set CLAUDE_AGENT_BYPASS=1 for a single invocation
+# Detection model: BLOCK BY DEFAULT. The shell is treated as agent-
+# controlled unless explicitly marked human. Humans add
+#   export HUMAN_SHELL=1
+# to their .bashrc / .zshrc / equivalent. Any agent harness inherits
+# the absence of that flag and is automatically guarded — no per-
+# agent allowlist of env vars to maintain.
 #
-# Humans (no CLAUDE_CODE_SESSION_ID env) are never affected.
-# Agents in /home/whisper/worktrees/* are never affected (only the main repo).
+# - Block-list: checkout, switch, reset, restore, stash, merge,
+#               rebase, pull, cherry-pick, revert, am
+# - Allow-list: fetch, worktree, log, status, diff, show, branch,
+#               remote, push (handled separately at branch protection)
+# - Override: prefix one call with CLAUDE_AGENT_BYPASS=1 (kept for
+#             back-compat; AGENT_BYPASS=1 also works)
+#
+# Scope: only when cwd's repo top-level is /home/whisper/marketplace.
+# Worktrees under /home/whisper/worktrees/* and any other repo are
+# never affected. The wrapper is a no-op on every other path.
 
 REAL_GIT=/usr/bin/git
 PROTECTED_PATH=/home/whisper/marketplace
 
-# Fast path: not an agent → straight to real git
-if [ -z "${CLAUDE_CODE_SESSION_ID:-}" ]; then
+# Fast path: humans run unrestricted
+if [ "${HUMAN_SHELL:-}" = "1" ]; then
   exec "$REAL_GIT" "$@"
 fi
 
-# Bypass override
-if [ "${CLAUDE_AGENT_BYPASS:-}" = "1" ]; then
+# Bypass override (one-shot, supports both names for back-compat)
+if [ "${CLAUDE_AGENT_BYPASS:-}" = "1" ] || [ "${AGENT_BYPASS:-}" = "1" ]; then
   exec "$REAL_GIT" "$@"
 fi
 
-# Resolve the actual repo path. Use --show-toplevel which respects
-# any -C flag that may precede the subcommand.
+# Resolve the repo top-level. Respects any -C path / --git-dir flag
+# that may precede the subcommand.
 TOPLEVEL=$("$REAL_GIT" "$@" rev-parse --show-toplevel 2>/dev/null) || true
-# Fallback: use the CWD if rev-parse failed (e.g. not in a repo)
 if [ -z "$TOPLEVEL" ]; then
   TOPLEVEL=$("$REAL_GIT" rev-parse --show-toplevel 2>/dev/null || pwd)
 fi
@@ -82,9 +91,9 @@ case "$SUBCMD" in
 ║ BLOCKED: agent attempted '$SUBCMD' in /home/whisper/marketplace    ║
 ╚══════════════════════════════════════════════════════════════════╝
 
-The shared main repo is read-only for Claude Code agents. This
-prevents the "branch changed under my feet" and "stash over another
-agent's WIP" incidents documented in docs/git-workflow.md.
+The shared main repo is read-only for automated agents. This prevents
+the "branch changed under my feet" and "stash over another agent's
+WIP" incidents documented in docs/git-workflow.md.
 
 What to do instead:
   1. Create a worktree from origin/main:
@@ -95,7 +104,12 @@ What to do instead:
 
 If you genuinely need to bypass for one command (e.g. emergency
 recovery, you confirmed with the user), prefix it:
-  CLAUDE_AGENT_BYPASS=1 git $SUBCMD ...
+  AGENT_BYPASS=1 git $SUBCMD ...
+  (CLAUDE_AGENT_BYPASS=1 also works for back-compat.)
+
+The guard treats every shell as agent-controlled unless HUMAN_SHELL=1
+is exported. If you ARE human and seeing this, add to your shell rc:
+  export HUMAN_SHELL=1
 
 See: AGENTS.md § "Before your first tool call"
      docs/git-workflow.md § "Concurrent-agent safety"
