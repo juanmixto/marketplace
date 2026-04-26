@@ -42,10 +42,9 @@ test('home page formats the hero counters with locale-aware Intl.NumberFormat', 
   assert.match(source, /t\(s\.labelKey\)/)
 })
 
-test('home page uses locale-aware helpers for quick-access cards and category labels', () => {
+test('home page uses locale-aware helpers for category labels', () => {
   const source = readSource('../../src/app/(public)/page.tsx')
 
-  assert.match(source, /getPublicPortalLinks\(locale\)/)
   assert.match(source, /translateCategoryLabel\(cat\.slug, cat\.name, locale\)/)
 })
 
@@ -57,10 +56,9 @@ test('home category cards expose professional metadata and accessible navigation
   assert.match(source, /rounded-3xl border border-\[var\(--border\)\] bg-\[var\(--surface\)\] p-4 shadow-sm/)
 })
 
-test('home quick access, featured products and vendor sections use the refined professional layout', () => {
+test('home featured products and vendor sections use the refined professional layout', () => {
   const source = readSource('../../src/app/(public)/page.tsx')
 
-  assert.match(source, /quickAccessDesc/)
   assert.match(source, /sections\.featuredDesc/)
   assert.match(source, /sections\.featuredVendorsDesc/)
   assert.match(source, /sections\.vendorCardCta/)

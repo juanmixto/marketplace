@@ -1,7 +1,7 @@
 import test, { afterEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { clearCartSessionState } from '@/components/buyer/cart-session'
-import { useCartStore } from '@/domains/orders/cart-store'
+import { useCartStore } from '@/domains/cart/cart-store'
 
 class FakeStorage implements Storage {
   private readonly store = new Map<string, string>()

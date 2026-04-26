@@ -65,10 +65,15 @@ test('registerWebPushHandlers is idempotent via a global flag', () => {
   )
 })
 
-test('ensure-registered wraps register with a local idempotency flag', () => {
+test('ensure-registered delegates idempotency to register (no local latch)', () => {
   const src = read(ENSURE_PATH)
   assert.match(src, /registerWebPushHandlers\s*\(\s*\)/)
-  assert.match(src, /let\s+registered\s*=\s*false/)
+  // A local `registered = false` latch on this file used to swallow the
+  // first call (made at module-import time before env is set) and prevent
+  // any later retry. The single source of truth is the global flag
+  // inside `registerWebPushHandlers`, which only latches when VAPID keys
+  // are actually present, so a no-config bootstrap can be retried later.
+  assert.doesNotMatch(src, /let\s+registered\s*=\s*false/)
 })
 
 test('vendors/actions bootstraps the web-push handlers at import time', () => {

@@ -50,10 +50,14 @@ test('SidebarProvider locks body scroll while the mobile drawer is open', () => 
   assert.match(source, /\[mobileOpen\]/, 'scroll-lock effect must depend on mobileOpen')
 })
 
-test('public Header locks body scroll while the mobile menu is open', () => {
+test('public Header locks scroll while the mobile menu is open', () => {
   const source = read('src/components/layout/Header.tsx')
-  const matches = source.match(/body\.style\.overflow\s*=\s*'hidden'/g) ?? []
-  assert.ok(matches.length >= 1, 'Header must lock body scroll when mobileOpen is true')
+  // Either body.style.overflow or html.style.overflow is acceptable; the
+  // <html>-based variant is preferred because it doesn't break the drawer's
+  // fixed-positioning containing block (see Header.tsx comment).
+  const matches =
+    source.match(/(?:body|html)\.style\.overflow\s*=\s*'hidden'/g) ?? []
+  assert.ok(matches.length >= 1, 'Header must lock scroll when mobileOpen is true')
 })
 
 test('Modal locks body scroll while it is open', () => {
@@ -385,6 +389,27 @@ test('cart page renders a mobile-only sticky checkout bar', () => {
   const source = read('src/components/buyer/CartPageClient.tsx')
   assert.match(source, /fixed inset-x-0 bottom-0[^"]*lg:hidden/, 'cart must render a mobile-only fixed checkout bar')
   assert.match(source, /env\(safe-area-inset-bottom\)/, 'cart sticky bar must honour the home-indicator safe area')
+})
+
+test('Recharts tooltips opt the wrapper into pointer events so touch devices can interact', () => {
+  // Recharts defaults the tooltip wrapper to `pointer-events: none`, which on
+  // touch devices traps the tooltip in a "stuck after tap" state. Setting
+  // wrapperStyle={{ pointerEvents: 'auto' }} lets the user dismiss it by
+  // tapping elsewhere on the chart.
+  const files = [
+    'src/components/admin/analytics/charts/RankedBarChart.tsx',
+    'src/components/admin/analytics/charts/CategoryPieChart.tsx',
+    'src/components/admin/analytics/charts/SalesEvolutionChart.tsx',
+    'src/components/admin/AdminAnalyticsCharts.tsx',
+  ]
+  for (const file of files) {
+    const source = read(file)
+    assert.match(
+      source,
+      /wrapperStyle=\{\{\s*pointerEvents:\s*'auto'\s*\}\}/,
+      `${file} must opt the Recharts <Tooltip> wrapper into pointerEvents: auto`,
+    )
+  }
 })
 
 test('html and body clip horizontal overflow so a stray wide child cannot scroll the page', () => {

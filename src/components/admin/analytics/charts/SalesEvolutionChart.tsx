@@ -55,6 +55,7 @@ export function SalesEvolutionChart({ data }: Props) {
             width={40}
           />
           <Tooltip
+            wrapperStyle={{ pointerEvents: 'auto' }}
             contentStyle={{
               backgroundColor: 'var(--surface)',
               border: '1px solid var(--border)',

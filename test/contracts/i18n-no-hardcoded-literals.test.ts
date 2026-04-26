@@ -51,7 +51,7 @@ const ALLOWLIST_FILES: ReadonlySet<string> = new Set([
   //
   // Admin surfaces — internal-facing.
   // Localized: chrome (#826), dashboard, configuracion, analytics, informes (#834),
-  // pedidos, productos, envios, comisiones, auditoria, liquidaciones, incidencias, notificaciones.
+  // pedidos, productos, envios, comisiones, auditoria, liquidaciones, incidencias, notificaciones (#835).
   'src/app/(admin)/admin/productos/[id]/edit/page.tsx', // Admin-only edit surface — not localized yet.
   'src/app/(admin)/admin/productores/[id]/edit/page.tsx', // Admin-only edit surface — not localized yet.
   'src/app/(admin)/admin/promociones/[id]/edit/page.tsx', // Admin-only edit surface — not localized yet.
