@@ -138,7 +138,7 @@ export function ProductFiltersPanel({ categories, onClose, embedded = false }: P
           >
             {copy.filters.all}
           </button>
-          {categories.map(cat => (
+          {categories.filter(cat => cat._count.products > 0).map(cat => (
             <button
               key={cat.slug}
               type="button"

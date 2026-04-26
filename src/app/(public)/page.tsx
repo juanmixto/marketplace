@@ -238,12 +238,9 @@ export default async function HomePage() {
             </div>
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {categories.map(cat => {
+            {categories.filter(cat => cat._count.products > 0).map(cat => {
               const label = translateCategoryLabel(cat.slug, cat.name, locale)
-              const countLabel =
-                cat._count.products > 0
-                  ? `${cat._count.products} ${t('productsUnit')}`
-                  : t('comingSoon')
+              const countLabel = `${cat._count.products} ${t('productsUnit')}`
               return (
                 <Link
                   key={cat.slug}
