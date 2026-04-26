@@ -1,5 +1,6 @@
 import { LoginForm } from '@/components/auth/LoginForm'
 import { SocialButtons } from '@/components/auth/SocialButtons'
+import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner'
 import { auth } from '@/lib/auth'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
@@ -9,10 +10,11 @@ import {
   isValidPortalMode,
   LAST_PORTAL_COOKIE,
 } from '@/lib/portals'
+import { isKnownAuthError } from '@/lib/auth-error-codes'
 import { logger } from '@/lib/logger'
 
 interface Props {
-  searchParams: Promise<{ callbackUrl?: string }>
+  searchParams: Promise<{ callbackUrl?: string; error?: string }>
 }
 
 export default async function LoginPage({ searchParams }: Props) {
@@ -51,11 +53,20 @@ export default async function LoginPage({ searchParams }: Props) {
     )
   }
 
+  // Surface OAuth/auth.js error codes to the user. Log unknown codes
+  // so we notice when a new one appears upstream and lacks a copy.
+  if (params.error && !isKnownAuthError(params.error)) {
+    logger.warn('auth.error.unknown_code', { code: params.error })
+  }
+
   const callbackUrl = params.callbackUrl ?? '/'
   return (
-    <LoginForm
-      callbackUrl={callbackUrl}
-      topSlot={<SocialButtons callbackUrl={callbackUrl} />}
-    />
+    <>
+      <AuthErrorBanner errorCode={params.error} />
+      <LoginForm
+        callbackUrl={callbackUrl}
+        topSlot={<SocialButtons callbackUrl={callbackUrl} />}
+      />
+    </>
   )
 }
