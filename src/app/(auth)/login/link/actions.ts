@@ -11,6 +11,9 @@ import {
 } from '@/lib/auth-link-token'
 import { sanitizeCallbackUrl } from '@/lib/portals'
 import { signIn } from '@/lib/auth'
+import { sendEmail } from '@/lib/email'
+import { AccountLinkedEmail } from '@/emails/AccountLinked'
+import { getServerEnv } from '@/lib/env'
 
 const PASSWORD_ATTEMPTS_PER_IP_PER_HOUR = 5
 
@@ -88,6 +91,8 @@ export async function linkSocialAccountAction(
     where: { email: payload.email },
     select: {
       id: true,
+      email: true,
+      firstName: true,
       passwordHash: true,
       isActive: true,
       accounts: {
@@ -129,6 +134,15 @@ export async function linkSocialAccountAction(
     logger.info('auth.link.completed', {
       provider: payload.provider,
     })
+    // Fire-and-forget security notification. If sendEmail throws
+    // (Resend unconfigured / 5xx) the user still gets through —
+    // the email is post-fact reassurance, not a gate.
+    void notifyAccountLinked({
+      to: user.email,
+      userName: user.firstName,
+      provider: payload.provider,
+      ipAddress: clientIp,
+    })
   }
 
   // Emit a session via the credentials flow with the password the
@@ -155,6 +169,48 @@ export async function linkSocialAccountAction(
   // Unreachable — `signIn` throws Next's redirect signal. The throw
   // is the success signal Next propagates as a navigation.
   return { ok: false, reason: 'generic' }
+}
+
+const PROVIDER_LABEL: Record<string, string> = {
+  google: 'Google',
+  apple: 'Apple',
+}
+
+/**
+ * Fires the security-notification email for a newly-linked OAuth
+ * account. Best-effort: any failure is logged and swallowed so the
+ * user doesn't lose their session because Resend is rate-limited.
+ */
+async function notifyAccountLinked(params: {
+  to: string
+  userName: string
+  provider: string
+  ipAddress: string
+}): Promise<void> {
+  try {
+    const { appUrl } = getServerEnv()
+    const providerLabel = PROVIDER_LABEL[params.provider] ?? params.provider
+    await sendEmail({
+      to: params.to,
+      subject: `Has vinculado ${providerLabel} a tu cuenta`,
+      react: AccountLinkedEmail({
+        userName: params.userName,
+        providerLabel: params.provider,
+        linkedAt: new Date(),
+        ipAddress: params.ipAddress,
+        securityUrl: `${appUrl}/cuenta/seguridad`,
+        supportEmail: 'soporte@feldescloud.com',
+      }),
+    })
+    logger.info('auth.account_linked_email.sent', {
+      provider: params.provider,
+    })
+  } catch (err) {
+    logger.warn('auth.account_linked_email.failed', {
+      provider: params.provider,
+      err: err instanceof Error ? err.message : String(err),
+    })
+  }
 }
 
 /**
