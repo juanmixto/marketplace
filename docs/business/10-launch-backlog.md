@@ -588,16 +588,18 @@ Semana 9+ (post-soft-launch):
 
 ---
 
-## 5. Decisiones pendientes referenciadas
+## 5. Decisiones referenciadas
 
-Las decisiones de negocio detectadas durante el armado de este backlog viven en [`09-decisiones-estrategicas.md`](09-decisiones-estrategicas.md) § "Decisiones pendientes":
+Decisiones de negocio detectadas durante el armado de este backlog. 3 cerradas como ADR; 1 sigue pendiente para post-soft-launch:
 
-- **PEND-001** — Modelo técnico del Pack (autocontenido vs composición). Bloquea E4-01.
-- **PEND-002** — Política mínima común de devoluciones. Bloquea E2-03.
-- **PEND-003** — Comisión por defecto en validación. Bloquea E1-01.
-- **PEND-004** — Canal único de atención al comprador. Bloquea E6-05.
+| Decisión | Estado | Bloquea |
+|---|---|---|
+| Modelo técnico del Pack (autocontenido vs composición) | **PEND-001** (abierta) | E4-01 — solo se cierra antes de empezar packs, post-soft-launch |
+| Política mínima de devoluciones | **ADR-007** ✅ — 14 días + comprador paga vuelta | E2-03 desbloqueado |
+| Comisión por defecto en validación | **ADR-008** ✅ — caso por caso 20–30 % | E1-01 desbloqueado |
+| Canal único de atención al comprador | **ADR-009** ✅ — email + formulario web | E6-05 desbloqueado |
 
-Cada una se cierra ejecutando el prompt `prompts/create-docs-from-decision.md` y mueve la entrada de "pendientes" a "ADRs cerradas".
+Ver detalle en [`09-decisiones-estrategicas.md`](09-decisiones-estrategicas.md). PEND-001 se cerrará ejecutando `prompts/create-docs-from-decision.md` cuando se decida.
 
 ---
 
