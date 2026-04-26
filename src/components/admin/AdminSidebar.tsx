@@ -1,5 +1,6 @@
 'use client'
 
+import type React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -14,7 +15,12 @@ import {
 import { cn } from '@/lib/utils'
 import { adminNavItems } from '@/lib/navigation'
 import { useSidebar } from '@/components/layout/SidebarProvider'
+import { useSwipeToClose } from '@/lib/hooks/useSwipeToClose'
 import { useFeatureFlagStrict } from '@/lib/flags.client'
+import { LanguageToggle } from '@/components/LanguageToggle'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { signOutAndClearCart } from '@/components/buyer/cart-session'
+import { useT } from '@/i18n'
 import { ArchiveBoxArrowDownIcon } from '@heroicons/react/24/outline'
 
 const NAV_META = {
@@ -40,9 +46,22 @@ const NAV_META = {
 const SIDEBAR_EASE = 'cubic-bezier(0.25, 0.1, 0.25, 1)'
 const SIDEBAR_DURATION_MS = 320
 
-export function AdminSidebar() {
+interface Props {
+  user?: { name?: string | null; email?: string | null } | null
+}
+
+export function AdminSidebar({ user }: Props = {}) {
   const pathname = usePathname()
+  const t = useT()
   const { collapsed, toggleCollapsed, mobileOpen, closeMobile } = useSidebar()
+  // Swipe-to-close gesture (mobile only). Drawer slides off the left edge,
+  // so dragging towards the left dismisses it. Same hook as Header /
+  // VendorSidebar.
+  const swipe = useSwipeToClose({
+    isOpen: mobileOpen,
+    onClose: closeMobile,
+    direction: 'left',
+  })
   const ingestionAdminEnabled = useFeatureFlagStrict('feat-ingestion-admin')
   const visibleNavItems = adminNavItems.filter((item) => {
     if (!item.flag) return true
@@ -55,11 +74,21 @@ export function AdminSidebar() {
     collapsed ? 'md:max-w-0 md:opacity-0 md:ml-0' : 'md:max-w-[12rem] md:opacity-100',
   )
   const labelStyle = { transitionDuration: `${SIDEBAR_DURATION_MS}ms` }
-  const asideStyle = {
-    transitionDuration: `${SIDEBAR_DURATION_MS}ms`,
-    transitionTimingFunction: SIDEBAR_EASE,
-    transitionProperty: 'width, transform',
-  }
+  // While the user is actively swiping the drawer, the hook drives the
+  // transform; otherwise the default sidebar easing handles open/close.
+  const asideStyle: React.CSSProperties =
+    mobileOpen && swipe.dragX !== 0
+      ? {
+          transform: `translateX(${swipe.dragX}px)`,
+          transition: swipe.isDragging ? 'none' : 'transform 200ms ease-out',
+          touchAction: 'pan-y',
+        }
+      : {
+          transitionDuration: `${SIDEBAR_DURATION_MS}ms`,
+          transitionTimingFunction: SIDEBAR_EASE,
+          transitionProperty: 'width, transform',
+          touchAction: 'pan-y',
+        }
 
   return (
     <>
@@ -68,12 +97,16 @@ export function AdminSidebar() {
           'fixed inset-0 z-30 bg-black/40 md:hidden transition-opacity duration-300 ease-out',
           mobileOpen ? 'opacity-100' : 'pointer-events-none opacity-0',
         )}
+        style={mobileOpen && swipe.dragX !== 0 ? { opacity: swipe.backdropOpacity } : undefined}
         onClick={closeMobile}
         aria-hidden="true"
       />
 
       <aside
         style={asideStyle}
+        onTouchStart={mobileOpen ? swipe.handlers.onTouchStart : undefined}
+        onTouchMove={mobileOpen ? swipe.handlers.onTouchMove : undefined}
+        onTouchEnd={mobileOpen ? swipe.handlers.onTouchEnd : undefined}
         className={cn(
           'fixed inset-y-0 left-0 z-40 flex flex-col border-r border-[var(--border)] bg-[var(--surface)] will-change-[width,transform]',
           'w-56 md:static md:z-auto md:translate-x-0',
@@ -165,7 +198,32 @@ export function AdminSidebar() {
           })}
         </nav>
 
-        <div className="border-t border-[var(--border)] p-2 space-y-0.5">
+        {/* Mobile-only footer: "Ver tienda" link + settings (language +
+            theme), mirroring the public Header drawer pattern. */}
+        <div className="md:hidden border-t border-[var(--border)] p-2">
+          <Link
+            href="/"
+            target="_blank"
+            onClick={closeMobile}
+            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
+          >
+            <ArrowTopRightOnSquareIcon className="h-4 w-4 shrink-0" />
+            Ver tienda
+          </Link>
+        </div>
+        <div className="md:hidden border-t border-[var(--border)] px-3 py-3 space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+            {t('settings')}
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <LanguageToggle />
+            <ThemeToggle />
+          </div>
+        </div>
+
+        {/* Desktop footer (Ver tienda + Contraer) — hidden on mobile so
+            the drawer ends with Cerrar sesión instead of nav links. */}
+        <div className="hidden md:block border-t border-[var(--border)] p-2 space-y-0.5">
           <Link
             href="/"
             target="_blank"
@@ -203,6 +261,18 @@ export function AdminSidebar() {
             <span className={labelCls} style={labelStyle}>Contraer</span>
           </button>
         </div>
+
+        {user && (
+          <div className="md:hidden border-t border-[var(--border)] p-3">
+            <button
+              type="button"
+              onClick={() => void signOutAndClearCart('/login')}
+              className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+            >
+              {t('signOut')}
+            </button>
+          </div>
+        )}
       </aside>
     </>
   )

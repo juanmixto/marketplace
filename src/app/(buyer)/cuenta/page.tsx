@@ -7,7 +7,6 @@ import { SignOutButton } from '@/components/auth/SignOutButton'
 import type { Metadata } from 'next'
 import { buyerAccountItems, buyerAccountMeta } from '@/lib/navigation'
 import { db } from '@/lib/db'
-import { GDPRActions } from './GDPRActions'
 import { PendingReviewsBanner } from './PendingReviewsBanner'
 import PushOptIn from '@/components/pwa/PushOptIn'
 import { isPushEnabled } from '@/lib/pwa/push-config'
@@ -110,13 +109,6 @@ export default async function CuentaPage() {
           <PushOptIn />
         </div>
       )}
-
-      {/* GDPR Privacy Section */}
-      <div className="mt-8 space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--foreground)]">{t('account.gdpr.title')}</h2>
-        <p className="text-sm text-[var(--muted)]">{t('account.gdpr.desc')}</p>
-        <GDPRActions />
-      </div>
 
       <div className="mt-6">
         <SignOutButton />
