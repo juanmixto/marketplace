@@ -6,7 +6,7 @@ import { useCartStore, type CartItem } from '@/domains/cart/cart-store'
 import {
   loadServerCart,
   mergeLocalIntoServerCart,
-} from '@/domains/cart/cart-actions'
+} from '@/domains/cart'
 import { installCartBroadcast } from '@/domains/cart/cart-broadcast'
 import {
   getCartHydrationAction,
