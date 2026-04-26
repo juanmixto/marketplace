@@ -173,7 +173,7 @@ export default async function HomePage() {
                   </Link>
                 </div>
 
-                <div className="mt-6 grid grid-cols-3 gap-3 border-t border-white/10 pt-4 sm:mt-10 sm:gap-6 sm:pt-8">
+                <div className="mt-6 grid grid-cols-1 gap-3 border-t border-white/10 pt-4 sm:mt-10 sm:grid-cols-3 sm:gap-6 sm:pt-8">
                   {heroStats.map(s => (
                     <div key={s.labelKey}>
                       <p className="text-lg font-bold text-white sm:text-2xl">{formatStat(s, locale, t)}</p>

@@ -185,7 +185,7 @@ export function VendorProductListClient({ products }: Props) {
         <>
           {/* Toolbar: search + view toggle */}
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="relative flex-1 min-w-0 sm:min-w-[220px] sm:flex-initial">
+            <div className="relative flex-1 min-w-0 basis-full sm:basis-auto sm:min-w-[220px] sm:flex-initial">
               <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--muted)]" />
               <input
                 type="search"
