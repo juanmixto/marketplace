@@ -53,9 +53,21 @@ function isProtected(url) {
   return PROTECTED_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))
 }
 
+// Hostnames where we deliberately disable the static SWR cache. Dev tunnels
+// recompile constantly, and a stale `/_next/static/*` chunk in the SW cache
+// just confuses developers (you fix something on disk, the bundle changes,
+// but the device keeps serving the previous chunk until SWR revalidates).
+// Pass-through is the right default on these hosts; production keeps cache.
+const DEV_HOSTNAMES = new Set([
+  'localhost',
+  '127.0.0.1',
+  'dev.feldescloud.com',
+])
+
 function isCacheableStatic(url) {
   if (url.origin !== self.location.origin) return false
   if (isProtected(url)) return false
+  if (DEV_HOSTNAMES.has(self.location.hostname)) return false
   const path = url.pathname
   if (path.startsWith('/_next/static/')) return true
   if (path.startsWith('/icons/icon-') && path.endsWith('.png')) return true
