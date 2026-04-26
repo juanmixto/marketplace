@@ -84,6 +84,11 @@ export default defineConfig({
           // the subscriptions smoke can exercise the full mock checkout
           // flow. No-op if the running server already has it set.
           SUBSCRIPTIONS_BUYER_BETA: 'true',
+          // #856 full: enable the test-only OAuth provider + endpoints
+          // under /api/__test__/. The provider/handlers all gate on
+          // this flag AND NODE_ENV !== production, so prod is doubly
+          // safe — but never set this anywhere except Playwright.
+          MOCK_OAUTH_ENABLED: '1',
           // Inherit from the parent process (CI workflow step sets
           // DISABLE_LOGIN_RATELIMIT=1). Playwright's `env` overrides
           // the whole env map, so we forward it explicitly.
