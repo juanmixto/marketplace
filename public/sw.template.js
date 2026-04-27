@@ -45,6 +45,8 @@ const PROTECTED_PREFIXES = [
 const ALLOWED_EXACT = new Set([
   '/favicon.svg',
   '/favicon.ico',
+  '/brand/logo.svg',
+  '/brand/logo.png',
   '/opengraph-image',
   '/twitter-image',
 ])

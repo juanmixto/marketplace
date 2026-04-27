@@ -305,7 +305,7 @@ const es = {
   'order.backToOrders': '← Volver a mis pedidos',
 
   // Order confirmation page
-  'orderConfirmation.metaTitle': 'Pedido Confirmado | Mercado Productor',
+  'orderConfirmation.metaTitle': 'Pedido Confirmado | Raíz Directa',
   'orderConfirmation.metaDescription': '¡Tu pedido ha sido confirmado exitosamente!',
   'orderConfirmation.notFound': 'Pedido no encontrado',
   'orderConfirmation.notFoundDesc': 'No se especificó un número de pedido válido.',
@@ -335,7 +335,7 @@ const es = {
 
   // Producers listing page
   'producersPage.metaTitle': 'Productores',
-  'producersPage.metaDescription': 'Conoce a los productores locales que venden en Mercado Productor.',
+  'producersPage.metaDescription': 'Conoce a los productores locales que venden en Raíz Directa.',
   'producersPage.title': 'Nuestros productores',
   'producersPage.subtitle': 'Conoce a las personas detrás de cada producto',
   'producersPage.viewProducer': 'Ver productor',
@@ -446,7 +446,7 @@ const es = {
 
   // Admin – sidebar / header
   'admin.sidebar.portalKicker': 'Panel Admin',
-  'admin.sidebar.portalTitle': 'Mercado Productor',
+  'admin.sidebar.portalTitle': 'Raíz Directa',
   'admin.sidebar.viewStore': 'Ver tienda',
   'admin.sidebar.collapse': 'Contraer',
   'admin.sidebar.expand': 'Expandir',
