@@ -159,6 +159,10 @@ const unextractableActionSchema = z.object({
   extractionId: z.string().min(1),
 })
 
+const vendorLeadActionSchema = z.object({
+  vendorDraftId: z.string().min(1),
+})
+
 function draftAuditSnapshot(draft: {
   id: string
   status: string
@@ -648,6 +652,218 @@ export async function markUnextractableValid(
 
   logger.info('ingestion.admin.unextractable_marked_valid', {
     extractionId,
+    actorId: session.user.id,
+  })
+  safeRevalidatePath(REVALIDATE_PATH)
+}
+
+/**
+ * Approve a vendor lead and create the corresponding ghost vendor.
+ *
+ * Creates (or reuses, when the same author has already been promoted)
+ * a `User` + `Vendor` pair owned by a fake email. The vendor lands in
+ * `APPLYING` status with a fresh claim code so the real producer can
+ * later claim ownership through the existing claim flow (Phase 4
+ * PR-E). Marks the IngestionVendorDraft as APPROVED and resolves the
+ * review queue item.
+ *
+ * Idempotent on draft id: re-running on an already-APPROVED draft is
+ * a no-op that surfaces a friendly error.
+ */
+export async function approveVendorLead(
+  input: z.infer<typeof vendorLeadActionSchema>,
+): Promise<{ vendorId: string; claimCode: string }> {
+  const session = await requireIngestionAdmin()
+  const { vendorDraftId } = vendorLeadActionSchema.parse(input)
+  const ip = await getAuditRequestIp()
+
+  const vendorDraft = await db.ingestionVendorDraft.findUnique({
+    where: { id: vendorDraftId },
+  })
+  if (!vendorDraft) throw new Error('Vendor draft not found')
+  if (vendorDraft.status !== 'PENDING') {
+    throw new Error(
+      `Vendor draft already resolved (status=${vendorDraft.status})`,
+    )
+  }
+
+  // Resolve a stable Telegram author id for the ghost user email. We
+  // walk the inferred messages oldest-first because the very first
+  // message we saw from this author is the most likely to carry the
+  // author id (a later message can be from someone else replying in
+  // the same thread).
+  const messageIds = Array.isArray(vendorDraft.inferredFromMessageIds)
+    ? (vendorDraft.inferredFromMessageIds as unknown[]).filter(
+        (x): x is string => typeof x === 'string',
+      )
+    : []
+  const sourceMessage = messageIds.length
+    ? await db.telegramIngestionMessage.findFirst({
+        where: { id: { in: messageIds }, tgAuthorId: { not: null } },
+        select: { tgAuthorId: true },
+        orderBy: { postedAt: 'asc' },
+      })
+    : null
+  const tgAuthorId = sourceMessage?.tgAuthorId?.toString() ?? null
+  if (!tgAuthorId) {
+    throw new Error(
+      'Vendor lead has no Telegram author id — cannot create ghost user. Link the producer manually.',
+    )
+  }
+
+  const email = ghostUserEmail(tgAuthorId)
+  const existingGhostUser = await db.user.findUnique({
+    where: { email },
+    select: { id: true, vendor: { select: { id: true, claimCode: true } } },
+  })
+
+  let vendorId: string
+  let claimCode: string
+
+  await mutateWithAudit(async (tx) => {
+    if (existingGhostUser?.vendor) {
+      // Already promoted on a previous draft; just attach this draft.
+      vendorId = existingGhostUser.vendor.id
+      claimCode = existingGhostUser.vendor.claimCode ?? ''
+    } else {
+      const ghostUserId = existingGhostUser
+        ? existingGhostUser.id
+        : (
+            await tx.user.create({
+              data: {
+                email,
+                firstName: 'Productor',
+                lastName: `tg-${tgAuthorId.slice(0, 6)}`,
+                role: 'VENDOR',
+                isActive: false,
+                emailVerified: null,
+                passwordHash: null,
+              },
+            })
+          ).id
+      const vendorSlug = await resolveUniqueVendorSlug(
+        `productor-tg-${tgAuthorId.slice(-4)}`,
+      )
+      const fresh = await issueUniqueClaimCode()
+      const created = await tx.vendor.create({
+        data: {
+          userId: ghostUserId,
+          slug: vendorSlug,
+          displayName: vendorDraft.displayName || `Productor Telegram ${tgAuthorId.slice(-4)}`,
+          status: 'APPLYING',
+          stripeOnboarded: false,
+          claimCode: fresh,
+          claimCodeExpiresAt: new Date(Date.now() + CLAIM_CODE_TTL_MS),
+        },
+      })
+      vendorId = created.id
+      claimCode = fresh
+    }
+
+    await tx.ingestionVendorDraft.update({
+      where: { id: vendorDraftId },
+      data: { status: 'APPROVED' },
+    })
+    await tx.ingestionReviewQueueItem.updateMany({
+      where: {
+        kind: 'VENDOR_DRAFT',
+        targetId: vendorDraftId,
+        state: 'ENQUEUED',
+      },
+      data: {
+        state: 'AUTO_RESOLVED',
+        autoResolvedReason: 'adminApproved',
+        autoResolvedAt: new Date(),
+      },
+    })
+
+    return {
+      result: { vendorId },
+      audit: {
+        action: 'INGESTION_VENDOR_LEAD_APPROVED',
+        entityType: 'IngestionVendorDraft',
+        entityId: vendorDraftId,
+        before: {
+          status: vendorDraft.status,
+          externalId: vendorDraft.externalId,
+        },
+        after: {
+          status: 'APPROVED',
+          vendorId,
+          tgAuthorId,
+        },
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        ip,
+      },
+    }
+  })
+
+  logger.info('ingestion.admin.vendor_lead_approved', {
+    vendorDraftId,
+    vendorId: vendorId!,
+    tgAuthorId,
+    actorId: session.user.id,
+  })
+  safeRevalidatePath(REVALIDATE_PATH)
+  return { vendorId: vendorId!, claimCode: claimCode! }
+}
+
+/**
+ * Discard a vendor lead: mark the draft REJECTED and resolve the
+ * review queue item with `adminDiscarded`. No vendor is created.
+ */
+export async function discardVendorLead(
+  input: z.infer<typeof vendorLeadActionSchema>,
+): Promise<void> {
+  const session = await requireIngestionAdmin()
+  const { vendorDraftId } = vendorLeadActionSchema.parse(input)
+  const ip = await getAuditRequestIp()
+
+  const vendorDraft = await db.ingestionVendorDraft.findUnique({
+    where: { id: vendorDraftId },
+  })
+  if (!vendorDraft) throw new Error('Vendor draft not found')
+  if (vendorDraft.status !== 'PENDING') {
+    throw new Error(
+      `Vendor draft already resolved (status=${vendorDraft.status})`,
+    )
+  }
+
+  await mutateWithAudit(async (tx) => {
+    const updated = await tx.ingestionVendorDraft.update({
+      where: { id: vendorDraftId },
+      data: { status: 'REJECTED' },
+    })
+    await tx.ingestionReviewQueueItem.updateMany({
+      where: {
+        kind: 'VENDOR_DRAFT',
+        targetId: vendorDraftId,
+        state: 'ENQUEUED',
+      },
+      data: {
+        state: 'AUTO_RESOLVED',
+        autoResolvedReason: 'adminDiscarded',
+        autoResolvedAt: new Date(),
+      },
+    })
+    return {
+      result: updated,
+      audit: {
+        action: 'INGESTION_VENDOR_LEAD_DISCARDED',
+        entityType: 'IngestionVendorDraft',
+        entityId: vendorDraftId,
+        before: { status: vendorDraft.status },
+        after: { status: 'REJECTED' },
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        ip,
+      },
+    }
+  })
+
+  logger.info('ingestion.admin.vendor_lead_discarded', {
+    vendorDraftId,
     actorId: session.user.id,
   })
   safeRevalidatePath(REVALIDATE_PATH)
