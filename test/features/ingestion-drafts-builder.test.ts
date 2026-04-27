@@ -136,7 +136,11 @@ test('buildDrafts: happy path writes extraction + vendor + product + review queu
   assert.ok(result.extractionResultId)
   assert.ok(result.vendorDraftId)
   assert.equal(result.productDraftIds.length, 1)
-  assert.equal(result.reviewItemsEnqueued, 1)
+  // Two enqueues: 1 VENDOR_DRAFT (vendor lead) + 1 PRODUCT_DRAFT.
+  assert.equal(result.reviewItemsEnqueued, 2)
+  assert.equal(fake.reviewItems.size, 2)
+  const kinds = [...fake.reviewItems.keys()].map((k) => k.split('|')[0]).sort()
+  assert.deepEqual(kinds, ['PRODUCT_DRAFT', 'VENDOR_DRAFT'])
 })
 
 test('buildDrafts: kill switch returns KILLED before any DB write', async () => {
@@ -162,7 +166,8 @@ test('buildDrafts: re-run at same extractor version is idempotent', async () => 
   assert.equal(r1.extractionResultId, r2.extractionResultId)
   assert.deepEqual(r1.productDraftIds, r2.productDraftIds)
   assert.equal(fake.products.size, 1)
-  assert.equal(fake.reviewItems.size, 1)
+  // 1 VENDOR_DRAFT + 1 PRODUCT_DRAFT — both upserted, never duplicated.
+  assert.equal(fake.reviewItems.size, 2)
 })
 
 test('buildDrafts: multi-product message persists one draft per ordinal, no cross-mix', async () => {
@@ -213,7 +218,8 @@ test('buildDrafts: multi-product message persists one draft per ordinal, no cros
   assert.equal(result.status, 'OK')
   assert.equal(result.productDraftIds.length, 2)
   assert.equal(fake.products.size, 2)
-  assert.equal(fake.reviewItems.size, 2)
+  // 1 VENDOR_DRAFT + 2 PRODUCT_DRAFT items.
+  assert.equal(fake.reviewItems.size, 3)
 })
 
 test('buildDrafts: non-PRODUCT classification keeps audit trail but creates no drafts', async () => {
