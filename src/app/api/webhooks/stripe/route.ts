@@ -31,6 +31,7 @@ import {
 import { sendSubscriptionPaymentFailedEmail } from '@/domains/subscriptions/emails'
 import { logger } from '@/lib/logger'
 import { isFeatureEnabled } from '@/lib/flags'
+import { emit as emitNotification } from '@/domains/notifications'
 import type Stripe from 'stripe'
 
 type WebhookEvent = {
@@ -390,6 +391,16 @@ async function handlePaymentSucceeded(providerRef: string, amount?: number, curr
       error,
     })
     throw error
+  })
+
+  // CF-1 step 8: buyer confirmation email. Sibling of the mock-provider
+  // path in src/domains/orders/use-cases/confirm-order.ts. Fires once
+  // per order regardless of vendor count; the email handler dedupes
+  // by orderId via the global handlersBootstrapped guard plus the
+  // emit-side `payloadRef` style we use in telegram.
+  emitNotification('order.buyer_confirmed', {
+    orderId: payment.orderId,
+    customerUserId: payment.order.customerId,
   })
 }
 
