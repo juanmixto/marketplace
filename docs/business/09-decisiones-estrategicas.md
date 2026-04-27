@@ -66,13 +66,11 @@
 
 ---
 
-## ADR-007 — Política mínima de devoluciones: 14 días + comprador paga vuelta
+## ADR-007 — Política mínima de devoluciones: 14 días + comprador paga vuelta — **SUPERSEDED por ADR-010**
 
-- **Fecha**: 2026-04-26.
-- **Decisión**: Política pública del marketplace = 14 días de derecho de desistimiento desde la entrega, motivo libre, **el comprador asume el coste de envío de devolución salvo defecto del producto o error de envío**, en cuyo caso lo asume el responsable (productor o marketplace según corresponda). Reembolso por método de pago original en ≤ 7 días tras recepción de la devolución.
-- **Alternativas**: marketplace paga envío de vuelta siempre (palanca de confianza, coste); ventana de 30 días con comprador pagando (señal de confianza extra).
-- **Razón**: Es lo que ya prescribe `04-modelo-negocio-comisiones.md` § Devoluciones; codificarlo cierra el contrato con productor sin introducir coste nuevo. 14 días es el mínimo legal LSSI, y subsidiar el envío de vuelta antes de validar tasa de devolución sería gastar a ciegas. Se puede ampliar más adelante como palanca si el AOV y la tasa lo soportan.
-- **Se revisa cuando**: tasa de devolución sostenida > 8 % durante 8 semanas, o feedback recurrente del comprador identifica el coste de devolución como objeción de compra.
+- **Fecha**: 2026-04-26. **Superseded el 2026-04-27.**
+- **Decisión original**: Política pública del marketplace = 14 días de derecho de desistimiento desde la entrega, motivo libre, **el comprador asume el coste de envío de devolución salvo defecto del producto o error de envío**, en cuyo caso lo asume el responsable (productor o marketplace según corresponda). Reembolso por método de pago original en ≤ 7 días tras recepción de la devolución.
+- **Por qué se reemplaza**: La decisión original aceptaba devolución por cambio de opinión cobrando el envío de vuelta al comprador. Tras revisión: alimentación está exenta del derecho de desistimiento de 14 días por ser perecedero / sellado por motivos de higiene (Art. 103.d/e RDL 1/2007). Aceptar devoluciones por cambio de opinión en producto que no podemos revender (perecedero, abierto) significa coste a fondo perdido. La cobertura por defectos / errores / daño en transporte / calidad inferior queda intacta — eso es protección al consumidor no renunciable. Ver ADR-010.
 
 ---
 
@@ -93,6 +91,17 @@
 - **Alternativas**: añadir Instagram DMs como secundario (visibilidad gratis, riesgo de SLA roto); añadir WhatsApp Business (mejor UX, más fricción de alta para el comprador).
 - **Razón**: Es lo que ya prescribe `05-logistica-operaciones.md` § Atención y soporte. Multi-canal sin equipo dedicado garantiza SLA roto, lo que es **peor que no tener canal**. Email + formulario centraliza, audita y permite plantillas de la matriz de incidencias. Cuando el equipo crezca y el volumen lo justifique se reabre.
 - **Se revisa cuando**: equipo dedicado a soporte ≥ 1 persona full-time, o feedback consistente del comprador identifica la ausencia de chat / WhatsApp como fricción de compra documentable.
+
+---
+
+## ADR-010 — Devoluciones: no por cambio de opinión, sí por defectos / errores / daño / calidad
+
+- **Fecha**: 2026-04-27.
+- **Decisión**: Política pública del marketplace = **no aceptamos devoluciones por cambio de opinión** (todos nuestros productos son alimentación, exentos del derecho de desistimiento de 14 días por ser perecederos / sellados por motivos de higiene — Art. 103.d/e RDL 1/2007 General de Consumidores y Usuarios). **Sí cubrimos siempre y sin fricción**: producto defectuoso, producto equivocado, daño en transporte, calidad inferior a la descrita o fotografiada, pedido perdido. Plazo del comprador para reclamar: 7 días desde la entrega o desde la fecha estimada. Reembolso por método de pago original en ≤ 3 días laborables tras acuerdo (más 2–5 días del banco).
+- **Alternativas**: política original ADR-007 (14 días libres + comprador paga vuelta) — descartada por coste a fondo perdido en producto no revendible; política totalmente cerrada sin garantía de conformidad — descartada por ilegal (Art. 116 RDL 1/2007).
+- **Razón**: alimentación tiene exención legal específica del desistimiento; aceptar "cambio de opinión" significa absorber el coste íntegro de un producto que no se puede volver a vender (perecedero o sellado-abierto). Mantener la cobertura por defectos / errores / daño / calidad es no negociable y además es lo que el comprador realmente espera de un marketplace curado: que respondamos cuando algo va mal, no que tolere arrepentimientos. Reduce abuso, baja el coste de devolución, y mantiene la promesa de "si algo va mal, hay alguien al otro lado".
+- **Implicaciones**: `04-modelo-negocio-comisiones.md § Devoluciones` queda contradicho parcialmente (la frase "Coste de devolución por defecto a cargo del comprador, salvo defecto…" debe entenderse como aplicable solo a los casos cubiertos, ya que el cambio de opinión deja de existir). Pendiente actualizar ese doc en un PR aparte.
+- **Se revisa cuando**: feedback sostenido (>10% de tickets) identifique el "no devolución por cambio de opinión" como objeción de compra real, o cuando el catálogo introduzca productos no alimentarios para los que el desistimiento sí aplique.
 
 ---
 
