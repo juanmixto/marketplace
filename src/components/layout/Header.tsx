@@ -100,7 +100,12 @@ export function Header({ user, cartCount = 0, availableCategorySlugs }: HeaderPr
       body.style.position = previous.position
       body.style.top = previous.top
       body.style.width = previous.width
-      window.scrollTo(0, scrollY)
+      // Restore the pre-lock scroll position WITHOUT animating. globals.css
+      // sets `html { scroll-behavior: smooth }`, which would otherwise honour
+      // the smooth easing on this restoration and the user sees a visible
+      // "auto-scroll" when the drawer / search overlay closes. `behavior:
+      // 'instant'` overrides the CSS for this single call.
+      window.scrollTo({ top: scrollY, left: 0, behavior: 'instant' })
     }
   }, [mobileOpen])
 
@@ -133,7 +138,12 @@ export function Header({ user, cartCount = 0, availableCategorySlugs }: HeaderPr
       body.style.position = previous.position
       body.style.top = previous.top
       body.style.width = previous.width
-      window.scrollTo(0, scrollY)
+      // Restore the pre-lock scroll position WITHOUT animating. globals.css
+      // sets `html { scroll-behavior: smooth }`, which would otherwise honour
+      // the smooth easing on this restoration and the user sees a visible
+      // "auto-scroll" when the drawer / search overlay closes. `behavior:
+      // 'instant'` overrides the CSS for this single call.
+      window.scrollTo({ top: scrollY, left: 0, behavior: 'instant' })
       cancelAnimationFrame(id)
       window.removeEventListener('keydown', onKey)
     }
