@@ -2027,9 +2027,9 @@ const en: Record<TranslationKeys, string> = {
   'adminProducers.actions.error': 'Action failed',
 
   'pwa.install.cta': 'Install app',
-  'pwa.install.tooltip': 'Launch faster from your home screen',
-  'pwa.ios.hint.title': 'Install the app on your iPhone',
-  'pwa.ios.hint.body': 'Tap the Share button and choose “Add to Home Screen”.',
+  'pwa.install.tooltip': 'Opens faster and works offline',
+  'pwa.ios.hint.title': 'Add Feldes to your home screen',
+  'pwa.ios.hint.body': 'Opens faster and works offline. Tap Share and choose “Add to Home Screen”.',
   'pwa.ios.hint.dismiss': 'Dismiss',
   'pwa.push.enable': 'Enable notifications',
   'pwa.push.disable': 'Disable notifications',
