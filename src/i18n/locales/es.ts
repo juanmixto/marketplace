@@ -75,6 +75,8 @@ const es = {
   privacy: 'Privacidad',
   cookies: 'Cookies',
   terms: 'Términos',
+  shippingPolicy: 'Envíos',
+  returnsPolicy: 'Devoluciones',
 
   /* Language switcher */
   language: 'Idioma',
