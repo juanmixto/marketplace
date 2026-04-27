@@ -5,35 +5,16 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { StarIcon } from '@heroicons/react/24/solid'
 import { formatPrice, formatDate } from '@/lib/utils'
-import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/constants'
 import { Badge } from '@/components/ui/badge'
 import { RepeatOrderButton } from '@/components/buyer/RepeatOrderButton'
 import type { Metadata } from 'next'
 import { getServerT } from '@/i18n/server'
 import { countPendingReviewsInOrder, firstPendingReviewProductId } from '@/domains/reviews/pending-policy'
+import { getBuyerOrderStatus } from '@/domains/orders/buyer-status'
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT()
   return { title: t('account.ordersTitle') }
-}
-
-const STATUS_VARIANT: Record<string, 'green' | 'amber' | 'red' | 'blue' | 'default'> = {
-  PLACED: 'blue',
-  PAYMENT_CONFIRMED: 'blue',
-  PROCESSING: 'amber',
-  PARTIALLY_SHIPPED: 'amber',
-  SHIPPED: 'amber',
-  DELIVERED: 'green',
-  CANCELLED: 'red',
-  REFUNDED: 'default',
-}
-
-const PAYMENT_STATUS_VARIANT: Record<string, 'green' | 'amber' | 'red' | 'blue' | 'default'> = {
-  PENDING: 'amber',
-  SUCCEEDED: 'green',
-  FAILED: 'red',
-  REFUNDED: 'default',
-  PARTIALLY_REFUNDED: 'default',
 }
 
 export default async function MisPedidosPage() {
@@ -96,12 +77,10 @@ export default async function MisPedidosPage() {
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <Badge variant={STATUS_VARIANT[order.status] ?? 'default'}>
-                      {ORDER_STATUS_LABELS[order.status] ?? order.status}
-                    </Badge>
-                    <Badge variant={PAYMENT_STATUS_VARIANT[order.paymentStatus] ?? 'default'}>
-                      {PAYMENT_STATUS_LABELS[order.paymentStatus] ?? order.paymentStatus}
-                    </Badge>
+                    {(() => {
+                      const badge = getBuyerOrderStatus(order)
+                      return <Badge variant={badge.variant}>{badge.label}</Badge>
+                    })()}
                     <p className="font-bold text-[var(--foreground)]">{formatPrice(Number(order.grandTotal))}</p>
                   </div>
                 </div>
