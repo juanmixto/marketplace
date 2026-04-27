@@ -242,10 +242,12 @@ export function incidentOpenedTemplate(
 ): OutboundMessage {
   const id = orderIdentifierLink(payload, view)
   const type = escapeHtml(payload.type)
-  const base = appUrl()
-  const href = base
-    ? `${base}/cuenta/incidencias/${payload.incidentId}`
-    : `${appUrl()}/vendor/pedidos/${payload.orderId}`
+  // The recipient of this notification is the VENDOR who shipped a line
+  // on the order (see actions.ts → emitNotification('incident.opened')).
+  // /cuenta/incidencias is buyer-only — getIncidentDetail returns 404 for
+  // anyone but the customer or an admin. Send vendors to their own order
+  // detail, which is where they can act on it.
+  const href = `${appUrl()}/vendor/pedidos/${payload.orderId}`
   const buyer = view?.buyerFirstName
     ? ` <b>${escapeHtml(view.buyerFirstName)}</b>`
     : ' Un cliente'
