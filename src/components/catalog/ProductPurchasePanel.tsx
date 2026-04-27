@@ -38,6 +38,14 @@ interface Props {
   stock: number
   variants: ProductVariantOption[]
   autoDiscount?: AutoDiscount | null
+  /**
+   * Server-computed shipping estimate for a peninsular default postal
+   * code, used to surface "Llega en 3–5 días — envío X €" above the
+   * Add-to-cart CTA. Audit #917 (docs/audits/2026-04-27-launch-alignment.md
+   * H5). When `null` (DB read failed) the band degrades to the ETA-only
+   * line; never blocks the CTA.
+   */
+  estimatedShippingCost?: number | null
 }
 
 export function ProductPurchasePanel({
@@ -55,6 +63,7 @@ export function ProductPurchasePanel({
   stock,
   variants,
   autoDiscount,
+  estimatedShippingCost,
 }: Props) {
   const { locale } = useLocale()
   const copy = getCatalogCopy(locale)
@@ -330,6 +339,23 @@ export function ProductPurchasePanel({
             ))}
           </div>
         </div>
+      </div>
+
+      <div
+        className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-800/60 dark:bg-emerald-950/30"
+        data-testid="pdp-shipping-band"
+      >
+        <p className="font-semibold text-emerald-900 dark:text-emerald-100">
+          {copy.product.shippingEta}
+        </p>
+        {typeof estimatedShippingCost === 'number' && (
+          <p className="mt-0.5 text-emerald-800/90 dark:text-emerald-200/90">
+            {copy.product.shippingCostFormat(formatPrice(estimatedShippingCost))}
+          </p>
+        )}
+        <p className="mt-1 text-xs text-emerald-800/70 dark:text-emerald-200/70">
+          {copy.product.shippingDisclaimer}
+        </p>
       </div>
 
       <div ref={inlineCtaRef} className="mt-6">

@@ -128,6 +128,9 @@ type CatalogCopy = {
     trustQuality: string
     aboutProducer: string
     viewProducerProfile: string
+    shippingEta: string
+    shippingCostFormat: (formattedPrice: string) => string
+    shippingDisclaimer: string
   }
   vendor: {
     heroImageAlt: (name: string) => string
@@ -282,6 +285,9 @@ const ES_CATALOG_COPY: CatalogCopy = {
     trustQuality: 'Calidad garantizada',
     aboutProducer: 'Conoce al productor',
     viewProducerProfile: 'Ver perfil completo',
+    shippingEta: 'Llega en 3–5 días laborables a península',
+    shippingCostFormat: price => `Envío ${price} a península`,
+    shippingDisclaimer: 'El coste exacto se calcula en el checkout con tu código postal.',
   },
   vendor: {
     heroImageAlt: name => `Portada de ${name}`,
@@ -436,6 +442,9 @@ const EN_CATALOG_COPY: CatalogCopy = {
     trustQuality: 'Quality guaranteed',
     aboutProducer: 'Meet the producer',
     viewProducerProfile: 'View full profile',
+    shippingEta: 'Arrives in 3–5 business days to mainland Spain',
+    shippingCostFormat: price => `Shipping ${price} to mainland Spain`,
+    shippingDisclaimer: 'Exact cost is calculated at checkout with your postal code.',
   },
   vendor: {
     heroImageAlt: name => `${name} cover`,
