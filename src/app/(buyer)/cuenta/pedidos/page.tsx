@@ -14,6 +14,7 @@ import type { TranslationKeys } from '@/i18n/locales'
 
 type T = Awaited<ReturnType<typeof getServerT>>
 import { countPendingReviewsInOrder, firstPendingReviewProductId } from '@/domains/reviews/pending-policy'
+import { getCustomerReviewedProductIds } from '@/domains/reviews/pending'
 import { getBuyerOrderStatus } from '@/domains/orders/buyer-status'
 
 interface Props {
@@ -34,11 +35,15 @@ const FILTERS: { key: FilterKey; labelKey: TranslationKeys }[] = [
 
 type OrderForFilter = Awaited<ReturnType<typeof getMyOrders>>[number]
 
-function matchesFilter(order: OrderForFilter, filter: FilterKey): boolean {
+function matchesFilter(
+  order: OrderForFilter,
+  filter: FilterKey,
+  alreadyReviewed: ReadonlySet<string>,
+): boolean {
   switch (filter) {
     case 'all': return true
     case 'por-valorar':
-      return order.status === 'DELIVERED' && countPendingReviewsInOrder(order) > 0
+      return order.status === 'DELIVERED' && countPendingReviewsInOrder(order, alreadyReviewed) > 0
     case 'pago-pendiente':
       return order.paymentStatus !== 'SUCCEEDED' && order.paymentStatus !== 'REFUNDED'
     case 'entregados':
@@ -89,12 +94,15 @@ export default async function MisPedidosPage({ searchParams }: Props) {
     : (FILTERS.some(f => f.key === filter) ? filter : 'all') as FilterKey
   const activeFilter = requested
 
-  const allOrders = await getMyOrders()
-  const t = await getServerT()
+  const [allOrders, alreadyReviewed, t] = await Promise.all([
+    getMyOrders(),
+    getCustomerReviewedProductIds(session.user.id),
+    getServerT(),
+  ])
 
   const visibleOrders = activeFilter === 'all'
     ? allOrders
-    : allOrders.filter(o => matchesFilter(o, activeFilter))
+    : allOrders.filter(o => matchesFilter(o, activeFilter, alreadyReviewed))
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
@@ -129,7 +137,7 @@ export default async function MisPedidosPage({ searchParams }: Props) {
             const totalItems = order.lines.reduce((sum, l) => sum + l.quantity, 0)
             const productCount = order.lines.length
             const pendingReviews =
-              order.status === 'DELIVERED' ? countPendingReviewsInOrder(order) : 0
+              order.status === 'DELIVERED' ? countPendingReviewsInOrder(order, alreadyReviewed) : 0
             const pendingLabel =
               pendingReviews === 1
                 ? t('pendingReviews.badgeCountOne')
@@ -137,7 +145,7 @@ export default async function MisPedidosPage({ searchParams }: Props) {
             // Deep-link to the first unreviewed product so the buyer lands on
             // the form they need to fill, not at the top of the page. (#204)
             const firstPendingProductId =
-              order.status === 'DELIVERED' ? firstPendingReviewProductId(order) : null
+              order.status === 'DELIVERED' ? firstPendingReviewProductId(order, alreadyReviewed) : null
             const pendingHref = firstPendingProductId
               ? `/cuenta/pedidos/${order.id}#review-${firstPendingProductId}`
               : `/cuenta/pedidos/${order.id}#reseñas`

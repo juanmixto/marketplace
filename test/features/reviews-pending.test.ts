@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import {
   countPendingReviewsInOrder,
   firstPendingReviewProductId,
+  pendingReviewProductIds,
 } from '@/domains/reviews/pending-policy'
 
 test('countPendingReviewsInOrder returns the number of distinct unreviewed products', () => {
@@ -108,4 +109,92 @@ test('OrderDetailClient renders id="review-{productId}" anchors on every line (#
   // scroll-mt-* keeps the row below the sticky header after the browser
   // scrolls to the fragment — without it, the row hides under the header.
   assert.match(src, /scroll-mt-\d+/)
+})
+
+// ─── Soft-skip: reviewed-elsewhere products do not count as pending ──────────
+
+test('countPendingReviewsInOrder ignores products the customer reviewed in any other order', () => {
+  const order = {
+    lines: [{ productId: 'p1' }, { productId: 'p2' }, { productId: 'p3' }],
+    reviews: [],
+  }
+  // Reviewed p1 in a previous order — soft-skip rule excludes it.
+  const alreadyReviewed = new Set(['p1'])
+  assert.equal(countPendingReviewsInOrder(order, alreadyReviewed), 2)
+})
+
+test('firstPendingReviewProductId honours the soft-skip set', () => {
+  const order = {
+    lines: [{ productId: 'p1' }, { productId: 'p2' }, { productId: 'p3' }],
+    reviews: [],
+  }
+  assert.equal(firstPendingReviewProductId(order, new Set(['p1'])), 'p2')
+})
+
+test('soft-skip + per-order review combine: nothing pending when everything is covered one way or the other', () => {
+  const order = {
+    lines: [{ productId: 'p1' }, { productId: 'p2' }, { productId: 'p3' }],
+    reviews: [{ productId: 'p2' }],
+  }
+  // p1 reviewed elsewhere, p2 reviewed in this order, p3 reviewed elsewhere.
+  assert.equal(countPendingReviewsInOrder(order, new Set(['p1', 'p3'])), 0)
+  assert.equal(firstPendingReviewProductId(order, new Set(['p1', 'p3'])), null)
+})
+
+test('pendingReviewProductIds returns the wizard sequence in line order', () => {
+  const order = {
+    lines: [
+      { productId: 'p1' },
+      { productId: 'p1' }, // duplicate variant
+      { productId: 'p2' },
+      { productId: 'p3' },
+    ],
+    reviews: [{ productId: 'p2' }],
+  }
+  // p1 deduped, p2 reviewed in this order → only p3 should remain.
+  assert.deepEqual(pendingReviewProductIds(order, new Set(['p1'])), ['p3'])
+})
+
+// ─── Hard-disable: createReview / canLeaveReview cross-order check ───────────
+
+test('canLeaveReview rejects when the customer already reviewed the product in another order', () => {
+  const src = readFileSync(
+    new URL('../../src/domains/reviews/actions.ts', import.meta.url),
+    'utf8'
+  )
+  // The function must look up reviews scoped to (customerId, productId), not
+  // just (orderId, productId). If this assertion regresses, the soft-skip in
+  // the UI keeps working but the per-line button silently re-appears.
+  assert.match(
+    src,
+    /findFirst\(\{\s*where:\s*\{\s*customerId:\s*session\.user\.id,\s*productId\s*\}/,
+    'canLeaveReview must check for any prior review by the same customer on the same product',
+  )
+})
+
+test('createReview throws when the customer already reviewed the product in another order', () => {
+  const src = readFileSync(
+    new URL('../../src/domains/reviews/actions.ts', import.meta.url),
+    'utf8'
+  )
+  // The action also has to enforce the rule server-side — UI-only soft-skip
+  // would let a tampered request bypass it.
+  assert.match(src, /anyPriorReview/)
+  assert.match(src, /Ya reseñaste este producto en otra compra/)
+})
+
+// ─── Wizard wiring ───────────────────────────────────────────────────────────
+
+test('OrderDetailClient renders the bulk-review wizard when 2+ products are pending', () => {
+  const src = readFileSync(
+    new URL('../../src/app/(buyer)/cuenta/pedidos/[id]/OrderDetailClient.tsx', import.meta.url),
+    'utf8'
+  )
+  assert.match(src, /ReviewWizardButton/)
+  // The wizard CTA must dedupe by productId — same product on two lines
+  // should not become two wizard steps.
+  assert.match(src, /reviewEligibility\[line\.productId\]/)
+  // Show only when there is more than one item to walk; a single-item wizard
+  // is just an awkward way to render the per-line button.
+  assert.match(src, /uniqueItems\.length\s*<\s*2/)
 })

@@ -5,9 +5,9 @@ import Link from 'next/link'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { ORDER_STATUS_LABELS, FULFILLMENT_STATUS_LABELS } from '@/lib/constants'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircleIcon } from '@heroicons/react/24/solid'
+import { CheckCircleIcon, StarIcon } from '@heroicons/react/24/solid'
 import { parseOrderLineSnapshot } from '@/lib/order-line-snapshot'
-import { ReviewFormButton } from '@/components/reviews/ReviewFormButton'
+import { ReviewFormButton, ReviewWizardButton } from '@/components/reviews/ReviewFormButton'
 import { ReportProblemLink } from '@/components/buyer/ReportProblemLink'
 import { useT } from '@/i18n'
 
@@ -99,6 +99,38 @@ export function OrderDetailClient({ order, nuevo, reviewEligibility }: Props) {
           {ORDER_STATUS_LABELS[order.status] ?? order.status}
         </Badge>
       </div>
+
+      {/* Bulk-review wizard. Shown only when the order has more than one
+          pending product — for a single pending row the per-line button is
+          enough. The wizard walks the buyer through every pending product
+          one form at a time with explicit "skip" controls. */}
+      {(() => {
+        const pendingItems = order.lines
+          .filter(line => reviewEligibility[line.productId])
+          .map(line => ({ productId: line.productId, productName: line.product.name }))
+        // Dedupe by productId — if the order has the same product on two
+        // separate lines (e.g. two variants of the same product), the
+        // wizard only walks it once.
+        const seen = new Set<string>()
+        const uniqueItems = pendingItems.filter(i => {
+          if (seen.has(i.productId)) return false
+          seen.add(i.productId)
+          return true
+        })
+        if (uniqueItems.length < 2) return null
+        return (
+          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800/60 dark:bg-amber-950/30">
+            <StarIcon className="h-5 w-5 shrink-0 text-amber-500 dark:text-amber-300" />
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-amber-900 dark:text-amber-100">{t('reviews.wizardCtaTitle')}</p>
+              <p className="text-sm text-amber-800/80 dark:text-amber-200/80">
+                {t('reviews.wizardCtaSubtitle').replace('{count}', String(uniqueItems.length))}
+              </p>
+            </div>
+            <ReviewWizardButton orderId={order.id} items={uniqueItems} />
+          </div>
+        )
+      })()}
 
       {/* Products */}
       <div
