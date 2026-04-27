@@ -251,6 +251,10 @@ const es = {
 
   // Checkout
   'checkout.title': 'Finalizar pedido',
+  'checkout.guest.title': 'Comprar como invitado',
+  'checkout.guest.body': 'No necesitas crear una cuenta para terminar el pedido. Te enviaremos la confirmación al correo que indiques.',
+  'checkout.guest.signInPrompt': '¿Ya tienes cuenta?',
+  'checkout.guest.signInLink': 'Iniciar sesión',
   'checkout.address': 'Dirección de entrega',
   'checkout.savedAddresses': 'Direcciones guardadas',
   'checkout.savedAddressesLoading': 'Cargando tus direcciones guardadas...',
