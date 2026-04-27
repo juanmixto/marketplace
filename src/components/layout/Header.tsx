@@ -176,6 +176,43 @@ export function Header({ user, cartCount = 0, availableCategorySlugs }: HeaderPr
     direction: 'right',
   })
 
+  // Outside-click for the desktop dropdowns. The previous approach used a
+  // `<div className="fixed inset-0">` backdrop, but the parent <header> sets
+  // `backdrop-blur-md` which establishes a stacking context — the backdrop
+  // ends up trapped inside the header's box and never receives clicks
+  // landing on the page below it. Listening on the document instead works
+  // regardless of stacking context.
+  const catRef = useRef<HTMLDivElement | null>(null)
+  const accountRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!catOpen && !accountOpen) return
+    function onPointerDown(event: PointerEvent) {
+      const target = event.target as Node | null
+      if (catOpen && catRef.current && target && !catRef.current.contains(target)) {
+        setCatOpen(false)
+      }
+      if (
+        accountOpen &&
+        accountRef.current &&
+        target &&
+        !accountRef.current.contains(target)
+      ) {
+        setAccountOpen(false)
+      }
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return
+      setCatOpen(false)
+      setAccountOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [catOpen, accountOpen])
+
   return (
     <>
     <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur-md supports-[backdrop-filter]:bg-[var(--surface)]/90">
@@ -196,7 +233,7 @@ export function Header({ user, cartCount = 0, availableCategorySlugs }: HeaderPr
           </Link>
 
           {/* Categories dropdown */}
-          <div className="relative hidden lg:block">
+          <div ref={catRef} className="relative hidden lg:block">
             <button
               onClick={() => setCatOpen(v => !v)}
               aria-expanded={catOpen}
@@ -206,9 +243,7 @@ export function Header({ user, cartCount = 0, availableCategorySlugs }: HeaderPr
               <ChevronDownIcon className={cn('h-3.5 w-3.5 transition-transform', catOpen && 'rotate-180')} />
             </button>
             {catOpen && (
-              <>
-                <div className="fixed inset-0" onClick={() => setCatOpen(false)} />
-                <div className="absolute left-0 top-full mt-2 w-64 rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl ring-1 ring-black/5 dark:ring-white/10">
+              <div className="absolute left-0 top-full mt-2 w-64 rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl ring-1 ring-black/5 dark:ring-white/10">
                   <div className="p-1.5">
                     {visibleCategories.map(cat => (
                       <Link
@@ -223,7 +258,6 @@ export function Header({ user, cartCount = 0, availableCategorySlugs }: HeaderPr
                     ))}
                   </div>
                 </div>
-              </>
             )}
           </div>
 
@@ -288,7 +322,7 @@ export function Header({ user, cartCount = 0, availableCategorySlugs }: HeaderPr
                     {portalLabel}
                   </Link>
                 )}
-                <div className="relative hidden lg:block">
+                <div ref={accountRef} className="relative hidden lg:block">
                   <button
                     onClick={() => setAccountOpen(v => !v)}
                     aria-expanded={accountOpen}
@@ -299,8 +333,6 @@ export function Header({ user, cartCount = 0, availableCategorySlugs }: HeaderPr
                     <ChevronDownIcon className={cn('h-3.5 w-3.5 text-[var(--muted)] transition-transform', accountOpen && 'rotate-180')} />
                   </button>
                   {accountOpen && (
-                    <>
-                      <div className="fixed inset-0" onClick={() => setAccountOpen(false)} />
                       <div className="absolute right-0 top-full z-20 mt-2 w-56 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-2xl ring-1 ring-black/5 dark:ring-white/10">
                         <Link
                           href="/cuenta"
@@ -328,7 +360,6 @@ export function Header({ user, cartCount = 0, availableCategorySlugs }: HeaderPr
                         <div className="mx-1 my-1 border-t border-[var(--border)]" />
                         <SignOutButton compact />
                       </div>
-                    </>
                   )}
                 </div>
               </>

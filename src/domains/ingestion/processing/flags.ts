@@ -17,10 +17,16 @@ export const PROCESSING_KILL_FLAG = 'kill-ingestion-processing'
 export const PROCESSING_CLASSIFIER_FLAG = 'feat-ingestion-classifier'
 export const PROCESSING_RULES_EXTRACTOR_FLAG = 'feat-ingestion-rules-extractor'
 export const PROCESSING_DEDUPE_FLAG = 'feat-ingestion-dedupe'
+// Phase 2.5: when on, the worker runs the local LLM (Ollama) before
+// the rules extractor and uses its verdict if it succeeds. Falls back
+// to rules on any LLM error. Independent stage gate so the operator
+// can A/B test or roll back without touching `feat-ingestion-rules-extractor`.
+export const PROCESSING_LLM_EXTRACTOR_FLAG = 'feat-ingestion-llm-extractor'
 
 export type ProcessingStage =
   | 'classifier'
   | 'rules-extractor'
+  | 'llm-extractor'
   | 'dedupe'
 
 export interface ProcessingKillLogFields {
@@ -52,6 +58,7 @@ export async function isProcessingKilled(
 const STAGE_TO_FLAG: Record<ProcessingStage, string> = {
   classifier: PROCESSING_CLASSIFIER_FLAG,
   'rules-extractor': PROCESSING_RULES_EXTRACTOR_FLAG,
+  'llm-extractor': PROCESSING_LLM_EXTRACTOR_FLAG,
   dedupe: PROCESSING_DEDUPE_FLAG,
 }
 

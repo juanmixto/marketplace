@@ -19,6 +19,11 @@
     "owner": "@juanmixto",
     "dueDate": "2026-05-27"
   },
+  "feat-ingestion-llm-extractor": {
+    "issue": 935,
+    "owner": "@juanmixto",
+    "dueDate": "2026-05-27"
+  },
   "feat-ingestion-classifier": {
     "issue": 753,
     "owner": "@juanmixto",
