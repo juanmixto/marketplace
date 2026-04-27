@@ -191,10 +191,22 @@ test('OrderDetailClient renders the bulk-review wizard when 2+ products are pend
     'utf8'
   )
   assert.match(src, /ReviewWizardButton/)
-  // The wizard CTA must dedupe by productId — same product on two lines
+  // The wizard items must dedupe by productId — same product on two lines
   // should not become two wizard steps.
   assert.match(src, /reviewEligibility\[line\.productId\]/)
   // Show only when there is more than one item to walk; a single-item wizard
   // is just an awkward way to render the per-line button.
-  assert.match(src, /uniqueItems\.length\s*<\s*2/)
+  assert.match(src, /wizardItems\.length\s*>=\s*2/)
+})
+
+test('OrderDetailClient per-line button deep-links to the wizard step when 2+ pending', () => {
+  const src = readFileSync(
+    new URL('../../src/app/(buyer)/cuenta/pedidos/[id]/OrderDetailClient.tsx', import.meta.url),
+    'utf8'
+  )
+  // The per-line "Dejar reseña" button is no longer a separate single-product
+  // flow when the order has 2+ pending products. It opens the wizard at the
+  // matching step via initialProductId so the buyer keeps the skip/next
+  // controls regardless of where they entered the flow.
+  assert.match(src, /initialProductId=\{line\.productId\}/)
 })
