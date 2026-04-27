@@ -15,6 +15,7 @@ import type { TranslationKeys } from '@/i18n/locales'
 type T = Awaited<ReturnType<typeof getServerT>>
 import { countPendingReviewsInOrder, firstPendingReviewProductId } from '@/domains/reviews/pending-policy'
 import { getCustomerReviewedProductIds } from '@/domains/reviews/pending'
+import { reviewNudgeIntensity } from '@/domains/reviews/nudge-window'
 import { getBuyerOrderStatus } from '@/domains/orders/buyer-status'
 
 interface Props {
@@ -149,6 +150,24 @@ export default async function MisPedidosPage({ searchParams }: Props) {
             const pendingHref = firstPendingProductId
               ? `/cuenta/pedidos/${order.id}#review-${firstPendingProductId}`
               : `/cuenta/pedidos/${order.id}#reseñas`
+            // Decay rule: stale pedidos (>30 días) ocultan la pill aunque
+            // tengan pendientes — el comprador deja de recibir recordatorios
+            // pasivos. La pestaña "Por valorar" sigue mostrando los pedidos
+            // (opt-in: el usuario buscó verlos), así que si el filtro está
+            // activo forzamos prominencia normal.
+            const pillIntensity = activeFilter === 'por-valorar'
+              ? 'fresh'
+              : reviewNudgeIntensity(order.placedAt)
+            const showPill = pendingReviews > 0 && pillIntensity !== 'stale'
+            const pillClass = pillIntensity === 'fresh'
+              ? 'mt-4 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 transition hover:border-amber-300 hover:bg-amber-100 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:border-amber-700 dark:hover:bg-amber-950/60'
+              // Faded variant: hairline border, no fill — present but not
+              // shouting. Same hover affordance so it still reads as actionable.
+              : 'mt-4 flex items-center gap-3 rounded-xl border border-[var(--border)] bg-transparent px-4 py-2.5 text-sm text-[var(--foreground-soft)] transition hover:border-amber-200 hover:bg-amber-50/40 dark:hover:border-amber-800/60 dark:hover:bg-amber-950/20'
+            const pillIconClass = pillIntensity === 'fresh'
+              ? 'h-5 w-5 shrink-0 text-amber-500 dark:text-amber-300'
+              : 'h-4 w-4 shrink-0 text-amber-500/70 dark:text-amber-300/70'
+            const pillStrongClass = pillIntensity === 'fresh' ? 'font-semibold' : 'font-medium'
             return (
             <article
               key={order.id}
@@ -194,14 +213,11 @@ export default async function MisPedidosPage({ searchParams }: Props) {
                 </div>
               </Link>
 
-              {pendingReviews > 0 && (
-                <Link
-                  href={pendingHref}
-                  className="mt-4 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 transition hover:border-amber-300 hover:bg-amber-100 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:border-amber-700 dark:hover:bg-amber-950/60"
-                >
-                  <StarIcon className="h-5 w-5 shrink-0 text-amber-500 dark:text-amber-300" />
+              {showPill && (
+                <Link href={pendingHref} className={pillClass}>
+                  <StarIcon className={pillIconClass} />
                   <span className="flex-1">
-                    <strong className="font-semibold">
+                    <strong className={pillStrongClass}>
                       {pendingReviews === 1 ? t('pendingReviews.badgeOne') : t('pendingReviews.badgeOther')}
                     </strong>
                     <span className="ml-1 text-amber-800/80 dark:text-amber-200/80">· {pendingLabel}</span>

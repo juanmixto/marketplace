@@ -12,7 +12,7 @@ import PushOptIn from '@/components/pwa/PushOptIn'
 import { isPushEnabled } from '@/lib/pwa/push-config'
 import { getServerT } from '@/i18n/server'
 import type { TranslationKeys } from '@/i18n/locales'
-import { getPendingReviewsCount } from '@/domains/reviews/pending'
+import { getPendingReviewsCount, getPendingOrderPlacedAtDates } from '@/domains/reviews/pending'
 
 export const metadata: Metadata = { title: 'Mi cuenta' }
 
@@ -21,7 +21,10 @@ export default async function CuentaPage() {
   if (!session) redirect('/login')
 
   const t = await getServerT()
-  const pendingReviews = await getPendingReviewsCount(session.user.id)
+  const [pendingReviews, pendingOrderDates] = await Promise.all([
+    getPendingReviewsCount(session.user.id),
+    getPendingOrderPlacedAtDates(session.user.id),
+  ])
   const vendorApplication = await db.vendor.findUnique({
     where: { userId: session.user.id },
     select: { status: true },
@@ -42,7 +45,7 @@ export default async function CuentaPage() {
         </div>
       </div>
 
-      <PendingReviewsBanner pendingCount={pendingReviews} />
+      <PendingReviewsBanner pendingCount={pendingReviews} pendingOrderDates={pendingOrderDates} />
 
       <BecomeVendorCard
         status={vendorApplication?.status ?? null}

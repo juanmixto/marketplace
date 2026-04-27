@@ -49,6 +49,7 @@ async function loadDeliveredOrdersWithReviewState(customerId: string, vendorId?:
     orderBy: { placedAt: 'desc' },
     select: {
       id: true,
+      placedAt: true,
       lines: {
         where: vendorId ? { vendorId } : undefined,
         select: {
@@ -68,6 +69,33 @@ async function loadDeliveredOrdersWithReviewState(customerId: string, vendorId?:
     },
   })
   return orders
+}
+
+/**
+ * Just the placedAt dates of orders that still have pending reviews after the
+ * soft-skip rule. Used by the hub banner to decide whether to show at all
+ * (decay rule: hide when nothing is fresh) and by tests of the same.
+ */
+export async function getPendingOrderPlacedAtDates(customerId: string): Promise<Date[]> {
+  const [orders, alreadyReviewed] = await Promise.all([
+    loadDeliveredOrdersWithReviewState(customerId),
+    getCustomerReviewedProductIds(customerId),
+  ])
+
+  const out: Date[] = []
+  for (const order of orders) {
+    const reviewedInOrder = new Set(order.reviews.map(r => r.productId))
+    const uniqueLineProducts = new Set(order.lines.map(l => l.productId))
+    let hasPending = false
+    for (const productId of uniqueLineProducts) {
+      if (reviewedInOrder.has(productId)) continue
+      if (alreadyReviewed.has(productId)) continue
+      hasPending = true
+      break
+    }
+    if (hasPending) out.push(order.placedAt)
+  }
+  return out
 }
 
 /**
