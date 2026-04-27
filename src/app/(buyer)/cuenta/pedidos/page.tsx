@@ -12,17 +12,30 @@ import { getServerT } from '@/i18n/server'
 import { countPendingReviewsInOrder, firstPendingReviewProductId } from '@/domains/reviews/pending-policy'
 import { getBuyerOrderStatus } from '@/domains/orders/buyer-status'
 
+interface Props {
+  searchParams: Promise<{ filter?: string }>
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT()
   return { title: t('account.ordersTitle') }
 }
 
-export default async function MisPedidosPage() {
+export default async function MisPedidosPage({ searchParams }: Props) {
   const session = await auth()
   if (!session) redirect('/login')
 
-  const orders = await getMyOrders()
+  const { filter } = await searchParams
+  const pendingReviewsFilter = filter === 'pending-reviews'
+
+  const allOrders = await getMyOrders()
   const t = await getServerT()
+
+  // The pending-reviews filter is the destination of the account hub banner —
+  // it should only show orders that actually have something to review now.
+  const visibleOrders = pendingReviewsFilter
+    ? allOrders.filter(o => o.status === 'DELIVERED' && countPendingReviewsInOrder(o) > 0)
+    : allOrders
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
@@ -33,17 +46,37 @@ export default async function MisPedidosPage() {
         </p>
       </div>
 
-      {orders.length === 0 ? (
+      {pendingReviewsFilter && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm dark:border-amber-800/60 dark:bg-amber-950/30">
+          <StarIcon className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-300" />
+          <span className="flex-1 font-medium text-amber-900 dark:text-amber-100">
+            {t('account.ordersFilterPendingReviewsActive')}
+          </span>
+          <Link
+            href="/cuenta/pedidos"
+            className="shrink-0 text-sm font-medium text-amber-700 underline-offset-4 hover:underline dark:text-amber-300"
+          >
+            {t('account.ordersFilterShowAll')}
+          </Link>
+        </div>
+      )}
+
+      {visibleOrders.length === 0 ? (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-6 py-16 text-center shadow-sm">
-          <p className="text-4xl mb-3">📦</p>
-          <p className="font-medium text-[var(--foreground-soft)]">{t('account.ordersEmpty')}</p>
-          <Link href="/productos" className="mt-4 inline-flex rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-300 dark:hover:bg-emerald-950/55">
-            {t('account.ordersExplore')}
+          <p className="text-4xl mb-3">{pendingReviewsFilter ? '⭐' : '📦'}</p>
+          <p className="font-medium text-[var(--foreground-soft)]">
+            {pendingReviewsFilter ? t('account.ordersPendingReviewsEmpty') : t('account.ordersEmpty')}
+          </p>
+          <Link
+            href={pendingReviewsFilter ? '/cuenta/pedidos' : '/productos'}
+            className="mt-4 inline-flex rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-300 dark:hover:bg-emerald-950/55"
+          >
+            {pendingReviewsFilter ? t('account.ordersFilterShowAll') : t('account.ordersExplore')}
           </Link>
         </div>
       ) : (
         <div className="space-y-4">
-          {orders.map(order => {
+          {visibleOrders.map(order => {
             const totalItems = order.lines.reduce((sum, l) => sum + l.quantity, 0)
             const productCount = order.lines.length
             const pendingReviews =
