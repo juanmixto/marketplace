@@ -4,11 +4,14 @@ import { enqueue } from '@/lib/queue'
 import {
   buildDrafts,
   CURRENT_RULES_EXTRACTOR_VERSION,
+  DEFAULT_LLM_MODEL,
   EXTRACTION_SCHEMA_VERSION,
+  LlmExtractorError,
   PROCESSING_JOB_KINDS,
   classifyMessage,
   confidenceBandFor,
   extractRules,
+  extractWithLlm,
   isStageEnabled,
   normaliseConfidence,
   type DraftsBuilderDb,
@@ -97,31 +100,99 @@ export async function runProcessMessageJob(
     return
   }
 
-  const classifier = classifyMessage({ text: message.text })
-  const classifierConfidence = normaliseConfidence(classifier.confidence)
-  const classifierBand = confidenceBandFor(classifierConfidence)
+  // Phase 2.5: optionally run the local LLM first. If `feat-ingestion-llm-extractor`
+  // is enabled and the LLM call succeeds, we use its verdict for both
+  // classification and extraction in a single round-trip. On any LLM
+  // failure (transport, timeout, schema) we fall back to the rules
+  // pipeline below — never block ingestion on the LLM.
+  const llmEnabled = await isStageEnabled('llm-extractor', undefined, {
+    correlationId,
+    messageId: message.id,
+    jobKind: 'ingestion.processing.process-message',
+  })
 
-  const extractorVersion = CURRENT_RULES_EXTRACTOR_VERSION
-  const extraction = classifier.kind === 'PRODUCT'
-    ? extractRules({
-        text: message.text ?? '',
-        vendorHint: {
-          authorExternalId: message.tgAuthorId?.toString() ?? null,
+  let classifierKind: 'PRODUCT' | 'PRODUCT_NO_PRICE' | 'CONVERSATION' | 'SPAM' | 'OTHER'
+  let classifierConfidence: number
+  let classifierSignals: Array<{ rule: string; weight: number; match: string }>
+  let extraction: ExtractionPayload
+  let extractorVersion: string
+
+  let llmFailed = false
+  if (llmEnabled && (message.text ?? '').trim().length > 0) {
+    try {
+      const llmOut = await extractWithLlm(
+        {
+          text: message.text ?? '',
+          vendorHint: {
+            authorExternalId: message.tgAuthorId?.toString() ?? null,
+          },
+          correlationId,
         },
+        {
+          model: process.env.INGESTION_LLM_MODEL?.trim() || DEFAULT_LLM_MODEL,
+          timeoutMs: parseTimeoutMs(process.env.INGESTION_LLM_TIMEOUT_MS),
+        },
+      )
+      classifierKind = llmOut.classification.kind
+      classifierConfidence = normaliseConfidence(llmOut.classification.confidence)
+      classifierSignals = llmOut.classification.signals
+      extraction = llmOut.payload
+      extractorVersion = llmOut.extractorVersion
+      logger.info('ingestion.processing.llm.ok', {
+        messageId: message.id,
+        kind: classifierKind,
+        latencyMs: llmOut.latencyMs,
+        tokensIn: llmOut.costTokensIn,
+        tokensOut: llmOut.costTokensOut,
+        // NOTE: IngestionExtractionResult.engine remains 'RULES' for now —
+        // the builder is shared with the rules path and changing the
+        // engine column means a contract migration. The
+        // `extractorVersion` field (e.g. "llm-qwen2.5-3b-v1") fully
+        // identifies this run; downstream queries should branch on
+        // extractorVersion startsWith "llm-" rather than on engine.
+        correlationId,
       })
-    : emptyExtractionFor(classifier.kind)
+    } catch (err) {
+      llmFailed = true
+      logger.warn('ingestion.processing.llm.fallback_to_rules', {
+        messageId: message.id,
+        cause: err instanceof LlmExtractorError ? err.cause : 'unknown',
+        latencyMs: err instanceof LlmExtractorError ? err.latencyMs : 0,
+        error: err instanceof Error ? err.message : String(err),
+        correlationId,
+      })
+    }
+  }
+
+  if (!llmEnabled || llmFailed) {
+    const classifier = classifyMessage({ text: message.text })
+    classifierKind = classifier.kind
+    classifierConfidence = normaliseConfidence(classifier.confidence)
+    classifierSignals = classifier.signals
+    extractorVersion = CURRENT_RULES_EXTRACTOR_VERSION
+    extraction = classifier.kind === 'PRODUCT'
+      ? extractRules({
+          text: message.text ?? '',
+          vendorHint: {
+            authorExternalId: message.tgAuthorId?.toString() ?? null,
+          },
+        })
+      : emptyExtractionFor(classifier.kind)
+  }
+
+  const classifierBand = confidenceBandFor(classifierConfidence!)
 
   const draftsResult = await buildDrafts(
     {
       messageId: message.id,
-      extractorVersion,
+      extractorVersion: extractorVersion!,
       classification: {
-        kind: classifier.kind,
-        confidence: classifierConfidence,
+        kind: classifierKind!,
+        confidence: classifierConfidence!,
         confidenceBand: classifierBand,
-        signals: classifier.signals,
+        signals: classifierSignals!,
       },
-      extraction,
+      extraction: extraction!,
       inputSnapshot: {
         text: message.text,
         postedAt: message.postedAt,
@@ -179,4 +250,13 @@ export async function runProcessMessageJob(
       })
     }
   }
+}
+
+function parseTimeoutMs(raw: string | undefined): number | undefined {
+  if (!raw) return undefined
+  const n = Number.parseInt(raw, 10)
+  if (!Number.isFinite(n) || n <= 0) return undefined
+  // Hard ceiling: even on a slow CPU box, 5 min per message is too
+  // long — the worker would block the queue and fail SLAs.
+  return Math.min(n, 300_000)
 }
