@@ -85,6 +85,14 @@ export function createMockProvider(
         sizeBytes: bytes.byteLength,
       }
     },
+
+    async fetchTopics() {
+      // Mock fixtures are flat lists of messages, no forum topics.
+      // Returning [] makes the worker take the "main feed only"
+      // branch, which exercises the same code path the real
+      // (non-forum) chats follow in production.
+      return { topics: [] }
+    },
   }
 }
 

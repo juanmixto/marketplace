@@ -1359,6 +1359,15 @@ model TelegramIngestionMessage {
   fetchedAt   DateTime @default(now())
   // Phase-1-ready hook for the right-to-erasure / tombstone flow.
   tombstoned  Boolean  @default(false)
+  // Forum-topic metadata. Telegram supergroups can be partitioned
+  // into topics (the megaphone-style channels at the left of the
+  // app); messages outside any topic — i.e. the main feed — leave
+  // both fields null. We capture the id (so stats can partition
+  // without re-parsing rawJson) and a snapshot of the title at
+  // ingestion time (cheap denormalisation; can be re-resolved from
+  // the chat's topic list if it ever drifts).
+  topicId    BigInt?
+  topicTitle String?
 
   chat                       TelegramIngestionChat           @relation(fields: [chatId], references: [id], onDelete: Cascade)
   media                      TelegramIngestionMessageMedia[]
@@ -1367,6 +1376,7 @@ model TelegramIngestionMessage {
 
   @@unique([chatId, tgMessageId])
   @@index([chatId, postedAt(sort: Desc)])
+  @@index([chatId, topicId])
   @@index([tgAuthorId])
 }
 

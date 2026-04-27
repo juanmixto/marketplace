@@ -14,6 +14,8 @@ import type {
   FetchMediaResult,
   FetchMessagesInput,
   FetchMessagesResult,
+  FetchTopicsInput,
+  FetchTopicsResult,
   TelegramIngestionProvider,
 } from './types'
 
@@ -269,6 +271,26 @@ export function createTelethonHttpProvider(
         mimeType: res.headers.get('content-type'),
         sizeBytes: parseContentLength(res.headers.get('content-length')),
       }
+    },
+
+    async fetchTopics(input: FetchTopicsInput): Promise<FetchTopicsResult> {
+      const cid = correlation(input as { correlationId?: string })
+      const body = await request<FetchTopicsResult>(
+        '/topics',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            connection_id: input.connectionId,
+            tg_chat_id: input.tgChatId,
+          }),
+        },
+        cid,
+      )
+      if (!body || !Array.isArray(body.topics)) {
+        throw new TelegramBadResponseError('sidecar /topics returned malformed body')
+      }
+      return { topics: body.topics }
     },
   }
 }
