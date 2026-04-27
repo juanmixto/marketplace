@@ -28,8 +28,8 @@ export interface LocalizedNavItem {
 export const vendorNavItems: LocalizedNavItem[] = [
   { href: '/vendor/dashboard',       labelKey: 'vendor.nav.dashboard',     available: true },
   { href: '/vendor/productos',       labelKey: 'vendor.nav.products',      available: true },
-  { href: '/vendor/promociones',     labelKey: 'vendor.nav.promotions',    available: true },
-  { href: '/vendor/suscripciones',   labelKey: 'vendor.nav.subscriptions', available: true },
+  { href: '/vendor/promociones',     labelKey: 'vendor.nav.promotions',    available: true, flag: 'feat-promotions' },
+  { href: '/vendor/suscripciones',   labelKey: 'vendor.nav.subscriptions', available: true, flag: 'feat-vendor-subscriptions' },
   { href: '/vendor/pedidos',         labelKey: 'vendor.nav.orders',        available: true },
   { href: '/vendor/valoraciones',    labelKey: 'vendor.nav.reviews',       available: true },
   { href: '/vendor/liquidaciones',   labelKey: 'vendor.nav.settlements',   available: true },
@@ -43,8 +43,8 @@ export const adminNavItems: LocalizedNavItem[] = [
   { href: '/admin/usuarios',       labelKey: 'admin.nav.users',         available: true },
   { href: '/admin/productores',    labelKey: 'admin.nav.producers',     available: true },
   { href: '/admin/productos',      labelKey: 'admin.nav.products',      available: true },
-  { href: '/admin/promociones',    labelKey: 'admin.nav.promotions',    available: true },
-  { href: '/admin/suscripciones',  labelKey: 'admin.nav.subscriptions', available: true },
+  { href: '/admin/promociones',    labelKey: 'admin.nav.promotions',    available: true, flag: 'feat-promotions' },
+  { href: '/admin/suscripciones',  labelKey: 'admin.nav.subscriptions', available: true, flag: 'feat-vendor-subscriptions' },
   { href: '/admin/envios',         labelKey: 'admin.nav.shipments',     available: true },
   { href: '/admin/comisiones',     labelKey: 'admin.nav.commissions',   available: true },
   { href: '/admin/configuracion',  labelKey: 'admin.nav.settings',      available: true },
@@ -59,7 +59,7 @@ export const adminNavItems: LocalizedNavItem[] = [
 
 export const buyerAccountItems: LocalizedNavItem[] = [
   { href: '/cuenta/pedidos',        labelKey: 'account.nav.orders.label',        available: true },
-  { href: '/cuenta/suscripciones',  labelKey: 'account.nav.subscriptions.label', available: true },
+  { href: '/cuenta/suscripciones',  labelKey: 'account.nav.subscriptions.label', available: true, flag: 'feat-buyer-subscriptions' },
   { href: '/cuenta/direcciones',    labelKey: 'account.nav.addresses.label',     available: true },
   { href: '/cuenta/favoritos',      labelKey: 'account.nav.favorites.label',     available: true },
   { href: '/cuenta/perfil',         labelKey: 'account.nav.profile.label',       available: true },

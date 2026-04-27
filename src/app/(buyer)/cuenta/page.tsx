@@ -6,6 +6,7 @@ import { ChevronRightIcon } from '@heroicons/react/20/solid'
 import { SignOutButton } from '@/components/auth/SignOutButton'
 import type { Metadata } from 'next'
 import { buyerAccountItems, buyerAccountMeta } from '@/lib/navigation'
+import { isFeatureEnabledStrict } from '@/lib/flags'
 import { db } from '@/lib/db'
 import { PendingReviewsBanner } from './PendingReviewsBanner'
 import PushOptIn from '@/components/pwa/PushOptIn'
@@ -25,6 +26,17 @@ export default async function CuentaPage() {
   const vendorApplication = await db.vendor.findUnique({
     where: { userId: session.user.id },
     select: { status: true },
+  })
+
+  const flagState: Record<string, boolean> = {
+    'feat-buyer-subscriptions': await isFeatureEnabledStrict('feat-buyer-subscriptions', {
+      userId: session.user.id,
+      email: session.user.email ?? undefined,
+    }),
+  }
+  const visibleAccountItems = buyerAccountItems.filter((item) => {
+    if (!item.flag) return true
+    return flagState[item.flag] ?? false
   })
 
   const initial = session.user.name?.[0]?.toUpperCase() ?? '?'
@@ -55,7 +67,7 @@ export default async function CuentaPage() {
       />
 
       <div className="space-y-2">
-        {buyerAccountItems.map(({ href, available }) => {
+        {visibleAccountItems.map(({ href, available }) => {
           const meta = buyerAccountMeta[href as keyof typeof buyerAccountMeta]
           const Icon = meta?.icon ?? UserCircleIcon
           const label = t(meta.labelKey as TranslationKeys)
