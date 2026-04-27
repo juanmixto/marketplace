@@ -33,5 +33,15 @@
     "issue": 753,
     "owner": "@juanmixto",
     "dueDate": "2026-05-23"
+  },
+  "feat-promotions": {
+    "issue": 919,
+    "owner": "@juanmixto",
+    "dueDate": "2026-05-27"
+  },
+  "feat-vendor-subscriptions": {
+    "issue": 918,
+    "owner": "@juanmixto",
+    "dueDate": "2026-05-27"
   }
 }
