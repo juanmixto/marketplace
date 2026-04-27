@@ -2035,9 +2035,9 @@ const es = {
   'adminProducers.actions.error': 'Acción fallida',
 
   'pwa.install.cta': 'Instalar app',
-  'pwa.install.tooltip': 'Accede más rápido desde tu pantalla de inicio',
-  'pwa.ios.hint.title': 'Instala la app en tu iPhone',
-  'pwa.ios.hint.body': 'Pulsa el botón Compartir y elige “Añadir a pantalla de inicio”.',
+  'pwa.install.tooltip': 'Abre más rápido y funciona sin conexión',
+  'pwa.ios.hint.title': 'Añade Feldes a tu pantalla de inicio',
+  'pwa.ios.hint.body': 'Abre más rápido y funciona sin conexión. Pulsa Compartir y elige “Añadir a pantalla de inicio”.',
   'pwa.ios.hint.dismiss': 'Cerrar aviso',
   'pwa.push.enable': 'Activar notificaciones',
   'pwa.push.disable': 'Desactivar notificaciones',
