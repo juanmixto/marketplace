@@ -29,6 +29,7 @@ import { redirect } from 'next/navigation'
 import { safeRevalidatePath } from '@/lib/revalidate'
 import { isAdminRole } from '@/lib/roles'
 import { IncidentStatus, IncidentType } from '@/generated/prisma/enums'
+import { incidentAttachmentsSchema } from '@/shared/types/incidents'
 // eslint-disable-next-line no-restricted-imports -- dispatcher is intentionally server-only, excluded from notifications barrel
 import { emit as emitNotification } from '@/domains/notifications/dispatcher'
 import {
@@ -41,11 +42,13 @@ const openIncidentSchema = z.object({
   orderId: z.string().min(1),
   type: z.nativeEnum(IncidentType),
   description: z.string().min(10).max(5000),
+  attachments: incidentAttachmentsSchema.optional(),
 })
 
 const addMessageSchema = z.object({
   incidentId: z.string().min(1),
   body: z.string().min(1).max(5000),
+  attachments: incidentAttachmentsSchema.optional(),
 })
 
 export type OpenIncidentInput = z.infer<typeof openIncidentSchema>
@@ -101,6 +104,7 @@ export async function openIncident(
       customerId: session.user.id,
       type: parsed.type,
       description: parsed.description,
+      attachments: parsed.attachments ?? [],
       status: IncidentStatus.OPEN,
       slaDeadline,
     },
@@ -178,6 +182,7 @@ export async function addIncidentMessage(
       authorId: session.user.id,
       authorRole: session.user.role,
       body: parsed.body,
+      attachments: parsed.attachments ?? [],
     },
     select: { id: true },
   })
@@ -258,6 +263,7 @@ export async function getIncidentDetail(incidentId: string) {
           id: true,
           body: true,
           authorRole: true,
+          attachments: true,
           createdAt: true,
         },
       },
