@@ -14,6 +14,11 @@
     "owner": "@juanmixto",
     "dueDate": "2026-05-23"
   },
+  "feat-public-ghost-producers": {
+    "issue": 914,
+    "owner": "@juanmixto",
+    "dueDate": "2026-05-27"
+  },
   "feat-ingestion-classifier": {
     "issue": 753,
     "owner": "@juanmixto",
