@@ -4,11 +4,15 @@ import { getMyOrders } from '@/domains/orders/actions'
 import Link from 'next/link'
 import Image from 'next/image'
 import { StarIcon } from '@heroicons/react/24/solid'
+import { ChevronRightIcon } from '@heroicons/react/20/solid'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { RepeatOrderButton } from '@/components/buyer/RepeatOrderButton'
 import type { Metadata } from 'next'
 import { getServerT } from '@/i18n/server'
+import type { TranslationKeys } from '@/i18n/locales'
+
+type T = Awaited<ReturnType<typeof getServerT>>
 import { countPendingReviewsInOrder, firstPendingReviewProductId } from '@/domains/reviews/pending-policy'
 import { getBuyerOrderStatus } from '@/domains/orders/buyer-status'
 
@@ -16,9 +20,60 @@ interface Props {
   searchParams: Promise<{ filter?: string }>
 }
 
+// Filter slugs are Spanish (the dominant locale); the labels are i18n'd. Kept
+// inline because the page is the only consumer — if a second surface adopts
+// the same set, lift to src/domains/orders/buyer-filters.ts.
+type FilterKey = 'all' | 'por-valorar' | 'pago-pendiente' | 'entregados'
+
+const FILTERS: { key: FilterKey; labelKey: TranslationKeys }[] = [
+  { key: 'all',             labelKey: 'account.ordersFilterAll' },
+  { key: 'por-valorar',     labelKey: 'account.ordersFilterPendingReviews' },
+  { key: 'pago-pendiente',  labelKey: 'account.ordersFilterPaymentPending' },
+  { key: 'entregados',      labelKey: 'account.ordersFilterDelivered' },
+]
+
+type OrderForFilter = Awaited<ReturnType<typeof getMyOrders>>[number]
+
+function matchesFilter(order: OrderForFilter, filter: FilterKey): boolean {
+  switch (filter) {
+    case 'all': return true
+    case 'por-valorar':
+      return order.status === 'DELIVERED' && countPendingReviewsInOrder(order) > 0
+    case 'pago-pendiente':
+      return order.paymentStatus !== 'SUCCEEDED' && order.paymentStatus !== 'REFUNDED'
+    case 'entregados':
+      return order.status === 'DELIVERED'
+  }
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT()
   return { title: t('account.ordersTitle') }
+}
+
+function FilterTabs({ active, t }: { active: FilterKey; t: T }) {
+  return (
+    <div className="mb-6 flex flex-wrap items-center gap-2">
+      {FILTERS.map(f => {
+        const isActive = active === f.key
+        const href = f.key === 'all' ? '/cuenta/pedidos' : `/cuenta/pedidos?filter=${f.key}`
+        return (
+          <Link
+            key={f.key}
+            href={href}
+            aria-current={isActive ? 'page' : undefined}
+            className={
+              isActive
+                ? 'rounded-full bg-emerald-600 px-3 py-1 text-xs font-medium text-white transition dark:bg-emerald-500 dark:text-gray-950'
+                : 'rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)]'
+            }
+          >
+            {t(f.labelKey)}
+          </Link>
+        )
+      })}
+    </div>
+  )
 }
 
 export default async function MisPedidosPage({ searchParams }: Props) {
@@ -26,16 +81,20 @@ export default async function MisPedidosPage({ searchParams }: Props) {
   if (!session) redirect('/login')
 
   const { filter } = await searchParams
-  const pendingReviewsFilter = filter === 'pending-reviews'
+  // Back-compat: the previous PR landed `?filter=pending-reviews` and the
+  // banner shipped on production with that link. Honour it as an alias of the
+  // new `por-valorar` slug so users with the old URL bookmarked don't 404.
+  const requested: FilterKey =
+    filter === 'pending-reviews' ? 'por-valorar'
+    : (FILTERS.some(f => f.key === filter) ? filter : 'all') as FilterKey
+  const activeFilter = requested
 
   const allOrders = await getMyOrders()
   const t = await getServerT()
 
-  // The pending-reviews filter is the destination of the account hub banner —
-  // it should only show orders that actually have something to review now.
-  const visibleOrders = pendingReviewsFilter
-    ? allOrders.filter(o => o.status === 'DELIVERED' && countPendingReviewsInOrder(o) > 0)
-    : allOrders
+  const visibleOrders = activeFilter === 'all'
+    ? allOrders
+    : allOrders.filter(o => matchesFilter(o, activeFilter))
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
@@ -46,32 +105,22 @@ export default async function MisPedidosPage({ searchParams }: Props) {
         </p>
       </div>
 
-      {pendingReviewsFilter && (
-        <div className="mb-4 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm dark:border-amber-800/60 dark:bg-amber-950/30">
-          <StarIcon className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-300" />
-          <span className="flex-1 font-medium text-amber-900 dark:text-amber-100">
-            {t('account.ordersFilterPendingReviewsActive')}
-          </span>
-          <Link
-            href="/cuenta/pedidos"
-            className="shrink-0 text-sm font-medium text-amber-700 underline-offset-4 hover:underline dark:text-amber-300"
-          >
-            {t('account.ordersFilterShowAll')}
-          </Link>
-        </div>
-      )}
+      <FilterTabs active={activeFilter} t={t} />
 
       {visibleOrders.length === 0 ? (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-6 py-16 text-center shadow-sm">
-          <p className="text-4xl mb-3">{pendingReviewsFilter ? '⭐' : '📦'}</p>
+          <p className="text-4xl mb-3">{activeFilter === 'por-valorar' ? '⭐' : '📦'}</p>
           <p className="font-medium text-[var(--foreground-soft)]">
-            {pendingReviewsFilter ? t('account.ordersPendingReviewsEmpty') : t('account.ordersEmpty')}
+            {activeFilter === 'por-valorar' ? t('account.ordersPendingReviewsEmpty')
+              : activeFilter === 'pago-pendiente' ? t('account.ordersPaymentPendingEmpty')
+              : activeFilter === 'entregados' ? t('account.ordersDeliveredEmpty')
+              : t('account.ordersEmpty')}
           </p>
           <Link
-            href={pendingReviewsFilter ? '/cuenta/pedidos' : '/productos'}
+            href={activeFilter === 'all' ? '/productos' : '/cuenta/pedidos'}
             className="mt-4 inline-flex rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-300 dark:hover:bg-emerald-950/55"
           >
-            {pendingReviewsFilter ? t('account.ordersFilterShowAll') : t('account.ordersExplore')}
+            {activeFilter === 'all' ? t('account.ordersExplore') : t('account.ordersFilterShowAll')}
           </Link>
         </div>
       ) : (
@@ -147,7 +196,7 @@ export default async function MisPedidosPage({ searchParams }: Props) {
                     <strong className="font-semibold">{t('pendingReviews.badge')}</strong>
                     <span className="ml-1 text-amber-800/80 dark:text-amber-200/80">· {pendingLabel}</span>
                   </span>
-                  <span aria-hidden>→</span>
+                  <ChevronRightIcon className="h-5 w-5 shrink-0 text-amber-700/60 dark:text-amber-300/60" />
                 </Link>
               )}
 
