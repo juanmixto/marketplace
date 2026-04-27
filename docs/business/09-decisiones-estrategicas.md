@@ -66,6 +66,61 @@
 
 ---
 
+## ADR-007 — Política mínima de devoluciones: 14 días + comprador paga vuelta
+
+- **Fecha**: 2026-04-26.
+- **Decisión**: Política pública del marketplace = 14 días de derecho de desistimiento desde la entrega, motivo libre, **el comprador asume el coste de envío de devolución salvo defecto del producto o error de envío**, en cuyo caso lo asume el responsable (productor o marketplace según corresponda). Reembolso por método de pago original en ≤ 7 días tras recepción de la devolución.
+- **Alternativas**: marketplace paga envío de vuelta siempre (palanca de confianza, coste); ventana de 30 días con comprador pagando (señal de confianza extra).
+- **Razón**: Es lo que ya prescribe `04-modelo-negocio-comisiones.md` § Devoluciones; codificarlo cierra el contrato con productor sin introducir coste nuevo. 14 días es el mínimo legal LSSI, y subsidiar el envío de vuelta antes de validar tasa de devolución sería gastar a ciegas. Se puede ampliar más adelante como palanca si el AOV y la tasa lo soportan.
+- **Se revisa cuando**: tasa de devolución sostenida > 8 % durante 8 semanas, o feedback recurrente del comprador identifica el coste de devolución como objeción de compra.
+
+---
+
+## ADR-008 — Comisión caso por caso 20–30 % en validación
+
+- **Fecha**: 2026-04-26.
+- **Decisión**: La comisión con cada productor se negocia **caso por caso dentro del rango 20–30 %** sobre subtotal del producto, con razón documentada en su ficha interna. No se aplica un flat ni tramos rígidos por categoría en validación.
+- **Alternativas**: 25 % flat para los primeros 6–10 productores (más simple comercialmente); tramos fijos por categoría (22 % aceite, 25 % queso, 28 % miel).
+- **Razón**: Es lo que ya prescribe `04-modelo-negocio-comisiones.md`. Caso por caso permite cerrar productores ancla a 20 % y compensar productores con curaduría intensiva a 28–30 %. Tramos rígidos eliminan flexibilidad y ahuyentan al productor estrella; flat 25 % nos hace perder 5 puntos en los productores que aceptarían 30 %. La complejidad de negociar caso por caso es asumible con < 10 productores.
+- **Se revisa cuando**: el equipo supere 25 productores activos, o cuando 3+ productores rechacen el rango sostenidamente como señal de mercado, o cuando aparezca coste operativo nuevo significativo (logística centralizada, fotografía interna).
+
+---
+
+## ADR-009 — Canal único de atención al comprador: email + formulario web
+
+- **Fecha**: 2026-04-26.
+- **Decisión**: El canal único oficial de atención al comprador es **email + formulario web del marketplace**. Instagram DMs, WhatsApp, chat live y otros canales **no son canales de soporte** en esta etapa, aunque el marketplace mantenga presencia en ellos para marketing. SLA: primera respuesta humana < 24 h hábiles, < 4 h hábiles cuando la incidencia esté en flujo CF-1..CF-5.
+- **Alternativas**: añadir Instagram DMs como secundario (visibilidad gratis, riesgo de SLA roto); añadir WhatsApp Business (mejor UX, más fricción de alta para el comprador).
+- **Razón**: Es lo que ya prescribe `05-logistica-operaciones.md` § Atención y soporte. Multi-canal sin equipo dedicado garantiza SLA roto, lo que es **peor que no tener canal**. Email + formulario centraliza, audita y permite plantillas de la matriz de incidencias. Cuando el equipo crezca y el volumen lo justifique se reabre.
+- **Se revisa cuando**: equipo dedicado a soporte ≥ 1 persona full-time, o feedback consistente del comprador identifica la ausencia de chat / WhatsApp como fricción de compra documentable.
+
+---
+
+## Decisiones pendientes (no cerradas)
+
+> Decisiones identificadas como necesarias pero **aún no tomadas**. No son ADRs todavía. Cuando se cierren, se moverán arriba con número ADR asignado y se eliminarán de esta sección.
+
+### PEND-001 — Modelo técnico del Pack: SKU autocontenido vs composición
+
+- **Pregunta**: ¿Un Pack es un Product autocontenido con su propio stock, o un Product cuya composición se vincula a otros Products y el stock se deriva?
+- **Por qué importa**: Bloquea épica E4 del backlog (packs ancla). El modelo elegido condiciona inventario, comisiones, devoluciones parciales, y migraciones futuras a packs cross-productor.
+- **Opciones consideradas**:
+  - **A) Pack autocontenido**: simple, stock independiente, sin dependencia de componentes. Riesgo: doble contabilidad de inventario.
+  - **B) Pack como composición**: stock derivado de los componentes, una sola fuente de verdad. Riesgo: complejidad operativa y de UI.
+- **Quién decide**: Producto + Engineering.
+- **Plazo objetivo**: antes de empezar E4-01 (post-soft-launch).
+- **Criterios para decidir**: volumen esperado de packs en V1, grado de overlap con SKUs sueltos, capacidad del equipo para mantener inventario derivado.
+
+### Cómo se cierra una decisión pendiente
+
+1. Se toma la decisión (reunión / conversación / brief).
+2. Se ejecuta `prompts/create-docs-from-decision.md` para convertirla en ADR formal.
+3. Se mueve a la sección de ADRs cerradas con número siguiente (ADR-007, ADR-008, ...).
+4. Se elimina de "Decisiones pendientes".
+5. Si afecta otros docs, se actualizan en el mismo PR.
+
+---
+
 ## Plantilla para nuevas ADRs
 
 ```

@@ -16,7 +16,8 @@ Documentación de **negocio** del marketplace. Está aquí para que cualquier ag
 | 06 | [`06-growth-lanzamiento.md`](06-growth-lanzamiento.md) | Cómo conseguimos los primeros compradores. |
 | 07 | [`07-copy-contacto-productores.md`](07-copy-contacto-productores.md) | Plantillas y tono para hablar con productores. |
 | 08 | [`08-roadmap-negocio.md`](08-roadmap-negocio.md) | Qué viene, qué se aplaza, qué se descarta. |
-| 09 | [`09-decisiones-estrategicas.md`](09-decisiones-estrategicas.md) | Decisiones tomadas. **No se reabren sin razón nueva.** |
+| 09 | [`09-decisiones-estrategicas.md`](09-decisiones-estrategicas.md) | Decisiones tomadas (ADRs) + decisiones **pendientes** sin cerrar. |
+| 10 | [`10-launch-backlog.md`](10-launch-backlog.md) | Backlog vivo de épicas e issues para llevar el marketplace a soft launch. |
 
 ## Cómo se mantiene
 
