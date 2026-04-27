@@ -4,3 +4,4 @@
 export * from './actions'
 export * from './pending-policy'
 export * from './policy'
+export * from './nudge-window'

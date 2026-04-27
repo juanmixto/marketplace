@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { createReview } from '@/domains/reviews/actions'
 import { useT } from '@/i18n'
+import { useReviewSnooze } from '@/lib/hooks/useReviewSnooze'
 
 interface SingleProps {
   orderId: string
@@ -89,6 +90,7 @@ export function ReviewWizardButton({
 }: WizardProps) {
   const router = useRouter()
   const t = useT()
+  const { snooze } = useReviewSnooze()
   const [open, setOpen] = useState(false)
   const [cursor, setCursor] = useState(0)
   const [submittedAny, setSubmittedAny] = useState(false)
@@ -112,13 +114,25 @@ export function ReviewWizardButton({
   const total = items.length
   const isLast = cursor >= total - 1
 
-  const closeWizard = () => {
+  // Two close paths intentionally separated:
+  //  - finishWizard():  publishing the last step or advancing past it. Just
+  //                     close + refresh; nothing skipped, no need to snooze.
+  //  - dismissWizard(): user-driven exit (X / backdrop / Escape / "Cerrar")
+  //                     before all items are reviewed. Snooze the nudges so
+  //                     we don't pester them again for 14 days.
+  const finishWizard = () => {
+    setOpen(false)
+    if (submittedAny) router.refresh()
+  }
+  const dismissWizard = () => {
+    // Items still pending = the user said "no thanks for now". Take the hint.
+    if (cursor < items.length || !submittedAny) snooze()
     setOpen(false)
     if (submittedAny) router.refresh()
   }
   const advance = () => {
     if (isLast) {
-      closeWizard()
+      finishWizard()
     } else {
       setCursor(c => c + 1)
     }
@@ -139,7 +153,7 @@ export function ReviewWizardButton({
         {t(triggerLabelKey)}
       </Button>
 
-      <Modal open={open} onClose={closeWizard} title={title} size="md">
+      <Modal open={open} onClose={dismissWizard} title={title} size="md">
         {current && (
           <ReviewFormBody
             // Re-key per step so the textarea / rating from product N do not
@@ -153,7 +167,7 @@ export function ReviewWizardButton({
               advance()
             }}
             onSkip={advance}
-            onCancel={closeWizard}
+            onCancel={dismissWizard}
           />
         )}
       </Modal>
