@@ -77,7 +77,7 @@ export function SocialButtonsClient({ callbackUrl, googleEnabled }: Props) {
           <div className="w-full border-t border-slate-200 dark:border-slate-700" />
         </div>
         <div className="relative flex justify-center">
-          <span className="bg-white dark:bg-slate-950 px-2 text-xs uppercase tracking-wide text-slate-500">
+          <span className="bg-[var(--surface)] px-2 text-xs uppercase tracking-wide text-[var(--muted)]">
             {t('login.social.divider')}
           </span>
         </div>
