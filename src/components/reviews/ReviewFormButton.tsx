@@ -59,6 +59,15 @@ interface WizardProps {
   /** Optional override for the trigger button label. */
   triggerLabelKey?: 'reviews.startWizard' | 'reviews.leave' | 'reviews.continueWizard'
   triggerClassName?: string
+  /** Optional secondary variant for the trigger button. */
+  triggerVariant?: 'primary' | 'secondary'
+  /**
+   * If set, the wizard opens at the step matching this productId. Used by the
+   * per-line "Deja tu reseña" buttons in the order detail so clicking on the
+   * row for product N starts the wizard at product N — the per-line button is
+   * really a deep-link into the wizard, not a separate single-product flow.
+   */
+  initialProductId?: string
 }
 
 /**
@@ -75,6 +84,8 @@ export function ReviewWizardButton({
   items,
   triggerLabelKey = 'reviews.startWizard',
   triggerClassName,
+  triggerVariant = 'primary',
+  initialProductId,
 }: WizardProps) {
   const router = useRouter()
   const t = useT()
@@ -82,14 +93,18 @@ export function ReviewWizardButton({
   const [cursor, setCursor] = useState(0)
   const [submittedAny, setSubmittedAny] = useState(false)
 
-  // Reset cursor whenever the wizard opens, in case the surrounding `items`
-  // prop changed between sessions.
+  // Reset cursor whenever the wizard opens. Honour `initialProductId` so the
+  // per-line button can deep-link to its row's product without losing the
+  // wizard's "review the rest" sequence.
   useEffect(() => {
     if (open) {
-      setCursor(0)
+      const idx = initialProductId
+        ? Math.max(0, items.findIndex(i => i.productId === initialProductId))
+        : 0
+      setCursor(idx === -1 ? 0 : idx)
       setSubmittedAny(false)
     }
-  }, [open])
+  }, [open, initialProductId, items])
 
   if (items.length === 0) return null
 
@@ -115,7 +130,12 @@ export function ReviewWizardButton({
 
   return (
     <>
-      <Button size="sm" onClick={() => setOpen(true)} className={triggerClassName}>
+      <Button
+        size="sm"
+        variant={triggerVariant === 'secondary' ? 'secondary' : undefined}
+        onClick={() => setOpen(true)}
+        className={triggerClassName}
+      >
         {t(triggerLabelKey)}
       </Button>
 

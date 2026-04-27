@@ -201,7 +201,9 @@ export default async function MisPedidosPage({ searchParams }: Props) {
                 >
                   <StarIcon className="h-5 w-5 shrink-0 text-amber-500 dark:text-amber-300" />
                   <span className="flex-1">
-                    <strong className="font-semibold">{t('pendingReviews.badge')}</strong>
+                    <strong className="font-semibold">
+                      {pendingReviews === 1 ? t('pendingReviews.badgeOne') : t('pendingReviews.badgeOther')}
+                    </strong>
                     <span className="ml-1 text-amber-800/80 dark:text-amber-200/80">· {pendingLabel}</span>
                   </span>
                   <ChevronRightIcon className="h-5 w-5 shrink-0 text-amber-700/60 dark:text-amber-300/60" />
