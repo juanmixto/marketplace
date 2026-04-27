@@ -804,6 +804,7 @@ model Incident {
   type         IncidentType
   status       IncidentStatus      @default(OPEN)
   description  String              @db.Text
+  attachments  String[]            @default([])
   resolution   IncidentResolution?
   fundedBy     String?
   refundAmount Decimal?            @db.Decimal(10, 2)
