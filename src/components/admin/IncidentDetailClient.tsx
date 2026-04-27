@@ -9,6 +9,7 @@ import { UserCircleIcon } from '@heroicons/react/24/outline'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/i18n'
 import type { TranslationKeys } from '@/i18n/locales'
+import { IncidentAttachmentList } from '@/components/incidents/IncidentAttachmentList'
 
 // Mirror the Prisma IncidentResolution enum values
 const RESOLUTION_KEYS: Array<{ value: 'REFUND_FULL' | 'REFUND_PARTIAL' | 'REPLACEMENT' | 'STORE_CREDIT' | 'REJECTED'; key: TranslationKeys }> = [
@@ -36,6 +37,7 @@ interface Message {
   body: string
   authorName: string
   authorRole: string
+  attachments: string[]
   createdAt: Date | string
 }
 
@@ -137,6 +139,10 @@ export function IncidentDetailClient({ incidentId, status, messages: initial }: 
                     <p className="mt-2 whitespace-pre-wrap break-words text-sm text-[var(--foreground-soft)]">
                       {msg.body}
                     </p>
+                    <IncidentAttachmentList
+                      attachments={msg.attachments}
+                      altPrefix={t('incident.attachments.altPrefix')}
+                    />
                   </div>
                 </div>
               </li>
