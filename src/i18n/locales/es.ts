@@ -1908,6 +1908,9 @@ const es = {
   'reviews.vendorPage.subtitle': 'Reseñas de clientes sobre tus productos',
   'reviews.vendorPage.empty': 'Aún no tienes valoraciones. Cuando tus clientes reciban sus pedidos, podrán dejarte reseñas.',
   'reviews.vendorPage.noVendor': 'No se encontró información del productor',
+  'reviews.vendorPage.paginationLabel': 'Paginación de valoraciones',
+  'reviews.vendorPage.paginationFirst': '← Más recientes',
+  'reviews.vendorPage.paginationOlder': 'Más antiguas →',
 
   // Pending reviews — account banner & order list badge
   'pendingReviews.bannerTitle': 'Tienes productos por valorar',
