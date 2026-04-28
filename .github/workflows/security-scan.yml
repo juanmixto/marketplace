@@ -95,8 +95,8 @@ jobs:
       - name: Scan
         # TEMPORARY: continue-on-error so semgrep findings surface in the
         # Security tab via SARIF without blocking `main`. Tracked in
-        # issue #ISSUE_PLACEHOLDER (triage existing findings, then drop
-        # this flag and restore --error).
+        # issue #984 (triage existing findings, then drop this flag and
+        # restore --error).
         continue-on-error: true
         # --sarif:                upload to GitHub Code Scanning so findings
         #                         land in the Security tab, not just logs
