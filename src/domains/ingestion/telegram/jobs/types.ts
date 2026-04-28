@@ -125,6 +125,8 @@ export interface IngestionSyncDb {
         text: string | null
         postedAt: Date
         rawJson: unknown
+        topicId?: bigint | null
+        topicTitle?: string | null
       }
       update: Record<string, never>
     }): Promise<TelegramIngestionMessageRow>

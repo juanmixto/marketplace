@@ -1,4 +1,6 @@
 import { ImageResponse } from 'next/og'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
 import { SITE_NAME, SITE_DESCRIPTION } from '@/lib/constants'
 
 type Orientation = 'narrow' | 'wide'
@@ -13,9 +15,12 @@ const DIMENSIONS: Record<Orientation, { width: number; height: number }> = {
  * `screenshots` array in `manifest.ts`. Keeps contents synthetic so the
  * output doesn't depend on seed data or database state.
  */
-export function renderBrandScreenshot(orientation: Orientation) {
+export async function renderBrandScreenshot(orientation: Orientation) {
   const { width, height } = DIMENSIONS[orientation]
   const isWide = orientation === 'wide'
+
+  const logoBuf = await readFile(path.join(process.cwd(), 'public/brand/logo.png'))
+  const logoSrc = `data:image/png;base64,${logoBuf.toString('base64')}`
 
   const cards = [
     { emoji: '🥬', label: 'Verduras' },
@@ -39,23 +44,17 @@ export function renderBrandScreenshot(orientation: Orientation) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          <div
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: 20,
-              background: 'rgba(255,255,255,0.16)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 52,
-            }}
-          >
-            🌿
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={logoSrc}
+            alt=""
+            width={96}
+            height={96}
+            style={{ borderRadius: 20, background: 'rgba(255,255,255,0.92)' }}
+          />
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <div style={{ fontSize: 44, fontWeight: 800, lineHeight: 1.05 }}>{SITE_NAME}</div>
-            <div style={{ fontSize: 24, opacity: 0.85 }}>Compra directo al productor</div>
+            <div style={{ fontSize: 24, opacity: 0.85 }}>{SITE_DESCRIPTION}</div>
           </div>
         </div>
 

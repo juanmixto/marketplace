@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { triggerChatSync } from '@/domains/ingestion/telegram/actions'
@@ -10,21 +10,31 @@ interface Props {
   chatTitle: string
 }
 
+type Result = { kind: 'ok' } | { kind: 'err'; message: string } | null
+
 export function TelegramSyncButton({ chatId }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [lastJobId, setLastJobId] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [result, setResult] = useState<Result>(null)
+
+  useEffect(() => {
+    if (!result || result.kind !== 'ok') return
+    const t = setTimeout(() => setResult(null), 4000)
+    return () => clearTimeout(t)
+  }, [result])
 
   const handleSync = () => {
-    setError(null)
+    setResult(null)
     startTransition(async () => {
       try {
-        const res = await triggerChatSync({ chatId })
-        setLastJobId(res.jobId)
+        await triggerChatSync({ chatId })
+        setResult({ kind: 'ok' })
         router.refresh()
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error')
+        setResult({
+          kind: 'err',
+          message: err instanceof Error ? err.message : 'Error',
+        })
       }
     })
   }
@@ -32,16 +42,19 @@ export function TelegramSyncButton({ chatId }: Props) {
   return (
     <div className="flex flex-col items-end gap-1">
       <Button size="sm" onClick={handleSync} disabled={isPending}>
-        {isPending ? 'Encolando…' : 'Sincronizar ahora'}
+        {isPending ? 'Encolando…' : 'Sincronizar'}
       </Button>
-      {lastJobId && !error && (
-        <p className="text-[10px] font-mono text-[var(--muted-foreground)]" title={lastJobId}>
-          job: {lastJobId.slice(0, 10)}…
+      {result?.kind === 'ok' && (
+        <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
+          Sync encolado · refrescando…
         </p>
       )}
-      {error && (
-        <p className="max-w-[14rem] text-right text-xs text-red-600 dark:text-red-400" title={error}>
-          {error}
+      {result?.kind === 'err' && (
+        <p
+          className="max-w-[14rem] text-right text-xs text-red-600 dark:text-red-400"
+          title={result.message}
+        >
+          {result.message}
         </p>
       )}
     </div>

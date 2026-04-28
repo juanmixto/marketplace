@@ -48,6 +48,7 @@ from telethon.errors import (
     SessionPasswordNeededError,
 )
 from telethon.tl.types import Channel, Chat, Message
+from telethon.tl.functions.channels import GetForumTopicsRequest
 
 
 SHARED_SECRET_ENV = "SIDECAR_SHARED_SECRET"
@@ -227,18 +228,57 @@ def _format_message(message: Message) -> dict:
             )
 
     tg_author_id = message.sender_id
+    topic_id = _resolve_topic_id(message)
     return {
         "tgMessageId": str(message.id),
         "tgAuthorId": None if tg_author_id is None else str(tg_author_id),
         "text": message.message or None,
         "postedAt": message.date.isoformat() if message.date else None,
         "media": media_entries,
+        # Telegram supergroups can be partitioned into "forum topics".
+        # Surface the topic id so the worker can store it without
+        # re-parsing the raw payload. Topic title resolution stays
+        # client-side (the worker fetches the chat's topic list once
+        # per sync run) — the sidecar would have to keep a per-chat
+        # cache to resolve titles, which is out of scope here.
+        "topicId": None if topic_id is None else str(topic_id),
         # Telethon's to_dict() embeds datetime + raw bytes (file
         # references, photo blobs) that the default json encoder
         # cannot serialize. _json_safe normalizes recursively so the
         # extractor still has the full provider payload available.
         "raw": _json_safe(message.to_dict()),
     }
+
+
+def _resolve_topic_id(message: Message) -> Optional[int]:
+    """Topic id for this message, or None if it lives in the main
+    feed.
+
+    We accept two shapes:
+
+      1. Real Telegram forum: `reply_to.forum_topic = True` and
+         `reply_to.reply_to_top_id` set to the topic-creating message
+         id. New-style Telegram supergroups configured as forums use
+         this shape.
+      2. Pinned-header style: `forum_topic = False`, but
+         `reply_to_top_id` is still set because admins partition the
+         chat by replying to a pinned header ("MIEL FRUTOS SECOS",
+         etc.). Plenty of large community groups still operate this
+         way — treating the top id as the topic id keeps the stats
+         correct without forcing the operators to migrate Telegram-side.
+
+    A bare `reply_to_msg_id` with no top id is *not* enough — that's
+    just a regular reply chain to another peer's comment, not a topic
+    boundary. Returning None in that case avoids creating a noisy
+    synthetic topic per replied-to message.
+    """
+    reply_to = getattr(message, "reply_to", None)
+    if reply_to is None:
+        return None
+    top_id = getattr(reply_to, "reply_to_top_id", None)
+    if top_id is not None:
+        return int(top_id)
+    return None
 
 
 def _json_safe(value):
@@ -407,6 +447,11 @@ class MessagesRequest(BaseModel):
     limit: int = DEFAULT_MESSAGES_LIMIT
 
 
+class TopicsRequest(BaseModel):
+    connection_id: str
+    tg_chat_id: str
+
+
 @app.post("/chats")
 async def chats(
     body: ChatsRequest,
@@ -510,6 +555,76 @@ async def messages(
             "nextFromMessageId": next_from,
         },
     )
+
+
+@app.post("/topics")
+async def topics(
+    body: TopicsRequest,
+    x_sidecar_token: Optional[str] = Header(default=None),
+) -> JSONResponse:
+    """List forum topics for a supergroup.
+
+    Returns an empty list for non-forum chats; the worker treats that
+    as "this chat does not partition messages, just use the main feed".
+    Topics are surfaced as `{ id, title }` so the worker can
+    denormalise the title onto each message at sync time.
+    """
+    _require_token(x_sidecar_token)
+    client = await _get_client(body.connection_id)
+    await _require_authorized(client)
+
+    try:
+        chat_id = int(body.tg_chat_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="tg_chat_id must be numeric")
+
+    try:
+        entity = await client.get_entity(chat_id)
+    except (ChannelPrivateError, ChatAdminRequiredError):
+        raise HTTPException(status_code=404, detail="chat gone or access revoked")
+    except ValueError:
+        raise HTTPException(status_code=404, detail="chat gone")
+    except FloodWaitError as err:
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            headers={"Retry-After": str(err.seconds)},
+            content={"error": "telegram flood wait", "retry_after_seconds": err.seconds},
+        )
+
+    # Only Channels-with-megagroup-true (i.e. supergroups) can be
+    # forums. Anything else returns an empty list rather than erroring
+    # so the worker has a single happy path.
+    if not isinstance(entity, Channel) or not getattr(entity, "forum", False):
+        return JSONResponse(status_code=200, content={"topics": []})
+
+    try:
+        result = await client(
+            GetForumTopicsRequest(
+                channel=entity,
+                offset_date=None,
+                offset_id=0,
+                offset_topic=0,
+                limit=100,
+            )
+        )
+    except FloodWaitError as err:
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            headers={"Retry-After": str(err.seconds)},
+            content={"error": "telegram flood wait", "retry_after_seconds": err.seconds},
+        )
+
+    out: list[dict] = []
+    for topic in getattr(result, "topics", []) or []:
+        # The "general" / main-feed topic comes back with id=1 and a
+        # title like "General" — we still surface it so the worker
+        # can pretty-print it instead of "(sin tema)".
+        topic_id = getattr(topic, "id", None)
+        title = getattr(topic, "title", None)
+        if topic_id is None:
+            continue
+        out.append({"id": str(topic_id), "title": title or f"Topic {topic_id}"})
+    return JSONResponse(status_code=200, content={"topics": out})
 
 
 @app.get("/media/{file_unique_id}")
