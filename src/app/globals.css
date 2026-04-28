@@ -25,7 +25,23 @@
 }
 
 /* ─── Design tokens — Dark ──────────────────────────────────────────────── */
-.dark,
+.dark {
+  --background:       #0d1117;
+  --background-soft:  #0a0e13;
+  --surface:          #161b22;
+  --surface-raised:   #1c2128;
+  --border:           #30363d;
+  --border-strong:    #484f58;
+  --foreground:       #e6edf3;
+  --foreground-soft:  #adbac7;
+  --muted:            #768390;
+  --muted-light:      #545d68;
+  --accent:           #3fb950;
+  --accent-hover:     #56d364;
+  --accent-soft:      #1b3a2a;
+  --accent-text:      #3fb950;
+}
+
 html.dark {
   --background:       #0d1117;
   --background-soft:  #0a0e13;
