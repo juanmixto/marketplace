@@ -71,8 +71,11 @@ async function main() {
   // max 8) lets operators drain backlog faster without touching the
   // sync handler, which still talks to rate-limited Telegram and
   // stays at concurrency 1.
+  // pg-boss v10 expresses concurrency through batchSize (jobs per
+  // poll) — the queue.ts wrapper runs the batch with Promise.all,
+  // so batchSize=N is N concurrent in-flight jobs.
   const processingWorkOpts = {
-    teamSize: config.processingConcurrency,
+    batchSize: config.processingConcurrency,
     pollingIntervalSeconds: config.processingPollingSeconds,
   }
   await registerHandler<ProcessMessageJobData>(

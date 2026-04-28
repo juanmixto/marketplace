@@ -109,14 +109,15 @@ export type JobHandler<TData = Record<string, unknown>> = (
 
 export interface RegisterHandlerOptions {
   /**
-   * Number of jobs the worker pulls and executes in parallel. Default
-   * 1 keeps the conservative behaviour pg-boss had before v10. Raise
-   * for CPU-bound, idempotent handlers — e.g. the Phase 2 processor —
-   * to drain backlog faster. Avoid raising for handlers that talk to
-   * external rate-limited services (Telegram sync) without checking
-   * the rate limit budget first.
+   * Max jobs fetched per poll AND executed concurrently. pg-boss v10
+   * dropped the v9 `teamSize` knob; concurrency is now expressed
+   * through `batchSize` + parallel handling of the returned array.
+   * Default 1 preserves the old serial behaviour for callers that
+   * do not opt in. Raise for CPU-bound, idempotent handlers (Phase 2
+   * processor) to drain backlog faster. Do not raise for handlers
+   * that talk to a rate-limited external service (Telegram sync).
    */
-  teamSize?: number
+  batchSize?: number
   /**
    * How often pg-boss polls `pgboss.job` for new work, in seconds.
    * Lower = lower latency on the first job after a queue goes empty;
@@ -133,21 +134,23 @@ export async function registerHandler<TData = Record<string, unknown>>(
   const boss = await getQueue()
   await ensureQueue(boss, name)
   const workOpts: PgBoss.WorkOptions = {}
-  if (options.teamSize !== undefined) workOpts.teamSize = options.teamSize
+  if (options.batchSize !== undefined) workOpts.batchSize = options.batchSize
   if (options.pollingIntervalSeconds !== undefined) {
     workOpts.pollingIntervalSeconds = options.pollingIntervalSeconds
   }
   await boss.work<TData>(name, workOpts, async (job) => {
-    // pg-boss v10 delivers single-element batches by default; handle
-    // both shapes so the API is stable across minor upgrades.
+    // pg-boss v10 delivers an array of jobs (size 1 by default,
+    // up to `batchSize` if set). Run them concurrently so a higher
+    // batchSize translates into real throughput, not just larger
+    // serial batches. Per-job errors do not poison the batch —
+    // pg-boss retries each job independently based on its own
+    // failure status.
     const jobs = Array.isArray(job) ? job : [job]
-    for (const j of jobs) {
-      await handler(j)
-    }
+    await Promise.all(jobs.map((j) => handler(j)))
   })
   logger.info('queue.handler_registered', {
     name,
-    teamSize: options.teamSize ?? 1,
+    batchSize: options.batchSize ?? 1,
     pollingIntervalSeconds: options.pollingIntervalSeconds ?? 2,
   })
 }
