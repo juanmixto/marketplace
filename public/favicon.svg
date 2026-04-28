@@ -1,19 +1,19 @@
-<svg width="180" height="180" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
-  <!-- Outer dark green ring for contrast at all sizes -->
-  <circle cx="90" cy="90" r="90" fill="#0F766E"/>
+<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Dark green outer circle for maximum contrast -->
+  <circle cx="50" cy="50" r="50" fill="#0F766E"/>
 
-  <!-- Main bright green circle -->
-  <circle cx="90" cy="90" r="85" fill="#22C55E"/>
+  <!-- Bright green inner circle -->
+  <circle cx="50" cy="50" r="45" fill="#22C55E"/>
 
-  <!-- Simple, bold leaf shape optimized for rendering at tiny sizes -->
-  <g transform="translate(90, 65)">
-    <!-- Leaf (solid shape, no strokes for crisp rendering) -->
-    <path d="M 0 -40 C 25 -15 35 5 35 35 L 0 55 L -35 35 C -35 5 -25 -15 0 -40 Z"
-          fill="#FFFDF8"/>
-    <!-- Leaf vein (bold) -->
-    <line x1="0" y1="-40" x2="0" y2="55" stroke="#0F766E" stroke-width="3" stroke-linecap="round"/>
+  <!-- Bold white leaf (simplified, thick strokes) -->
+  <g>
+    <!-- Leaf body -->
+    <path d="M 50 15 Q 65 30 65 50 Q 65 70 50 80 Q 35 70 35 50 Q 35 30 50 15 Z"
+          fill="#FFFDF8" stroke="none"/>
+    <!-- Bold center vein -->
+    <line x1="50" y1="15" x2="50" y2="80" stroke="#0F766E" stroke-width="4" stroke-linecap="round"/>
   </g>
 
-  <!-- Thick stem -->
-  <rect x="80" y="105" width="20" height="50" fill="#0F766E" rx="3"/>
+  <!-- Bold stem -->
+  <rect x="45" y="78" width="10" height="15" fill="#0F766E" rx="2"/>
 </svg>
