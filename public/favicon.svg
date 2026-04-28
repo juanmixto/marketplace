@@ -1,22 +1,19 @@
-<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-  <!-- Dark green background circle for maximum contrast -->
-  <circle cx="256" cy="256" r="256" fill="#0F766E"/>
+<svg width="180" height="180" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
+  <!-- Outer dark green ring for contrast at all sizes -->
+  <circle cx="90" cy="90" r="90" fill="#0F766E"/>
 
-  <!-- Bright green main circle -->
-  <circle cx="256" cy="256" r="240" fill="#22C55E"/>
+  <!-- Main bright green circle -->
+  <circle cx="90" cy="90" r="85" fill="#22C55E"/>
 
-  <!-- Heavy dark border for crisp tab visibility -->
-  <circle cx="256" cy="256" r="240" fill="none" stroke="#0F766E" stroke-width="24"/>
-
-  <!-- Stylized leaf/plant - much larger proportions -->
-  <g transform="translate(256, 180)">
-    <!-- Leaf shape (dramatically enlarged) -->
-    <path d="M 0 -100 Q 65 -30 65 80 L 0 120 L -65 80 Q -65 -30 0 -100"
-          fill="#FFFDF8" stroke="#0F766E" stroke-width="8" stroke-linejoin="round"/>
-    <!-- Prominent leaf vein -->
-    <line x1="0" y1="-100" x2="0" y2="120" stroke="#0F766E" stroke-width="8" stroke-linecap="round"/>
+  <!-- Simple, bold leaf shape optimized for rendering at tiny sizes -->
+  <g transform="translate(90, 65)">
+    <!-- Leaf (solid shape, no strokes for crisp rendering) -->
+    <path d="M 0 -40 C 25 -15 35 5 35 35 L 0 55 L -35 35 C -35 5 -25 -15 0 -40 Z"
+          fill="#FFFDF8"/>
+    <!-- Leaf vein (bold) -->
+    <line x1="0" y1="-40" x2="0" y2="55" stroke="#0F766E" stroke-width="3" stroke-linecap="round"/>
   </g>
 
   <!-- Thick stem -->
-  <rect x="236" y="300" width="40" height="140" fill="#0F766E" rx="6"/>
+  <rect x="80" y="105" width="20" height="50" fill="#0F766E" rx="3"/>
 </svg>
