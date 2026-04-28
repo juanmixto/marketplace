@@ -25,7 +25,8 @@
 }
 
 /* ─── Design tokens — Dark ──────────────────────────────────────────────── */
-.dark {
+.dark,
+html.dark {
   --background:       #0d1117;
   --background-soft:  #0a0e13;
   --surface:          #161b22;
