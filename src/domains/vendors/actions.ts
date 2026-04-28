@@ -444,6 +444,131 @@ export async function getMyProducts() {
   })
 }
 
+// DB audit P1.2-C (#963): paginated variant of getMyProducts for the
+// /vendor/productos dashboard, plus a small helper that surfaces the
+// stock/expiration alerts which must reflect the full vendor catalog
+// (not just the visible page). Promotions edit / new pages keep using
+// the unbounded `getMyProducts` because they hydrate a selector with
+// every product, which is acceptable until the catalog grows.
+export const VENDOR_PRODUCT_PAGE_SIZE = 25
+
+export type VendorProductFilter =
+  | 'all'
+  | 'active'
+  | 'draft'
+  | 'pendingReview'
+  | 'rejected'
+  | 'outOfStock'
+  | 'archived'
+
+export interface VendorProductFilters {
+  cursor?: string
+  filter?: VendorProductFilter
+  q?: string
+}
+
+function buildVendorProductWhere(
+  vendorId: string,
+  filter: VendorProductFilter | undefined,
+  q: string | undefined,
+): Prisma.ProductWhereInput {
+  // `archived` is the only filter that opts INTO archived products.
+  // Every other filter mode hides them, including `all`. Matches the
+  // previous client-side behaviour in VendorProductListClient.
+  const archivedScope: Prisma.ProductWhereInput =
+    filter === 'archived' ? { archivedAt: { not: null } } : { archivedAt: null }
+
+  const statusScope: Prisma.ProductWhereInput = (() => {
+    switch (filter) {
+      case 'active':
+        return { status: 'ACTIVE' }
+      case 'draft':
+        return { status: 'DRAFT' }
+      case 'pendingReview':
+        return { status: 'PENDING_REVIEW' }
+      case 'rejected':
+        return { status: 'REJECTED' }
+      case 'outOfStock':
+        return { trackStock: true, stock: 0 }
+      case 'archived':
+      case 'all':
+      case undefined:
+      default:
+        return {}
+    }
+  })()
+
+  const search: Prisma.ProductWhereInput = q
+    ? { name: { contains: q, mode: 'insensitive' } }
+    : {}
+
+  return {
+    vendorId,
+    deletedAt: null,
+    ...archivedScope,
+    ...statusScope,
+    ...search,
+  }
+}
+
+export async function getMyProductsPaginated(filters: VendorProductFilters = {}) {
+  const { vendor } = await requireVendor()
+  const where = buildVendorProductWhere(vendor.id, filters.filter, filters.q)
+
+  const rows = await db.product.findMany({
+    where,
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: VENDOR_PRODUCT_PAGE_SIZE + 1,
+    cursor: filters.cursor ? { id: filters.cursor } : undefined,
+    skip: filters.cursor ? 1 : 0,
+    include: {
+      category: { select: { name: true } },
+      variants: { where: { isActive: true }, select: { id: true } },
+    },
+  })
+
+  const hasNextPage = rows.length > VENDOR_PRODUCT_PAGE_SIZE
+  const items = hasNextPage ? rows.slice(0, VENDOR_PRODUCT_PAGE_SIZE) : rows
+
+  return {
+    items,
+    nextCursor: hasNextPage ? items[items.length - 1]?.id ?? null : null,
+    hasNextPage,
+    pageSize: VENDOR_PRODUCT_PAGE_SIZE,
+  }
+}
+
+export interface VendorProductAlerts {
+  lowStockCount: number
+  outOfStockCount: number
+  expiredCount: number
+  totalActiveCatalog: number
+}
+
+export async function getMyProductAlerts(): Promise<VendorProductAlerts> {
+  const { vendor } = await requireVendor()
+  const now = new Date()
+  const baseScope: Prisma.ProductWhereInput = {
+    vendorId: vendor.id,
+    deletedAt: null,
+    archivedAt: null,
+  }
+  const [lowStockCount, outOfStockCount, expiredCount, totalActiveCatalog] =
+    await Promise.all([
+      db.product.count({
+        where: { ...baseScope, trackStock: true, stock: { gt: 0, lte: 5 } },
+      }),
+      db.product.count({
+        where: { ...baseScope, trackStock: true, stock: 0, status: 'ACTIVE' },
+      }),
+      db.product.count({
+        where: { ...baseScope, expiresAt: { lt: now } },
+      }),
+      db.product.count({ where: baseScope }),
+    ])
+  return { lowStockCount, outOfStockCount, expiredCount, totalActiveCatalog }
+}
+
 export async function getMyProduct(productId: string) {
   const { vendor } = await requireVendor()
   return db.product.findFirst({
