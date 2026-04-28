@@ -91,6 +91,7 @@ For the full policy and rationale see [`docs/git-workflow.md`](docs/git-workflow
 ## Conventions
 
 - **Project conventions (stack, imports, Prisma fields, server-action pattern)** — see [`docs/conventions.md`](docs/conventions.md). Read this before implementing any ticket.
+- **Database conventions (FK `onDelete`, paginated `findMany`, Decimal vs Int money, webhook idempotency, `$transaction` timeouts, indexes, Json snapshots, account-erase contract)** — see [`docs/db-conventions.md`](docs/db-conventions.md). Required reading before adding a Prisma model, a relation into User/Order/Vendor, a server-side `findMany`, a webhook handler, or a money column. Two rules are CI-enforced via [`scripts/audit-fk-onDelete.mjs`](scripts/audit-fk-onDelete.mjs) and [`scripts/audit-unbounded-findMany.mjs`](scripts/audit-unbounded-findMany.mjs); both ratchet against a baseline so net-new violations fail the build without forcing a sweep.
 - **AI guidelines (contract rules, domain boundaries, enforcement)** — see [`docs/ai-guidelines.md`](docs/ai-guidelines.md). Rules for parallel agents. Enforced by [`scripts/audit-domain-contracts.mjs`](scripts/audit-domain-contracts.mjs).
 - **AI workflows (recipes)** — see [`docs/ai-workflows.md`](docs/ai-workflows.md) for how to add a feature, refactor safely, or change a contract.
 - **i18n** — see [`src/i18n/README.md`](src/i18n/README.md) for when to use flat keys vs `*-copy.ts` modules and the `labelKey` server pattern.
