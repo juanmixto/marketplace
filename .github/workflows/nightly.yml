@@ -91,7 +91,7 @@ jobs:
       # silences the noise so the rest of the workflow (and the Playwright
       # report upload below) still runs. The report is the artifact a follow-up
       # agent needs to triage the dominant failure cluster.
-      # See #976 (alert noise) and the diagnose follow-up issue.
+      # See #976 (alert noise) and #985 (diagnose follow-up).
       - name: Run full E2E suite
         run: npm run test:e2e
         continue-on-error: true
