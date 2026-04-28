@@ -6,6 +6,7 @@ import { requireIngestionAdmin, IngestionFeatureUnavailableError } from '@/domai
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ReviewItemActions } from '@/components/admin/ingestion/ReviewItemActions'
+import { VendorLeadActions } from '@/components/admin/ingestion/VendorLeadActions'
 import { formatDate } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Review item | Admin' }
@@ -90,6 +91,138 @@ export default async function ReviewItemDetailPage({ params }: PageProps) {
   const { itemId } = await params
   const item = await getReviewQueueItem(itemId)
   if (!item) notFound()
+
+  // Vendor lead detail has a different shape (no extraction payload —
+  // the lead is keyed by author identity, not by a single message).
+  // Render its own panel and return early so the rest of this file
+  // can keep narrowing safely on { PRODUCT_DRAFT | UNEXTRACTABLE_PRODUCT }.
+  if (item.target.kind === 'VENDOR_DRAFT') {
+    const v = item.target.vendor
+    const messages = item.target.contributingMessages
+    const isResolved = item.state !== 'ENQUEUED'
+    return (
+      <div className="space-y-6">
+        <Card className="overflow-hidden rounded-2xl border border-[var(--border)] shadow-sm">
+          <CardHeader className="flex flex-col gap-4 border-b border-[var(--border)] bg-[var(--surface)] lg:flex-row lg:items-end lg:justify-between">
+            <div className="space-y-3">
+              <Link
+                href="/admin/ingestion?kind=VENDOR_DRAFT"
+                className="inline-flex text-xs text-[var(--muted-foreground)] hover:underline"
+              >
+                ← Volver a la cola
+              </Link>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.22em] text-[var(--muted-foreground)]">
+                  Productor candidato
+                </p>
+                <h1 className="mt-1 text-2xl font-semibold text-[var(--foreground)]">
+                  {v.displayName}
+                </h1>
+                <p className="mt-1 max-w-2xl text-sm text-[var(--muted-foreground)]">
+                  Detectado a partir de {v.inferredFromMessageIds.length} mensaje(s) en el
+                  chat de Telegram. Aprobar crea un perfil de productor (ghost) con un
+                  código de claim para que el productor real reclame su cuenta.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant={bandVariant(v.confidenceBand)}>
+                  Confianza · {v.confidenceBand} · {v.confidenceOverall}
+                </Badge>
+                <Badge variant={isResolved ? 'outline' : 'green'}>
+                  {isResolved ? 'Resuelto' : 'Por revisar'}
+                </Badge>
+                {v.externalId && (
+                  <Badge variant="outline" className="font-mono">
+                    id: {v.externalId.slice(0, 24)}
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <VendorLeadActions vendorDraftId={v.id} disabled={isResolved} />
+          </CardHeader>
+          <CardBody className="space-y-6">
+            <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <Field label="Nombre" value={v.displayName} />
+              <Field label="ID externo" value={v.externalId ?? '—'} />
+              <Field label="Estado draft" value={v.status} />
+              <Field label="Versión extractor" value={v.extractorVersion} />
+              <Field label="Detectado" value={formatDate(v.createdAt)} />
+              <Field label="Actualizado" value={formatDate(v.updatedAt)} />
+            </dl>
+            {item.telegramLink.profileUrl && (
+              <div className="flex flex-wrap gap-3">
+                <a
+                  href={item.telegramLink.profileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-[var(--foreground)] underline hover:no-underline"
+                >
+                  Abrir perfil en Telegram →
+                </a>
+              </div>
+            )}
+            <div>
+              <h2 className="text-sm font-semibold text-[var(--foreground)]">
+                Mensajes que lo identifican ({messages.length})
+              </h2>
+              <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+                Los más recientes primero. Útil para confirmar que esta persona
+                vende sus productos (no es un comprador ni un participante de
+                discusión).
+              </p>
+              <ul className="mt-3 space-y-2">
+                {messages.length === 0 && (
+                  <li className="rounded-md border border-dashed border-[var(--border)] px-3 py-4 text-center text-xs text-[var(--muted-foreground)]">
+                    No quedan mensajes accesibles para este productor.
+                  </li>
+                )}
+                {messages.map((m) => {
+                  const url =
+                    m.tgChatId && m.tgChatId.startsWith('-100')
+                      ? `https://t.me/c/${m.tgChatId.slice(4)}/${m.tgMessageId}`
+                      : null
+                  return (
+                    <li
+                      key={m.id}
+                      className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
+                    >
+                      <div className="flex items-center justify-between gap-3 text-xs text-[var(--muted-foreground)]">
+                        <span>{formatDate(m.postedAt)}</span>
+                        {url ? (
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:underline"
+                          >
+                            Ver en Telegram →
+                          </a>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 whitespace-pre-wrap text-[var(--foreground)]">
+                        {m.text ?? '(sin texto)'}
+                      </p>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+            {item.autoResolvedReason && (
+              <p className="text-xs text-[var(--muted-foreground)]">
+                Resuelto: {humaniseReason(item.autoResolvedReason)}
+              </p>
+            )}
+          </CardBody>
+        </Card>
+      </div>
+    )
+  }
+
+  // Below this point `item.target.kind` narrows to the original two
+  // shapes that own an `extraction` field.
+  if (item.target.kind !== 'PRODUCT_DRAFT' && item.target.kind !== 'UNEXTRACTABLE_PRODUCT') {
+    notFound()
+  }
 
   const payload = (item.target.extraction.payload as ExtractionPayloadShape | null) ?? {}
   const rulesFired = payload.rulesFired ?? []

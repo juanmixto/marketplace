@@ -6,6 +6,7 @@ import { formatDate, formatPrice } from '@/lib/utils'
 import { AdminStatusBadge } from '@/components/admin/AdminStatusBadge'
 import { getIncidentStatusTone } from '@/domains/admin/overview'
 import { IncidentDetailClient } from '@/components/admin/IncidentDetailClient'
+import { IncidentAttachmentList } from '@/components/incidents/IncidentAttachmentList'
 import { getServerT } from '@/i18n/server'
 
 interface Props {
@@ -27,7 +28,14 @@ export default async function AdminIncidentDetailPage({ params }: Props) {
       order: { select: { orderNumber: true, grandTotal: true } },
       messages: {
         orderBy: { createdAt: 'asc' },
-        select: { id: true, body: true, authorId: true, authorRole: true, createdAt: true },
+        select: {
+          id: true,
+          body: true,
+          authorId: true,
+          authorRole: true,
+          attachments: true,
+          createdAt: true,
+        },
       },
     },
   })
@@ -47,6 +55,7 @@ export default async function AdminIncidentDetailPage({ params }: Props) {
     body: m.body,
     authorName: authorMap.get(m.authorId) ?? m.authorRole,
     authorRole: m.authorRole,
+    attachments: m.attachments,
     createdAt: m.createdAt,
   }))
 
@@ -90,6 +99,11 @@ export default async function AdminIncidentDetailPage({ params }: Props) {
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm lg:col-span-2">
           <h2 className="mb-3 font-semibold text-[var(--foreground)]">{t('admin.incidentDetail.descriptionTitle')}</h2>
           <p className="leading-relaxed text-[var(--foreground-soft)]">{incident.description}</p>
+          <IncidentAttachmentList
+            attachments={incident.attachments}
+            altPrefix={t('incident.attachments.altPrefix')}
+          />
+
 
           {incident.resolution && (
             <div className="mt-6 rounded-xl border border-emerald-300 bg-emerald-50 p-4 dark:border-emerald-700 dark:bg-emerald-950/30">

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { SITE_NAME } from '@/lib/constants'
+import { BrandMark } from '@/components/brand/BrandMark'
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -9,9 +10,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         href="/"
         className="group relative mb-8 flex items-center gap-2.5 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
       >
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/20 bg-gradient-to-br from-emerald-600 to-teal-600 text-[11px] font-extrabold text-white shadow-sm shadow-emerald-950/20 dark:border-white/10">
-          MP
-        </span>
+        <BrandMark size={36} className="h-9 w-9 shrink-0" />
         <span className="text-xl font-bold text-[var(--foreground)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
           {SITE_NAME}
         </span>

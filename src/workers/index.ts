@@ -65,17 +65,32 @@ async function main() {
   // raw message. The umbrella `kill-ingestion-processing` + the
   // `feat-ingestion-rules-extractor` stage flag both default to off,
   // so the handler is inert until operators opt in.
+  //
+  // Pure CPU + Postgres + idempotent on (messageId, extractorVersion):
+  // safe to parallelise. INGESTION_PROCESSING_CONCURRENCY (default 1,
+  // max 8) lets operators drain backlog faster without touching the
+  // sync handler, which still talks to rate-limited Telegram and
+  // stays at concurrency 1.
+  // pg-boss v10 expresses concurrency through batchSize (jobs per
+  // poll) — the queue.ts wrapper runs the batch with Promise.all,
+  // so batchSize=N is N concurrent in-flight jobs.
+  const processingWorkOpts = {
+    batchSize: config.processingConcurrency,
+    pollingIntervalSeconds: config.processingPollingSeconds,
+  }
   await registerHandler<ProcessMessageJobData>(
     PROCESSING_JOB_KINDS.buildDrafts,
     async (job) => {
       await runProcessMessageJob(job)
     },
+    processingWorkOpts,
   )
   await registerHandler<DedupeJobData>(
     PROCESSING_JOB_KINDS.dedupeDrafts,
     async (job) => {
       await runDedupeJob(job)
     },
+    processingWorkOpts,
   )
   // rules-1.2.0: unextractable dedupe runs after UNEXTRACTABLE
   // builder outcomes. Same stage flag (`feat-ingestion-dedupe`)
@@ -85,6 +100,7 @@ async function main() {
     async (job) => {
       await runUnextractableDedupeJob(job)
     },
+    processingWorkOpts,
   )
 
   logger.info('worker.ready', {

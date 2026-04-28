@@ -15,7 +15,7 @@ test('marketing pages expose English copy for key public routes', () => {
   assert.equal(en.contact.form.subjectOptions.pedido, 'Order support')
   assert.equal(en.faq.heroTitle, 'Frequently asked questions')
   assert.equal(en.howItWorks.heroTitle, 'How it works')
-  assert.equal(en.aboutUs.heroTitle, 'About Mercado Productor')
+  assert.equal(en.aboutUs.heroTitle, 'About Raíz Directa')
   assert.equal(en.sell.heroTitle, 'Sell your products directly')
 })
 

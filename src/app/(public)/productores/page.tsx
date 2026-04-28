@@ -1,12 +1,13 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { getVendors } from '@/domains/catalog/queries'
+import { getGhostProducers, getVendors } from '@/domains/catalog/queries'
 import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid'
 import { absoluteUrl, buildPageMetadata } from '@/lib/seo'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { getVendorHeroImage, getVendorVisualLabelKey } from '@/domains/vendors/visuals'
 import { getServerT } from '@/i18n/server'
+import { isFeatureEnabled } from '@/lib/flags'
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT()
@@ -19,7 +20,17 @@ export async function generateMetadata(): Promise<Metadata> {
 export const revalidate = 60
 
 export default async function ProductoresPage() {
-  const [vendors, t] = await Promise.all([getVendors(50), getServerT()])
+  const [vendors, t, ghostsEnabled] = await Promise.all([
+    getVendors(50),
+    getServerT(),
+    isFeatureEnabled('feat-public-ghost-producers'),
+  ])
+  // Ghost producers are detected from public Telegram chats by the
+  // ingestion pipeline. They appear here with a "no reclamado" badge
+  // so visitors can still discover them and the producer can claim
+  // their profile later. Gated by `feat-public-ghost-producers` so
+  // the admin can curate before any go live.
+  const ghosts = ghostsEnabled ? await getGhostProducers(30) : []
 
   const itemListData = {
     '@context': 'https://schema.org',
@@ -106,6 +117,78 @@ export default async function ProductoresPage() {
 
       {vendors.length === 0 && (
         <p className="py-16 text-center text-[var(--muted)]">{t('producersPage.empty')}</p>
+      )}
+
+      {ghosts.length > 0 && (
+        <section className="mt-16 border-t border-[var(--border)] pt-10">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-semibold text-[var(--foreground)]">
+                Productores recomendados
+              </h2>
+              <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
+                Detectados desde grupos públicos de Telegram. Aún no se han
+                dado de alta en la plataforma; si eres uno de ellos, contacta
+                con nosotros para reclamar tu perfil.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {ghosts.map((g) => {
+              const heroImage = getVendorHeroImage(g)
+              const visualLabel = t(getVendorVisualLabelKey(g))
+              return (
+                <article
+                  key={g.id}
+                  className="group overflow-hidden rounded-3xl border border-dashed border-[var(--border)] bg-[var(--surface)] shadow-sm"
+                >
+                  <div className="relative h-44 overflow-hidden border-b border-[var(--border)] bg-slate-100 dark:bg-slate-900">
+                    <Image
+                      src={heroImage}
+                      alt={`Foto de ${g.displayName}`}
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-cover opacity-90"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
+                    <span className="absolute left-4 top-4 inline-flex items-center rounded-full bg-white/92 px-3 py-1 text-[11px] font-semibold text-slate-800 shadow-sm">
+                      {visualLabel}
+                    </span>
+                    <span className="absolute bottom-4 right-4 inline-flex items-center rounded-full bg-amber-400/90 px-3 py-1 text-xs font-semibold text-slate-950 shadow-sm">
+                      Sin reclamar
+                    </span>
+                  </div>
+                  <div className="p-5">
+                    <p className="truncate text-lg font-semibold text-[var(--foreground)]">
+                      {g.displayName}
+                    </p>
+                    {g.location && (
+                      <p className="mt-1 flex items-center gap-1 text-sm text-[var(--muted)]">
+                        <MapPinIcon className="h-3.5 w-3.5 shrink-0" />
+                        {g.location}
+                      </p>
+                    )}
+                    {g.description && (
+                      <p className="mt-3 line-clamp-3 text-sm text-[var(--foreground-soft)]">
+                        {g.description}
+                      </p>
+                    )}
+                    <p className="mt-4 text-xs text-[var(--muted-foreground)]">
+                      ¿Eres este productor?{' '}
+                      <Link
+                        href="/cuenta/reclamar-productor"
+                        className="font-semibold text-emerald-600 underline hover:no-underline dark:text-emerald-400"
+                      >
+                        Reclama tu perfil
+                      </Link>
+                    </p>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        </section>
       )}
     </div>
   )

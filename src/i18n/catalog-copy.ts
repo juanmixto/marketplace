@@ -152,11 +152,11 @@ type CatalogCopy = {
 const ES_CATALOG_COPY: CatalogCopy = {
   page: {
     title: 'Productos',
-    description: 'Explora el catálogo de productos locales disponibles en Mercado Productor.',
+    description: 'Explora el catálogo de productos locales disponibles en Raíz Directa.',
     searchTitle: 'Buscar',
-    searchDescription: 'Busca productos, productores y categorías en Mercado Productor.',
+    searchDescription: 'Busca productos, productores y categorías en Raíz Directa.',
     searchTitleWithQuery: query => `Buscar: ${query}`,
-    searchDescriptionWithQuery: query => `Resultados de búsqueda para "${query}" en Mercado Productor.`,
+    searchDescriptionWithQuery: query => `Resultados de búsqueda para "${query}" en Raíz Directa.`,
     allProducts: 'Todos los productos',
     fallbackTitle: 'Productos',
     results: (count, hasMore = false) => `${count} resultado${count === 1 ? '' : 's'}${hasMore ? '+' : ''}`,
@@ -306,11 +306,11 @@ const ES_CATALOG_COPY: CatalogCopy = {
 const EN_CATALOG_COPY: CatalogCopy = {
   page: {
     title: 'Products',
-    description: 'Browse the local product catalogue available on Mercado Productor.',
+    description: 'Browse the local product catalogue available on Raíz Directa.',
     searchTitle: 'Search',
-    searchDescription: 'Search products, producers and categories on Mercado Productor.',
+    searchDescription: 'Search products, producers and categories on Raíz Directa.',
     searchTitleWithQuery: query => `Search: ${query}`,
-    searchDescriptionWithQuery: query => `Search results for "${query}" on Mercado Productor.`,
+    searchDescriptionWithQuery: query => `Search results for "${query}" on Raíz Directa.`,
     allProducts: 'All products',
     fallbackTitle: 'Products',
     results: (count, hasMore = false) => `${count} result${count === 1 ? '' : 's'}${hasMore ? '+' : ''}`,
