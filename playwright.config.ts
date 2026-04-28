@@ -68,7 +68,7 @@ export default defineConfig({
         // downloading its `.next` artifact before Playwright runs.
         command: useProdServer ? 'npm run start' : 'npm run dev',
         url: webServerUrl,
-        reuseExistingServer: false,
+        reuseExistingServer: true,
         timeout: 120_000,
         env: {
           DATABASE_URL: webServerDatabaseUrl,
