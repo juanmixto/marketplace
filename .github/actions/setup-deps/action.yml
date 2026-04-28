@@ -10,7 +10,7 @@ runs:
         # printing against actions/cache@v4 (forced upgrade on June 2nd)
         # and lets the integration runner use the stable
         # `--test-isolation=none` flag instead of the experimental alias.
-        node-version: 24
+        node-version-file: .nvmrc
         cache: npm
 
     - name: Restore node_modules + generated Prisma client cache
