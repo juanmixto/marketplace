@@ -1,6 +1,6 @@
 {
   "note": "Pre-existing unbounded findMany() calls. CI tolerates these; new ones fail. Shrink this file as call sites adopt cursor pagination — never grow it.",
-  "generatedAt": "2026-04-28T22:19:27.005Z",
+  "generatedAt": "2026-04-28T22:46:59.784Z",
   "violations": [
     "src/app/(admin)/admin/auditoria/page.tsx|user",
     "src/app/(admin)/admin/comisiones/page.tsx|category",
@@ -84,8 +84,6 @@
     "src/domains/subscriptions/actions.ts|subscription",
     "src/domains/subscriptions/actions.ts|subscriptionPlan",
     "src/domains/subscriptions/buyer-actions.ts|subscription",
-    "src/domains/vendors/actions.ts|product",
-    "src/domains/vendors/actions.ts|vendorFulfillment",
     "src/lib/config.ts|marketplaceConfig",
     "src/lib/pwa/push-send.ts|pushSubscription"
   ]
