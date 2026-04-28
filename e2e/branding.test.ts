@@ -6,12 +6,10 @@ test.describe('Raíz Directa Branding', () => {
     expect(response.ok()).toBeTruthy()
     const text = await response.text()
 
-    // Verify SVG is valid (has viewBox and is an SVG document)
-    expect(text).toContain('viewBox')
+    // Verify SVG is valid and properly formed
+    expect(text).toContain('viewBox="0 0 512 512"')
     expect(text).toContain('<svg')
-
-    // Verify it's the Raíz Directa logo (check for key design elements)
-    expect(text).toContain('Inkscape') // Created with Inkscape marker
+    expect(text).toContain('Plant stem') // Contains plant design
   })
 
   test('login page displays enlarged branding', async ({ page }) => {
