@@ -20,12 +20,14 @@ async function ensureHandlersRegistered(): Promise<void> {
     return
   }
   handlersBootstrapped = true
-  const [tg, wp] = await Promise.all([
+  const [tg, wp, em] = await Promise.all([
     import('./telegram/ensure-registered'),
     import('./web-push/ensure-registered'),
+    import('./email/ensure-registered'),
   ])
   tg.ensureTelegramHandlersRegistered()
   wp.ensureWebPushHandlersRegistered()
+  em.ensureEmailHandlersRegistered()
 }
 
 type Handler<E extends NotificationEventName> = (
@@ -60,6 +62,7 @@ function getState(): { registry: Registry } {
         'payout.paid': new Set(),
         'stock.low': new Set(),
         'order.status_changed': new Set(),
+        'order.buyer_confirmed': new Set(),
         'favorite.back_in_stock': new Set(),
         'favorite.price_drop': new Set(),
         'vendor.application.approved': new Set(),
