@@ -31,7 +31,7 @@ Con fixes de Fase A (abajo) se cubre el 70-80% del síntoma percibido, sin refac
 | Sentry | `@sentry/nextjs` 10.49 | server+client+edge configs en raíz |
 | PostHog | `posthog-js` 1.369 | wrapper en `src/lib/posthog.ts` |
 | Tests | `node --test` + Playwright 1.59 | 52 integration (6 shards) + 25 smoke E2E |
-| CI | `.github/workflows/ci.yml` + `lighthouse.yml` (no bloqueante) + `nightly.yml` | Verify + Build+Migrate + Integration + E2E Smoke + Doctor + Security = requeridos |
+| CI | `.github/workflows/ci.yml` + `lighthouse.yml` (no bloqueante) + `nightly.yml` | Verify + Build And Migrate + E2E Smoke = requeridos (ver `docs/branch-protection.md`). Integration / Doctor / Security: informativos. |
 
 Métricas estáticas del repo: 116/566 archivos son client components (20%). 81 páginas en app/. **3 tienen Suspense, 0 tienen `loading.tsx`**.
 

@@ -189,10 +189,15 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     needs: integration-shard
-    # Aggregates the matrix shards into a single status check that
-    # branch protection can require by its stable name. Each shard
-    # runs on its own postgres service with a disjoint subset of test
-    # files (see scripts/run-integration-tests.mjs TEST_SHARD_*).
+    # Post-merge informational aggregator over the matrix shards.
+    # NOT a required check in branch protection — it only runs on push
+    # to `main`, so on PRs it would always appear as `skipped`, which
+    # GitHub treats inconsistently for required checks (phantom gate;
+    # see issue #974 and docs/branch-protection.md). The shards run on
+    # PRs, but their pass/fail is currently informational too — see the
+    # "What is NOT required" section of docs/branch-protection.md.
+    # Each shard runs on its own postgres service with a disjoint subset
+    # of test files (see scripts/run-integration-tests.mjs TEST_SHARD_*).
     steps:
       - run: echo "All integration shards passed"
 

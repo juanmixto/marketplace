@@ -23,12 +23,12 @@ The following checks **must pass** before a PR can be merged. They correspond to
 
 ## What is NOT required (and why)
 
-- `Integration shard 0` / `1` / `2` — were marked as required in historical configs, but are no longer gating in the active ruleset. These still run and their results inform local dev testing; consider re-enabling as a gate for higher integration coverage (issue #TBD).
+- `Integration shard N of 16` (matrix shards) — were marked as required in historical configs, but are no longer gating in the active ruleset. These still run on PRs and their results inform local dev testing; consider re-enabling as a gate for higher integration coverage (issue #TBD).
 - `Doctor (schema + routes + healthcheck)` — was intended as a runtime validation gate but is not currently active. Consider re-enabling to catch schema drift and route registration errors at merge time (issue #TBD).
 - `Analyze (actions)` / `Analyze (javascript-typescript)` / `CodeQL` — security scanning is performed via other pipelines. CodeQL results are informational and not a merge blocker in this ruleset.
 - `Nightly` workflow — it runs full E2E in prod mode, not PR-scoped. A nightly failure opens an issue; it doesn't block merges.
 - `Lighthouse` — informational PWA/perf metric, not a correctness gate.
-- `Integration` (summary job) — reporting-only aggregator of the 3 shards; the shards themselves are the gate.
+- `Integration` (aggregator job in `ci.yml`) — only runs on push to `main` (`if: github.event_name == 'push' && github.ref == 'refs/heads/main'`), so on PRs it would always appear as `skipped`. **Intentionally NOT in the required-checks list** — a `skipped` required check is a phantom gate (issue #974). The aggregator stays as a post-merge informational summary; the underlying shards are not gating either (see above).
 
 ## When to update this doc
 
