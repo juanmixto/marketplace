@@ -307,7 +307,7 @@ const en: Record<TranslationKeys, string> = {
   'order.backToOrders': '← Back to my orders',
 
   // Order confirmation page
-  'orderConfirmation.metaTitle': 'Order Confirmed | Mercado Productor',
+  'orderConfirmation.metaTitle': 'Order Confirmed | Raíz Directa',
   'orderConfirmation.metaDescription': 'Your order has been successfully confirmed!',
   'orderConfirmation.notFound': 'Order not found',
   'orderConfirmation.notFoundDesc': 'No valid order number was provided.',
@@ -337,7 +337,7 @@ const en: Record<TranslationKeys, string> = {
 
   // Producers listing page
   'producersPage.metaTitle': 'Producers',
-  'producersPage.metaDescription': 'Meet the local producers selling on Mercado Productor.',
+  'producersPage.metaDescription': 'Meet the local producers selling on Raíz Directa.',
   'producersPage.title': 'Our producers',
   'producersPage.subtitle': 'Meet the people behind every product',
   'producersPage.viewProducer': 'View producer',

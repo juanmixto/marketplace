@@ -1,5 +1,5 @@
-export const SITE_NAME = 'Mercado Productor'
-export const SITE_DESCRIPTION = 'Compra directamente a productores locales'
+export const SITE_NAME = 'Raíz Directa'
+export const SITE_DESCRIPTION = 'Del campo a tu hogar'
 
 export const TAX_RATES = {
   REDUCED: 0.04,   // productos básicos (leche, pan, frutas, verduras)

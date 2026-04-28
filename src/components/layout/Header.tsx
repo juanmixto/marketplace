@@ -20,6 +20,7 @@ import { SignOutButton } from '@/components/auth/SignOutButton'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { LanguageToggle } from '@/components/LanguageToggle'
 import { InstallCtaGate, LoginLink } from '@/components/layout/HeaderPathnameParts'
+import { BrandMark } from '@/components/brand/BrandMark'
 import { useLocale, useT } from '@/i18n'
 import { useSession } from 'next-auth/react'
 import { useSwipeToClose } from '@/lib/hooks/useSwipeToClose'
@@ -221,9 +222,7 @@ export function Header({ user, cartCount = 0, availableCategorySlugs }: HeaderPr
 
           {/* Logo */}
           <Link href="/" className="flex shrink-0 items-center gap-2.5 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 text-[11px] font-extrabold text-white shadow-sm">
-              MP
-            </span>
+            <BrandMark size={36} className="h-9 w-9 shrink-0" />
             <span className="hidden sm:block leading-none">
               <span className="block text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-600 dark:text-emerald-400">
                 {t('market_local')}
