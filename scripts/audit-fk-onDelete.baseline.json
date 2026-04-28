@@ -1,0 +1,25 @@
+{
+  "note": "Pre-existing FK relations without an explicit onDelete declaration. CI tolerates these; new violations fail the build. Shrink this file as the schema gets cleaned up — never grow it.",
+  "generatedAt": "2026-04-28T22:18:06.074Z",
+  "violations": [
+    "onDelete-must-be-explicit|Incident|Order",
+    "onDelete-must-be-explicit|Incident|User",
+    "onDelete-must-be-explicit|OrderEvent|Order",
+    "onDelete-must-be-explicit|OrderLine|Order",
+    "onDelete-must-be-explicit|Order|User",
+    "onDelete-must-be-explicit|Payment|Order",
+    "onDelete-must-be-explicit|Product|Vendor",
+    "onDelete-must-be-explicit|Promotion|Vendor",
+    "onDelete-must-be-explicit|ReviewReport|User",
+    "onDelete-must-be-explicit|Review|Order",
+    "onDelete-must-be-explicit|Review|User",
+    "onDelete-must-be-explicit|Review|Vendor",
+    "onDelete-must-be-explicit|Settlement|Vendor",
+    "onDelete-must-be-explicit|SubscriptionPlan|Vendor",
+    "onDelete-must-be-explicit|Subscription|User",
+    "onDelete-must-be-explicit|VendorAddress|Vendor",
+    "onDelete-must-be-explicit|VendorFulfillment|Order",
+    "onDelete-must-be-explicit|VendorFulfillment|Vendor",
+    "onDelete-must-be-explicit|Vendor|User"
+  ]
+}
