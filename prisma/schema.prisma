@@ -773,6 +773,14 @@ model Payment {
   currency    String        @default("EUR")
   status      PaymentStatus @default(PENDING)
   metadata    Json?
+  // Watermark for out-of-order webhook delivery (#959). Mirrors the
+  // pattern on Subscription.lastStripeEventAt: the handler drops any
+  // event whose `event.created` is older than this value, so a late
+  // payment_intent.succeeded arriving after charge.refunded cannot
+  // resurrect a refunded order. Updated only on successful state
+  // transition; concurrent handlers for the same eventId are still
+  // deduped upstream by WebhookDelivery(provider, eventId).
+  lastStripeEventAt DateTime?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -781,6 +789,7 @@ model Payment {
 
   @@index([orderId])
   @@index([providerRef])
+  @@index([lastStripeEventAt])
 }
 
 model Refund {
