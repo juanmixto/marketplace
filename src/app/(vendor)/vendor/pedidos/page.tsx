@@ -1,11 +1,8 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Metadata } from 'next'
-import {
-  getMyFulfillmentKpis,
-  getMyFulfillmentsPaginated,
-  type VendorFulfillmentSort,
-} from '@/domains/vendors/actions'
+import { getMyFulfillmentKpis, getMyFulfillmentsPaginated } from '@/domains/vendors/actions'
+import type { VendorFulfillmentSort } from '@/domains/vendors/types'
 import type { FulfillmentStatus } from '@/generated/prisma/enums'
 import { Badge } from '@/components/ui/badge'
 import { formatPrice, formatDate } from '@/lib/utils'

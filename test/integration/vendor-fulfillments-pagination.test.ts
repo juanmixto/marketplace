@@ -11,8 +11,8 @@ import {
 import {
   getMyFulfillmentsPaginated,
   getMyFulfillmentKpis,
-  VENDOR_FULFILLMENT_PAGE_SIZE,
 } from '@/domains/vendors/actions'
+import { VENDOR_FULFILLMENT_PAGE_SIZE } from '@/domains/vendors/types'
 
 /**
  * DB audit P1.2-B (#963). The /vendor/pedidos dashboard now uses

@@ -6,6 +6,11 @@ import { z } from 'zod'
 import { slugify } from '@/lib/utils'
 import type { Prisma } from '@/generated/prisma/client'
 import type { FulfillmentStatus } from '@/generated/prisma/enums'
+import {
+  VENDOR_FULFILLMENT_PAGE_SIZE,
+  type VendorFulfillmentFilters,
+  type VendorFulfillmentKpis,
+} from './types'
 import { parseExpirationDateInput } from '@/domains/catalog'
 import { getActionSession } from '@/lib/action-session'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
@@ -827,19 +832,10 @@ export async function getMyFulfillments(filter?: 'active' | 'urgent' | 'shipped'
 // Search is server-side ILIKE on order id, customer name, and product
 // name. Postgres trigram or full-text would be a future upgrade —
 // pre-tracción ILIKE is fast enough.
-
-export const VENDOR_FULFILLMENT_PAGE_SIZE = 25
-
-export type VendorFulfillmentSort = 'recent' | 'oldest' | 'amount_desc' | 'amount_asc' | 'customer'
-
-export interface VendorFulfillmentFilters {
-  cursor?: string
-  statuses?: FulfillmentStatus[]
-  q?: string
-  dateFrom?: Date
-  dateTo?: Date
-  sort?: VendorFulfillmentSort
-}
+//
+// The page-size constant + filter type live in ./types.ts because
+// 'use server' files may only export async functions; importing them
+// from here keeps the page components and tests aligned.
 
 const fulfillmentInclude = {
   shipment: {
@@ -956,16 +952,6 @@ export async function getMyFulfillmentsPaginated(filters: VendorFulfillmentFilte
     hasNextPage,
     pageSize: VENDOR_FULFILLMENT_PAGE_SIZE,
   }
-}
-
-export interface VendorFulfillmentKpis {
-  pending: number
-  inPrep: number
-  ready: number
-  shippedRecent: number // SHIPPED|DELIVERED in the last 7 days
-  incident: number
-  overdue: number // PENDING older than OVERDUE hours
-  revenue30d: number
 }
 
 const OVERDUE_HOURS = 24
