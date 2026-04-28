@@ -34,6 +34,13 @@ import { isFeatureEnabled } from '@/lib/flags'
 import { emit as emitNotification } from '@/domains/notifications'
 import type Stripe from 'stripe'
 
+// DB audit P1.1 (#962): Prisma's interactive transaction defaults have
+// shifted between versions (5s → 10s); rely on explicit values so a slow
+// FOR UPDATE row lock or a saturated DB doesn't silently roll back the
+// payment-state mutation. maxWait caps how long we'll queue waiting for
+// a connection from the pool before giving up.
+const WEBHOOK_TX_OPTIONS = { timeout: 15_000, maxWait: 5_000 } as const
+
 type WebhookEvent = {
   id?: string
   type: string
@@ -380,7 +387,7 @@ async function handlePaymentSucceeded(providerRef: string, amount?: number, curr
             },
           })
         }
-      }),
+      }, WEBHOOK_TX_OPTIONS),
     { operationName: 'confirm payment webhook' }
   ).catch(async error => {
     await recordWebhookRetryExhaustion({
@@ -452,7 +459,7 @@ async function handlePaymentFailed(providerRef: string, eventId?: string) {
             },
           })
         }
-      }),
+      }, WEBHOOK_TX_OPTIONS),
     { operationName: 'mark payment as failed' }
   ).catch(async error => {
     await recordWebhookRetryExhaustion({
