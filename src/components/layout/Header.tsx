@@ -328,7 +328,7 @@ export function Header({ user, cartCount = 0, availableCategorySlugs }: HeaderPr
                     className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
                   >
                     <UserCircleIcon className="h-5 w-5" />
-                    {currentUser.name?.split(' ')[0] ?? t('myAccount')}
+                    {(currentUser.name ?? currentUser.email ?? '').split(/[\s@]/)[0] || t('myAccount')}
                     <ChevronDownIcon className={cn('h-3.5 w-3.5 text-[var(--muted)] transition-transform', accountOpen && 'rotate-180')} />
                   </button>
                   {accountOpen && (

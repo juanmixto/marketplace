@@ -930,6 +930,7 @@ const en: Record<TranslationKeys, string> = {
   'vendor.nav.promotions': 'Promotions',
   'vendor.nav.subscriptions': 'Subscriptions',
   'vendor.nav.orders': 'My orders',
+  'vendor.nav.incidents': 'Incidents',
   'vendor.nav.reviews': 'Reviews',
   'vendor.nav.settlements': 'Settlements',
   'vendor.nav.profile': 'My profile',
@@ -1587,6 +1588,24 @@ const en: Record<TranslationKeys, string> = {
   'incident.attachments.altPrefix': 'Attachment',
   'incident.sla.label': 'Response deadline',
   'incident.sla.overdue': 'Overdue',
+
+  // Vendor incidents (vendor reads + replies to their customers' complaints)
+  'vendor.incidents.title': 'My customer incidents',
+  'vendor.incidents.subtitle': 'Open complaints on orders you shipped. Reply quickly to keep customer trust.',
+  'vendor.incidents.empty': 'No open incidents.',
+  'vendor.incidents.case': 'Case',
+  'vendor.incidents.openedOn': 'Opened on',
+  'vendor.incidents.customer': 'Customer',
+  'vendor.incidents.order': 'Order',
+  'vendor.incidents.messages': 'messages',
+  'vendor.incidents.detail.backToList': '← Back to incidents',
+  'vendor.incidents.detail.descriptionTitle': 'Problem description',
+  'vendor.incidents.detail.thread': 'Conversation',
+  'vendor.incidents.detail.replyLabel': 'Your reply',
+  'vendor.incidents.detail.replyPlaceholder': 'Explain what happened or how you will fix it.',
+  'vendor.incidents.detail.send': 'Send reply',
+  'vendor.incidents.detail.sending': 'Sending…',
+  'vendor.incidents.detail.closed': 'This incident is already closed.',
 
   // Account – vendor application (self-service buyer→vendor)
   'account.becomeVendor.ctaTitle': 'Got products to sell?',

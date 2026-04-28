@@ -929,6 +929,7 @@ const es = {
   'vendor.nav.promotions': 'Promociones',
   'vendor.nav.subscriptions': 'Suscripciones',
   'vendor.nav.orders': 'Mis pedidos',
+  'vendor.nav.incidents': 'Incidencias',
   'vendor.nav.reviews': 'Valoraciones',
   'vendor.nav.settlements': 'Liquidaciones',
   'vendor.nav.profile': 'Mi perfil',
@@ -1587,6 +1588,24 @@ const es = {
   'incident.attachments.altPrefix': 'Imagen adjunta',
   'incident.sla.label': 'Plazo de respuesta',
   'incident.sla.overdue': 'Vencido',
+
+  // Vendor incidents (lectura + respuesta del productor a quejas de sus clientes)
+  'vendor.incidents.title': 'Incidencias de mis clientes',
+  'vendor.incidents.subtitle': 'Quejas abiertas sobre pedidos en los que has enviado producto. Responde cuanto antes para mantener la confianza.',
+  'vendor.incidents.empty': 'No tienes incidencias abiertas.',
+  'vendor.incidents.case': 'Caso',
+  'vendor.incidents.openedOn': 'Abierto el',
+  'vendor.incidents.customer': 'Cliente',
+  'vendor.incidents.order': 'Pedido',
+  'vendor.incidents.messages': 'mensajes',
+  'vendor.incidents.detail.backToList': '← Volver a incidencias',
+  'vendor.incidents.detail.descriptionTitle': 'Descripción del problema',
+  'vendor.incidents.detail.thread': 'Conversación',
+  'vendor.incidents.detail.replyLabel': 'Tu respuesta',
+  'vendor.incidents.detail.replyPlaceholder': 'Explica qué ha pasado o cómo lo vas a resolver.',
+  'vendor.incidents.detail.send': 'Enviar respuesta',
+  'vendor.incidents.detail.sending': 'Enviando…',
+  'vendor.incidents.detail.closed': 'Esta incidencia ya está cerrada.',
 
   // Account – vendor application (self-service buyer→vendor)
   'account.becomeVendor.ctaTitle': '¿Tienes productos que vender?',
