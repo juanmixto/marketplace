@@ -1,8 +1,5 @@
-import {
-  getMyProductsPaginated,
-  getMyProductAlerts,
-  type VendorProductFilter,
-} from '@/domains/vendors/actions'
+import { getMyProductsPaginated, getMyProductAlerts } from '@/domains/vendors/actions'
+import type { VendorProductFilter } from '@/domains/vendors/types'
 import { VendorProductListClient } from '@/components/vendor/VendorProductListClient'
 import type { Metadata } from 'next'
 import { serializeVendorCatalogItem } from '@/lib/vendor-serialization'

@@ -7,11 +7,8 @@ import {
   resetIntegrationDatabase,
   useTestSession,
 } from './helpers'
-import {
-  getMyProductsPaginated,
-  getMyProductAlerts,
-  VENDOR_PRODUCT_PAGE_SIZE,
-} from '@/domains/vendors/actions'
+import { getMyProductsPaginated, getMyProductAlerts } from '@/domains/vendors/actions'
+import { VENDOR_PRODUCT_PAGE_SIZE } from '@/domains/vendors/types'
 
 /**
  * DB audit P1.2-C (#963). The vendor catalog dashboard now paginates

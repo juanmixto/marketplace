@@ -8,8 +8,12 @@ import type { Prisma } from '@/generated/prisma/client'
 import type { FulfillmentStatus } from '@/generated/prisma/enums'
 import {
   VENDOR_FULFILLMENT_PAGE_SIZE,
+  VENDOR_PRODUCT_PAGE_SIZE,
   type VendorFulfillmentFilters,
   type VendorFulfillmentKpis,
+  type VendorProductAlerts,
+  type VendorProductFilter,
+  type VendorProductFilters,
 } from './types'
 import { parseExpirationDateInput } from '@/domains/catalog'
 import { getActionSession } from '@/lib/action-session'
@@ -450,22 +454,10 @@ export async function getMyProducts() {
 // (not just the visible page). Promotions edit / new pages keep using
 // the unbounded `getMyProducts` because they hydrate a selector with
 // every product, which is acceptable until the catalog grows.
-export const VENDOR_PRODUCT_PAGE_SIZE = 25
-
-export type VendorProductFilter =
-  | 'all'
-  | 'active'
-  | 'draft'
-  | 'pendingReview'
-  | 'rejected'
-  | 'outOfStock'
-  | 'archived'
-
-export interface VendorProductFilters {
-  cursor?: string
-  filter?: VendorProductFilter
-  q?: string
-}
+//
+// The page-size constant + filter type live in ./types.ts (this file
+// is 'use server'; Next.js refuses to compile a 'use server' module
+// that exports anything other than async functions).
 
 function buildVendorProductWhere(
   vendorId: string,
@@ -536,13 +528,6 @@ export async function getMyProductsPaginated(filters: VendorProductFilters = {})
     hasNextPage,
     pageSize: VENDOR_PRODUCT_PAGE_SIZE,
   }
-}
-
-export interface VendorProductAlerts {
-  lowStockCount: number
-  outOfStockCount: number
-  expiredCount: number
-  totalActiveCatalog: number
 }
 
 export async function getMyProductAlerts(): Promise<VendorProductAlerts> {
