@@ -67,7 +67,7 @@ export function SocialButtonsClient({ callbackUrl, googleEnabled }: Props) {
         aria-label={t('login.social.googleAria')}
         aria-busy={pending === 'google'}
         data-testid="social-google-button"
-        className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-slate-100 dark:text-slate-900 min-h-[44px]"
+        className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed dark:border-[#3c4043] dark:bg-[#131314] dark:text-white dark:hover:bg-[#1f2023] min-h-[44px]"
       >
         <GoogleLogo />
         <span>{t('login.social.google')}</span>
