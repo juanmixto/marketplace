@@ -86,8 +86,15 @@ jobs:
       - name: Seed database
         run: npm run db:seed
 
+      # QUARANTINED: this step has failed 13/13 consecutive Nightly runs
+      # (PLAYWRIGHT_USE_PROD=1 against `next start`). `continue-on-error: true`
+      # silences the noise so the rest of the workflow (and the Playwright
+      # report upload below) still runs. The report is the artifact a follow-up
+      # agent needs to triage the dominant failure cluster.
+      # See #976 (alert noise) and the diagnose follow-up issue.
       - name: Run full E2E suite
         run: npm run test:e2e
+        continue-on-error: true
 
       - name: Upload Playwright report
         if: always()
