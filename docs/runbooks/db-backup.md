@@ -175,6 +175,29 @@ Healthchecks.io (already wired to Telegram per `telegram-setup.md`):
 - `mp-dump-daily` — period 1d, grace 6h
 - `mp-verify-weekly` — period 7d, grace 1d
 
+> **Treat `HC_PING_*` URLs as secrets, not identifiers.** They are
+> *write-tokens*: anyone who has the URL can POST a fake "OK" ping and
+> silence the alert exactly when a real backup failure starts. This is
+> the dead-man's-switch's only real failure mode. Consequences:
+>
+> - Store in Bitwarden (`mp/HC_PING_*`), never in repo, never in
+>   `.env` checked into git.
+> - Never `echo`/`printf` the URL in cron logs or CI output. The
+>   script reads from `/etc/marketplace/backup.env` (mode 600
+>   root:root) and the `curl` calls send the URL as the request
+>   target, not the body — so default logging is safe; just don't
+>   add a debug `set -x` without scrubbing first.
+> - If a URL leaks (e.g. accidentally pasted in an issue / Slack /
+>   Sentry breadcrumb), regenerate the check in Healthchecks
+>   (Settings → Replace ping URL), update Bitwarden + the env file
+>   on the server, and rotate before the next scheduled run.
+>
+> **Defense in depth:** also enable the **Email** integration on each
+> of the 3 checks (free tier, 30 sec to add). Telegram is the primary
+> page; email is the fallback when the bot is rate-limited or down.
+> Without a second channel a single Telegram outage masks a real
+> backup failure for an entire day.
+
 Test ping:
 ```bash
 curl -fsS "$HC_PING_DUMP_URL"        # expect Telegram notification
