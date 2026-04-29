@@ -4,11 +4,12 @@ import { getServerT } from '@/i18n/server'
 import { getMyPreferences } from '@/domains/notifications'
 import { getTelegramConfig } from '@/domains/notifications/telegram/config'
 import { getTelegramLinkForUser } from '@/domains/notifications/telegram/queries'
-import { db } from '@/lib/db'
+import { generateLinkToken } from '@/domains/notifications/telegram/link-token'
 import { NotificationPreferencesForm } from './NotificationPreferencesForm'
 import { TelegramConnectPanel } from './TelegramConnectPanel'
 
 export const metadata: Metadata = { title: 'Notificaciones' }
+export const dynamic = 'force-dynamic'
 
 export default async function VendorNotificationsPage() {
   const session = await requireVendor()
@@ -24,12 +25,14 @@ export default async function VendorNotificationsPage() {
     )
   }
 
-  const [preferences, link, pushSubscriptionCount] = await Promise.all([
+  const [preferences, link] = await Promise.all([
     getMyPreferences(),
     getTelegramLinkForUser(session.user.id),
-    db.pushSubscription.count({ where: { userId: session.user.id } }),
   ])
-  const webPushSubscribed = pushSubscriptionCount > 0
+
+  const initialLinkUrl = link.linked
+    ? null
+    : `https://t.me/${config.botUsername}?start=${await generateLinkToken(session.user.id)}`
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -38,12 +41,8 @@ export default async function VendorNotificationsPage() {
         <p className="text-sm text-[var(--muted)] mt-0.5">{t('vendor.notifications.subtitle')}</p>
       </div>
 
-      <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
-        <div>
-          <h2 className="text-lg font-semibold text-[var(--foreground)]">{t('vendor.telegram.title')}</h2>
-          <p className="mt-0.5 text-sm text-[var(--muted)]">{t('vendor.telegram.subtitle')}</p>
-        </div>
-        <TelegramConnectPanel initialLink={link} botUsername={config.botUsername} />
+      <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
+        <TelegramConnectPanel initialLink={link} initialLinkUrl={initialLinkUrl} />
       </section>
 
       <section className="space-y-4">
@@ -51,7 +50,6 @@ export default async function VendorNotificationsPage() {
         <NotificationPreferencesForm
           preferences={preferences}
           telegramLinked={link.linked}
-          webPushSubscribed={webPushSubscribed}
         />
       </section>
     </div>

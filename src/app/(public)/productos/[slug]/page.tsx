@@ -1,7 +1,13 @@
+import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { getProductBySlug, getProducts } from '@/domains/catalog/queries'
+import { getShippingCost } from '@/domains/shipping/calculator'
+import {
+  getDefaultPostalCodeForZone,
+  resolveShippingZoneFromHeaders,
+} from '@/domains/shipping/zone-default'
 import { Badge } from '@/components/ui/badge'
 import { ProductPurchasePanel } from '@/components/catalog/ProductPurchasePanel'
 import { AutoTranslatedBadge } from '@/components/catalog/AutoTranslatedBadge'
@@ -101,9 +107,16 @@ export default async function ProductDetailPage({ params }: Props) {
   const localizedProduct = getLocalizedProductCopy(product, locale)
   const taxRate = Number(product.taxRate)
 
-  // Three independent reads — fire in parallel to cut TTFB on the
+  // Geo-aware default for the PDP shipping band: a Canarias visitor
+  // gets Canarias cost + label, not peninsula's. Falls back to
+  // peninsula when `cf-region-code` is absent (dev, non-CF traffic).
+  const reqHeaders = await headers()
+  const shippingZone = resolveShippingZoneFromHeaders(reqHeaders)
+  const defaultShippingPostalCode = getDefaultPostalCodeForZone(shippingZone)
+
+  // Four independent reads — fire in parallel to cut TTFB on the
   // product page (SEO + CWV: each sequential hop is ~1 RTT).
-  const [related, reviewSummary, activePromotions] = await Promise.all([
+  const [related, reviewSummary, activePromotions, estimatedShippingCost] = await Promise.all([
     getProducts({
       categorySlug: product.category?.slug,
       limit: 4,
@@ -114,6 +127,10 @@ export default async function ProductDetailPage({ params }: Props) {
       vendorId: product.vendor.id,
       categoryId: product.categoryId ?? null,
     }),
+    // Audit #917: surface delivery cost on PDP for the buyer's actual
+    // shipping zone. Real cost is recomputed at checkout once the
+    // buyer enters their CP; the band copy makes that explicit.
+    getShippingCost(defaultShippingPostalCode, Number(product.basePrice)).catch(() => null),
   ])
 
   // An "auto-applied" promo is one that a buyer gets without typing a
@@ -270,7 +287,7 @@ export default async function ProductDetailPage({ params }: Props) {
             <FavoriteToggleButton
               productId={product.id}
               productName={localizedProduct.name}
-              compact
+              variant="compact"
               className="shrink-0 mt-1"
             />
           </div>
@@ -353,6 +370,8 @@ export default async function ProductDetailPage({ params }: Props) {
                   }
                 : null
             }
+            estimatedShippingCost={estimatedShippingCost ?? null}
+            shippingZone={shippingZone}
           />
 
           <ProductPromotions promotions={informationalPromotions} locale={locale} />

@@ -125,11 +125,14 @@ describe('DireccionesClient — structure', () => {
 describe('FavoritosClient — structure', () => {
   const content = read('src/app/(buyer)/cuenta/favoritos/FavoritosClient.tsx')
 
-  test('calls DELETE /api/favoritos/:id on remove', () => {
+  test('delegates remove to the shared FavoriteToggleButton', () => {
+    // After the heart-toggle was unified (single source of truth across
+    // catalog + favorites), the DELETE call lives in
+    // useFavoritesStore.toggle(). FavoritosClient just needs to render
+    // the shared component so the API call still happens.
     assert.ok(
-      content.includes('/api/favoritos/${productId}') ||
-      content.includes('/api/favoritos/'),
-      'should call the favoritos DELETE endpoint',
+      content.includes('FavoriteToggleButton'),
+      'should render the shared FavoriteToggleButton (which calls the favoritos API via the store)',
     )
   })
 

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useT } from '@/i18n'
 import type { TranslationKeys } from '@/i18n/locales'
 import { Button } from '@/components/ui/button'
+import { IncidentAttachmentPicker } from '@/components/incidents/IncidentAttachmentPicker'
 
 interface Props {
   orderId: string
@@ -26,6 +27,7 @@ export function OpenIncidentForm({ orderId }: Props) {
   const router = useRouter()
   const [type, setType] = useState<IncidentType>('ITEM_NOT_RECEIVED')
   const [description, setDescription] = useState('')
+  const [attachments, setAttachments] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -43,7 +45,12 @@ export function OpenIncidentForm({ orderId }: Props) {
       const response = await fetch('/api/incidents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, type, description: description.trim() }),
+        body: JSON.stringify({
+          orderId,
+          type,
+          description: description.trim(),
+          attachments,
+        }),
       })
       if (!response.ok) {
         setError(t('incident.error.generic'))
@@ -105,6 +112,12 @@ export function OpenIncidentForm({ orderId }: Props) {
         />
         <p className="mt-1 text-xs text-[var(--muted)]">{t('incident.descriptionHint')}</p>
       </div>
+
+      <IncidentAttachmentPicker
+        value={attachments}
+        onChange={setAttachments}
+        disabled={submitting}
+      />
 
       {error && (
         <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/35 dark:text-red-300">

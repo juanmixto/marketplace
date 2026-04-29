@@ -22,7 +22,9 @@ test('FavoritosClient uses useT hook for i18n', () => {
   assert.match(source, /t\('favorites\.emptyTitle'\)/)
   assert.match(source, /t\('favorites\.explore'\)/)
   assert.match(source, /t\('favorites\.addToCart'\)/)
-  assert.match(source, /t\('favorites\.removeTitle'\)/)
+  // removeTitle is now applied inside the shared FavoriteToggleButton (overlay
+  // variant uses favorites.save/saved labels). The key still exists in
+  // locales for backwards-compatibility (verified below).
   assert.match(source, /t\('favorites\.outOfStock'\)/)
 })
 

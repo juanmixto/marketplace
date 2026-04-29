@@ -12,6 +12,7 @@ import { requireIngestionAdmin } from '@/domains/ingestion/authz'
 import { getTelethonSidecarConfig } from './sidecar-config'
 import { TelegramActionError } from './action-errors'
 import { INGESTION_JOB_KINDS } from '@/domains/ingestion/types'
+import { PROCESSING_JOB_KINDS } from '@/domains/ingestion/processing/types'
 
 /**
  * Phase 1 PR-C — admin-facing server actions to onboard a Telegram
@@ -351,4 +352,74 @@ export async function triggerChatSync(input: z.infer<typeof triggerSyncSchema>) 
   })
   safeRevalidatePath('/admin/ingestion/telegram')
   return { jobId }
+}
+
+const reprocessPendingSchema = z.object({
+  chatId: z.string().min(1),
+})
+
+/**
+ * Backfill action: enqueue `ingestion.processing.build-drafts` for
+ * every raw message in this chat that does not yet have an
+ * IngestionExtractionResult. Used to recover from the sync→processor
+ * gap that existed before the chain fix landed (#890): hundreds of
+ * raw rows ingested but never classified, sitting outside the review
+ * queue with no path forward.
+ *
+ * Idempotent on top of pg-boss singleton keys + the processor's own
+ * `(messageId, extractorVersion)` invariant. Safe to run repeatedly
+ * — each invocation only touches messages still missing a result.
+ */
+export async function reprocessChatPending(
+  input: z.infer<typeof reprocessPendingSchema>,
+): Promise<{ enqueued: number }> {
+  const session = await requireIngestionAdmin()
+  const { chatId } = reprocessPendingSchema.parse(input)
+
+  const chat = await db.telegramIngestionChat.findUnique({
+    where: { id: chatId },
+    select: { id: true, title: true },
+  })
+  if (!chat) throw new TelegramActionError('notFound', 'Chat not found')
+
+  // Find every raw message in this chat with no extraction result.
+  // Using $queryRawUnsafe + LEFT JOIN keeps the read narrow (id only)
+  // and lets Postgres do the anti-join in one pass, vs. round-tripping
+  // through Prisma `findMany` + `notIn`.
+  const rows = await db.$queryRawUnsafe<{ id: string }[]>(
+    `SELECT m.id FROM "TelegramIngestionMessage" m
+       LEFT JOIN "IngestionExtractionResult" e ON e."messageId" = m.id
+      WHERE m."chatId" = $1 AND e.id IS NULL
+      ORDER BY m."postedAt" ASC`,
+    chat.id,
+  )
+
+  let enqueued = 0
+  const batchCorrelationId = `reprocess-${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`
+  for (const row of rows) {
+    try {
+      await enqueue<{ messageId: string; correlationId: string }>(
+        PROCESSING_JOB_KINDS.buildDrafts,
+        { messageId: row.id, correlationId: `${batchCorrelationId}:${row.id.slice(-6)}` },
+        { singletonKey: `process-message:${row.id}` },
+      )
+      enqueued++
+    } catch (err) {
+      logger.warn('ingestion.telegram.reprocess_enqueue_failed', {
+        messageId: row.id,
+        error: err,
+        correlationId: batchCorrelationId,
+      })
+    }
+  }
+
+  logger.info('ingestion.telegram.reprocess_triggered', {
+    chatId: chat.id,
+    pending: rows.length,
+    enqueued,
+    correlationId: batchCorrelationId,
+    actorId: session.user.id,
+  })
+  safeRevalidatePath('/admin/ingestion/telegram')
+  return { enqueued }
 }

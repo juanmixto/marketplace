@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { LanguageToggle } from '@/components/LanguageToggle'
 import { useSidebar } from '@/components/layout/SidebarProvider'
-import { signOutAndClearCart } from '@/components/buyer/cart-session'
+import { SignOutButton } from '@/components/auth/SignOutButton'
 import { useT } from '@/i18n'
 
 interface Props {
@@ -80,12 +80,13 @@ export function AdminHeader({ user }: Props) {
               >
                 {t('admin.header.goToStore')}
               </Link>
-              <button
-                onClick={() => void signOutAndClearCart('/login')}
-                className="mt-1 w-full rounded-lg border-t border-[var(--border)] px-3 py-2.5 text-left text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40 mx-1 pt-2"
-              >
-                {t('admin.header.signOut')}
-              </button>
+              <div className="mt-1 mx-1 border-t border-[var(--border)] pt-1">
+                <SignOutButton
+                  compact
+                  redirectTo="/login"
+                  labelKey="admin.header.signOut"
+                />
+              </div>
             </div>
           </>
         )}

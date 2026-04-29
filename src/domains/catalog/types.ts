@@ -64,6 +64,18 @@ export type CategoryWithCount = Category & {
   _count: { products: number }
 }
 
+/**
+ * The rule every catalog-facing surface (home grid, filter sidebar,
+ * header dropdown, search overlay) uses to hide dead-end branches:
+ * a category is visible when at least one product still counts as
+ * publicly available (see `getAvailableProductWhere`).
+ *
+ * Centralized here so a new surface can't drift from the rule.
+ */
+export function isCategoryVisible(category: { _count: { products: number } }): boolean {
+  return category._count.products > 0
+}
+
 export type ProductSort = 'price_asc' | 'price_desc' | 'newest' | 'popular' | 'top_rated'
 
 export type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>['variant']>

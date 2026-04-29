@@ -47,6 +47,13 @@ export interface TelegramSyncDeps {
     fileUniqueId: string
     correlationId: string
   }) => Promise<void>
+  /** Best-effort: kick the Phase 2 processor for each message just
+   *  ingested. The processor is idempotent (keyed by messageId +
+   *  extractorVersion) so re-enqueueing on a no-op batch is harmless. */
+  enqueueProcessMessage?: (input: {
+    messageId: string
+    correlationId: string
+  }) => Promise<void>
   now: () => Date
   batchSize: number
   /** Injected kill-switch probe so tests don't depend on PostHog.
@@ -128,6 +135,19 @@ export async function telegramSyncHandler(
 
   // 4. Fetch + persist in one transaction.
   try {
+    // Resolve forum topic titles once per sync run. Empty list means
+    // "this chat is not a forum / has no topics" — every message
+    // will be persisted with topicId=null. We swallow errors here on
+    // purpose: a topic-listing failure must not block raw ingestion,
+    // it just degrades to "stats won't show topic breakdown until
+    // the next successful sync".
+    const topicTitles = await loadTopicTitles({
+      provider: deps.provider,
+      connectionId: chat.connection.id,
+      tgChatId: chat.tgChatId.toString(),
+      correlationId,
+    })
+
     const fetched = await deps.provider.fetchMessages({
       connectionId: chat.connection.id,
       tgChatId: chat.tgChatId.toString(),
@@ -140,6 +160,7 @@ export async function telegramSyncHandler(
       fetched,
       deps,
       correlationId,
+      topicTitles,
     })
 
     await deps.db.telegramIngestionSyncRun.update({
@@ -208,14 +229,45 @@ export async function telegramSyncHandler(
   }
 }
 
+async function loadTopicTitles(input: {
+  provider: TelegramSyncDeps['provider']
+  connectionId: string
+  tgChatId: string
+  correlationId: string
+}): Promise<Map<string, string>> {
+  const { provider, connectionId, tgChatId, correlationId } = input
+  if (typeof provider.fetchTopics !== 'function') return new Map()
+  try {
+    const { topics } = await provider.fetchTopics({ connectionId, tgChatId })
+    const map = new Map<string, string>()
+    for (const t of topics) map.set(t.id, t.title)
+    return map
+  } catch (err) {
+    logger.warn(`${LOG_SCOPE}.topics_fetch_failed`, {
+      connectionId,
+      tgChatId,
+      error: err instanceof Error ? err.message : String(err),
+      correlationId,
+    })
+    return new Map()
+  }
+}
+
 async function persistBatch(input: {
   chat: ChatWithConnection
   fetched: FetchMessagesResult
   deps: TelegramSyncDeps
   correlationId: string
+  topicTitles: Map<string, string>
 }): Promise<{ mediaQueued: number }> {
-  const { chat, fetched, deps, correlationId } = input
+  const { chat, fetched, deps, correlationId, topicTitles } = input
   const mediaToEnqueue: Array<{ messageMediaId: string; fileUniqueId: string }> = []
+  // Phase 2 processing: every message just upserted is a candidate
+  // for the rules pipeline. The processor handler is idempotent
+  // (`messageId + extractorVersion` keys the draft), so enqueuing on
+  // re-syncs is safe. We do this best-effort post-commit so a queue
+  // hiccup never rolls back the raw ingestion.
+  const messagesToProcess: string[] = []
   // Dedupe within the batch: if two messages reference the same
   // fileUniqueId, upsert returns the same PENDING row both times,
   // but we only want one download job.
@@ -237,9 +289,13 @@ async function persistBatch(input: {
           text: msg.text,
           postedAt: new Date(msg.postedAt),
           rawJson: msg.raw,
+          topicId: msg.topicId != null ? BigInt(msg.topicId) : null,
+          topicTitle:
+            msg.topicId != null ? (topicTitles.get(msg.topicId) ?? null) : null,
         },
         update: {}, // existing rows preserved (including tombstones)
       })
+      messagesToProcess.push(createdMessage.id)
 
       for (const media of msg.media) {
         const mediaRow = await tx.telegramIngestionMessageMedia.upsert({
@@ -291,6 +347,24 @@ async function persistBatch(input: {
         error: err,
         correlationId,
       })
+    }
+  }
+
+  // 7. Best-effort processor fan-out. Same post-commit pattern as
+  //    media: a queue blip must not lose raw messages already on
+  //    disk. The processor's stage flag + kill switch decide whether
+  //    the work actually runs; this just hands it the candidate.
+  if (deps.enqueueProcessMessage) {
+    for (const messageId of messagesToProcess) {
+      try {
+        await deps.enqueueProcessMessage({ messageId, correlationId })
+      } catch (err) {
+        logger.warn(`${LOG_SCOPE}.process_enqueue_failed`, {
+          messageId,
+          error: err,
+          correlationId,
+        })
+      }
     }
   }
 

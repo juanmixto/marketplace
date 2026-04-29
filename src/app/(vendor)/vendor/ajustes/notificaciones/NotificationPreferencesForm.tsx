@@ -6,7 +6,6 @@ import {
   setPreference,
   type PreferenceRow,
   type NotificationEventType,
-  type NotificationChannel,
 } from '@/domains/notifications'
 
 interface EventMeta {
@@ -19,9 +18,6 @@ interface Group {
   events: NotificationEventType[]
 }
 
-// Display metadata kept local so we don't churn the global i18n catalog
-// every time an event is added. Drop in the translations file only if
-// another locale needs diverging copy.
 const EVENT_META: Partial<Record<NotificationEventType, EventMeta>> = {
   ORDER_CREATED:    { label: 'Nuevo pedido',         description: 'Cuando un cliente paga un pedido tuyo.' },
   ORDER_PENDING:    { label: 'Acción requerida',     description: 'Confirmar, generar etiqueta o marcar enviado.' },
@@ -40,51 +36,45 @@ const GROUPS: Group[] = [
   { title: 'Negocio',      events: ['REVIEW_RECEIVED', 'PAYOUT_PAID', 'STOCK_LOW'] },
 ]
 
-// Channel names live in the i18n catalog — aria labels use the full
-// form for screen readers, the column headers use the short form.
-
+// Vendor-side preferences. Telegram is the only surfaced channel — Web
+// Push proved unreliable across browsers (Brave blocks FCM by default,
+// iOS only works inside an installed PWA, Firefox private fails
+// silently). Until Email is wired up as a fallback channel, we hide
+// WEB_PUSH from the UI so vendors aren't tricked into thinking they
+// have working alerts when they don't. The DB rows still exist; if a
+// user previously toggled WEB_PUSH on it stays on, just unconfigurable
+// here.
 export function NotificationPreferencesForm({
   preferences,
   telegramLinked,
-  webPushSubscribed,
 }: {
   preferences: PreferenceRow[]
   telegramLinked: boolean
-  webPushSubscribed: boolean
 }) {
   const t = useT()
-  const [rows, setRows] = useState(preferences)
+  const [rows, setRows] = useState(() =>
+    preferences.filter(r => r.channel === 'TELEGRAM'),
+  )
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
-  const rowByKey = new Map<string, PreferenceRow>()
-  for (const r of rows) {
-    rowByKey.set(`${r.channel}:${r.eventType}`, r)
-  }
+  const rowByEvent = new Map<NotificationEventType, PreferenceRow>()
+  for (const r of rows) rowByEvent.set(r.eventType, r)
 
-  function channelGateEnabled(channel: NotificationChannel): boolean {
-    return channel === 'TELEGRAM' ? telegramLinked : webPushSubscribed
-  }
-
-  function setEnabled(
-    channel: NotificationChannel,
-    eventType: NotificationEventType,
-    next: boolean,
-  ) {
-    const key = `${channel}:${eventType}`
-    const row = rowByKey.get(key)
+  function setEnabled(eventType: NotificationEventType, next: boolean) {
+    const row = rowByEvent.get(eventType)
     if (!row) return
     const optimistic = rows.map(r =>
-      r.channel === channel && r.eventType === eventType ? { ...r, enabled: next } : r,
+      r.eventType === eventType ? { ...r, enabled: next } : r,
     )
     setRows(optimistic)
     setError(null)
 
     startTransition(async () => {
       try {
-        await setPreference({ channel, eventType, enabled: next })
+        await setPreference({ channel: 'TELEGRAM', eventType, enabled: next })
       } catch (err) {
-        setRows(preferences)
+        setRows(preferences.filter(r => r.channel === 'TELEGRAM'))
         setError(err instanceof Error ? err.message : t('vendor.notifications.saveError'))
       }
     })
@@ -92,7 +82,7 @@ export function NotificationPreferencesForm({
 
   return (
     <div className="space-y-5">
-      {!telegramLinked && !webPushSubscribed && (
+      {!telegramLinked && (
         <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
           {t('vendor.notifications.needsLink')}
         </p>
@@ -110,16 +100,12 @@ export function NotificationPreferencesForm({
               <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
                 {group.title}
               </h3>
-              <div className="flex items-center gap-4 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                <span className="w-16 text-center">{t('vendor.notifications.channel.telegram')}</span>
-                <span className="w-16 text-center">{t('vendor.notifications.channel.webPush')}</span>
-              </div>
             </header>
             <ul className="divide-y divide-[var(--border)]">
               {visible.map(eventType => {
                 const meta = EVENT_META[eventType]!
-                const telegramRow = rowByKey.get(`TELEGRAM:${eventType}`)
-                const webPushRow = rowByKey.get(`WEB_PUSH:${eventType}`)
+                const row = rowByEvent.get(eventType)
+                if (!row) return null
                 return (
                   <li
                     key={eventType}
@@ -129,28 +115,12 @@ export function NotificationPreferencesForm({
                       <p className="text-sm font-medium text-[var(--foreground)]">{meta.label}</p>
                       <p className="mt-0.5 text-xs text-[var(--muted)]">{meta.description}</p>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="w-16 flex justify-center">
-                        {telegramRow ? (
-                          <Toggle
-                            checked={telegramRow.enabled}
-                            disabled={pending || !channelGateEnabled('TELEGRAM')}
-                            onChange={next => setEnabled('TELEGRAM', eventType, next)}
-                            ariaLabel={`${meta.label} — ${t('vendor.notifications.channel.telegram')}`}
-                          />
-                        ) : null}
-                      </div>
-                      <div className="w-16 flex justify-center">
-                        {webPushRow ? (
-                          <Toggle
-                            checked={webPushRow.enabled}
-                            disabled={pending || !channelGateEnabled('WEB_PUSH')}
-                            onChange={next => setEnabled('WEB_PUSH', eventType, next)}
-                            ariaLabel={`${meta.label} — ${t('vendor.notifications.channel.webPush')}`}
-                          />
-                        ) : null}
-                      </div>
-                    </div>
+                    <Toggle
+                      checked={row.enabled}
+                      disabled={pending || !telegramLinked}
+                      onChange={next => setEnabled(eventType, next)}
+                      ariaLabel={meta.label}
+                    />
                   </li>
                 )
               })}

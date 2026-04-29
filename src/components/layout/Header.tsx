@@ -20,8 +20,10 @@ import { SignOutButton } from '@/components/auth/SignOutButton'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { LanguageToggle } from '@/components/LanguageToggle'
 import { InstallCtaGate, LoginLink } from '@/components/layout/HeaderPathnameParts'
+import { BrandMark } from '@/components/brand/BrandMark'
 import { useLocale, useT } from '@/i18n'
 import { useSession } from 'next-auth/react'
+import { useSwipeToClose } from '@/lib/hooks/useSwipeToClose'
 
 const CATEGORIES = [
   { name: 'Verduras y Hortalizas', slug: 'verduras', icon: '🥦' },
@@ -37,9 +39,19 @@ const CATEGORIES = [
 interface HeaderProps {
   user?: { name?: string | null; email?: string | null; role?: UserRole } | null
   cartCount?: number
+  /**
+   * Slugs of categories that currently have at least one publicly
+   * available product. Used to filter the hard-coded CATEGORIES list
+   * so empty branches don't show in the dropdown or search overlay.
+   * Optional: when undefined, all categories render (legacy behavior).
+   */
+  availableCategorySlugs?: string[]
 }
 
-export function Header({ user, cartCount = 0 }: HeaderProps) {
+export function Header({ user, cartCount = 0, availableCategorySlugs }: HeaderProps) {
+  const visibleCategories = availableCategorySlugs
+    ? CATEGORIES.filter(c => availableCategorySlugs.includes(c.slug))
+    : CATEGORIES
   const { data: session } = useSession()
   const currentUser = user ?? session?.user ?? null
   // When the parent layout cannot pass `user` (e.g. the public layout, which
@@ -89,7 +101,12 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
       body.style.position = previous.position
       body.style.top = previous.top
       body.style.width = previous.width
-      window.scrollTo(0, scrollY)
+      // Restore the pre-lock scroll position WITHOUT animating. globals.css
+      // sets `html { scroll-behavior: smooth }`, which would otherwise honour
+      // the smooth easing on this restoration and the user sees a visible
+      // "auto-scroll" when the drawer / search overlay closes. `behavior:
+      // 'instant'` overrides the CSS for this single call.
+      window.scrollTo({ top: scrollY, left: 0, behavior: 'instant' })
     }
   }, [mobileOpen])
 
@@ -122,7 +139,12 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
       body.style.position = previous.position
       body.style.top = previous.top
       body.style.width = previous.width
-      window.scrollTo(0, scrollY)
+      // Restore the pre-lock scroll position WITHOUT animating. globals.css
+      // sets `html { scroll-behavior: smooth }`, which would otherwise honour
+      // the smooth easing on this restoration and the user sees a visible
+      // "auto-scroll" when the drawer / search overlay closes. `behavior:
+      // 'instant'` overrides the CSS for this single call.
+      window.scrollTo({ top: scrollY, left: 0, behavior: 'instant' })
       cancelAnimationFrame(id)
       window.removeEventListener('keydown', onKey)
     }
@@ -149,6 +171,49 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
     ? `${t('cart')}, ${cartCountLabel}`
     : t('cart')
 
+  const drawerSwipe = useSwipeToClose({
+    isOpen: mobileOpen,
+    onClose: () => setMobileOpen(false),
+    direction: 'right',
+  })
+
+  // Outside-click for the desktop dropdowns. The previous approach used a
+  // `<div className="fixed inset-0">` backdrop, but the parent <header> sets
+  // `backdrop-blur-md` which establishes a stacking context — the backdrop
+  // ends up trapped inside the header's box and never receives clicks
+  // landing on the page below it. Listening on the document instead works
+  // regardless of stacking context.
+  const catRef = useRef<HTMLDivElement | null>(null)
+  const accountRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!catOpen && !accountOpen) return
+    function onPointerDown(event: PointerEvent) {
+      const target = event.target as Node | null
+      if (catOpen && catRef.current && target && !catRef.current.contains(target)) {
+        setCatOpen(false)
+      }
+      if (
+        accountOpen &&
+        accountRef.current &&
+        target &&
+        !accountRef.current.contains(target)
+      ) {
+        setAccountOpen(false)
+      }
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return
+      setCatOpen(false)
+      setAccountOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [catOpen, accountOpen])
+
   return (
     <>
     <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur-md supports-[backdrop-filter]:bg-[var(--surface)]/90">
@@ -157,9 +222,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
 
           {/* Logo */}
           <Link href="/" className="flex shrink-0 items-center gap-2.5 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 text-[11px] font-extrabold text-white shadow-sm">
-              MP
-            </span>
+            <BrandMark size={48} className="h-12 w-12 shrink-0" />
             <span className="hidden sm:block leading-none">
               <span className="block text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-600 dark:text-emerald-400">
                 {t('market_local')}
@@ -169,7 +232,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
           </Link>
 
           {/* Categories dropdown */}
-          <div className="relative hidden lg:block">
+          <div ref={catRef} className="relative hidden lg:block">
             <button
               onClick={() => setCatOpen(v => !v)}
               aria-expanded={catOpen}
@@ -179,11 +242,9 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
               <ChevronDownIcon className={cn('h-3.5 w-3.5 transition-transform', catOpen && 'rotate-180')} />
             </button>
             {catOpen && (
-              <>
-                <div className="fixed inset-0" onClick={() => setCatOpen(false)} />
-                <div className="absolute left-0 top-full mt-2 w-64 rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl ring-1 ring-black/5 dark:ring-white/10">
+              <div className="absolute left-0 top-full mt-2 w-64 rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl ring-1 ring-black/5 dark:ring-white/10">
                   <div className="p-1.5">
-                    {CATEGORIES.map(cat => (
+                    {visibleCategories.map(cat => (
                       <Link
                         key={cat.slug}
                         href={`/productos?categoria=${cat.slug}`}
@@ -196,7 +257,6 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                     ))}
                   </div>
                 </div>
-              </>
             )}
           </div>
 
@@ -261,19 +321,17 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                     {portalLabel}
                   </Link>
                 )}
-                <div className="relative hidden lg:block">
+                <div ref={accountRef} className="relative hidden lg:block">
                   <button
                     onClick={() => setAccountOpen(v => !v)}
                     aria-expanded={accountOpen}
                     className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
                   >
                     <UserCircleIcon className="h-5 w-5" />
-                    {currentUser.name?.split(' ')[0] ?? t('myAccount')}
+                    {(currentUser.name ?? currentUser.email ?? '').split(/[\s@]/)[0] || t('myAccount')}
                     <ChevronDownIcon className={cn('h-3.5 w-3.5 text-[var(--muted)] transition-transform', accountOpen && 'rotate-180')} />
                   </button>
                   {accountOpen && (
-                    <>
-                      <div className="fixed inset-0" onClick={() => setAccountOpen(false)} />
                       <div className="absolute right-0 top-full z-20 mt-2 w-56 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-2xl ring-1 ring-black/5 dark:ring-white/10">
                         <Link
                           href="/cuenta"
@@ -301,7 +359,6 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
                         <div className="mx-1 my-1 border-t border-[var(--border)]" />
                         <SignOutButton compact />
                       </div>
-                    </>
                   )}
                 </div>
               </>
@@ -362,155 +419,165 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
         </div>
       </div>
 
-      {/* Mobile drawer — slides in from the right (matches the side
-          where the hamburger lives) and overlays the page with a tap-
-          dismiss backdrop. Width capped at ~88vw / 22rem so a sliver
-          of the page stays visible as a visual cue you can tap to
-          close. */}
-      {mobileOpen && (
-        <>
-          <button
-            type="button"
-            aria-label={t('close_menu')}
-            onClick={() => setMobileOpen(false)}
-            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
-          />
-          <aside
-            role="dialog"
-            aria-modal="true"
-            aria-label={t('open_menu')}
-            className="fixed right-0 top-0 z-50 flex h-dvh w-[min(22rem,88vw)] flex-col overflow-y-auto border-l border-[var(--border)] bg-[var(--surface)] shadow-2xl lg:hidden"
-          >
-            {/* Drawer header — close button on the right matches the
-                hamburger position so the user closes from the same
-                spot they opened. */}
-            <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
-              <span className="text-sm font-semibold text-[var(--foreground)]">
-                {currentUser
-                  ? `${t('hello')}, ${(currentUser.name ?? currentUser.email ?? '').split(/[\s@]/)[0] || t('myAccount')}`
-                  : t('open_menu')}
-              </span>
-              <button
-                type="button"
-                onClick={() => setMobileOpen(false)}
-                aria-label={t('close_menu')}
-                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
-              >
-                <XMarkIcon className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="flex-1 space-y-5 p-4">
-
-              {/* ── 1. MI CUENTA ─────────────────────────────────────── */}
-              <section className="space-y-1">
-                {!userContextReady ? (
-                  <div className="h-12" aria-hidden />
-                ) : currentUser ? (
-                  <>
-                    {!isBuyerPortal && (
-                      <Link
-                        href={portalHref}
-                        onClick={() => setMobileOpen(false)}
-                        className="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
-                      >
-                        <BuildingStorefrontIcon className="h-5 w-5" />
-                        {portalLabel}
-                      </Link>
-                    )}
-                    <Link
-                      href="/cuenta"
-                      onClick={() => setMobileOpen(false)}
-                      className="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
-                    >
-                      <UserCircleIcon className="h-5 w-5" />
-                      {t('myAccount')}
-                    </Link>
-                    <Link
-                      href="/cuenta/pedidos"
-                      onClick={() => setMobileOpen(false)}
-                      className="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
-                    >
-                      <ShoppingCartIcon className="h-5 w-5" />
-                      {t('myOrders')}
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                      {t('myAccount')}
-                    </p>
-                    <div className="flex gap-2">
-                      <Link
-                        href="/login"
-                        onClick={() => setMobileOpen(false)}
-                        className="flex-1 rounded-xl border border-[var(--border)] px-4 py-2.5 text-center text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
-                      >
-                        {t('signIn')}
-                      </Link>
-                      <Link
-                        href="/register"
-                        onClick={() => setMobileOpen(false)}
-                        className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
-                      >
-                        {t('register')}
-                      </Link>
-                    </div>
-                    <Link
-                      href="/login?callbackUrl=%2Fvendor%2Fdashboard"
-                      onClick={() => setMobileOpen(false)}
-                      className="mt-1 block rounded-xl px-3 py-2 text-center text-xs font-medium text-[var(--muted)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
-                    >
-                      {t('producerPortal')}
-                    </Link>
-                  </>
-                )}
-              </section>
-
-              <div className="border-t border-[var(--border)]" />
-
-              {/* ── 2. AJUSTES (idioma + tema) ──────────────────────── */}
-              <section className="space-y-2">
-                <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                  {t('settings')}
-                </p>
-                <div className="flex flex-wrap items-center gap-3 px-3">
-                  <LanguageToggle />
-                  <ThemeToggle />
-                </div>
-              </section>
-
-              <div className="border-t border-[var(--border)]" />
-
-              {/* ── 3. EXPLORAR ──────────────────────────────────────── */}
-              <section className="space-y-1">
-                <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                  {t('explore')}
-                </p>
-                <Link
-                  href="/productores"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
-                >
-                  <BuildingStorefrontIcon className="h-5 w-5" />
-                  {t('producers')}
-                </Link>
-              </section>
-            </div>
-
-            {/* ── 4. SESIÓN (cerrar sesión, separado del resto) ───────
-                Destructive action lives at the bottom so a clumsy thumb
-                can't tap it while reaching for "Mis pedidos". Only
-                rendered when the user is logged in. */}
-            {userContextReady && currentUser && (
-              <div className="border-t border-[var(--border)] p-4">
-                <SignOutButton compact />
-              </div>
-            )}
-          </aside>
-        </>
-      )}
     </header>
+
+    {/* Mobile drawer — slides in from the right (matches the side
+        where the hamburger lives) and overlays the page with a tap-
+        dismiss backdrop. Width capped at ~88vw / 22rem so a sliver
+        of the page stays visible as a visual cue you can tap to
+        close. Lives outside <header> so the sticky/backdrop-blur
+        stacking context can't trap the fixed positioning (same
+        reason the search overlay lives out here). Touch-drag right
+        dismiss is wired through useSwipeToClose. */}
+    {mobileOpen && (
+      <>
+        <button
+          type="button"
+          aria-label={t('close_menu')}
+          onClick={() => setMobileOpen(false)}
+          style={{ opacity: drawerSwipe.backdropOpacity }}
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
+        />
+        <aside
+          role="dialog"
+          aria-modal="true"
+          aria-label={t('open_menu')}
+          {...drawerSwipe.handlers}
+          style={{
+            transform: `translateX(${drawerSwipe.dragX}px)`,
+            transition: drawerSwipe.isDragging ? 'none' : 'transform 200ms ease-out',
+          }}
+          className="fixed right-0 top-0 z-50 flex h-dvh w-[min(22rem,88vw)] flex-col overflow-y-auto overscroll-contain border-l border-[var(--border)] bg-[var(--surface)] shadow-2xl lg:hidden"
+        >
+          {/* Drawer header — close button on the right matches the
+              hamburger position so the user closes from the same
+              spot they opened. */}
+          <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
+            <span className="text-sm font-semibold text-[var(--foreground)]">
+              {currentUser
+                ? `${t('hello')}, ${(currentUser.name ?? currentUser.email ?? '').split(/[\s@]/)[0] || t('myAccount')}`
+                : t('open_menu')}
+            </span>
+            <button
+              type="button"
+              onClick={() => setMobileOpen(false)}
+              aria-label={t('close_menu')}
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="flex-1 space-y-5 p-4">
+
+            {/* ── 1. MI CUENTA ─────────────────────────────────────── */}
+            <section className="space-y-1">
+              {!userContextReady ? (
+                <div className="h-12" aria-hidden />
+              ) : currentUser ? (
+                <>
+                  {!isBuyerPortal && (
+                    <Link
+                      href={portalHref}
+                      onClick={() => setMobileOpen(false)}
+                      className="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
+                    >
+                      <BuildingStorefrontIcon className="h-5 w-5" />
+                      {portalLabel}
+                    </Link>
+                  )}
+                  <Link
+                    href="/cuenta"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
+                  >
+                    <UserCircleIcon className="h-5 w-5" />
+                    {t('myAccount')}
+                  </Link>
+                  <Link
+                    href="/cuenta/pedidos"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
+                  >
+                    <ShoppingCartIcon className="h-5 w-5" />
+                    {t('myOrders')}
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+                    {t('myAccount')}
+                  </p>
+                  <div className="flex gap-2">
+                    <Link
+                      href="/login"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex-1 rounded-xl border border-[var(--border)] px-4 py-2.5 text-center text-sm font-medium text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
+                    >
+                      {t('signIn')}
+                    </Link>
+                    <Link
+                      href="/register"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-gray-950 dark:hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
+                    >
+                      {t('register')}
+                    </Link>
+                  </div>
+                  <Link
+                    href="/login?callbackUrl=%2Fvendor%2Fdashboard"
+                    onClick={() => setMobileOpen(false)}
+                    className="mt-1 block rounded-xl px-3 py-2 text-center text-xs font-medium text-[var(--muted)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+                  >
+                    {t('producerPortal')}
+                  </Link>
+                </>
+              )}
+            </section>
+
+            <div className="border-t border-[var(--border)]" />
+
+            {/* ── 2. AJUSTES (idioma + tema) ──────────────────────── */}
+            <section className="space-y-2">
+              <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+                {t('settings')}
+              </p>
+              <div className="flex flex-wrap items-center gap-3 px-3">
+                <LanguageToggle />
+                <ThemeToggle />
+              </div>
+            </section>
+
+            <div className="border-t border-[var(--border)]" />
+
+            {/* ── 3. EXPLORAR ──────────────────────────────────────── */}
+            <section className="space-y-1">
+              <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+                {t('explore')}
+              </p>
+              <Link
+                href="/productores"
+                onClick={() => setMobileOpen(false)}
+                className="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-inset"
+              >
+                <BuildingStorefrontIcon className="h-5 w-5" />
+                {t('producers')}
+              </Link>
+            </section>
+          </div>
+
+          {/* ── 4. SESIÓN (cerrar sesión, separado del resto) ───────
+              Destructive action lives at the bottom so a clumsy thumb
+              can't tap it while reaching for "Mis pedidos". Only
+              rendered when the user is logged in. */}
+          {userContextReady && currentUser && (
+            <div className="border-t border-[var(--border)] p-4">
+              <SignOutButton compact />
+            </div>
+          )}
+        </aside>
+      </>
+    )}
 
     {/* Mobile search overlay — full-screen on phones, replaces the old
         inline second row. Lives outside <header> so the sticky/backdrop-blur
@@ -559,7 +626,7 @@ export function Header({ user, cartCount = 0 }: HeaderProps) {
             {t('categories')}
           </p>
           <div className="space-y-1">
-            {CATEGORIES.map(cat => (
+            {visibleCategories.map(cat => (
               <Link
                 key={cat.slug}
                 href={`/productos?categoria=${cat.slug}`}

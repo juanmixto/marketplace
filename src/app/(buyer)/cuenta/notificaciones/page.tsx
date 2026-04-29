@@ -5,11 +5,13 @@ import { getServerT } from '@/i18n/server'
 import { getMyBuyerPreferences } from '@/domains/notifications'
 import { getTelegramConfig } from '@/domains/notifications/telegram/config'
 import { getTelegramLinkForUser } from '@/domains/notifications/telegram/queries'
+import { generateLinkToken } from '@/domains/notifications/telegram/link-token'
 import { db } from '@/lib/db'
 import { BuyerTelegramConnectPanel } from './BuyerTelegramConnectPanel'
 import { BuyerNotificationPreferencesForm } from './BuyerNotificationPreferencesForm'
 
 export const metadata: Metadata = { title: 'Notificaciones' }
+export const dynamic = 'force-dynamic'
 
 export default async function BuyerNotificationsPage() {
   const session = await auth()
@@ -34,6 +36,10 @@ export default async function BuyerNotificationsPage() {
   ])
   const webPushSubscribed = pushSubscriptionCount > 0
 
+  const initialLinkUrl = link.linked
+    ? null
+    : `https://t.me/${config.botUsername}?start=${await generateLinkToken(session.user.id)}`
+
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-10 sm:px-6 lg:px-8">
       <div>
@@ -41,12 +47,8 @@ export default async function BuyerNotificationsPage() {
         <p className="mt-0.5 text-sm text-[var(--muted)]">{t('account.notifications.subtitle')}</p>
       </div>
 
-      <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
-        <div>
-          <h2 className="text-lg font-semibold text-[var(--foreground)]">{t('account.telegram.title')}</h2>
-          <p className="mt-0.5 text-sm text-[var(--muted)]">{t('account.telegram.subtitle')}</p>
-        </div>
-        <BuyerTelegramConnectPanel initialLink={link} botUsername={config.botUsername} />
+      <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
+        <BuyerTelegramConnectPanel initialLink={link} initialLinkUrl={initialLinkUrl} />
       </section>
 
       <section className="space-y-4">

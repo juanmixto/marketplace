@@ -55,7 +55,7 @@ export async function GET(
 
       <rect x="92" y="840" width="1016" height="170" rx="28" fill="rgba(255,255,255,0.14)" stroke="rgba(255,255,255,0.22)" />
       <text x="130" y="910" font-size="34" font-family="Arial, Helvetica, sans-serif" fill="#ffffff" font-weight="700">
-        Mercado Productor
+        Raíz Directa
       </text>
       <text x="130" y="962" font-size="28" font-family="Arial, Helvetica, sans-serif" fill="rgba(255,255,255,0.92)">
         Imagen ilustrativa ajustada para que la demo sea coherente con el producto mostrado.

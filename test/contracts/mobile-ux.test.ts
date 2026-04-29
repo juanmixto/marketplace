@@ -266,11 +266,14 @@ test('buyer subscription action buttons clear the 44px floor', () => {
 })
 
 test('favoritos remove button is a 44px tap target', () => {
-  const source = read('src/app/(buyer)/cuenta/favoritos/FavoritosClient.tsx')
+  // The favorites grid renders the shared FavoriteToggleButton in overlay
+  // mode; that component owns the tap-target size for every heart-toggle
+  // surface (catalog grid, favorites grid, product detail).
+  const source = read('src/components/catalog/FavoriteToggleButton.tsx')
   assert.match(
     source,
-    /min-h-11 min-w-11/,
-    'favorites heart toggle must use min-h-11 min-w-11 so users can tap it on mobile',
+    /variant === 'overlay'[\s\S]*?min-h-11 min-w-11/,
+    'FavoriteToggleButton overlay variant must use min-h-11 min-w-11 so users can tap it on mobile',
   )
 })
 
@@ -638,12 +641,17 @@ test('html and body clip horizontal overflow so a stray wide child cannot scroll
   )
 })
 
-test('public hero stats stack on mobile instead of squeezing into 3 narrow columns', () => {
+test('public hero stats sit on a single 3-column row across breakpoints', () => {
   const source = read('src/app/(public)/page.tsx')
   assert.match(
     source,
+    /grid-cols-3[^"]*"/,
+    'hero stats must use grid-cols-3 (KPIs are short numbers — they fit a 360px viewport on one row and stacking eats scroll)',
+  )
+  assert.doesNotMatch(
+    source,
     /grid-cols-1[^"]*sm:grid-cols-3/,
-    'hero stats must use grid-cols-1 on mobile and sm:grid-cols-3 from sm+',
+    'hero stats must NOT stack on mobile — that pattern was the previous decision and is being reversed',
   )
 })
 

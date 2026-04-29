@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
@@ -12,7 +13,7 @@ import PushOptIn from '@/components/pwa/PushOptIn'
 import { isPushEnabled } from '@/lib/pwa/push-config'
 import { getServerT } from '@/i18n/server'
 import type { TranslationKeys } from '@/i18n/locales'
-import { getPendingReviewsCount } from '@/domains/reviews/pending'
+import { getPendingReviewsCount, getPendingOrderPlacedAtDates } from '@/domains/reviews/pending'
 
 export const metadata: Metadata = { title: 'Mi cuenta' }
 
@@ -21,11 +22,20 @@ export default async function CuentaPage() {
   if (!session) redirect('/login')
 
   const t = await getServerT()
-  const pendingReviews = await getPendingReviewsCount(session.user.id)
-  const vendorApplication = await db.vendor.findUnique({
-    where: { userId: session.user.id },
-    select: { status: true },
-  })
+  const [pendingReviews, pendingOrderDates] = await Promise.all([
+    getPendingReviewsCount(session.user.id),
+    getPendingOrderPlacedAtDates(session.user.id),
+  ])
+  const [vendorApplication, userRecord] = await Promise.all([
+    db.vendor.findUnique({
+      where: { userId: session.user.id },
+      select: { status: true },
+    }),
+    db.user.findUnique({
+      where: { id: session.user.id },
+      select: { image: true },
+    }),
+  ])
 
   const initial = session.user.name?.[0]?.toUpperCase() ?? '?'
 
@@ -33,16 +43,27 @@ export default async function CuentaPage() {
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6 lg:px-8">
       {/* Avatar */}
       <div className="mb-8 flex items-center gap-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full border border-white/20 bg-emerald-600 text-2xl font-bold text-white shadow-sm shadow-emerald-950/10 dark:border-white/10 dark:bg-emerald-500 dark:text-gray-950">
-          {initial}
-        </div>
+        {userRecord?.image ? (
+          <Image
+            src={userRecord.image}
+            alt=""
+            width={64}
+            height={64}
+            className="h-16 w-16 rounded-full border border-[var(--border)] object-cover"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-white/20 bg-emerald-600 text-2xl font-bold text-white shadow-sm shadow-emerald-950/10 dark:border-white/10 dark:bg-emerald-500 dark:text-gray-950">
+            {initial}
+          </div>
+        )}
         <div>
           <p className="text-xl font-bold text-[var(--foreground)]">{session.user.name}</p>
           <p className="text-sm text-[var(--muted)]">{session.user.email}</p>
         </div>
       </div>
 
-      <PendingReviewsBanner pendingCount={pendingReviews} />
+      <PendingReviewsBanner pendingCount={pendingReviews} pendingOrderDates={pendingOrderDates} />
 
       <BecomeVendorCard
         status={vendorApplication?.status ?? null}

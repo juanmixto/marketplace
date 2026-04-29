@@ -2,6 +2,7 @@ import { unstable_cache } from 'next/cache'
 import { db } from '@/lib/db'
 import { PAGINATION_DEFAULTS } from '@/lib/constants'
 import { getAvailableProductWhere } from '@/domains/catalog/availability'
+import { isCategoryVisible } from '@/domains/catalog/types'
 import { CACHE_TAGS } from '@/lib/cache-tags'
 import { getDemoProductImages } from '@/domains/catalog/demo-product-images'
 import { expandSearchQuery } from '@/domains/catalog/search-translation'
@@ -361,6 +362,16 @@ export async function getCategories() {
   return getCategoriesCached()
 }
 
+export async function getVisibleCategories() {
+  const all = await getCategories()
+  return all.filter(isCategoryVisible)
+}
+
+export async function getVisibleCategorySlugs(): Promise<string[]> {
+  const visible = await getVisibleCategories()
+  return visible.map(c => c.slug)
+}
+
 async function getVendorsUncached(limit = 12) {
   return db.vendor.findMany({
     where: { status: 'ACTIVE' },
@@ -384,10 +395,45 @@ export async function getVendors(limit = 12) {
   return getVendorsCached(limit)
 }
 
+/**
+ * Ghost producers detected from Telegram ingestion: vendors created
+ * by `approveVendorLead` that have not yet been claimed by their
+ * real owner. Status is `APPLYING` and a fresh `claimCode` is set;
+ * once the producer claims, both columns clear and the vendor flips
+ * to `ACTIVE`, joining the regular `getVendors` listing.
+ *
+ * Selected fields stay restricted to the public DTO — `claimCode`
+ * and other PII never leave the boundary. The "ghost" flag in the
+ * shape is computed (`status === 'APPLYING'`), not read directly,
+ * to keep the public select map intact.
+ */
+async function getGhostProducersUncached(limit = 30) {
+  return db.vendor.findMany({
+    where: {
+      status: 'APPLYING',
+      claimCode: { not: null },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+    select: PUBLIC_VENDOR_SELECT,
+  })
+}
+
+const getGhostProducersCached = unstable_cache(
+  async (limit: number) => getGhostProducersUncached(limit),
+  ['catalog-ghost-producers'],
+  { tags: [CACHE_TAGS.vendors], revalidate: 300 },
+)
+
+export async function getGhostProducers(limit = 30) {
+  if (process.env.NODE_ENV === 'test') return getGhostProducersUncached(limit)
+  return getGhostProducersCached(limit)
+}
+
 async function getHomeSnapshotUncached() {
   const [featured, categories, vendors, activeProducts, activeVendors, averageVendorRating] = await Promise.all([
     getFeaturedProducts(8),
-    getCategories(),
+    getVisibleCategories(),
     getVendors(6),
     db.product.count({
       where: getAvailableProductWhere(),

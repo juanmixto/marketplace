@@ -1,4 +1,9 @@
 {
+  "feat-auth-google": {
+    "issue": 864,
+    "owner": "@juanmixto",
+    "dueDate": "2026-05-26"
+  },
   "feat-buyer-subscriptions": {
     "issue": 753,
     "owner": "@juanmixto",
@@ -8,6 +13,16 @@
     "issue": 753,
     "owner": "@juanmixto",
     "dueDate": "2026-05-23"
+  },
+  "feat-public-ghost-producers": {
+    "issue": 914,
+    "owner": "@juanmixto",
+    "dueDate": "2026-05-27"
+  },
+  "feat-ingestion-llm-extractor": {
+    "issue": 935,
+    "owner": "@juanmixto",
+    "dueDate": "2026-05-27"
   },
   "feat-ingestion-classifier": {
     "issue": 753,

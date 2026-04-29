@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { UserRole } from '@/generated/prisma/enums'
 import { db } from '@/lib/db'
 import { isAdminRole } from '@/lib/roles'
+import { normalizeAuthEmail } from '@/lib/auth-email'
 import { checkRateLimit } from '@/lib/ratelimit'
 import { isTwoFactorEnabled, verifyLoginCode } from '@/domains/auth/two-factor'
 import {
@@ -56,7 +57,7 @@ export async function authorizeCredentials(credentials: unknown): Promise<Authen
 
   if (!parsed.success) return null
 
-  const normalizedEmail = parsed.data.email.trim().toLowerCase()
+  const normalizedEmail = normalizeAuthEmail(parsed.data.email)
 
   const identityLimit = await checkRateLimit(
     'login-identity',

@@ -29,6 +29,7 @@ import { redirect } from 'next/navigation'
 import { safeRevalidatePath } from '@/lib/revalidate'
 import { isAdminRole } from '@/lib/roles'
 import { IncidentStatus, IncidentType } from '@/generated/prisma/enums'
+import { incidentAttachmentsSchema } from '@/shared/types/incidents'
 // eslint-disable-next-line no-restricted-imports -- dispatcher is intentionally server-only, excluded from notifications barrel
 import { emit as emitNotification } from '@/domains/notifications/dispatcher'
 import {
@@ -41,11 +42,13 @@ const openIncidentSchema = z.object({
   orderId: z.string().min(1),
   type: z.nativeEnum(IncidentType),
   description: z.string().min(10).max(5000),
+  attachments: incidentAttachmentsSchema.optional(),
 })
 
 const addMessageSchema = z.object({
   incidentId: z.string().min(1),
   body: z.string().min(1).max(5000),
+  attachments: incidentAttachmentsSchema.optional(),
 })
 
 export type OpenIncidentInput = z.infer<typeof openIncidentSchema>
@@ -101,6 +104,7 @@ export async function openIncident(
       customerId: session.user.id,
       type: parsed.type,
       description: parsed.description,
+      attachments: parsed.attachments ?? [],
       status: IncidentStatus.OPEN,
       slaDeadline,
     },
@@ -152,7 +156,7 @@ export async function addIncidentMessage(
 
   const incident = await db.incident.findUnique({
     where: { id: parsed.incidentId },
-    select: { id: true, customerId: true, status: true },
+    select: { id: true, customerId: true, orderId: true, status: true },
   })
 
   if (!incident) {
@@ -161,7 +165,24 @@ export async function addIncidentMessage(
 
   const isOwner = incident.customerId === session.user.id
   const isAdmin = isAdminRole(session.user.role)
-  if (!isOwner && !isAdmin) {
+  // A vendor can join the thread iff they shipped at least one line on
+  // the order. Cheap query because OrderLine is indexed on (orderId,
+  // vendorId).
+  let isVendorParticipant = false
+  if (!isOwner && !isAdmin && session.user.role === 'VENDOR') {
+    const vendor = await db.vendor.findUnique({
+      where: { userId: session.user.id },
+      select: { id: true },
+    })
+    if (vendor) {
+      const line = await db.orderLine.findFirst({
+        where: { orderId: incident.orderId, vendorId: vendor.id },
+        select: { id: true },
+      })
+      isVendorParticipant = line != null
+    }
+  }
+  if (!isOwner && !isAdmin && !isVendorParticipant) {
     throw new IncidentAuthError('Incidencia no encontrada')
   }
 
@@ -178,6 +199,7 @@ export async function addIncidentMessage(
       authorId: session.user.id,
       authorRole: session.user.role,
       body: parsed.body,
+      attachments: parsed.attachments ?? [],
     },
     select: { id: true },
   })
@@ -185,6 +207,9 @@ export async function addIncidentMessage(
   safeRevalidatePath(`/cuenta/incidencias/${incident.id}`)
   if (isAdmin) {
     safeRevalidatePath(`/admin/incidencias/${incident.id}`)
+  }
+  if (isVendorParticipant) {
+    safeRevalidatePath(`/vendor/incidencias/${incident.id}`)
   }
 
   return { messageId: message.id }
@@ -258,6 +283,7 @@ export async function getIncidentDetail(incidentId: string) {
           id: true,
           body: true,
           authorRole: true,
+          attachments: true,
           createdAt: true,
         },
       },
@@ -271,6 +297,123 @@ export async function getIncidentDetail(incidentId: string) {
   const isOwner = incident.customerId === session.user.id
   const isAdmin = isAdminRole(session.user.role)
   if (!isOwner && !isAdmin) {
+    throw new IncidentAuthError('Incidencia no encontrada')
+  }
+
+  return incident
+}
+
+/**
+ * Vendor-side counterpart of getMyIncidents. Lists every incident on
+ * orders that include at least one line shipped by this vendor. Newest
+ * first; the join is scoped by `OrderLine.vendorId` so a vendor never
+ * sees another vendor's disputes — even if multiple vendors shared the
+ * same order.
+ */
+export async function getMyVendorIncidents() {
+  const session = await getActionSession()
+  if (!session) redirect('/login')
+
+  const vendor = await db.vendor.findUnique({
+    where: { userId: session.user.id },
+    select: { id: true },
+  })
+  if (!vendor) return []
+
+  const incidents = await db.incident.findMany({
+    where: { order: { lines: { some: { vendorId: vendor.id } } } },
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      type: true,
+      status: true,
+      slaDeadline: true,
+      resolvedAt: true,
+      createdAt: true,
+      order: {
+        select: { id: true, orderNumber: true, grandTotal: true, status: true },
+      },
+      customer: { select: { firstName: true, lastName: true } },
+      _count: { select: { messages: true } },
+    },
+  })
+
+  return incidents.map(incident => ({
+    id: incident.id,
+    type: incident.type,
+    status: incident.status,
+    slaDeadline: incident.slaDeadline,
+    slaOverdue:
+      incident.status !== 'RESOLVED' &&
+      incident.status !== 'CLOSED' &&
+      incident.slaDeadline.getTime() < Date.now(),
+    resolvedAt: incident.resolvedAt,
+    createdAt: incident.createdAt,
+    order: {
+      id: incident.order.id,
+      orderNumber: incident.order.orderNumber,
+      grandTotal: Number(incident.order.grandTotal),
+      status: incident.order.status,
+    },
+    customerFirstName: incident.customer.firstName,
+    messageCount: incident._count.messages,
+  }))
+}
+
+/**
+ * Vendor-side counterpart of getIncidentDetail. The caller must be a
+ * vendor who shipped at least one line on the underlying order. Returns
+ * the same shape as the buyer detail (description + attachments + full
+ * thread) so the read-side components can be reused.
+ */
+export async function getVendorIncidentDetail(incidentId: string) {
+  const session = await getActionSession()
+  if (!session) redirect('/login')
+
+  if (session.user.role !== 'VENDOR') {
+    throw new IncidentAuthError('Incidencia no encontrada')
+  }
+
+  const vendor = await db.vendor.findUnique({
+    where: { userId: session.user.id },
+    select: { id: true },
+  })
+  if (!vendor) {
+    throw new IncidentAuthError('Incidencia no encontrada')
+  }
+
+  const incident = await db.incident.findUnique({
+    where: { id: incidentId },
+    include: {
+      order: {
+        select: { id: true, orderNumber: true, grandTotal: true, status: true },
+      },
+      customer: { select: { firstName: true, lastName: true } },
+      messages: {
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          body: true,
+          authorRole: true,
+          attachments: true,
+          createdAt: true,
+        },
+      },
+    },
+  })
+
+  if (!incident) {
+    throw new IncidentAuthError('Incidencia no encontrada')
+  }
+
+  // Cross-tenant guard: this vendor must have at least one line on the
+  // underlying order. Without this, any vendor could read any incident
+  // by guessing an id.
+  const line = await db.orderLine.findFirst({
+    where: { orderId: incident.orderId, vendorId: vendor.id },
+    select: { id: true },
+  })
+  if (!line) {
     throw new IncidentAuthError('Incidencia no encontrada')
   }
 

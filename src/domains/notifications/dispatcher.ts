@@ -20,12 +20,14 @@ async function ensureHandlersRegistered(): Promise<void> {
     return
   }
   handlersBootstrapped = true
-  const [tg, wp] = await Promise.all([
+  const [tg, wp, em] = await Promise.all([
     import('./telegram/ensure-registered'),
     import('./web-push/ensure-registered'),
+    import('./email/ensure-registered'),
   ])
   tg.ensureTelegramHandlersRegistered()
   wp.ensureWebPushHandlersRegistered()
+  em.ensureEmailHandlersRegistered()
 }
 
 type Handler<E extends NotificationEventName> = (
@@ -42,13 +44,14 @@ type Registry = {
 const GLOBAL_KEY = '__marketplaceTelegramDispatcher'
 
 type GlobalWithDispatcher = typeof globalThis & {
-  [GLOBAL_KEY]?: { registry: Registry }
+  [GLOBAL_KEY]?: { registry: Registry; pending: Set<Promise<void>> }
 }
 
-function getState(): { registry: Registry } {
+function getState(): { registry: Registry; pending: Set<Promise<void>> } {
   const g = globalThis as GlobalWithDispatcher
   if (!g[GLOBAL_KEY]) {
     g[GLOBAL_KEY] = {
+      pending: new Set(),
       registry: {
         'order.created': new Set(),
         'order.pending': new Set(),
@@ -60,6 +63,7 @@ function getState(): { registry: Registry } {
         'payout.paid': new Set(),
         'stock.low': new Set(),
         'order.status_changed': new Set(),
+        'order.buyer_confirmed': new Set(),
         'favorite.back_in_stock': new Set(),
         'favorite.price_drop': new Set(),
         'vendor.application.approved': new Set(),
@@ -97,22 +101,56 @@ export function emit<E extends NotificationEventName>(
   // in client bundles), then read the registry and fire. queueMicrotask
   // already defers handler execution, so awaiting registration first
   // adds no observable latency.
-  void ensureHandlersRegistered().then(() => {
+  //
+  // Each emit (registration + every queued handler invocation) is
+  // tracked in a `pending` Set so the integration test harness can
+  // await in-flight handlers before truncating the database. Without
+  // this, a fire-and-forget handler (e.g. NotificationDelivery insert
+  // in src/domains/notifications/telegram/service.ts) can race the
+  // next test's `resetIntegrationDatabase()` and try to insert a row
+  // referencing a User that the truncate just deleted, triggering
+  // `NotificationDelivery_userId_fkey` violations on shards 4/6 (#975).
+  const { pending } = getState()
+  const job = ensureHandlersRegistered().then(() => {
     const { registry } = getState()
     const handlers = Array.from(registry[event])
     for (const handler of handlers) {
-      queueMicrotask(() => {
-        Promise.resolve()
-          .then(() => handler(parsed.data as NotificationEventMap[E]))
-          .catch(err => {
-            console.error('notifications.handler.failed', {
-              event,
-              error: err instanceof Error ? err.message : String(err),
+      const handlerPromise = new Promise<void>(resolve => {
+        queueMicrotask(() => {
+          Promise.resolve()
+            .then(() => handler(parsed.data as NotificationEventMap[E]))
+            .catch(err => {
+              console.error('notifications.handler.failed', {
+                event,
+                error: err instanceof Error ? err.message : String(err),
+              })
             })
-          })
+            .finally(() => resolve())
+        })
       })
+      pending.add(handlerPromise)
+      void handlerPromise.finally(() => pending.delete(handlerPromise))
     }
   })
+  pending.add(job)
+  void job.finally(() => pending.delete(job))
+}
+
+/**
+ * Awaits every in-flight notification dispatch (registration +
+ * queued handler invocations). Used by the integration test harness
+ * to drain fire-and-forget handlers before truncating, otherwise a
+ * late `NotificationDelivery` insert can violate FK against a User
+ * the truncate already removed.
+ */
+export async function waitForPendingNotifications(): Promise<void> {
+  const { pending } = getState()
+  // Drain in waves: a handler may emit a follow-up notification, which
+  // adds new entries to `pending` after the initial Promise.all
+  // settles. Loop until the set stabilises empty.
+  while (pending.size > 0) {
+    await Promise.all(Array.from(pending))
+  }
 }
 
 export function clearHandlersForTest(): void {

@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { useCallback } from 'react'
 import { useLocale } from '@/i18n'
-import type { BadgeVariant, CategoryWithCount } from '@/domains/catalog/types'
+import { isCategoryVisible, type BadgeVariant, type CategoryWithCount } from '@/domains/catalog/types'
 import { CERTIFICATIONS } from '@/lib/constants'
 import { translateCategoryLabel } from '@/lib/portals'
 import { getCatalogCopy, getLocalizedCertificationCopy } from '@/i18n/catalog-copy'
@@ -138,7 +138,7 @@ export function ProductFiltersPanel({ categories, onClose, embedded = false }: P
           >
             {copy.filters.all}
           </button>
-          {categories.map(cat => (
+          {categories.filter(isCategoryVisible).map(cat => (
             <button
               key={cat.slug}
               type="button"

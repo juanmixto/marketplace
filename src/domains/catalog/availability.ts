@@ -7,6 +7,7 @@ export function getAvailableProductWhere(now = new Date()): Prisma.ProductWhereI
   return {
     status: 'ACTIVE',
     deletedAt: null,
+    archivedAt: null,
     // Phase 4 defence: even if a `Product` is flipped to ACTIVE, it
     // must not leak into the public catalog while its owning Vendor
     // is still in any non-public state (APPLYING, PENDING_DOCS,

@@ -19,6 +19,18 @@ export function Modal({ open, onClose, title, children, size = 'md', className }
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
 
+  // Keep `onClose` in a ref so the open/close effect below can read the latest
+  // callback without listing it as a dep. Including `onClose` in the deps was
+  // the cause of a real bug: parents pass `() => setOpen(false)` inline, so
+  // each parent re-render minted a new function identity, the effect re-ran,
+  // and the setTimeout below pulled focus back to the first focusable element
+  // on every keystroke inside child <textarea>/<input> elements. The user saw
+  // the focus ring jumping to the close X while typing a review comment.
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
+
   useEffect(() => {
     if (!open) return
 
@@ -28,7 +40,7 @@ export function Modal({ open, onClose, title, children, size = 'md', className }
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose()
+        onCloseRef.current()
       }
     }
 
@@ -37,10 +49,20 @@ export function Modal({ open, onClose, title, children, size = 'md', className }
       const dialog = dialogRef.current
       if (!dialog) return
 
-      const focusables = dialog.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      // Prefer the first editable field — the user is here to fill content,
+      // not to dismiss. Falls back to the first focusable (or the dialog
+      // itself) when there is nothing to type into.
+      const editable = dialog.querySelector<HTMLElement>(
+        'input:not([disabled]):not([type="hidden"]), textarea:not([disabled]), select:not([disabled])'
       )
+      if (editable) {
+        editable.focus()
+        return
+      }
 
+      const focusables = dialog.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+      )
       if (focusables.length > 0) {
         focusables[0]!.focus()
       } else {
@@ -53,7 +75,7 @@ export function Modal({ open, onClose, title, children, size = 'md', className }
       window.clearTimeout(frame)
       body.style.overflow = previousOverflow
     }
-  }, [open, onClose])
+  }, [open])
 
   function trapFocus(event: React.KeyboardEvent<HTMLDivElement>) {
     if (event.key !== 'Tab') return
@@ -93,7 +115,7 @@ export function Modal({ open, onClose, title, children, size = 'md', className }
       aria-modal="true"
       aria-labelledby={title ? titleId : undefined}
       aria-label={title ? undefined : 'Diálogo'}
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/70 backdrop-blur-md p-4 sm:items-center"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <div

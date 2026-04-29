@@ -1,4 +1,6 @@
 import { ImageResponse } from 'next/og'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
 import { SITE_NAME } from '@/lib/constants'
 
 export const alt = `${SITE_NAME} en X`
@@ -8,7 +10,10 @@ export const size = {
 }
 export const contentType = 'image/png'
 
-export default function TwitterImage() {
+export default async function TwitterImage() {
+  const logoBuf = await readFile(path.join(process.cwd(), 'public/brand/logo.png'))
+  const logoSrc = `data:image/png;base64,${logoBuf.toString('base64')}`
+
   return new ImageResponse(
     (
       <div
@@ -25,25 +30,18 @@ export default function TwitterImage() {
         }}
       >
         <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-          <div
-            style={{
-              width: '52px',
-              height: '52px',
-              borderRadius: '16px',
-              background: 'rgba(255,255,255,0.14)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '30px',
-            }}
-          >
-            🌿
-          </div>
+          <img
+            src={logoSrc}
+            alt=""
+            width={64}
+            height={64}
+            style={{ borderRadius: '16px', background: 'rgba(255,255,255,0.92)' }}
+          />
           <div style={{ fontSize: '32px', fontWeight: 700 }}>{SITE_NAME}</div>
         </div>
 
         <div style={{ maxWidth: '820px', fontSize: '58px', fontWeight: 800, lineHeight: 1.05 }}>
-          Compra directo al productor, sin intermediarios.
+          Del campo a tu hogar, sin intermediarios.
         </div>
       </div>
     ),

@@ -20,6 +20,7 @@ import {
   recordOrderConfirmedSideEffects,
   recordPaymentMismatchSideEffects,
 } from '../side-effects'
+import { emit as emitNotification } from '@/domains/notifications'
 export async function confirmOrder(orderId: string, providerRef: string) {
   const env = getServerEnv()
   if (env.paymentProvider !== 'mock') {
@@ -88,6 +89,15 @@ export async function confirmOrder(orderId: string, providerRef: string) {
   })
 
   await dispatchSideEffects(recordOrderConfirmedSideEffects(orderId), 'revalidations')
+
+  // CF-1 step 8: emit a buyer-targeted confirmation event so the email
+  // handler can fire OrderConfirmationEmail. The vendor side already
+  // gets `order.created` from the create-order path; this is the buyer
+  // counterpart and fires once per order regardless of vendor count.
+  emitNotification('order.buyer_confirmed', {
+    orderId,
+    customerUserId: payment.order.customerId,
+  })
 }
 
 export async function getMyOrders() {

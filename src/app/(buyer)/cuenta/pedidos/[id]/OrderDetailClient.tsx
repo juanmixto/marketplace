@@ -5,9 +5,9 @@ import Link from 'next/link'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { ORDER_STATUS_LABELS, FULFILLMENT_STATUS_LABELS } from '@/lib/constants'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircleIcon } from '@heroicons/react/24/solid'
+import { CheckCircleIcon, StarIcon } from '@heroicons/react/24/solid'
 import { parseOrderLineSnapshot } from '@/lib/order-line-snapshot'
-import { ReviewFormButton } from '@/components/reviews/ReviewFormButton'
+import { ReviewFormButton, ReviewWizardButton } from '@/components/reviews/ReviewFormButton'
 import { ReportProblemLink } from '@/components/buyer/ReportProblemLink'
 import { useT } from '@/i18n'
 
@@ -75,6 +75,24 @@ interface Props {
 export function OrderDetailClient({ order, nuevo, reviewEligibility }: Props) {
   const t = useT()
 
+  // Pending review steps for the wizard, deduped by productId so a product
+  // present on two separate lines (e.g. variants) becomes a single step.
+  // When this is 2+ items, both the top CTA and the per-line buttons enter
+  // the same wizard — the per-line buttons just deep-link to their step via
+  // initialProductId. When there is exactly 1 pending product, the per-line
+  // button uses the single ReviewFormButton flow.
+  const wizardItems = (() => {
+    const seen = new Set<string>()
+    const items: { productId: string; productName: string }[] = []
+    for (const line of order.lines) {
+      if (!reviewEligibility[line.productId]) continue
+      if (seen.has(line.productId)) continue
+      seen.add(line.productId)
+      items.push({ productId: line.productId, productName: line.product.name })
+    }
+    return items
+  })()
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
       {/* Success banner */}
@@ -99,6 +117,20 @@ export function OrderDetailClient({ order, nuevo, reviewEligibility }: Props) {
           {ORDER_STATUS_LABELS[order.status] ?? order.status}
         </Badge>
       </div>
+
+      {/* Compact CTA + bulk-review wizard. Shown only when the order has 2+
+          pending products. For a single pending row the per-line button is
+          enough. The wizard walks the buyer through every pending product
+          one form at a time with explicit "skip" controls. */}
+      {wizardItems.length >= 2 && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800/60 dark:bg-amber-950/30">
+          <StarIcon className="h-5 w-5 shrink-0 text-amber-500 dark:text-amber-300" />
+          <p className="flex-1 text-sm font-medium text-amber-900 dark:text-amber-100">
+            {t('reviews.wizardCtaCompact').replace('{count}', String(wizardItems.length))}
+          </p>
+          <ReviewWizardButton orderId={order.id} items={wizardItems} />
+        </div>
+      )}
 
       {/* Products */}
       <div
@@ -138,11 +170,25 @@ export function OrderDetailClient({ order, nuevo, reviewEligibility }: Props) {
                   <p className="text-sm text-[var(--muted)]">× {line.quantity} {line.product.unit}</p>
                   {reviewEligibility[line.productId] && (
                     <div className="mt-3">
-                      <ReviewFormButton
-                        orderId={order.id}
-                        productId={line.productId}
-                        productName={line.product.name}
-                      />
+                      {wizardItems.length >= 2 ? (
+                        // Multi-product order: the per-line button is a
+                        // deep-link into the wizard at the matching step. Same
+                        // single mounted Modal instance walks the rest of the
+                        // pending products with skip controls.
+                        <ReviewWizardButton
+                          orderId={order.id}
+                          items={wizardItems}
+                          initialProductId={line.productId}
+                          triggerLabelKey="reviews.leave"
+                          triggerVariant="secondary"
+                        />
+                      ) : (
+                        <ReviewFormButton
+                          orderId={order.id}
+                          productId={line.productId}
+                          productName={line.product.name}
+                        />
+                      )}
                     </div>
                   )}
                 </div>

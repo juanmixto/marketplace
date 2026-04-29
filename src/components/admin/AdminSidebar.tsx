@@ -18,8 +18,9 @@ import { useSidebar } from '@/components/layout/SidebarProvider'
 import { useSwipeToClose } from '@/lib/hooks/useSwipeToClose'
 import { useFeatureFlagStrict } from '@/lib/flags.client'
 import { LanguageToggle } from '@/components/LanguageToggle'
+import { BrandMark } from '@/components/brand/BrandMark'
 import { ThemeToggle } from '@/components/ThemeToggle'
-import { signOutAndClearCart } from '@/components/buyer/cart-session'
+import { SignOutButton } from '@/components/auth/SignOutButton'
 import { useT } from '@/i18n'
 import { ArchiveBoxArrowDownIcon } from '@heroicons/react/24/outline'
 
@@ -130,9 +131,7 @@ export function AdminSidebar({ user }: Props = {}) {
               className="pointer-events-none hidden md:flex md:absolute md:inset-0 md:items-center md:justify-center"
               aria-hidden="true"
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-500/30 dark:bg-emerald-500 dark:text-gray-950 dark:ring-emerald-300/30">
-                <span className="text-[11px] font-bold">MP</span>
-              </div>
+              <BrandMark size={32} className="h-8 w-8 rounded-lg" />
             </div>
           )}
           <button
@@ -265,13 +264,7 @@ export function AdminSidebar({ user }: Props = {}) {
 
         {user && (
           <div className="md:hidden border-t border-[var(--border)] p-3">
-            <button
-              type="button"
-              onClick={() => void signOutAndClearCart('/login')}
-              className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-            >
-              {t('signOut')}
-            </button>
+            <SignOutButton compact redirectTo="/login" />
           </div>
         )}
       </aside>
