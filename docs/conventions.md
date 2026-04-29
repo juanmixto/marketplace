@@ -93,6 +93,39 @@ export async function myAction(input: unknown) {
 
 For API routes and Server Components use the existing `requireVendor()` / `requireAdmin()` from `src/lib/auth-guard.ts` instead of rolling your own.
 
+<a id="use-server-only-async"></a>
+### `'use server'` files: only export async functions
+
+Next.js refuses to compile a `'use server'` module that exports anything other than an `async function`. Constants, types, interfaces, classes, sync helpers — all rejected at build time with:
+
+```
+Only async functions are allowed to be exported in a "use server" file.
+```
+
+`tsc --noEmit` does **not** catch this — the restriction lives in the Next.js compiler, not in TypeScript. Local typecheck passes, then `next build` (or `npx next build`, or any of the E2E shards in CI) breaks. PRs #1000 / #1001 hit this exact trap when they exported `VENDOR_*_PAGE_SIZE` constants and `Vendor*Filters` types directly from `actions.ts`.
+
+**Where the contract types live:** `src/domains/<domain>/types.ts` (or `<domain>/index.ts`). Import them back from `actions.ts` if the action signature needs the type.
+
+**Verification before push:** if you added or moved an export in a `'use server'` file, run `npx next build` locally — not just `tsc --noEmit`. The dev server doesn't catch it either; only a full build does.
+
+```ts
+// ❌ Wrong — fails at next build
+'use server'
+export const PAGE_SIZE = 25
+export type Filters = { cursor?: string }
+export async function listThings(f: Filters) { /* ... */ }
+
+// ✅ Right — types and constants in a sibling module
+// src/domains/things/types.ts
+export const PAGE_SIZE = 25
+export type Filters = { cursor?: string }
+
+// src/domains/things/actions.ts
+'use server'
+import { PAGE_SIZE, type Filters } from './types'
+export async function listThings(f: Filters) { /* ... */ }
+```
+
 ---
 
 ## Cross-domain imports — go through the barrel
