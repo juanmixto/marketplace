@@ -16,12 +16,24 @@ export const DEFAULT_SYNC_CONCURRENCY = 1
 export const DEFAULT_MEDIA_CONCURRENCY = 1
 export const DEFAULT_MEDIA_MAX_BYTES = 20 * 1024 * 1024 // 20 MB
 export const DEFAULT_JOB_RETRY_LIMIT = 5
+// Phase 2 processor: classifier + rules extractor + drafts builder.
+// Pure CPU + Postgres, no external rate-limited service, idempotent
+// per (messageId, extractorVersion). Safe to parallelise; default
+// stays conservative (1) but admins can dial up to drain backlog.
+export const DEFAULT_PROCESSING_CONCURRENCY = 1
+export const MAX_PROCESSING_CONCURRENCY = 8
+// Lower polling interval = faster pickup of the first job after the
+// queue goes empty. 0.5 s adds negligible idle DB load (one cheap
+// indexed read every half second per handler).
+export const DEFAULT_PROCESSING_POLLING_SECONDS = 0.5
 
 export interface IngestionRuntimeConfig {
   syncBatchSize: number
   syncConcurrency: number
   mediaConcurrency: number
   mediaMaxBytes: number
+  processingConcurrency: number
+  processingPollingSeconds: number
 }
 
 function parsePositiveInt(
@@ -60,5 +72,26 @@ export function resolveIngestionRuntimeConfig(
       DEFAULT_MEDIA_MAX_BYTES,
       256 * 1024 * 1024,
     ),
+    processingConcurrency: parsePositiveInt(
+      env.INGESTION_PROCESSING_CONCURRENCY,
+      DEFAULT_PROCESSING_CONCURRENCY,
+      MAX_PROCESSING_CONCURRENCY,
+    ),
+    processingPollingSeconds: parsePositiveFloat(
+      env.INGESTION_PROCESSING_POLLING_SECONDS,
+      DEFAULT_PROCESSING_POLLING_SECONDS,
+      30,
+    ),
   }
+}
+
+function parsePositiveFloat(
+  raw: string | undefined,
+  fallback: number,
+  max: number,
+): number {
+  if (!raw) return fallback
+  const n = Number.parseFloat(raw)
+  if (!Number.isFinite(n) || n <= 0) return fallback
+  return n > max ? max : n
 }

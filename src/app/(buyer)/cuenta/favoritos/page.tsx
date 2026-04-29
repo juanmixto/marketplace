@@ -9,7 +9,7 @@ import { serializeFavoriteProduct } from '@/lib/favorites-serialization'
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT()
   return {
-    title: `${t('favorites.title')} | Mercado Productor`,
+    title: `${t('favorites.title')} | Raíz Directa`,
     description: t('favorites.subtitle'),
   }
 }

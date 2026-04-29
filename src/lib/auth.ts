@@ -2,7 +2,7 @@ import NextAuth from 'next-auth'
 import { PrismaAdapter } from '@auth/prisma-adapter'
 import type { Adapter } from 'next-auth/adapters'
 import Credentials from 'next-auth/providers/credentials'
-import Google from 'next-auth/providers/google'
+import Google, { type GoogleProfile } from 'next-auth/providers/google'
 import type { Provider } from 'next-auth/providers'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
@@ -51,7 +51,17 @@ function buildAdapter(): Adapter {
     async createUser(data) {
       const email = (data as { email?: string | null }).email ?? ''
       const name = (data as { name?: string | null }).name
-      const { firstName, lastName } = splitProfileName(name, email)
+      // Google's profile callback (below) forwards given_name/family_name
+      // as firstName/lastName so compound Spanish names like "Juan Carlos
+      // García Pérez" don't get split on the first space. Fall back to
+      // splitProfileName for providers that only ship a combined `name`.
+      const provided = data as {
+        firstName?: string | null
+        lastName?: string | null
+      }
+      const fallback = splitProfileName(name, email)
+      const firstName = provided.firstName?.trim() || fallback.firstName
+      const lastName = provided.lastName?.trim() ?? fallback.lastName
       const created = await db.user.create({
         data: {
           email,
@@ -330,6 +340,30 @@ function buildProviders(): Provider[] {
         // openid scope is implicit; keep "email profile" minimal —
         // we don't use Google APIs after login.
         authorization: { params: { scope: 'openid email profile' } },
+        // The OIDC profile from Google ships `given_name` / `family_name`
+        // separately, plus `email_verified`. The default profile callback
+        // collapses them into `name` and ignores `email_verified`. We
+        // forward the structured fields to the adapter (createUser reads
+        // them) and seed `emailVerified` so Google users skip our own
+        // email-verification mail — Google has already verified it.
+        // Cast: the augmented next-auth `User` type in this repo
+        // requires `role`, but role is assigned by the Prisma default
+        // at insert time (createUser doesn't set it). Auth.js only
+        // reads id/email/emailVerified from this object before handing
+        // the rest to the adapter, so the missing field is harmless.
+        profile(p: GoogleProfile) {
+          const verified = p.email_verified === true
+          return {
+            id: p.sub,
+            email: p.email,
+            name: p.name,
+            image: p.picture,
+            emailVerified: verified ? new Date() : null,
+            firstName: p.given_name ?? null,
+            lastName: p.family_name ?? null,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any
+        },
       })
     )
   }

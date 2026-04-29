@@ -395,6 +395,41 @@ export async function getVendors(limit = 12) {
   return getVendorsCached(limit)
 }
 
+/**
+ * Ghost producers detected from Telegram ingestion: vendors created
+ * by `approveVendorLead` that have not yet been claimed by their
+ * real owner. Status is `APPLYING` and a fresh `claimCode` is set;
+ * once the producer claims, both columns clear and the vendor flips
+ * to `ACTIVE`, joining the regular `getVendors` listing.
+ *
+ * Selected fields stay restricted to the public DTO — `claimCode`
+ * and other PII never leave the boundary. The "ghost" flag in the
+ * shape is computed (`status === 'APPLYING'`), not read directly,
+ * to keep the public select map intact.
+ */
+async function getGhostProducersUncached(limit = 30) {
+  return db.vendor.findMany({
+    where: {
+      status: 'APPLYING',
+      claimCode: { not: null },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+    select: PUBLIC_VENDOR_SELECT,
+  })
+}
+
+const getGhostProducersCached = unstable_cache(
+  async (limit: number) => getGhostProducersUncached(limit),
+  ['catalog-ghost-producers'],
+  { tags: [CACHE_TAGS.vendors], revalidate: 300 },
+)
+
+export async function getGhostProducers(limit = 30) {
+  if (process.env.NODE_ENV === 'test') return getGhostProducersUncached(limit)
+  return getGhostProducersCached(limit)
+}
+
 async function getHomeSnapshotUncached() {
   const [featured, categories, vendors, activeProducts, activeVendors, averageVendorRating] = await Promise.all([
     getFeaturedProducts(8),

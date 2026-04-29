@@ -67,7 +67,7 @@ export function RepeatOrderButton({ orderNumber, lines }: RepeatOrderButtonProps
         price: Number.isFinite(unitPrice) ? unitPrice : 0,
         unit: snapshot?.unit ?? 'unidad',
         vendorId: line.vendorId,
-        vendorName: snapshot?.vendorName ?? 'Mercado Productor',
+        vendorName: snapshot?.vendorName ?? 'Raíz Directa',
         quantity: Math.max(1, line.quantity),
       })
     }

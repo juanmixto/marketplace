@@ -6,6 +6,7 @@ import { IncidentAuthError } from '@/domains/incidents/errors'
 import { SlaProgress } from '@/components/incidents/SlaProgress'
 import { getServerT } from '@/i18n/server'
 import type { TranslationKeys } from '@/i18n/locales'
+import { IncidentAttachmentList } from '@/components/incidents/IncidentAttachmentList'
 import { IncidentReplyForm } from './IncidentReplyForm'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -69,6 +70,10 @@ export default async function IncidentDetailPage({ params }: Props) {
         <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--foreground-soft)]">
           {incident.description}
         </p>
+        <IncidentAttachmentList
+          attachments={incident.attachments}
+          altPrefix={t('incident.attachments.altPrefix')}
+        />
       </div>
 
       {/* Thread */}
@@ -102,6 +107,10 @@ export default async function IncidentDetailPage({ params }: Props) {
               <p className="mt-1 whitespace-pre-wrap text-sm text-[var(--foreground)]">
                 {message.body}
               </p>
+              <IncidentAttachmentList
+                attachments={message.attachments}
+                altPrefix={t('incident.attachments.altPrefix')}
+              />
             </li>
           )
         })}

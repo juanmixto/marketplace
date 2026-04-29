@@ -15,6 +15,7 @@ import {
 import { formatPrice } from '@/lib/utils'
 import { createAnalyticsItem, trackAnalyticsEvent } from '@/lib/analytics'
 import { getCatalogCopy, translateProductLabel, translateProductUnit } from '@/i18n/catalog-copy'
+import type { ShippingZoneSlug } from '@/domains/shipping/zone-default'
 import { MinusIcon, PlusIcon } from '@heroicons/react/24/outline'
 
 interface AutoDiscount {
@@ -38,6 +39,24 @@ interface Props {
   stock: number
   variants: ProductVariantOption[]
   autoDiscount?: AutoDiscount | null
+  /**
+   * Server-computed shipping estimate for a default postal code chosen
+   * for the visitor's shipping zone (resolved from `cf-region-code` —
+   * see `src/domains/shipping/zone-default.ts`). Used to surface
+   * "Llega en 3–5 días — envío X €" above the Add-to-cart CTA. Audit
+   * #917 (docs/audits/2026-04-27-launch-alignment.md H5). When `null`
+   * (DB read failed) the band degrades to the zone label + disclaimer;
+   * never blocks the CTA.
+   */
+  estimatedShippingCost?: number | null
+  /**
+   * Shipping zone resolved from Cloudflare's `cf-region-code` header.
+   * Drives the zone label in the cost line and the disclaimer copy. A
+   * peninsular visitor sees the 3–5 días ETA promise; insular visitors
+   * see "plazo y coste exactos según destino" instead, since real
+   * island ETAs depend on the producer and aren't a flat promise.
+   */
+  shippingZone?: ShippingZoneSlug
 }
 
 export function ProductPurchasePanel({
@@ -55,6 +74,8 @@ export function ProductPurchasePanel({
   stock,
   variants,
   autoDiscount,
+  estimatedShippingCost,
+  shippingZone = 'peninsula',
 }: Props) {
   const { locale } = useLocale()
   const copy = getCatalogCopy(locale)
@@ -330,6 +351,37 @@ export function ProductPurchasePanel({
             ))}
           </div>
         </div>
+      </div>
+
+      <div
+        className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-800/60 dark:bg-emerald-950/30"
+        data-testid="pdp-shipping-band"
+        data-shipping-zone={shippingZone}
+      >
+        {shippingZone === 'peninsula' && (
+          <p className="font-semibold text-emerald-900 dark:text-emerald-100">
+            {copy.product.shippingEtaPeninsula}
+          </p>
+        )}
+        {typeof estimatedShippingCost === 'number' && (
+          <p
+            className={
+              shippingZone === 'peninsula'
+                ? 'mt-0.5 text-emerald-800/90 dark:text-emerald-200/90'
+                : 'font-semibold text-emerald-900 dark:text-emerald-100'
+            }
+          >
+            {copy.product.shippingCostFormat(
+              formatPrice(estimatedShippingCost),
+              copy.product.shippingZoneLabel[shippingZone],
+            )}
+          </p>
+        )}
+        <p className="mt-1 text-xs text-emerald-800/70 dark:text-emerald-200/70">
+          {shippingZone === 'peninsula'
+            ? copy.product.shippingDisclaimerPeninsula
+            : copy.product.shippingDisclaimerInsular}
+        </p>
       </div>
 
       <div ref={inlineCtaRef} className="mt-6">
