@@ -34,6 +34,29 @@ async function addProductToCart(page: import('@playwright/test').Page, slug: str
   await expect(addToCart).toBeEnabled({ timeout: 5_000 })
   await addToCart.click()
   await expect(page.getByRole('button', { name: /añadido/i }).first()).toBeVisible({ timeout: 5_000 })
+  // Hard-gate on the cart store actually containing this item before
+  // returning. The "Añadido" button text comes from local component
+  // state (`setAdded(true)` in AddToCartButton) and fires *before*
+  // the next React render commits the Zustand mutation. If the test
+  // chains a second `page.goto(...)` immediately, the navigation can
+  // race the persist middleware and the second add ends up clobbering
+  // the first (or hitting a stale closure on a not-yet-rehydrated
+  // store). Reading `localStorage.cart-storage` is the only signal
+  // tied to actual persistence — every other flag is local UI state.
+  await page.waitForFunction(
+    (expectedSlug) => {
+      try {
+        const raw = window.localStorage.getItem('cart-storage')
+        if (!raw) return false
+        const parsed = JSON.parse(raw) as { state?: { items?: { slug?: string }[] } }
+        return parsed?.state?.items?.some(item => item.slug === expectedSlug) ?? false
+      } catch {
+        return false
+      }
+    },
+    slug,
+    { timeout: 5_000 },
+  )
 }
 
 test.describe('multi-vendor cart and checkout @smoke', () => {
