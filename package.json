@@ -27,6 +27,7 @@
     "audit:flags-cleanup": "node ./scripts/audit-flag-cleanup-tickets.mjs",
     "audit:fk": "node ./scripts/audit-fk-onDelete.mjs",
     "audit:findMany": "node ./scripts/audit-unbounded-findMany.mjs",
+    "audit:image-sizes": "node ./scripts/audit-image-sizes.mjs",
     "audit:deps": "npm audit --omit=dev --audit-level=high",
     "prisma:generate": "prisma generate",
     "db:migrate": "node --env-file=.env --env-file-if-exists=.env.local ./node_modules/prisma/build/index.js migrate dev",

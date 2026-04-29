@@ -1,3 +1,9 @@
+---
+summary: Perfil del productor que queremos a bordo (artesanal, pequeño, historia verificable) y el que no (volumen, intermediarios).
+audience: agents,humans
+read_when: tocar onboarding o copy de contacto a productores
+---
+
 # 02 — Productores ideales
 
 ## Perfil del productor inicial

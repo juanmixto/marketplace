@@ -414,8 +414,74 @@ Set `POSTHOG_PERSONAL_API_KEY` in prod to enable in-process evaluation — avoid
 
 ---
 
+## Next.js 16 gotchas (run-time pitfalls)
+
+`AGENTS.md` already warns "this is NOT the Next.js you know". The list below records gotchas that surfaced in production code and cost real debugging time. Add to it as new ones land.
+
+### `headers()` / `cookies()` BEFORE `unstable_cache`
+
+Calling a dynamic API (`headers()`, `cookies()`, `searchParams`) AFTER an `unstable_cache`-wrapped query in the same server component breaks PDP hydration in ways that aren't visible until specific user flows fail. The 2026-04-29 incident: #929's geo-IP follow-up commit added `await headers()` after `getProductBySlug` (which is `unstable_cache`-wrapped in `src/domains/catalog/queries.ts`). Three smoke specs went from green to red because cart/favorites mutations stopped persisting across navigation. The reverting commit is #1043; full diagnosis in memory under `feedback_headers_before_unstable_cache.md`.
+
+```tsx
+// WRONG — dynamic API after a cached query
+export default async function PdpPage({ params }: Props) {
+  const { slug } = await params
+  const product = await getProductBySlug(slug)         // unstable_cache
+  const reqHeaders = await headers()                    // breaks hydration
+  // ...
+}
+
+// RIGHT — dynamic APIs first, then cached queries
+export default async function PdpPage({ params }: Props) {
+  const reqHeaders = await headers()                    // dynamic context registered
+  const { slug } = await params
+  const product = await getProductBySlug(slug)         // cache key derives correctly
+  // ...
+}
+```
+
+If the dynamic value is needed to parametrize the cache key (e.g., zone-aware shipping cost), hoist the dynamic call up the tree (layout, parent server component) and pass it as a prop into the segment that owns the cached query. **Never** call a dynamic API in the same component below an `unstable_cache` boundary.
+
+### `useState(initial)` from props doesn't update on same-route param change
+
+In App Router, navigating from `/productos/A` to `/productos/B` reuses the `[slug]/page.tsx` segment's React tree. Client components beneath it keep their state — including `useState` initial values derived from props. This is correct React behaviour but surprises when the prop is supposed to be the source of truth.
+
+```tsx
+// SUSPECT — selectedVariantId initial captures defaultVariant from product A.
+// On nav to product B, the prop updates but state remains stale.
+const [selectedVariantId, setSelectedVariantId] = useState<string>(
+  defaultVariant?.id ?? ''
+)
+```
+
+Two fixes:
+- Add `key={slug}` (or any stable per-product identifier) on the parent so React unmounts and re-mounts the subtree on slug change.
+- Re-derive in `useEffect` when the relevant prop changes:
+  ```tsx
+  useEffect(() => {
+    setSelectedVariantId(defaultVariant?.id ?? '')
+  }, [defaultVariant?.id])
+  ```
+
+This is the leading hypothesis behind #1045 (multi-vendor-cart race); confirm before fixing.
+
+---
+
+## Imágenes (next/image)
+
+`next.config.ts` define `images.deviceSizes`, `imageSizes` y `formats` afinados al catálogo real (#1051), no a los defaults de Next:
+
+- `deviceSizes: [360, 640, 750, 828, 1080, 1280, 1600]` — el `<Image sizes>` más alto declarado en el repo es `(max-width: 1280px) 100vw, 1280px`. Cubrir hasta 1600 deja headroom retina sin emitir variantes 1920/2048/3840 que nadie pide.
+- `imageSizes: [16, 32, 64, 96, 128, 256]` — los thumbnails reales rondan 28/40/48/56/64/80/200 px, redondean limpios a esta escala.
+- `formats: ['image/avif', 'image/webp']` — AVIF primero (~20 % menos que WebP en Chrome/Firefox/Safari 16+), WebP fallback. El default de Next sólo emite WebP.
+
+Si añades un `<Image sizes="(min-width: 1700px) ...">` o un slot `>1600px`, falla `audit:image-sizes` ([`scripts/audit-image-sizes.mjs`](../scripts/audit-image-sizes.mjs)). O bien bajas el breakpoint, o bien subes `deviceSizes` y avisas al deploy (cambiar `deviceSizes` invalida la caché de `/_next/image`).
+
+---
+
 ## Related documents
 
 - [`docs/ai-guidelines.md`](./ai-guidelines.md) — contract rules, domain boundaries, and how the audit script enforces them.
 - [`docs/ai-workflows.md`](./ai-workflows.md) — recipes: add a feature, refactor safely, change a contract.
+- [`docs/runbooks/ci-incident.md`](./runbooks/ci-incident.md) — main red, what now: triage flow, branch-protection bypass shapes, page-snapshot recipe.
 - [`src/i18n/README.md`](../src/i18n/README.md) — i18n conventions (flat keys vs `*-copy.ts` vs `labelKey`).

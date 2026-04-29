@@ -1,3 +1,9 @@
+---
+summary: Playbook para añadir Cloudflare/WAF delante de Traefik (#540). Self-hosted Proxmox sin edge gestionado por defecto.
+audience: agents,humans
+read_when: configurar edge protection; tocar src/lib/ratelimit.ts o resolución de client IP
+---
+
 # Edge protection runbook (Cloudflare / WAF)
 
 Tracks the infra work for [#540](https://github.com/juanmixto/marketplace/issues/540). The marketplace runs self-hosted (Proxmox + Traefik) with no managed edge in front by default. This document is the playbook for adding one.
