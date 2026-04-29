@@ -44,6 +44,13 @@ env:
 
 jobs:
   lighthouse:
+    # Audit form factor is mobile (Lighthouse default; no `preset` set
+    # in `.lighthouserc.json`). Business priority per AGENTS.md is
+    # mobile conversion — the buyer cohort is overwhelmingly on phones,
+    # so a desktop-only audit was telling us nothing about the surface
+    # that matters. All category assertions are `warn` (not `error`),
+    # so a mobile-vs-desktop scoring delta does not block CI; the
+    # report still uploads as an artifact for inspection. (#980)
     name: Lighthouse PWA audit
     runs-on: ubuntu-latest
     timeout-minutes: 12

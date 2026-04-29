@@ -4,18 +4,20 @@ This is the snapshot of the `main` branch protection ruleset (reference config; 
 
 ## Required status checks on `main`
 
-The following checks **must pass** before a PR can be merged. They correspond to job names in `.github/workflows/` and are verified as currently active in the GitHub ruleset (audited 2026-04-23):
+The following checks **must pass** before a PR can be merged. They correspond to job names in `.github/workflows/` and are verified as currently active in the GitHub ruleset (audited 2026-04-29):
 
 | Check | Workflow | Why it gates | Status |
 |---|---|---|---|
-| `Verify` | `ci.yml` | Lint + audit:contracts + typecheck + unit tests | ✅ ACTIVE |
-| `Build And Migrate` | `ci.yml` | `prisma migrate diff` (schema drift) + `migrate deploy` + `next build` | ✅ ACTIVE |
-| `E2E Smoke` | `ci.yml` | Playwright smoke spec — see [`docs/ci-testing-strategy.md §6`](ci-testing-strategy.md) | ✅ ACTIVE |
+| `Verify` | `ci.yml` (real) + `ci-docs.yml` (no-op for docs-only PRs) | Lint + audit:contracts + typecheck + unit tests | ✅ ACTIVE |
+| `Build And Migrate` | `ci.yml` (real) + `ci-docs.yml` (no-op for docs-only PRs) | `prisma migrate diff` (schema drift) + `migrate deploy` + `next build` | ✅ ACTIVE |
+| `E2E Smoke` | `ci.yml` (real) + `ci-docs.yml` (no-op for docs-only PRs) | Playwright smoke spec — see [`docs/ci-testing-strategy.md §6`](ci-testing-strategy.md) | ✅ ACTIVE |
+
+`ci.yml` ignores docs-only paths (`**/*.md`, `.vscode/**`, `LICENSE`, `.gitignore`) to avoid paying the full pipeline tax on typo fixes. Without a sibling, those PRs would never get the required contexts reported and become permanently `BLOCKED` (discovered with #1038 + #1039 on 2026-04-29). `ci-docs.yml` is the path-inverse companion that posts trivial green checks under the same context names so doc-only PRs can satisfy branch protection. **When promoting a check to required, mirror it in both workflows or revert the docs PR's mergeability gain.**
 
 ## Rules that must stay on
 
 - **Require status checks to pass**: all of the above.
-- **Require branches to be up to date**: yes — forces rebase against current `main`, so "drift from main" can't mask a failing check.
+- **Require branches to be up to date**: yes — forces rebase against current `main`, so "drift from main" can't mask a failing check. Compensating workflow: `.github/workflows/auto-update-pr-branches.yml` runs after every push to `main` (and every 30 min as backup) and triggers `update-branch` on every open PR with auto-merge enabled and `mergeStateStatus = BEHIND`. Without that, a PR queue silently rots in `BEHIND` forever — that's exactly the failure mode that kept main red across 30+ pushes on 2026-04-28 (every fix waiting on a manual rebase before it could land).
 - **Block force pushes to `main`**: yes.
 - **Required linear history**: yes (squash merges only; see [`docs/git-workflow.md`](git-workflow.md)).
 - **Restrict deletions on `main`**: yes.
@@ -23,12 +25,12 @@ The following checks **must pass** before a PR can be merged. They correspond to
 
 ## What is NOT required (and why)
 
-- `Integration shard 0` / `1` / `2` — were marked as required in historical configs, but are no longer gating in the active ruleset. These still run and their results inform local dev testing; consider re-enabling as a gate for higher integration coverage (issue #TBD).
-- `Doctor (schema + routes + healthcheck)` — was intended as a runtime validation gate but is not currently active. Consider re-enabling to catch schema drift and route registration errors at merge time (issue #TBD).
-- `Analyze (actions)` / `Analyze (javascript-typescript)` / `CodeQL` — security scanning is performed via other pipelines. CodeQL results are informational and not a merge blocker in this ruleset.
+- `Integration shard 0` … `15` and `Integration` (aggregator) — gated by `if: github.event_name == 'push' && github.ref == 'refs/heads/main'` in `ci.yml`, so they only run **post-merge** on `main`. They are NOT in the required-checks list (verified 2026-04-29), so they cannot be a phantom required-skipped check on PRs. Coverage gap (#974): integration tests don't run on PRs at all; revisit if regressions slip past `Verify` repeatedly.
+- `Doctor (schema + routes + healthcheck)` — runs on every push but is NOT a required check. Consider promoting to required if it stays green for 2 weeks straight (issue #TBD).
+- `Analyze (actions)` / `Analyze (javascript-typescript)` / `CodeQL` — security scanning is performed via the `Security Scan` workflow. CodeQL results are informational and not a merge blocker in this ruleset.
+- `Security Scan` (semgrep + gitleaks + npm audit) — runs only on push to `main` (no PR trigger), so it cannot be required.
 - `Nightly` workflow — it runs full E2E in prod mode, not PR-scoped. A nightly failure opens an issue; it doesn't block merges.
 - `Lighthouse` — informational PWA/perf metric, not a correctness gate.
-- `Integration` (summary job) — reporting-only aggregator of the 3 shards; the shards themselves are the gate.
 
 ## When to update this doc
 
