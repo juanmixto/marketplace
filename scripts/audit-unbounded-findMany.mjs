@@ -68,6 +68,7 @@ const FILE_ALLOWLIST = new Map([
   // a sum / count that cannot be pushed to a single SQL aggregate.
   ['src/domains/admin-stats/queries.ts',                   'admin-only KPI aggregations'],
   ['src/domains/admin/reports.ts',                         'admin-only KPI aggregations'],
+  ['src/domains/vendors/actions.ts',                       'getMyFulfillmentKpis revenue30d sum, bounded by date'],
 
   // Sitemap / SEO need to enumerate every public entity.
   ['src/app/sitemap.ts',                                   'sitemap enumerates every public entity'],

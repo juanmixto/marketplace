@@ -84,6 +84,14 @@ jobs:
     # re-add `continue-on-error: true` here as a short-term mitigation
     # while the offending rule is triaged (either fixed or added to a
     # .semgrepignore).
+    permissions:
+      # Workflow-level grants only `contents: read`. The Upload SARIF
+      # step calls the Code Scanning API and needs `security-events:
+      # write` to land findings in the Security tab; without this
+      # override the upload fails with "Resource not accessible by
+      # integration".
+      contents: read
+      security-events: write
     container:
       image: semgrep/semgrep:latest
     steps:
