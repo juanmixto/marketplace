@@ -1,3 +1,9 @@
+---
+summary: Registro de ADRs cerradas (001–009) + decisiones pendientes. Lo de aquí no se reabre sin información nueva que invalide la decisión.
+audience: agents,humans
+read_when: antes de proponer algo que choque con un ADR; al cerrar una nueva decisión
+---
+
 # 09 — Decisiones estratégicas
 
 > **Registro de decisiones tomadas.** Lo que está aquí está cerrado. No se reabre sin información nueva que invalide la decisión.

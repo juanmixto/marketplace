@@ -1,3 +1,9 @@
+---
+summary: 5 flujos que NO pueden romperse (CF-1..CF-5: descubrimiento→compra, pedido→entrega, onboarding productor, atención, devolución). Cambios requieren test golden path + verificación móvil real + mención en PR.
+audience: agents,humans
+read_when: tocar checkout, ficha producto/productor, onboarding, atención, devoluciones
+---
+
 # 02 — Flujos críticos
 
 > Los flujos listados aquí **no pueden romperse**. Cualquier cambio que los toque requiere:

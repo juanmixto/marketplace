@@ -1,3 +1,9 @@
+---
+summary: Estado real (no ideal) de logística y atención: envío por productor, atención email+formulario único (ADR-009), matriz de incidencias.
+audience: agents,humans
+read_when: tocar atención al comprador, logística, incidencias
+---
+
 # 05 — Logística y operaciones
 
 > Estado **real**, no aspiracional. Si algo se hace a mano, aquí dice que se hace a mano.

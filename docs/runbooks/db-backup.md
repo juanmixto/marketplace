@@ -1,3 +1,9 @@
+---
+summary: Procedimiento Phase 0 end-to-end: bind-mounted datadir + pgBackRest WAL en B2 + dump nocturno en B2 + alertas Telegram via Healthchecks.
+audience: agents,humans
+read_when: tocar infra/pgbackrest/, infra/postgres/, scripts/db/, servicio db en docker-compose.prod.yml
+---
+
 # DB backup setup — Phase 0
 
 End-to-end procedure to bring the production primary from "managed Docker volume + no off-site backups" to "bind-mounted datadir + pgBackRest WAL archive on B2 + nightly logical dump on B2 + Healthchecks alerts on Telegram".
