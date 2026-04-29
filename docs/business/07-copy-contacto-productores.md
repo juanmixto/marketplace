@@ -1,3 +1,9 @@
+---
+summary: Tono y plantillas para hablar con productores. Cualquier cambio en copy de onboarding o comunicación operativa se valida aquí.
+audience: agents,humans
+read_when: redactar/cambiar copy dirigido a productores
+---
+
 # 07 — Copy y contacto con productores
 
 > Tono y plantillas para hablar con productores. **Cualquier cambio en el copy de onboarding o de comunicación operativa se valida contra este documento.**

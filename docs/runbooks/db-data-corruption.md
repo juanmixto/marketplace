@@ -1,3 +1,9 @@
+---
+summary: Checklist de 12 pasos para 'la DB está arriba pero los datos están mal'. NUNCA pg_resetwal/REINDEX/VACUUM FULL antes de snapshot.
+audience: agents,humans
+read_when: sospecha de corrupción de datos; antes de tocar cualquier cosa que parezca destructiva
+---
+
 # DB data corruption
 
 12-step checklist for "the DB is up but something is wrong with the data". Use this when:

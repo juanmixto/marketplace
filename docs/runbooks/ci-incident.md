@@ -1,3 +1,9 @@
+---
+summary: main is red — playbook de triage. Escrito desde el incidente 2026-04-29 (3 smokes rotos atravesaron varios merges por bypass de branch protection).
+audience: agents,humans
+read_when: CI de main rojo; PRs encolando sobre base rota
+---
+
 # CI incident runbook — main is red, what now?
 
 When `main`'s CI is red, work is silently being layered on top of a broken base. Every minute it stays red, the rollback surface grows. This runbook is the playbook for triage, written from the 2026-04-29 incident where three smokes broke and stayed broken across multiple merges because of a branch-protection bypass nobody noticed.

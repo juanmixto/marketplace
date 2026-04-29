@@ -1,3 +1,9 @@
+---
+summary: Reglas específicas para móvil. La conversión móvil manda (principio 2). Tap targets, latencia, formularios cortos.
+audience: agents,humans
+read_when: tocar UI móvil, layout, tap targets, formularios
+---
+
 # 04 — Prioridades UX móvil
 
 > Reglas específicas para móvil. La conversión móvil manda (`01-principios-producto.md` § 2).
