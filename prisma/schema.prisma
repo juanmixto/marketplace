@@ -287,8 +287,8 @@ model Vendor {
   claimCode          String?   @unique
   claimCodeExpiresAt DateTime?
 
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user              User                @relation(fields: [userId], references: [id])
   products          Product[]
@@ -773,6 +773,14 @@ model Payment {
   currency    String        @default("EUR")
   status      PaymentStatus @default(PENDING)
   metadata    Json?
+  // Watermark for out-of-order webhook delivery (#959). Mirrors the
+  // pattern on Subscription.lastStripeEventAt: the handler drops any
+  // event whose `event.created` is older than this value, so a late
+  // payment_intent.succeeded arriving after charge.refunded cannot
+  // resurrect a refunded order. Updated only on successful state
+  // transition; concurrent handlers for the same eventId are still
+  // deduped upstream by WebhookDelivery(provider, eventId).
+  lastStripeEventAt DateTime?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -782,6 +790,7 @@ model Payment {
   @@index([orderId])
   @@index([orderId, status])
   @@index([providerRef])
+  @@index([lastStripeEventAt])
 }
 
 model Refund {
@@ -790,10 +799,12 @@ model Refund {
   amount      Decimal  @db.Decimal(10, 2)
   reason      String
   fundedBy    String
-  providerRef String?
+  providerRef String?  @unique
   createdAt   DateTime @default(now())
 
   payment Payment @relation(fields: [paymentId], references: [id])
+
+  @@index([paymentId])
 }
 
 // ─── Incidents ────────────────────────────────────────────────────────────────
@@ -1368,8 +1379,8 @@ model TelegramIngestionMessage {
   // without re-parsing rawJson) and a snapshot of the title at
   // ingestion time (cheap denormalisation; can be re-resolved from
   // the chat's topic list if it ever drifts).
-  topicId    BigInt?
-  topicTitle String?
+  topicId     BigInt?
+  topicTitle  String?
 
   chat                       TelegramIngestionChat           @relation(fields: [chatId], references: [id], onDelete: Cascade)
   media                      TelegramIngestionMessageMedia[]
