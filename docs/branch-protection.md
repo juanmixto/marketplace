@@ -15,7 +15,7 @@ The following checks **must pass** before a PR can be merged. They correspond to
 ## Rules that must stay on
 
 - **Require status checks to pass**: all of the above.
-- **Require branches to be up to date**: yes — forces rebase against current `main`, so "drift from main" can't mask a failing check.
+- **Require branches to be up to date**: yes — forces rebase against current `main`, so "drift from main" can't mask a failing check. Compensating workflow: `.github/workflows/auto-update-pr-branches.yml` runs after every push to `main` (and every 30 min as backup) and triggers `update-branch` on every open PR with auto-merge enabled and `mergeStateStatus = BEHIND`. Without that, a PR queue silently rots in `BEHIND` forever — that's exactly the failure mode that kept main red across 30+ pushes on 2026-04-28 (every fix waiting on a manual rebase before it could land).
 - **Block force pushes to `main`**: yes.
 - **Required linear history**: yes (squash merges only; see [`docs/git-workflow.md`](git-workflow.md)).
 - **Restrict deletions on `main`**: yes.
