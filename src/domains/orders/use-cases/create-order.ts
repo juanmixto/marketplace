@@ -89,6 +89,13 @@ function roundCurrency2(value: number): number {
   return Math.round(value * 100) / 100
 }
 
+// DB audit P1.1 (#962): the createOrder transaction takes pessimistic row
+// locks on ProductVariant via SELECT ... FOR UPDATE (see domains/orders/
+// inventory.ts), so a slow lock contender must not silently roll back
+// after the buyer has already entered card details. Pinning explicit
+// timeout / maxWait makes the failure mode legible and version-stable.
+const CREATE_ORDER_TX_OPTIONS = { timeout: 15_000, maxWait: 5_000 } as const
+
 /**
  * Detects Prisma's P2002 unique-constraint error on
  * `Order.checkoutAttemptId`. Used by `createOrder` to collapse a
@@ -630,7 +637,7 @@ export async function createOrder(
           },
         },
       })
-    })
+    }, CREATE_ORDER_TX_OPTIONS)
   }
 
   let order
