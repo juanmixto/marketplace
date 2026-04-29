@@ -37,17 +37,7 @@ async function addProductToCart(page: import('@playwright/test').Page, slug: str
 }
 
 test.describe('multi-vendor cart and checkout @smoke', () => {
-  // Quarantined 2026-04-29 (#1042). Symptom: after the second
-  // `page.goto('/productos/[slug]') + add-to-cart` cycle, the cart at
-  // `/carrito` is empty (or in earlier runs collapsed both adds into
-  // a single product with quantity=2). cart-checkout (single nav +
-  // single add) and favorites are stable post-#1043; this spec's bug
-  // is specific to consecutive PDP navigations and pre-existed
-  // #1037's introduction of the spec — it merged red on its own PR
-  // because the aggregator-skipped-as-passing bug let it through
-  // (the gate fix is #1041). Keeping `@smoke` tag + `.fixme` so the
-  // spec stays visible as TODO without blocking the merge gate.
-  test.fixme('buyer checks out a cart with products from two different vendors', async ({ page }) => {
+  test('buyer checks out a cart with products from two different vendors', async ({ page }) => {
     test.setTimeout(120_000)
     await loginAs(page, TEST_USERS.customer)
 

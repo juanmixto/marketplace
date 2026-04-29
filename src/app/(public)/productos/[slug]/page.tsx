@@ -342,7 +342,20 @@ export default async function ProductDetailPage({ params }: Props) {
             <p className="mt-5 text-[var(--foreground-soft)] leading-relaxed">{localizedProduct.description}</p>
           )}
 
+          {/*
+            `key={product.id}` forces React to unmount + remount the
+            panel (and the AddToCartButton + sticky CTA inside) when
+            navigating between two PDPs (`/productos/A` → `/productos/B`).
+            Without this, the segment is reused by App Router and the
+            internal `useState` (selectedVariantId initialized from
+            defaultVariant, plus the AddToCartButton's `added` flag)
+            keeps stale values from the previous product. That's the
+            root cause of the multi-vendor-cart smoke breaking
+            consistently — see #1045 and the gotcha in
+            docs/conventions.md § Next.js 16 gotchas.
+          */}
           <ProductPurchasePanel
+            key={product.id}
             productId={product.id}
             productName={localizedProduct.name}
             slug={product.slug}
