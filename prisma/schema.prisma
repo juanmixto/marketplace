@@ -713,6 +713,11 @@ model OrderEvent {
   orderId   String
   actorId   String?
   type      String
+  // Payload schema version (#965). Bump in code when the shape of
+  // `payload` changes for a given `type`, so historical reports can
+  // parse old rows with the matching reader. See
+  // src/domains/orders/order-events.ts for the typed enum + readers.
+  schemaVersion Int   @default(1)
   payload   Json?
   createdAt DateTime @default(now())
 
