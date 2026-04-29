@@ -7,12 +7,17 @@ Este repo es un **marketplace digital curado** de productores artesanales. La in
 
 Cualquier agente que vaya a (a) escribir código de producto, (b) abrir issues, (c) priorizar trabajo o (d) proponer features **debe leer**:
 
-1. [`docs/business/00-index.md`](docs/business/00-index.md) — visión, productores, modelo de comisiones, roadmap.
-2. [`docs/product/00-index.md`](docs/product/00-index.md) — principios, flujos críticos, fricciones conocidas.
-3. [`docs/business/09-decisiones-estrategicas.md`](docs/business/09-decisiones-estrategicas.md) — qué ya se decidió y **no** se discute de nuevo.
-4. La sección "Hacer / No hacer" inmediatamente abajo.
+1. [`docs/AGENT-CONTEXT.md`](docs/AGENT-CONTEXT.md) — **destilado denso** de decisiones (ADR-001..009), invariantes técnicas, anti-patrones y prioridades. Reemplaza al "lee 3 índices + un fichero" anterior. Si necesitas el matiz de algo, abres el enlace correspondiente.
+2. La sección "Hacer / No hacer" inmediatamente abajo.
 
-Si la tarea es puramente técnica (refactor, bug, infra), basta con esa sección + las convenciones técnicas. Si la tarea toca catálogo, productores, checkout, copy, onboarding o cualquier UX visible al usuario final, lee también `docs/product/`.
+Para tareas con scope concreto (checkout, auth, catalog, ingestion, db, webhook, i18n, pwa, security, ci, test, refactor, bugfix, docs), pide el reading list mínimo:
+
+```bash
+scripts/agent-context.sh <task-type>      # imprime la lista mínima de archivos a leer
+scripts/agent-context.sh                  # lista de task types disponibles
+```
+
+Cada doc largo en `docs/business/`, `docs/product/` y `docs/runbooks/` empieza con frontmatter `summary:` / `audience:` / `read_when:`. Lee con `Read limit: 10` para ver el resumen sin cargar todo el archivo; abre completo solo si tu tarea encaja con `read_when:`.
 
 ## Estado actual del marketplace (resumen para agentes)
 
@@ -97,6 +102,7 @@ For the full policy and rationale see [`docs/git-workflow.md`](docs/git-workflow
 - **i18n** — see [`src/i18n/README.md`](src/i18n/README.md) for when to use flat keys vs `*-copy.ts` modules and the `labelKey` server pattern.
 - **Git workflow (trunk-based, branch prefixes, hygiene)** — see [`docs/git-workflow.md`](docs/git-workflow.md). `main` is the only long-lived branch; no `integration/*`, `develop`, `next`. Run `scripts/git-hygiene.sh` periodically.
 - **PWA (service worker, manifest, install prompts, offline fallback, cache allow-list)** — see [`docs/pwa.md`](docs/pwa.md). Required reading before touching `public/sw.js`, `src/app/manifest.ts`, or anything under `src/components/pwa/`. The SW has a strict denylist (`/api`, `/admin`, `/vendor`, `/checkout`, `/auth`) that must never be weakened.
+- **CI incident runbook (main red, branch-protection bypass shapes, page-snapshot recipe)** — see [`docs/runbooks/ci-incident.md`](docs/runbooks/ci-incident.md). Read when `gh run list --workflow=ci.yml --branch=main` shows a recent failure. Covers the aggregator-SKIPPED-as-neutral bypass that shipped #1037 + #1040 + #1043 with red shards on 2026-04-29, the doc-only PR passthrough contract, and the "page snapshot beats log grep" diagnostic shortcut. Pairs with [`docs/branch-protection.md`](docs/branch-protection.md) § Aggregator gate pattern.
 - **Payment incidents runbook (checkout + webhook log events, investigation recipes)** — see [`docs/runbooks/payment-incidents.md`](docs/runbooks/payment-incidents.md). Read before renaming any `checkout.*` or `stripe.webhook.*` log scope; oncall queries depend on them.
 - **DB backup + restore (pgBackRest + logical dump on B2, Healthchecks)** — see [`docs/runbooks/db-backup.md`](docs/runbooks/db-backup.md) and [`docs/runbooks/db-restore.md`](docs/runbooks/db-restore.md). Read before touching `infra/pgbackrest/`, `infra/postgres/`, `scripts/db/`, or the `db` service in `docker-compose.prod.yml`. Phase 0 of epic #1002. Templates render to live secrets via Bitwarden — never commit a rendered config.
 - **DB failover + data corruption (incident playbooks)** — see [`docs/runbooks/db-failover.md`](docs/runbooks/db-failover.md) and [`docs/runbooks/db-data-corruption.md`](docs/runbooks/db-data-corruption.md). Phase 0 = no standby; "failover" today means *restore* (placeholder for Phase 1). The corruption checklist is 12 steps; never `pg_resetwal` / `REINDEX` / `VACUUM FULL` before snapshotting.
