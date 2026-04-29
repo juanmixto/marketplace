@@ -1,3 +1,9 @@
+---
+summary: Dos procedimientos: restore desde dump lógico + PITR desde WAL archive en B2.
+audience: agents,humans
+read_when: necesitas restaurar la DB (test, dev, o producción)
+---
+
 # DB restore
 
 Two procedures live here:

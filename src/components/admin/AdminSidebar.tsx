@@ -64,10 +64,16 @@ export function AdminSidebar({ user }: Props = {}) {
     direction: 'left',
   })
   const ingestionAdminEnabled = useFeatureFlagStrict('feat-ingestion-admin')
+  const adminAnalyticsEnabled = useFeatureFlagStrict('feat-admin-analytics')
+  const adminReportsEnabled = useFeatureFlagStrict('feat-admin-reports')
+  const flagState: Record<string, boolean> = {
+    'feat-ingestion-admin': ingestionAdminEnabled,
+    'feat-admin-analytics': adminAnalyticsEnabled,
+    'feat-admin-reports': adminReportsEnabled,
+  }
   const visibleNavItems = adminNavItems.filter((item) => {
     if (!item.flag) return true
-    if (item.flag === 'feat-ingestion-admin') return ingestionAdminEnabled
-    return false
+    return flagState[item.flag] ?? false
   })
 
   const labelCls = cn(

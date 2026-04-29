@@ -1,3 +1,9 @@
+---
+summary: Phase 0 placeholder: NO hay hot standby. 'Failover' hoy = restore (ver db-restore.md). Phase 1 introducirá standby async.
+audience: agents,humans
+read_when: primary caído; planificar Phase 1 (standby)
+---
+
 # DB failover
 
 **Phase 0 placeholder.** Phase 0 has **no hot standby** — there is one Postgres primary on Proxmox and nightly logical dump + WAL archive on Backblaze B2. There is nothing to "fail over to": recovery means *restore*, not *promote*.

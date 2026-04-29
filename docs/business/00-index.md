@@ -1,8 +1,14 @@
+---
+summary: Índice de docs de negocio (visión, productores, comisiones, roadmap, decisiones).
+audience: agents,humans
+read_when: navegar negocio
+---
+
 # Negocio — índice
 
 Documentación de **negocio** del marketplace. Está aquí para que cualquier agente IA (o persona nueva) entienda el porqué del producto sin abrir Notion, Slack ni preguntar.
 
-> Lectura obligatoria antes de proponer features, abrir issues o priorizar trabajo. Ver [`/AGENTS.md`](../../AGENTS.md) § "Contexto obligatorio antes de trabajar".
+> Para el 80 % de las tareas el destilado en [`docs/AGENT-CONTEXT.md`](../AGENT-CONTEXT.md) basta. Abre estos archivos completos solo cuando el `read_when:` del frontmatter aplique a tu tarea, o cuando necesites el matiz de un ADR concreto.
 
 ## Mapa
 

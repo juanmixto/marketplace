@@ -1,3 +1,9 @@
+---
+summary: Qué somos / qué no somos. Marketplace digital curado de productores artesanales españoles, mobile-first, pre-tracción.
+audience: agents,humans
+read_when: proponer features o copy de marca
+---
+
 # 01 — Visión del marketplace
 
 ## El problema que resolvemos

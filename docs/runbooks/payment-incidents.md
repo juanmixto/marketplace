@@ -1,3 +1,9 @@
+---
+summary: Recetas para investigar reports de pago: scopes checkout.* y stripe.webhook.* en logs/PostHog. NO renombrar sin actualizar este doc.
+audience: agents,humans
+read_when: investigar pago fallido, webhook de Stripe, dispute, captura
+---
+
 # Payment incidents runbook
 
 Practical recipes for investigating payment-related reports from buyers:

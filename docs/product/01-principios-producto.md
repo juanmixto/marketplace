@@ -1,3 +1,9 @@
+---
+summary: 10 principios duros de UX/producto: confianza > cleverness, mobile manda, checkout sagrado, honestidad operativa, feature solo con métrica antes.
+audience: agents,humans
+read_when: tomar cualquier decisión UX ambigua; revisar PR de producto
+---
+
 # 01 — Principios de producto
 
 Reglas duras. Cuando una decisión de UX o producto sea ambigua, se decide en favor del principio que aplique.
