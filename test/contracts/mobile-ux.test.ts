@@ -641,12 +641,17 @@ test('html and body clip horizontal overflow so a stray wide child cannot scroll
   )
 })
 
-test('public hero stats stack on mobile instead of squeezing into 3 narrow columns', () => {
+test('public hero stats sit on a single 3-column row across breakpoints', () => {
   const source = read('src/app/(public)/page.tsx')
   assert.match(
     source,
+    /grid-cols-3[^"]*"/,
+    'hero stats must use grid-cols-3 (KPIs are short numbers — they fit a 360px viewport on one row and stacking eats scroll)',
+  )
+  assert.doesNotMatch(
+    source,
     /grid-cols-1[^"]*sm:grid-cols-3/,
-    'hero stats must use grid-cols-1 on mobile and sm:grid-cols-3 from sm+',
+    'hero stats must NOT stack on mobile — that pattern was the previous decision and is being reversed',
   )
 })
 

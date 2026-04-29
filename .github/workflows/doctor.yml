@@ -82,6 +82,14 @@ jobs:
         # more subtle drift (e.g. a JSON column returning invalid shape).
         run: npm run db:seed
 
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: nextcache-${{ runner.os }}-${{ hashFiles('package-lock.json', 'next.config.ts') }}
+          restore-keys: |
+            nextcache-${{ runner.os }}-
+
       - name: Build (production)
         run: npm run build
 

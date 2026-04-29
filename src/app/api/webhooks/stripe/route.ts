@@ -31,7 +31,15 @@ import {
 import { sendSubscriptionPaymentFailedEmail } from '@/domains/subscriptions/emails'
 import { logger } from '@/lib/logger'
 import { isFeatureEnabled } from '@/lib/flags'
+import { emit as emitNotification } from '@/domains/notifications'
 import type Stripe from 'stripe'
+
+// DB audit P1.1 (#962): Prisma's interactive transaction defaults have
+// shifted between versions (5s → 10s); rely on explicit values so a slow
+// FOR UPDATE row lock or a saturated DB doesn't silently roll back the
+// payment-state mutation. maxWait caps how long we'll queue waiting for
+// a connection from the pool before giving up.
+const WEBHOOK_TX_OPTIONS = { timeout: 15_000, maxWait: 5_000 } as const
 
 type WebhookEvent = {
   id?: string
@@ -186,7 +194,7 @@ export async function POST(req: NextRequest) {
           await handleInvalidWebhookPayload(event)
           break
         }
-        await handlePaymentSucceeded(pi.id, pi.amount, pi.currency, eventId)
+        await handlePaymentSucceeded(pi.id, pi.amount, pi.currency, eventId, eventCreatedAt(event))
         break
       }
       case 'payment_intent.payment_failed': {
@@ -195,7 +203,7 @@ export async function POST(req: NextRequest) {
           await handleInvalidWebhookPayload(event)
           break
         }
-        await handlePaymentFailed(pi.id, eventId)
+        await handlePaymentFailed(pi.id, eventId, eventCreatedAt(event))
         break
       }
       // Phase 4b-α: subscription lifecycle. The handlers below dedupe by
@@ -286,7 +294,13 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ received: true })
 }
 
-async function handlePaymentSucceeded(providerRef: string, amount?: number, currency?: string, eventId?: string) {
+async function handlePaymentSucceeded(
+  providerRef: string,
+  amount: number | undefined,
+  currency: string | undefined,
+  eventId: string | undefined,
+  eventCreatedAt: Date,
+) {
   const payment = await retryWebhookOperation(
     () =>
       db.payment.findUnique({
@@ -302,6 +316,23 @@ async function handlePaymentSucceeded(providerRef: string, amount?: number, curr
       providerRef,
       reason: 'payment_not_found',
       payload: { providerRef, amount, currency },
+    })
+    return
+  }
+  // Out-of-order guard (#959). Stripe does not promise event order; a
+  // payment_intent.succeeded that arrives after charge.refunded must
+  // not resurrect the refunded order. Mirrors the watermark on
+  // Subscription.lastStripeEventAt — checked before the state guards
+  // below so a stale event never sees Payment/Order rows at all.
+  if (
+    payment.lastStripeEventAt &&
+    eventCreatedAt.getTime() < payment.lastStripeEventAt.getTime()
+  ) {
+    logger.info('stripe.webhook.payment_succeeded_stale', {
+      eventId,
+      providerRef,
+      eventCreatedAt: eventCreatedAt.toISOString(),
+      lastStripeEventAt: payment.lastStripeEventAt.toISOString(),
     })
     return
   }
@@ -357,7 +388,7 @@ async function handlePaymentSucceeded(providerRef: string, amount?: number, curr
       db.$transaction(async tx => {
         const paymentUpdate = await tx.payment.updateMany({
           where: { providerRef, status: { not: 'SUCCEEDED' } },
-          data: { status: 'SUCCEEDED' },
+          data: { status: 'SUCCEEDED', lastStripeEventAt: eventCreatedAt },
         })
 
         // Only PLACED is a legal predecessor for PAYMENT_CONFIRMED. The
@@ -379,7 +410,7 @@ async function handlePaymentSucceeded(providerRef: string, amount?: number, curr
             },
           })
         }
-      }),
+      }, WEBHOOK_TX_OPTIONS),
     { operationName: 'confirm payment webhook' }
   ).catch(async error => {
     await recordWebhookRetryExhaustion({
@@ -391,9 +422,23 @@ async function handlePaymentSucceeded(providerRef: string, amount?: number, curr
     })
     throw error
   })
+
+  // CF-1 step 8: buyer confirmation email. Sibling of the mock-provider
+  // path in src/domains/orders/use-cases/confirm-order.ts. Fires once
+  // per order regardless of vendor count; the email handler dedupes
+  // by orderId via the global handlersBootstrapped guard plus the
+  // emit-side `payloadRef` style we use in telegram.
+  emitNotification('order.buyer_confirmed', {
+    orderId: payment.orderId,
+    customerUserId: payment.order.customerId,
+  })
 }
 
-async function handlePaymentFailed(providerRef: string, eventId?: string) {
+async function handlePaymentFailed(
+  providerRef: string,
+  eventId: string | undefined,
+  eventCreatedAt: Date,
+) {
   const payment = await retryWebhookOperation(
     () =>
       db.payment.findUnique({
@@ -412,6 +457,19 @@ async function handlePaymentFailed(providerRef: string, eventId?: string) {
     })
     return
   }
+  // Out-of-order guard (#959): see handlePaymentSucceeded.
+  if (
+    payment.lastStripeEventAt &&
+    eventCreatedAt.getTime() < payment.lastStripeEventAt.getTime()
+  ) {
+    logger.info('stripe.webhook.payment_failed_stale', {
+      eventId,
+      providerRef,
+      eventCreatedAt: eventCreatedAt.toISOString(),
+      lastStripeEventAt: payment.lastStripeEventAt.toISOString(),
+    })
+    return
+  }
 
   if (!shouldApplyPaymentFailed({
     paymentStatus: payment.status,
@@ -424,7 +482,7 @@ async function handlePaymentFailed(providerRef: string, eventId?: string) {
       db.$transaction(async tx => {
         const paymentUpdate = await tx.payment.updateMany({
           where: { providerRef, status: 'PENDING' },
-          data: { status: 'FAILED' },
+          data: { status: 'FAILED', lastStripeEventAt: eventCreatedAt },
         })
 
         const orderUpdate = await tx.order.updateMany({
@@ -441,7 +499,7 @@ async function handlePaymentFailed(providerRef: string, eventId?: string) {
             },
           })
         }
-      }),
+      }, WEBHOOK_TX_OPTIONS),
     { operationName: 'mark payment as failed' }
   ).catch(async error => {
     await recordWebhookRetryExhaustion({

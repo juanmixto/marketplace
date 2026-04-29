@@ -1,0 +1,82 @@
+name: Auto-update PR branches
+
+# Branch protection on `main` requires PRs be up-to-date before merge.
+# GitHub does NOT auto-rebase PRs when main moves, so a PR with
+# auto-merge enabled silently rots in `BEHIND` until someone clicks
+# "Update branch". The 2026-04-29 audit found 6 PRs stuck like this
+# for ~12h — the same root cause that kept main red across 30+
+# pushes (each fix was waiting on a manual rebase before it could
+# merge).
+#
+# This workflow closes that gap: every push to main + a 30 min safety
+# poll, list every open PR with auto-merge on and BEHIND state, then
+# trigger update-branch (the same call as the UI button). No-op for
+# PRs that don't need it. Conflicts that can't auto-resolve still
+# require human attention; we just stop hand-clicking the button.
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    # Every 30 min as a backup in case the push trigger missed (very
+    # rare — workflow_run cancellations, GitHub outages). Cheap.
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  # Serialize so two simultaneous main pushes don't fight each other
+  # over the same PR. Cancel-in-progress is OFF: we want every push
+  # to fan out at least once.
+  group: auto-update-pr-branches
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Update auto-merge PR branches
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Update every BEHIND auto-merge PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # `auto_merge != null` filters to PRs the author/maintainer
+          # already opted into auto-merging. We never touch a PR that
+          # someone hasn't explicitly armed — that would be hostile to
+          # in-progress work the author hasn't finished.
+          mapfile -t prs < <(
+            gh pr list \
+              --state open \
+              --limit 100 \
+              --json number,mergeStateStatus,autoMergeRequest \
+              --jq '.[] | select(.autoMergeRequest != null and .mergeStateStatus == "BEHIND") | .number'
+          )
+
+          if [ ${#prs[@]} -eq 0 ]; then
+            echo "No BEHIND auto-merge PRs to update."
+            exit 0
+          fi
+
+          echo "Found ${#prs[@]} BEHIND auto-merge PR(s): ${prs[*]}"
+
+          for n in "${prs[@]}"; do
+            echo "::group::PR #$n"
+            # update-branch returns 202 + a message body when accepted,
+            # 422 when the PR cannot be updated (merge conflict, draft
+            # against a branch with no fast-forward path, etc.). We log
+            # the failure but keep going — one PR's conflict shouldn't
+            # block the rest of the queue.
+            if gh api -X PUT "/repos/${GITHUB_REPOSITORY}/pulls/$n/update-branch" 2>&1; then
+              echo "PR #$n: update-branch dispatched"
+            else
+              echo "PR #$n: update-branch failed (likely a merge conflict — needs human)"
+            fi
+            echo "::endgroup::"
+          done

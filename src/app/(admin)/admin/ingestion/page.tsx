@@ -72,6 +72,7 @@ const KIND_OPTIONS: Array<{ value: ReviewQueueListKind | 'ALL'; label: string }>
   { value: 'ALL', label: 'Todo' },
   { value: 'PRODUCT_DRAFT', label: 'Drafts de producto' },
   { value: 'UNEXTRACTABLE_PRODUCT', label: 'Sin precio' },
+  { value: 'VENDOR_DRAFT', label: 'Productores' },
 ]
 
 const STATE_OPTIONS: Array<{ value: 'ENQUEUED' | 'AUTO_RESOLVED' | 'ALL'; label: string }> = [
@@ -81,7 +82,13 @@ const STATE_OPTIONS: Array<{ value: 'ENQUEUED' | 'AUTO_RESOLVED' | 'ALL'; label:
 ]
 
 function parseKind(v: string | undefined): ReviewQueueListKind | 'ALL' {
-  if (v === 'PRODUCT_DRAFT' || v === 'UNEXTRACTABLE_PRODUCT') return v
+  if (
+    v === 'PRODUCT_DRAFT' ||
+    v === 'UNEXTRACTABLE_PRODUCT' ||
+    v === 'VENDOR_DRAFT'
+  ) {
+    return v
+  }
   return 'ALL'
 }
 
@@ -185,13 +192,21 @@ export default async function IngestionReviewQueuePage({ searchParams }: PagePro
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-[var(--foreground)]">
-          Ingesta · Cola de revisión
-        </h1>
-        <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-          Drafts y mensajes de productor sin precio pendientes de revisión humana. Nada de lo que haya aquí toca todavía el catálogo público.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-[var(--foreground)]">
+            Ingesta · Cola de revisión
+          </h1>
+          <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+            Drafts y mensajes de productor sin precio pendientes de revisión humana. Nada de lo que haya aquí toca todavía el catálogo público.
+          </p>
+        </div>
+        <Link
+          href="/admin/ingestion/telegram"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--card)] px-3 py-1.5 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--muted)]"
+        >
+          Conexiones de Telegram →
+        </Link>
       </div>
 
       {flash && (
@@ -273,14 +288,27 @@ export default async function IngestionReviewQueuePage({ searchParams }: PagePro
                 {result.rows.map((row) => {
                   const target = row.target
                   const isProduct = target.kind === 'PRODUCT_DRAFT'
-                  const band = isProduct ? target.draft.confidenceBand : target.confidenceBand
+                  const isVendor = target.kind === 'VENDOR_DRAFT'
+                  const band = isProduct
+                    ? target.draft.confidenceBand
+                    : isVendor
+                      ? target.vendor.confidenceBand
+                      : target.confidenceBand
                   const confidenceOverall = isProduct
                     ? target.draft.confidenceOverall
-                    : target.confidenceOverall
+                    : isVendor
+                      ? target.vendor.confidenceOverall
+                      : target.confidenceOverall
                   const productName = isProduct ? target.draft.productName : null
+                  const vendorDisplayName = isVendor ? target.vendor.displayName : null
                   const priceLabel = isProduct
                     ? formatPriceCents(target.draft.priceCents, target.draft.currencyCode)
                     : '—'
+                  const kindBadge = isProduct
+                    ? { variant: 'blue' as const, label: 'PRODUCTO' }
+                    : isVendor
+                      ? { variant: 'purple' as const, label: 'PRODUCTOR' }
+                      : { variant: 'amber' as const, label: 'SIN PRECIO' }
                   return (
                     <tr key={row.itemId} className="hover:bg-[var(--muted)]/30">
                       <td className="px-4 py-3 align-top">
@@ -289,27 +317,23 @@ export default async function IngestionReviewQueuePage({ searchParams }: PagePro
                           className="block truncate text-[var(--foreground)] hover:underline"
                           title={row.messageText ?? ''}
                         >
-                          {productName ?? row.messageText ?? '(sin texto)'}
+                          {productName ?? vendorDisplayName ?? row.messageText ?? '(sin texto)'}
                         </Link>
-                        {productName && row.messageText && (
+                        {(productName || vendorDisplayName) && row.messageText && (
                           <div className="mt-0.5 truncate text-xs text-[var(--muted-foreground)]">
                             {row.messageText}
                           </div>
                         )}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 align-top">
-                        <Badge variant={isProduct ? 'blue' : 'amber'} className="whitespace-nowrap">
-                          {isProduct ? 'PRODUCT' : 'SIN PRECIO'}
+                        <Badge variant={kindBadge.variant} className="whitespace-nowrap">
+                          {kindBadge.label}
                         </Badge>
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 align-top">
-                        {isProduct ? (
-                          <Badge variant={bandVariant(band)} className="whitespace-nowrap">
-                            {band} · {confidenceOverall}
-                          </Badge>
-                        ) : (
-                          <span className="text-xs text-[var(--muted-foreground)]">—</span>
-                        )}
+                        <Badge variant={bandVariant(band)} className="whitespace-nowrap">
+                          {band} · {confidenceOverall}
+                        </Badge>
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 align-top text-[var(--muted-foreground)]">{priceLabel}</td>
                       <td className="whitespace-nowrap px-4 py-3 align-top text-[var(--muted-foreground)]">

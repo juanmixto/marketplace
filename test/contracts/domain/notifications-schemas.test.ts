@@ -13,6 +13,7 @@ import {
   favoriteBackInStockPayloadSchema,
   favoritePriceDropPayloadSchema,
   orderDeliveredPayloadSchema,
+  orderBuyerConfirmedPayloadSchema,
   labelFailedPayloadSchema,
   incidentOpenedPayloadSchema,
   reviewReceivedPayloadSchema,
@@ -148,6 +149,7 @@ test('NOTIFICATION_EVENTS string keys match the enum', () => {
       'INCIDENT_OPENED',
       'LABEL_FAILED',
       'MESSAGE_RECEIVED',
+      'ORDER_BUYER_CONFIRMED',
       'ORDER_CREATED',
       'ORDER_DELIVERED',
       'ORDER_PENDING',
@@ -167,6 +169,7 @@ test('NOTIFICATION_EVENTS string keys match the enum', () => {
       'incident.opened',
       'label.failed',
       'message.received',
+      'order.buyer_confirmed',
       'order.created',
       'order.delivered',
       'order.pending',
@@ -273,6 +276,20 @@ test('orderStatusChangedPayloadSchema — status set is frozen', () => {
     status: 'EXCEPTION',
   })
   assert.equal(bad.success, false)
+})
+
+test('orderBuyerConfirmedPayloadSchema — frozen shape', () => {
+  // Buyer-side confirmation payload, fired exactly once per order
+  // (not once per vendor). Adding a field here without updating
+  // OrderConfirmationEmail would silently drop data from the inbox.
+  assertObjectShape(
+    'orderBuyerConfirmedPayloadSchema',
+    orderBuyerConfirmedPayloadSchema as never,
+    {
+      required: ['orderId', 'customerUserId'],
+      optional: [],
+    },
+  )
 })
 
 test('favoriteBackInStockPayloadSchema — frozen shape', () => {

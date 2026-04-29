@@ -36,6 +36,18 @@ Verified 2026-04-18 as part of issue #310. Route-level gating (`src/lib/auth-con
 | Vendor read actions (`getMyProduct`, etc.) | [`test/integration/buyer-vendor-reads.test.ts`](../test/integration/buyer-vendor-reads.test.ts) |
 | Admin sub-role gates | [`test/integration/admin-sub-role-gates.test.ts`](../test/integration/admin-sub-role-gates.test.ts) |
 | API route authz presence | [`test/integration/api-route-auth-audit.test.ts`](../test/integration/api-route-auth-audit.test.ts) |
+| GDPR account-erase (anonimize, never hard-delete) | [`test/integration/gdpr-compliance.test.ts`](../test/integration/gdpr-compliance.test.ts), [`test/integration/account-erase-fk-restrict.test.ts`](../test/integration/account-erase-fk-restrict.test.ts) |
+
+### Account erase contract (#961)
+
+`/api/account/delete` (DELETE) is the GDPR Article 17 surface. Required behaviours:
+
+- The User row is **anonimized** (`email = deleted_<id>@anon.invalid`, `passwordHash = null`, `deletedAt`, placeholder `firstName/lastName`), never hard-deleted.
+- Orders, Incidents, and Reviews stay (5-year tax retention; rating signal preserved).
+- Addresses and Sessions are deleted; Reviews are anonimized in place.
+- Schema-level guard: `Order.customerId`, `Review.customerId`, `Incident.customerId` declare `onDelete: Restrict`. A future `prisma.user.delete()` (intentional or accidental) is rejected at the FK layer with `P2003`. This is regression-tested in `account-erase-fk-restrict.test.ts`.
+
+This list is the contract. Adding a new User-owned model that is order-tied (e.g. invoices, support tickets, downloadable assets) MUST also declare `onDelete: Restrict` on its `userId` / `customerId` FK.
 
 ## Audit results (2026-04-18)
 

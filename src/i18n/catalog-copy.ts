@@ -128,6 +128,17 @@ type CatalogCopy = {
     trustQuality: string
     aboutProducer: string
     viewProducerProfile: string
+    shippingEtaPeninsula: string
+    shippingCostFormat: (formattedPrice: string, zoneLabel: string) => string
+    shippingZoneLabel: {
+      peninsula: string
+      baleares: string
+      canarias: string
+      ceuta: string
+      melilla: string
+    }
+    shippingDisclaimerPeninsula: string
+    shippingDisclaimerInsular: string
   }
   vendor: {
     heroImageAlt: (name: string) => string
@@ -152,11 +163,11 @@ type CatalogCopy = {
 const ES_CATALOG_COPY: CatalogCopy = {
   page: {
     title: 'Productos',
-    description: 'Explora el catálogo de productos locales disponibles en Mercado Productor.',
+    description: 'Explora el catálogo de productos locales disponibles en Raíz Directa.',
     searchTitle: 'Buscar',
-    searchDescription: 'Busca productos, productores y categorías en Mercado Productor.',
+    searchDescription: 'Busca productos, productores y categorías en Raíz Directa.',
     searchTitleWithQuery: query => `Buscar: ${query}`,
-    searchDescriptionWithQuery: query => `Resultados de búsqueda para "${query}" en Mercado Productor.`,
+    searchDescriptionWithQuery: query => `Resultados de búsqueda para "${query}" en Raíz Directa.`,
     allProducts: 'Todos los productos',
     fallbackTitle: 'Productos',
     results: (count, hasMore = false) => `${count} resultado${count === 1 ? '' : 's'}${hasMore ? '+' : ''}`,
@@ -282,6 +293,17 @@ const ES_CATALOG_COPY: CatalogCopy = {
     trustQuality: 'Calidad garantizada',
     aboutProducer: 'Conoce al productor',
     viewProducerProfile: 'Ver perfil completo',
+    shippingEtaPeninsula: 'Llega en 3–5 días laborables a península',
+    shippingCostFormat: (price, zoneLabel) => `Envío ${price} a ${zoneLabel}`,
+    shippingZoneLabel: {
+      peninsula: 'península',
+      baleares: 'Baleares',
+      canarias: 'Canarias',
+      ceuta: 'Ceuta',
+      melilla: 'Melilla',
+    },
+    shippingDisclaimerPeninsula: 'El coste exacto se calcula en el checkout con tu código postal.',
+    shippingDisclaimerInsular: 'Plazo y coste exactos según destino. Recalculados en el checkout.',
   },
   vendor: {
     heroImageAlt: name => `Portada de ${name}`,
@@ -306,11 +328,11 @@ const ES_CATALOG_COPY: CatalogCopy = {
 const EN_CATALOG_COPY: CatalogCopy = {
   page: {
     title: 'Products',
-    description: 'Browse the local product catalogue available on Mercado Productor.',
+    description: 'Browse the local product catalogue available on Raíz Directa.',
     searchTitle: 'Search',
-    searchDescription: 'Search products, producers and categories on Mercado Productor.',
+    searchDescription: 'Search products, producers and categories on Raíz Directa.',
     searchTitleWithQuery: query => `Search: ${query}`,
-    searchDescriptionWithQuery: query => `Search results for "${query}" on Mercado Productor.`,
+    searchDescriptionWithQuery: query => `Search results for "${query}" on Raíz Directa.`,
     allProducts: 'All products',
     fallbackTitle: 'Products',
     results: (count, hasMore = false) => `${count} result${count === 1 ? '' : 's'}${hasMore ? '+' : ''}`,
@@ -436,6 +458,17 @@ const EN_CATALOG_COPY: CatalogCopy = {
     trustQuality: 'Quality guaranteed',
     aboutProducer: 'Meet the producer',
     viewProducerProfile: 'View full profile',
+    shippingEtaPeninsula: 'Arrives in 3–5 business days to mainland Spain',
+    shippingCostFormat: (price, zoneLabel) => `Shipping ${price} to ${zoneLabel}`,
+    shippingZoneLabel: {
+      peninsula: 'mainland Spain',
+      baleares: 'the Balearic Islands',
+      canarias: 'the Canary Islands',
+      ceuta: 'Ceuta',
+      melilla: 'Melilla',
+    },
+    shippingDisclaimerPeninsula: 'Exact cost is calculated at checkout with your postal code.',
+    shippingDisclaimerInsular: 'Delivery time and cost depend on destination. Recalculated at checkout.',
   },
   vendor: {
     heroImageAlt: name => `${name} cover`,

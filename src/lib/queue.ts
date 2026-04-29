@@ -20,6 +20,21 @@ import { logger } from '@/lib/logger'
 
 let instance: PgBoss | null = null
 let startPromise: Promise<PgBoss> | null = null
+const ensuredQueues = new Set<string>()
+
+async function ensureQueue(boss: PgBoss, name: string): Promise<void> {
+  if (ensuredQueues.has(name)) return
+  // pg-boss v10 made queues an explicit registration: send()/work()
+  // silently no-op when the queue does not exist. createQueue is
+  // idempotent — it throws if the queue already exists, which we treat
+  // as success.
+  try {
+    await boss.createQueue(name)
+  } catch {
+    // already exists; fine
+  }
+  ensuredQueues.add(name)
+}
 
 async function createInstance(): Promise<PgBoss> {
   const { databaseUrl } = getServerEnv()
@@ -75,6 +90,7 @@ export async function enqueue<TData extends Record<string, unknown>>(
   opts: EnqueueOptions = {},
 ): Promise<string | null> {
   const boss = await getQueue()
+  await ensureQueue(boss, name)
   const options: PgBoss.SendOptions = {}
   if (opts.singletonKey) options.singletonKey = opts.singletonKey
   if (opts.retryLimit !== undefined) options.retryLimit = opts.retryLimit
@@ -91,20 +107,52 @@ export type JobHandler<TData = Record<string, unknown>> = (
   job: PgBoss.Job<TData>,
 ) => Promise<void>
 
+export interface RegisterHandlerOptions {
+  /**
+   * Max jobs fetched per poll AND executed concurrently. pg-boss v10
+   * dropped the v9 `teamSize` knob; concurrency is now expressed
+   * through `batchSize` + parallel handling of the returned array.
+   * Default 1 preserves the old serial behaviour for callers that
+   * do not opt in. Raise for CPU-bound, idempotent handlers (Phase 2
+   * processor) to drain backlog faster. Do not raise for handlers
+   * that talk to a rate-limited external service (Telegram sync).
+   */
+  batchSize?: number
+  /**
+   * How often pg-boss polls `pgboss.job` for new work, in seconds.
+   * Lower = lower latency on the first job after a queue goes empty;
+   * higher = less idle DB load. Default 2 (pg-boss native default).
+   */
+  pollingIntervalSeconds?: number
+}
+
 export async function registerHandler<TData = Record<string, unknown>>(
   name: string,
   handler: JobHandler<TData>,
+  options: RegisterHandlerOptions = {},
 ): Promise<void> {
   const boss = await getQueue()
-  await boss.work<TData>(name, async (job) => {
-    // pg-boss v10 delivers single-element batches by default; handle
-    // both shapes so the API is stable across minor upgrades.
+  await ensureQueue(boss, name)
+  const workOpts: PgBoss.WorkOptions = {}
+  if (options.batchSize !== undefined) workOpts.batchSize = options.batchSize
+  if (options.pollingIntervalSeconds !== undefined) {
+    workOpts.pollingIntervalSeconds = options.pollingIntervalSeconds
+  }
+  await boss.work<TData>(name, workOpts, async (job) => {
+    // pg-boss v10 delivers an array of jobs (size 1 by default,
+    // up to `batchSize` if set). Run them concurrently so a higher
+    // batchSize translates into real throughput, not just larger
+    // serial batches. Per-job errors do not poison the batch —
+    // pg-boss retries each job independently based on its own
+    // failure status.
     const jobs = Array.isArray(job) ? job : [job]
-    for (const j of jobs) {
-      await handler(j)
-    }
+    await Promise.all(jobs.map((j) => handler(j)))
   })
-  logger.info('queue.handler_registered', { name })
+  logger.info('queue.handler_registered', {
+    name,
+    batchSize: options.batchSize ?? 1,
+    pollingIntervalSeconds: options.pollingIntervalSeconds ?? 2,
+  })
 }
 
 /**
@@ -116,5 +164,6 @@ export async function stopQueue(): Promise<void> {
   await instance.stop({ graceful: true, timeout: 30_000 })
   instance = null
   startPromise = null
+  ensuredQueues.clear()
   logger.info('queue.stopped')
 }

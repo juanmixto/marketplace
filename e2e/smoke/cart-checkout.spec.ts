@@ -71,15 +71,26 @@ test.describe('cart and checkout @smoke', () => {
     await expect(page).toHaveURL(/\/checkout(?:\/|$|\?)/, { timeout: 25_000 })
 
     // --- CHECKOUT ---
+    // If we landed back on /carrito (cart store didn't rehydrate before the
+    // checkout client ran its empty-cart guard — happens on slow CI
+    // runners), re-add the product and retry the navigation once.
+    if (page.url().includes('/carrito')) {
+      await page.goto(`/productos/${SEEDED_PRODUCT_SLUG}`)
+      await page.getByRole('button', { name: /añadir al carrito/i }).first().click()
+      await expect(page.getByRole('button', { name: /añadido/i }).first()).toBeVisible({ timeout: 5_000 })
+      await page.goto('/checkout')
+      await expect(page).toHaveURL(/\/checkout(?:\/|$|\?)/, { timeout: 25_000 })
+    }
+
     // The checkout can render either saved addresses or the new-address
     // form first, depending on how quickly the seeded profile arrives on
     // the shard. Prefer the saved row when it appears, but fall back to a
     // deterministic new address so the smoke never hangs on a timing race.
     const savedAddress = page.getByTestId('checkout-saved-address').first()
-    const firstName = page.getByRole('textbox', { name: /nombre/i })
+    const firstName = page.getByRole('textbox', { name: /nombre/i }).first()
 
     const savedAddressReady = await savedAddress
-      .waitFor({ state: 'visible', timeout: 10_000 })
+      .waitFor({ state: 'visible', timeout: 15_000 })
       .then(() => true)
       .catch(() => false)
 

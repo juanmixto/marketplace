@@ -11,6 +11,7 @@ export const NOTIFICATION_EVENTS = {
   PAYOUT_PAID: 'payout.paid',
   STOCK_LOW: 'stock.low',
   ORDER_STATUS_CHANGED: 'order.status_changed',
+  ORDER_BUYER_CONFIRMED: 'order.buyer_confirmed',
   FAVORITE_BACK_IN_STOCK: 'favorite.back_in_stock',
   FAVORITE_PRICE_DROP: 'favorite.price_drop',
   VENDOR_APPLICATION_APPROVED: 'vendor.application.approved',
@@ -110,6 +111,17 @@ export const orderStatusChangedPayloadSchema = z.object({
 })
 export type OrderStatusChangedPayload = z.infer<typeof orderStatusChangedPayloadSchema>
 
+// Buyer-facing confirmation, emitted once per order from the order-confirmed
+// side-effects path. Unlike `order.created` (which fires once per vendor
+// fulfillment in a multi-vendor order), this fires exactly once per order
+// — the buyer should receive a single confirmation email summarizing the
+// whole purchase. CF-1 step 8 (docs/product/02-flujos-criticos.md).
+export const orderBuyerConfirmedPayloadSchema = z.object({
+  orderId: z.string().min(1),
+  customerUserId: z.string().min(1),
+})
+export type OrderBuyerConfirmedPayload = z.infer<typeof orderBuyerConfirmedPayloadSchema>
+
 export const favoriteBackInStockPayloadSchema = z.object({
   productId: z.string().min(1),
   productName: z.string().min(1).max(160),
@@ -155,6 +167,7 @@ export type NotificationEventMap = {
   'payout.paid': PayoutPaidPayload
   'stock.low': StockLowPayload
   'order.status_changed': OrderStatusChangedPayload
+  'order.buyer_confirmed': OrderBuyerConfirmedPayload
   'favorite.back_in_stock': FavoriteBackInStockPayload
   'favorite.price_drop': FavoritePriceDropPayload
   'vendor.application.approved': VendorApplicationApprovedPayload
@@ -172,6 +185,7 @@ export const notificationEventPayloadSchemas = {
   'payout.paid': payoutPaidPayloadSchema,
   'stock.low': stockLowPayloadSchema,
   'order.status_changed': orderStatusChangedPayloadSchema,
+  'order.buyer_confirmed': orderBuyerConfirmedPayloadSchema,
   'favorite.back_in_stock': favoriteBackInStockPayloadSchema,
   'favorite.price_drop': favoritePriceDropPayloadSchema,
   'vendor.application.approved': vendorApplicationApprovedPayloadSchema,

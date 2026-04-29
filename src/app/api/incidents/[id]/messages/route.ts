@@ -30,7 +30,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
 
   try {
-    const result = await addIncidentMessage({ incidentId: id, body: parsed.body })
+    const result = await addIncidentMessage({
+      incidentId: id,
+      body: parsed.body,
+      attachments: parsed.attachments,
+    })
     return NextResponse.json(result, { status: 201 })
   } catch (error) {
     if (error instanceof IncidentAuthError) {

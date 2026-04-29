@@ -1,4 +1,66 @@
 <!-- BEGIN:nextjs-agent-rules -->
+# Agente: lee esto antes de tocar nada
+
+Este repo es un **marketplace digital curado** de productores artesanales. La infraestructura técnica está descrita más abajo (Next.js, multi-agente, etc.). Pero antes del código, el contexto **de negocio y producto** es obligatorio:
+
+## Contexto obligatorio antes de trabajar
+
+Cualquier agente que vaya a (a) escribir código de producto, (b) abrir issues, (c) priorizar trabajo o (d) proponer features **debe leer**:
+
+1. [`docs/business/00-index.md`](docs/business/00-index.md) — visión, productores, modelo de comisiones, roadmap.
+2. [`docs/product/00-index.md`](docs/product/00-index.md) — principios, flujos críticos, fricciones conocidas.
+3. [`docs/business/09-decisiones-estrategicas.md`](docs/business/09-decisiones-estrategicas.md) — qué ya se decidió y **no** se discute de nuevo.
+4. La sección "Hacer / No hacer" inmediatamente abajo.
+
+Si la tarea es puramente técnica (refactor, bug, infra), basta con esa sección + las convenciones técnicas. Si la tarea toca catálogo, productores, checkout, copy, onboarding o cualquier UX visible al usuario final, lee también `docs/product/`.
+
+## Estado actual del marketplace (resumen para agentes)
+
+- **Etapa**: pre-tracción. Catálogo pequeño y curado. La prioridad es **validar demanda real**, no escalar.
+- **Productores**: artesanales, pocos, seleccionados a mano. Cada uno se contacta de forma personal.
+- **Usuarios objetivo**: compradores que valoran origen, calidad y confianza por encima de precio.
+- **Plataforma dominante**: móvil. La conversión móvil manda sobre la desktop.
+- **Lo que NO somos**: Amazon, ni un agregador, ni un dropshipper. No competimos en surtido ni en precio.
+
+## Hacer / No hacer (regla de decisión rápida)
+
+**Hacer:**
+- Priorizar **confianza** (fichas claras, fotos reales, origen verificable, copy honesto).
+- Priorizar **conversión móvil** (latencia, tap targets, formularios cortos, checkout sin fricciones).
+- Priorizar **validación de demanda** (medir, no construir): un experimento manual antes que una abstracción.
+- Cerrar el bucle: cada cambio en el catálogo o en checkout debe poder medirse (PostHog).
+- Documentar la decisión de negocio detrás de cada feature no trivial en `docs/business/09-decisiones-estrategicas.md`.
+
+**No hacer:**
+- No añadir features que asumen tracción que aún no existe (recomendadores, programas de fidelización, multi-currency, multi-país, marketplace B2B, etc.).
+- No construir abstracciones para "futuros productores" hipotéticos. Tres productores parecidos NO justifican un framework.
+- No tocar copy de productor / fichas / checkout sin leer `docs/product/02-flujos-criticos.md` y `docs/business/07-copy-contacto-productores.md`.
+- No introducir nuevos proveedores externos (pagos, email, push, analytics) sin justificación en `docs/business/09-decisiones-estrategicas.md`.
+- No crear tablas / campos / endpoints "por si acaso". Cada nuevo modelo Prisma necesita una pregunta de negocio que responda.
+
+## Criterios para decidir si una feature tiene sentido
+
+Una feature solo entra al backlog si responde **sí** a las cuatro:
+
+1. **¿Mueve una métrica que importa hoy?** (conversión móvil, productor activado, pedido completado, repetición). Si la métrica es "engagement genérico" o "DAU", no.
+2. **¿Existe el problema con el catálogo y los pedidos actuales?** Si solo aparece "cuando tengamos 10× productores", aplázala.
+3. **¿El coste de NO hacerla es real?** (pérdida medible de pedidos, abandono observado, queja repetida de productor). Si es teórico, aplázala.
+4. **¿La versión más barata posible cabe en ≤ 1 PR?** Si necesita epic multi-PR antes de validar, parte primero la versión manual / wizard-of-oz.
+
+Si una de las cuatro es "no", la feature **no se construye**: se documenta en `docs/business/08-roadmap-negocio.md` como hipótesis pendiente de validar.
+
+## Prioridades actuales (orden, no lista)
+
+1. **Confianza visible**: ficha de producto y de productor que un comprador frío entendería en 10 s.
+2. **Checkout móvil sin fricciones**: cada paso eliminado vale más que cualquier feature nueva.
+3. **Onboarding de productor**: que un productor real pueda publicar sin intervención manual del equipo.
+4. **Medición de demanda**: PostHog en los flujos críticos antes de optimizar nada.
+5. **Operaciones (logística, atención)**: manuales hasta que duela; automatizar solo cuando duele.
+
+Todo lo demás (recomendadores, búsqueda avanzada, reviews, programas de afiliados, app nativa) está **fuera** hasta que estas cinco estén verdes.
+
+---
+
 # This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
@@ -29,12 +91,15 @@ For the full policy and rationale see [`docs/git-workflow.md`](docs/git-workflow
 ## Conventions
 
 - **Project conventions (stack, imports, Prisma fields, server-action pattern)** — see [`docs/conventions.md`](docs/conventions.md). Read this before implementing any ticket.
+- **Database conventions (FK `onDelete`, paginated `findMany`, Decimal vs Int money, webhook idempotency, `$transaction` timeouts, indexes, Json snapshots, account-erase contract)** — see [`docs/db-conventions.md`](docs/db-conventions.md). Required reading before adding a Prisma model, a relation into User/Order/Vendor, a server-side `findMany`, a webhook handler, or a money column. Two rules are CI-enforced via [`scripts/audit-fk-onDelete.mjs`](scripts/audit-fk-onDelete.mjs) and [`scripts/audit-unbounded-findMany.mjs`](scripts/audit-unbounded-findMany.mjs); both ratchet against a baseline so net-new violations fail the build without forcing a sweep.
 - **AI guidelines (contract rules, domain boundaries, enforcement)** — see [`docs/ai-guidelines.md`](docs/ai-guidelines.md). Rules for parallel agents. Enforced by [`scripts/audit-domain-contracts.mjs`](scripts/audit-domain-contracts.mjs).
 - **AI workflows (recipes)** — see [`docs/ai-workflows.md`](docs/ai-workflows.md) for how to add a feature, refactor safely, or change a contract.
 - **i18n** — see [`src/i18n/README.md`](src/i18n/README.md) for when to use flat keys vs `*-copy.ts` modules and the `labelKey` server pattern.
 - **Git workflow (trunk-based, branch prefixes, hygiene)** — see [`docs/git-workflow.md`](docs/git-workflow.md). `main` is the only long-lived branch; no `integration/*`, `develop`, `next`. Run `scripts/git-hygiene.sh` periodically.
 - **PWA (service worker, manifest, install prompts, offline fallback, cache allow-list)** — see [`docs/pwa.md`](docs/pwa.md). Required reading before touching `public/sw.js`, `src/app/manifest.ts`, or anything under `src/components/pwa/`. The SW has a strict denylist (`/api`, `/admin`, `/vendor`, `/checkout`, `/auth`) that must never be weakened.
 - **Payment incidents runbook (checkout + webhook log events, investigation recipes)** — see [`docs/runbooks/payment-incidents.md`](docs/runbooks/payment-incidents.md). Read before renaming any `checkout.*` or `stripe.webhook.*` log scope; oncall queries depend on them.
+- **DB backup + restore (pgBackRest + logical dump on B2, Healthchecks)** — see [`docs/runbooks/db-backup.md`](docs/runbooks/db-backup.md) and [`docs/runbooks/db-restore.md`](docs/runbooks/db-restore.md). Read before touching `infra/pgbackrest/`, `infra/postgres/`, `scripts/db/`, or the `db` service in `docker-compose.prod.yml`. Phase 0 of epic #1002. Templates render to live secrets via Bitwarden — never commit a rendered config.
+- **DB failover + data corruption (incident playbooks)** — see [`docs/runbooks/db-failover.md`](docs/runbooks/db-failover.md) and [`docs/runbooks/db-data-corruption.md`](docs/runbooks/db-data-corruption.md). Phase 0 = no standby; "failover" today means *restore* (placeholder for Phase 1). The corruption checklist is 12 steps; never `pg_resetwal` / `REINDEX` / `VACUUM FULL` before snapshotting.
 - **Checkout idempotency (`checkoutAttemptId`, double-submit dedupe, replay UX)** — see [`docs/checkout-dedupe.md`](docs/checkout-dedupe.md). Required reading before changing `createOrder` / `createCheckoutOrder` signatures or the `Order.checkoutAttemptId` UNIQUE constraint.
 - **Generic idempotency tokens (admin/vendor forms, `IdempotencyKey` table, `withIdempotency` wrapper)** — see [`docs/idempotency.md`](docs/idempotency.md). Generalizes the checkout pattern to any mutation form. Pages that issue tokens MUST be `force-dynamic`. Wrapped actions still need their own role/ownership checks (see `docs/authz-audit.md`); idempotency does not replace authz. Foundation shipped in #788 PR-A; rollout to remaining forms in PR-B.
 - **OrderEvent vs WebhookDelivery (post-#308 separation of concerns)** — see [`docs/orderevent-vs-webhookdelivery.md`](docs/orderevent-vs-webhookdelivery.md). Read before adding a webhook source or reusing `OrderEvent.payload` for dedupe; the UNIQUE lives on `WebhookDelivery`, not on `OrderEvent`.

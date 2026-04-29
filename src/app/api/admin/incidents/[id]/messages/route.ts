@@ -35,7 +35,14 @@ export async function POST(request: Request, { params }: RouteParams) {
         authorId:   session.user.id,
         authorRole: session.user.role,
       },
-      select: { id: true, body: true, authorId: true, authorRole: true, createdAt: true },
+      select: {
+        id: true,
+        body: true,
+        authorId: true,
+        authorRole: true,
+        attachments: true,
+        createdAt: true,
+      },
     })
 
     // Resolve author display name
