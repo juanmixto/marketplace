@@ -4,7 +4,7 @@ This is the snapshot of the `main` branch protection ruleset (reference config; 
 
 ## Required status checks on `main`
 
-The following checks **must pass** before a PR can be merged. They correspond to job names in `.github/workflows/` and are verified as currently active in the GitHub ruleset (audited 2026-04-23):
+The following checks **must pass** before a PR can be merged. They correspond to job names in `.github/workflows/` and are verified as currently active in the GitHub ruleset (audited 2026-04-29):
 
 | Check | Workflow | Why it gates | Status |
 |---|---|---|---|
@@ -23,12 +23,12 @@ The following checks **must pass** before a PR can be merged. They correspond to
 
 ## What is NOT required (and why)
 
-- `Integration shard 0` / `1` / `2` — were marked as required in historical configs, but are no longer gating in the active ruleset. These still run and their results inform local dev testing; consider re-enabling as a gate for higher integration coverage (issue #TBD).
-- `Doctor (schema + routes + healthcheck)` — was intended as a runtime validation gate but is not currently active. Consider re-enabling to catch schema drift and route registration errors at merge time (issue #TBD).
-- `Analyze (actions)` / `Analyze (javascript-typescript)` / `CodeQL` — security scanning is performed via other pipelines. CodeQL results are informational and not a merge blocker in this ruleset.
+- `Integration shard 0` … `15` and `Integration` (aggregator) — gated by `if: github.event_name == 'push' && github.ref == 'refs/heads/main'` in `ci.yml`, so they only run **post-merge** on `main`. They are NOT in the required-checks list (verified 2026-04-29), so they cannot be a phantom required-skipped check on PRs. Coverage gap (#974): integration tests don't run on PRs at all; revisit if regressions slip past `Verify` repeatedly.
+- `Doctor (schema + routes + healthcheck)` — runs on every push but is NOT a required check. Consider promoting to required if it stays green for 2 weeks straight (issue #TBD).
+- `Analyze (actions)` / `Analyze (javascript-typescript)` / `CodeQL` — security scanning is performed via the `Security Scan` workflow. CodeQL results are informational and not a merge blocker in this ruleset.
+- `Security Scan` (semgrep + gitleaks + npm audit) — runs only on push to `main` (no PR trigger), so it cannot be required.
 - `Nightly` workflow — it runs full E2E in prod mode, not PR-scoped. A nightly failure opens an issue; it doesn't block merges.
 - `Lighthouse` — informational PWA/perf metric, not a correctness gate.
-- `Integration` (summary job) — reporting-only aggregator of the 3 shards; the shards themselves are the gate.
 
 ## When to update this doc
 
