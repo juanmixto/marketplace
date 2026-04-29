@@ -32,7 +32,7 @@ export default function NotFound() {
               <div className="relative">
                 <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  Mercado Productor
+                  Raíz Directa
                 </div>
 
                 <p className="mt-6 text-sm font-semibold uppercase tracking-[0.25em] text-[var(--muted)]">

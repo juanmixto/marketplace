@@ -29,12 +29,30 @@ test('orders list page shows item count summary with total articles and products
   assert.match(source, /account\.ordersProduct/)
 })
 
-test('orders list page displays payment status badge', () => {
+test('orders list page collapses order + payment status into a single buyer-friendly badge', () => {
   const source = readSource('../../src/app/(buyer)/cuenta/pedidos/page.tsx')
 
-  assert.match(source, /PAYMENT_STATUS_LABELS/)
-  assert.match(source, /order\.paymentStatus/)
-  assert.match(source, /PAYMENT_STATUS_VARIANT/)
+  // Buyer cares about a single "what is the next thing to know" label, not
+  // two parallel state machines. The helper getBuyerOrderStatus owns the rule
+  // of how (Order.status, Payment.status) collapses; pages just consume it.
+  assert.match(source, /getBuyerOrderStatus/)
+  assert.doesNotMatch(
+    source,
+    /PAYMENT_STATUS_LABELS|PAYMENT_STATUS_VARIANT/,
+    'buyer orders list must not render payment status as a second badge — admin views keep the desaggregated state instead',
+  )
+})
+
+test('getBuyerOrderStatus helper exists and exposes label + variant', () => {
+  const source = readSource('../../src/domains/orders/buyer-status.ts')
+
+  assert.match(source, /export function getBuyerOrderStatus/)
+  assert.match(source, /label/)
+  assert.match(source, /variant/)
+  // The rule is "payment dominates while not succeeded, otherwise show order
+  // status" — this is the contract; if the rule changes, the test should
+  // change too (deliberately, in the same PR).
+  assert.match(source, /paymentStatus !== 'SUCCEEDED'/)
 })
 
 test('PAYMENT_STATUS_LABELS exists in shared constants with expected keys', () => {

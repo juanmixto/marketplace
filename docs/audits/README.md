@@ -140,6 +140,7 @@ If you can't fill `Verification command` or `Current behavior`, the finding isn'
 |------|-------|-----------------|------------|
 | 2026-04-25 | Mobile resilience & performance (#779) | 3 of 16 (`autoComplete`, `saveData` guard, modal tap target) | Auditor extrapolated from spot checks instead of grepping; relied on a "common gaps" mental model. |
 | 2026-04-25 | Follow-up cleanup of `advanceFulfillment` (#814) | 1 of 1 ("dead code" claim) | Re-audit grepped only `src/`, not `test/`. The function had 14 references across 5 integration test files pinning cross-tenant isolation, state-machine invariants, authz audit, and push-notification dispatcher wiring. **Lesson: never base a "dead code" call on a `src/`-only grep — tests are first-class callers.** |
+| 2026-04-27 | Launch alignment audit (#916) | 1 of 25 (Notifications H22 reported "Resend wired"; in fact buyer order emails are NOT dispatched — templates exist but no caller). Correction filed in #933 and appended to the audit doc's "Post-publish corrections" section. | Same shape as the autoComplete false-positive: surface read of file presence treated as evidence of wiring. **Lesson: when claiming a feature is "wired", grep for callers of the specific symbol, not just the file's existence.** |
 
 When you ship an audit, append a row here once any false positives surface. The pattern is the lesson.
 

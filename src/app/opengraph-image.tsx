@@ -1,4 +1,6 @@
 import { ImageResponse } from 'next/og'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
 import { SITE_DESCRIPTION, SITE_NAME } from '@/lib/constants'
 
 export const alt = `${SITE_NAME} - ${SITE_DESCRIPTION}`
@@ -8,7 +10,10 @@ export const size = {
 }
 export const contentType = 'image/png'
 
-export default function OpenGraphImage() {
+export default async function OpenGraphImage() {
+  const logoBuf = await readFile(path.join(process.cwd(), 'public/brand/logo.png'))
+  const logoSrc = `data:image/png;base64,${logoBuf.toString('base64')}`
+
   return new ImageResponse(
     (
       <div
@@ -25,23 +30,16 @@ export default function OpenGraphImage() {
         }}
       >
         <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-          <div
-            style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '18px',
-              background: 'rgba(255,255,255,0.14)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '32px',
-            }}
-          >
-            🌿
-          </div>
+          <img
+            src={logoSrc}
+            alt=""
+            width={72}
+            height={72}
+            style={{ borderRadius: '18px', background: 'rgba(255,255,255,0.92)' }}
+          />
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <div style={{ fontSize: '34px', fontWeight: 700, lineHeight: 1.1 }}>{SITE_NAME}</div>
-            <div style={{ fontSize: '18px', opacity: 0.85 }}>Compra directo al productor</div>
+            <div style={{ fontSize: '18px', opacity: 0.85 }}>{SITE_DESCRIPTION}</div>
           </div>
         </div>
 

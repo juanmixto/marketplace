@@ -20,7 +20,12 @@ export async function canLeaveReview(orderId: string, productId: string) {
   const session = await getActionSession()
   if (!session) return false
 
-  const [order, existingReview] = await Promise.all([
+  // The customer can leave a review when:
+  // - they own a DELIVERED order with this product (capability),
+  // - they have NOT yet reviewed this exact (order, product) pair, and
+  // - they have NOT already reviewed this product in any prior order
+  //   (soft-skip rule — see docs in pending.ts).
+  const [order, reviewForThisOrder, anyPriorReview] = await Promise.all([
     db.order.findFirst({
       where: {
         id: orderId,
@@ -34,9 +39,13 @@ export async function canLeaveReview(orderId: string, productId: string) {
       where: { orderId_productId: { orderId, productId } },
       select: { id: true },
     }),
+    db.review.findFirst({
+      where: { customerId: session.user.id, productId },
+      select: { id: true },
+    }),
   ])
 
-  return Boolean(order) && !existingReview
+  return Boolean(order) && !reviewForThisOrder && !anyPriorReview
 }
 
 export async function createReview(
@@ -75,18 +84,31 @@ export async function createReview(
     throw new Error('Producto no encontrado en el pedido')
   }
 
-  const existingReview = await db.review.findUnique({
-    where: {
-      orderId_productId: {
-        orderId: validated.orderId,
-        productId: validated.productId,
+  const [existingReview, anyPriorReview] = await Promise.all([
+    db.review.findUnique({
+      where: {
+        orderId_productId: {
+          orderId: validated.orderId,
+          productId: validated.productId,
+        },
       },
-    },
-    select: { id: true },
-  })
+      select: { id: true },
+    }),
+    // Hard-disable cross-order duplication. The DB unique is (orderId,
+    // productId), but we deliberately limit a buyer to one review per product
+    // across their lifetime. This matches the soft-skip rule in the UI and
+    // prevents abuse of the review system through repeat purchases.
+    db.review.findFirst({
+      where: { customerId: session.user.id, productId: validated.productId },
+      select: { id: true },
+    }),
+  ])
 
   if (existingReview) {
     throw new Error('Ya has dejado una reseña para este producto en este pedido')
+  }
+  if (anyPriorReview) {
+    throw new Error('Ya reseñaste este producto en otra compra. Solo se admite una reseña por producto.')
   }
 
   const [product, vendor] = await Promise.all([

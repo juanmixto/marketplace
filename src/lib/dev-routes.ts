@@ -16,7 +16,7 @@ export const DEV_ROUTES_ALLOWLIST: ReadonlyArray<{ path: string; why: string }> 
   },
   {
     path: 'src/app/dev/oauth-trigger/page.tsx',
-    why: 'Mock OAuth signin trigger for #856 full E2E specs. Renders a button that calls signIn("mock-oauth"). Gated at proxy (404 in production via isDevRoute), at the page (notFound() if MOCK_OAUTH_ENABLED!=1), AND the provider itself only registers when the env var is set + NODE_ENV !== production.',
+    why: 'Mock OAuth signin trigger for #856 full E2E specs. Renders a button that calls signIn("mock-oauth"). Gated at proxy (404 in production via isDevRoute), at the page (notFound() if isMockOAuthEnabled() is false), AND the provider itself only registers when both MOCK_OAUTH_ENABLED=1 AND PLAYWRIGHT_E2E_PROD_OAUTH=1 are set (only Playwright sets the second flag — see #985).',
   },
 ]
 

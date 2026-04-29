@@ -3,7 +3,18 @@
  * Wired into NextAuth in `src/lib/auth.ts` only when both:
  *
  *   - process.env.MOCK_OAUTH_ENABLED === '1'
- *   - process.env.NODE_ENV !== 'production'
+ *   - process.env.PLAYWRIGHT_E2E_PROD_OAUTH === '1'
+ *
+ * The second flag is set exclusively in `playwright.config.ts`. The
+ * previous gate used `NODE_ENV !== 'production'`, but `next start`
+ * refuses to run with anything other than `NODE_ENV=production`, so
+ * the Nightly `PLAYWRIGHT_USE_PROD=1` job (which runs against a real
+ * production build) was silently locked out of mock-OAuth and every
+ * social-login E2E spec hung on `page.waitForURL`. See #985.
+ *
+ * Defense in depth is preserved: an accidental `MOCK_OAUTH_ENABLED=1`
+ * leak into a real prod deploy still 404s because nothing in the
+ * deploy pipeline sets `PLAYWRIGHT_E2E_PROD_OAUTH`.
  *
  * The companion route handlers under `src/app/api/__test__/oauth/`
  * implement the authorize / token / userinfo endpoints. The flow:
@@ -21,8 +32,8 @@
  *      → signIn callback applies the email-collision matrix.
  *
  * No real network calls, no real Google. Production deploys never set
- * MOCK_OAUTH_ENABLED — the route handlers also 404 there as a second
- * defense.
+ * MOCK_OAUTH_ENABLED nor PLAYWRIGHT_E2E_PROD_OAUTH — the route
+ * handlers 404 there because `isMockOAuthEnabled()` short-circuits.
  */
 import type { OAuthConfig } from 'next-auth/providers'
 
@@ -39,7 +50,7 @@ interface MockProfile {
 }
 
 export function isMockOAuthEnabled(env: Partial<NodeJS.ProcessEnv> = process.env): boolean {
-  return env.MOCK_OAUTH_ENABLED === '1' && env.NODE_ENV !== 'production'
+  return env.MOCK_OAUTH_ENABLED === '1' && env.PLAYWRIGHT_E2E_PROD_OAUTH === '1'
 }
 
 export function mockOAuthProvider(): OAuthConfig<MockProfile> {
