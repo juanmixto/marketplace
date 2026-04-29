@@ -50,7 +50,7 @@ function assertShape(
 test('openIncidentBodySchema — frozen shape', () => {
   assertShape('openIncidentBodySchema', openIncidentBodySchema as never, {
     required: ['orderId', 'type', 'description'],
-    optional: [],
+    optional: ['attachments'],
   })
 })
 
@@ -89,7 +89,7 @@ test('openIncidentBodySchema — rejects unknown incident type', () => {
 test('incidentMessageBodySchema — frozen shape', () => {
   assertShape('incidentMessageBodySchema', incidentMessageBodySchema as never, {
     required: ['body'],
-    optional: [],
+    optional: ['attachments'],
   })
 })
 
@@ -100,5 +100,45 @@ test('INCIDENT_MESSAGE_LIMITS — frozen bounds', () => {
 
 test('incidentMessageBodySchema — rejects empty body', () => {
   const result = incidentMessageBodySchema.safeParse({ body: '' })
+  assert.equal(result.success, false)
+})
+
+test('openIncidentBodySchema — accepts a local /uploads attachment URL', () => {
+  const result = openIncidentBodySchema.safeParse({
+    orderId: 'ord_1',
+    type: IncidentType.WRONG_ITEM,
+    description: 'A perfectly long description that explains the issue.',
+    attachments: ['/uploads/incidents/usr_1/abc.jpg'],
+  })
+  assert.equal(result.success, true)
+})
+
+test('openIncidentBodySchema — accepts a Vercel Blob attachment URL', () => {
+  const result = openIncidentBodySchema.safeParse({
+    orderId: 'ord_1',
+    type: IncidentType.WRONG_ITEM,
+    description: 'A perfectly long description that explains the issue.',
+    attachments: ['https://abc.public.blob.vercel-storage.com/incidents/usr_1/abc.jpg'],
+  })
+  assert.equal(result.success, true)
+})
+
+test('openIncidentBodySchema — rejects an attachment URL on a foreign host', () => {
+  const result = openIncidentBodySchema.safeParse({
+    orderId: 'ord_1',
+    type: IncidentType.WRONG_ITEM,
+    description: 'A perfectly long description that explains the issue.',
+    attachments: ['https://attacker.example.com/payload.jpg'],
+  })
+  assert.equal(result.success, false)
+})
+
+test('openIncidentBodySchema — rejects more than 5 attachments', () => {
+  const result = openIncidentBodySchema.safeParse({
+    orderId: 'ord_1',
+    type: IncidentType.WRONG_ITEM,
+    description: 'A perfectly long description that explains the issue.',
+    attachments: Array.from({ length: 6 }, (_, i) => `/uploads/incidents/usr_1/${i}.jpg`),
+  })
   assert.equal(result.success, false)
 })

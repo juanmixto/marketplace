@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     id: '/',
     name: SITE_NAME,
-    short_name: 'Mercado',
+    short_name: 'Raíz Directa',
     description: SITE_DESCRIPTION,
     start_url: '/?source=pwa',
     scope: '/',

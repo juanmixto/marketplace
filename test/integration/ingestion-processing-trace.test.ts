@@ -131,10 +131,22 @@ test('integration: re-running pipeline on same message + version is idempotent',
     await db.ingestionProductDraft.count({ where: { sourceMessageId: message.id } }),
     1,
   )
+  // After #912 the builder enqueues both a PRODUCT_DRAFT and a
+  // VENDOR_DRAFT review item per PRODUCT-classified message. Both
+  // upserts are idempotent on `(kind, targetId)`, so re-running must
+  // keep the count at 2 rather than ballooning to 4.
+  const productItems = await db.ingestionReviewQueueItem.count({
+    where: { kind: 'PRODUCT_DRAFT' },
+  })
+  const vendorItems = await db.ingestionReviewQueueItem.count({
+    where: { kind: 'VENDOR_DRAFT' },
+  })
+  assert.equal(productItems, 1, 'PRODUCT_DRAFT review item must not be double-enqueued')
+  assert.equal(vendorItems, 1, 'VENDOR_DRAFT review item must not be double-enqueued')
   assert.equal(
     await db.ingestionReviewQueueItem.count(),
-    1,
-    'review queue must not be double-enqueued',
+    2,
+    'review queue must contain exactly the expected idempotent rows',
   )
 })
 

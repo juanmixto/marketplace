@@ -156,6 +156,22 @@ Conditions for upgrade to "full GO":
 
 **Most important data point of this audit**: backlog E7-01 lists "instrumentar funnel CF-1 con PostHog" as a Top-5 P0 — and **the code already has 45 analytics call-sites**. The backlog overestimates remaining work. The weekly PostHog review can be scheduled **this week**, not in 2 months.
 
+## Post-publish corrections
+
+> Per `docs/audits/README.md`, audits accumulate corrections rather than getting silently rewritten. Each row below was discovered after the original audit was filed.
+
+| Date | Correction | Why missed | Follow-up |
+|---|---|---|---|
+| 2026-04-27 | **Buyer transactional emails are NOT wired.** Templates `OrderConfirmation.tsx` + `OrderShipped.tsx` exist in `src/emails/` but no code outside that folder imports them. Only `ReviewRequestEmail` is actually dispatched (`src/domains/reviews/notifications.ts`). CF-1 step 8 ("Email de confirmación al instante") is broken silently — the buyer pays, sees the confirmation page, and the inbox stays empty. | Original Explore agent reported "Resend wired" based on the presence of `src/lib/email.ts` and the templates. The wiring on the dispatch side was never verified with `grep` before claiming the gap was closed (H22 / Notifications row in the findings table). Same shape as the 2026-04-25 mobile audit's autoComplete false-positive: surface read instead of grep-verified. | New issue **#933** (P0) opened to add an email handler under `src/domains/notifications/email/handlers/on-buyer-order-status.ts` mirroring the telegram handler. **Adds a 6th P0 to the "GO completo" gate.** |
+
+## Post-publish closures
+
+> Findings that have shipped since the audit was filed. Same append-only contract as "corrections" — the audit is a historical record, not a living TODO.
+
+| Date | Finding closed | Shipped in | Notes |
+|---|---|---|---|
+| 2026-04-29 | **H5 — PDP shipping ETA + cost not visible** (P0 #1 by sales impact). | **#929** + follow-up commit on the same branch. | Implementation went one step beyond the original recommendation: instead of a fixed peninsular default CP, the band resolves the visitor's shipping zone from Cloudflare's `cf-region-code` header (`src/domains/shipping/zone-default.ts`) and uses a representative CP per zone (peninsula 28001, baleares 07001, canarias 35001, ceuta 51001, melilla 52001). Insular visitors see a zone-localized cost + a "plazo y coste exactos según destino" disclaimer instead of the peninsular 3-5 días promise — honest copy for zones whose real ETAs depend on the producer. Operational requirement: Cloudflare → Network → "Add visitor location headers" must be enabled for `cf-region-code` to arrive; without it the resolver falls back to peninsula (= the pre-geo behavior). See `docs/runbooks/edge-protection.md`. |
+
 ## Verification commands used
 
 ```bash
