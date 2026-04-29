@@ -1282,6 +1282,9 @@ const es = {
   'vendor.orders.kpi.shippedWeek': 'Enviados 7d',
   'vendor.orders.kpi.incident': 'Incidencias',
   'vendor.orders.kpi.revenue30d': 'Facturado 30d',
+  'vendor.orders.paginationLabel': 'Paginación de pedidos',
+  'vendor.orders.paginationFirst': '← Más recientes',
+  'vendor.orders.paginationOlder': 'Más antiguos →',
   'vendor.orders.filters.searchLabel': 'Buscar',
   'vendor.orders.filters.searchPlaceholder': 'Nº pedido, cliente o producto…',
   'vendor.orders.filters.from': 'Desde',
@@ -1908,6 +1911,9 @@ const es = {
   'reviews.vendorPage.subtitle': 'Reseñas de clientes sobre tus productos',
   'reviews.vendorPage.empty': 'Aún no tienes valoraciones. Cuando tus clientes reciban sus pedidos, podrán dejarte reseñas.',
   'reviews.vendorPage.noVendor': 'No se encontró información del productor',
+  'reviews.vendorPage.paginationLabel': 'Paginación de valoraciones',
+  'reviews.vendorPage.paginationFirst': '← Más recientes',
+  'reviews.vendorPage.paginationOlder': 'Más antiguas →',
 
   // Pending reviews — account banner & order list badge
   'pendingReviews.bannerTitle': 'Tienes productos por valorar',

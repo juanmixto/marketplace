@@ -194,7 +194,7 @@ export async function POST(req: NextRequest) {
           await handleInvalidWebhookPayload(event)
           break
         }
-        await handlePaymentSucceeded(pi.id, pi.amount, pi.currency, eventId)
+        await handlePaymentSucceeded(pi.id, pi.amount, pi.currency, eventId, eventCreatedAt(event))
         break
       }
       case 'payment_intent.payment_failed': {
@@ -203,7 +203,7 @@ export async function POST(req: NextRequest) {
           await handleInvalidWebhookPayload(event)
           break
         }
-        await handlePaymentFailed(pi.id, eventId)
+        await handlePaymentFailed(pi.id, eventId, eventCreatedAt(event))
         break
       }
       // Phase 4b-α: subscription lifecycle. The handlers below dedupe by
@@ -294,7 +294,13 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ received: true })
 }
 
-async function handlePaymentSucceeded(providerRef: string, amount?: number, currency?: string, eventId?: string) {
+async function handlePaymentSucceeded(
+  providerRef: string,
+  amount: number | undefined,
+  currency: string | undefined,
+  eventId: string | undefined,
+  eventCreatedAt: Date,
+) {
   const payment = await retryWebhookOperation(
     () =>
       db.payment.findUnique({
@@ -310,6 +316,23 @@ async function handlePaymentSucceeded(providerRef: string, amount?: number, curr
       providerRef,
       reason: 'payment_not_found',
       payload: { providerRef, amount, currency },
+    })
+    return
+  }
+  // Out-of-order guard (#959). Stripe does not promise event order; a
+  // payment_intent.succeeded that arrives after charge.refunded must
+  // not resurrect the refunded order. Mirrors the watermark on
+  // Subscription.lastStripeEventAt — checked before the state guards
+  // below so a stale event never sees Payment/Order rows at all.
+  if (
+    payment.lastStripeEventAt &&
+    eventCreatedAt.getTime() < payment.lastStripeEventAt.getTime()
+  ) {
+    logger.info('stripe.webhook.payment_succeeded_stale', {
+      eventId,
+      providerRef,
+      eventCreatedAt: eventCreatedAt.toISOString(),
+      lastStripeEventAt: payment.lastStripeEventAt.toISOString(),
     })
     return
   }
@@ -365,7 +388,7 @@ async function handlePaymentSucceeded(providerRef: string, amount?: number, curr
       db.$transaction(async tx => {
         const paymentUpdate = await tx.payment.updateMany({
           where: { providerRef, status: { not: 'SUCCEEDED' } },
-          data: { status: 'SUCCEEDED' },
+          data: { status: 'SUCCEEDED', lastStripeEventAt: eventCreatedAt },
         })
 
         // Only PLACED is a legal predecessor for PAYMENT_CONFIRMED. The
@@ -411,7 +434,11 @@ async function handlePaymentSucceeded(providerRef: string, amount?: number, curr
   })
 }
 
-async function handlePaymentFailed(providerRef: string, eventId?: string) {
+async function handlePaymentFailed(
+  providerRef: string,
+  eventId: string | undefined,
+  eventCreatedAt: Date,
+) {
   const payment = await retryWebhookOperation(
     () =>
       db.payment.findUnique({
@@ -430,6 +457,19 @@ async function handlePaymentFailed(providerRef: string, eventId?: string) {
     })
     return
   }
+  // Out-of-order guard (#959): see handlePaymentSucceeded.
+  if (
+    payment.lastStripeEventAt &&
+    eventCreatedAt.getTime() < payment.lastStripeEventAt.getTime()
+  ) {
+    logger.info('stripe.webhook.payment_failed_stale', {
+      eventId,
+      providerRef,
+      eventCreatedAt: eventCreatedAt.toISOString(),
+      lastStripeEventAt: payment.lastStripeEventAt.toISOString(),
+    })
+    return
+  }
 
   if (!shouldApplyPaymentFailed({
     paymentStatus: payment.status,
@@ -442,7 +482,7 @@ async function handlePaymentFailed(providerRef: string, eventId?: string) {
       db.$transaction(async tx => {
         const paymentUpdate = await tx.payment.updateMany({
           where: { providerRef, status: 'PENDING' },
-          data: { status: 'FAILED' },
+          data: { status: 'FAILED', lastStripeEventAt: eventCreatedAt },
         })
 
         const orderUpdate = await tx.order.updateMany({

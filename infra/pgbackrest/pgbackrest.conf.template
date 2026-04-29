@@ -1,0 +1,63 @@
+# pgBackRest configuration — primary host
+#
+# Deployment:
+#   sudo install -m 640 -o root -g postgres pgbackrest.conf.template /etc/pgbackrest/pgbackrest.conf
+#   sudo sed -i \
+#     -e "s|__B2_KEY_ID__|$(pass show mp/B2_KEY_ID)|" \
+#     -e "s|__B2_APP_KEY__|$(pass show mp/B2_APP_KEY)|" \
+#     -e "s|__CIPHER_PASS__|$(pass show mp/PGBACKREST_CIPHER_PASS)|" \
+#     /etc/pgbackrest/pgbackrest.conf
+#
+# After install, verify file is NOT world-readable:
+#   stat -c '%a %U:%G' /etc/pgbackrest/pgbackrest.conf  →  640 root:postgres
+#
+# Refs: docs/runbooks/db-backup.md, issue #1005
+
+[global]
+# Backblaze B2 (S3-compatible) — region eu-central-003
+repo1-type=s3
+repo1-s3-endpoint=s3.eu-central-003.backblazeb2.com
+repo1-s3-region=eu-central-003
+repo1-s3-bucket=mp-pgbackrest-eu
+repo1-s3-key=__B2_KEY_ID__
+repo1-s3-key-secret=__B2_APP_KEY__
+repo1-s3-uri-style=path
+repo1-path=/marketplace
+repo1-storage-verify-tls=y
+
+# Encryption (AES-256-CBC) — pass NEVER committed
+repo1-cipher-type=aes-256-cbc
+repo1-cipher-pass=__CIPHER_PASS__
+
+# Retention: 2 fulls + 6 diffs + 14 days of WAL
+# (full=Sun, diff=Mon-Sat → ~2 weeks of restorable history)
+repo1-retention-full=2
+repo1-retention-diff=6
+repo1-retention-archive=14
+repo1-retention-archive-type=diff
+
+# Compression
+compress-type=zst
+compress-level=6
+
+# Parallelism
+process-max=4
+
+# Logging
+log-level-console=info
+log-level-file=detail
+log-path=/var/log/pgbackrest
+
+# Spool for async archive_command
+spool-path=/var/spool/pgbackrest
+archive-async=y
+archive-push-queue-max=2GiB
+
+# Verify backups end-to-end on every full
+backup-standby=n
+
+[marketplace]
+pg1-path=/var/lib/marketplace/pgdata
+pg1-port=5432
+pg1-user=postgres
+pg1-database=marketplace
