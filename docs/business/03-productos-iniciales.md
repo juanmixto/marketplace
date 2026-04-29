@@ -1,3 +1,9 @@
+---
+summary: Filosofía y catálogo de salida: qué categorías y SKUs van en V1, criterios de selección.
+audience: agents,humans
+read_when: trabajar en catálogo, packs, fichas iniciales
+---
+
 # 03 — Productos iniciales
 
 ## Filosofía del catálogo de salida

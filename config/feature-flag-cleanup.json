@@ -53,5 +53,15 @@
     "issue": 918,
     "owner": "@juanmixto",
     "dueDate": "2026-05-27"
+  },
+  "feat-admin-analytics": {
+    "issue": 923,
+    "owner": "@juanmixto",
+    "dueDate": "2026-05-27"
+  },
+  "feat-admin-reports": {
+    "issue": 923,
+    "owner": "@juanmixto",
+    "dueDate": "2026-05-27"
   }
 }

@@ -1,3 +1,9 @@
+---
+summary: Roadmap de validación de negocio (no de ingeniería). Estado real, no aspiraciones; lo no priorizado va a Aplazado o Descartado.
+audience: agents,humans
+read_when: priorizar trabajo, abrir épicas, decidir si una hipótesis entra
+---
+
 # 08 — Roadmap de negocio
 
 > Roadmap **de negocio**, no de ingeniería. Lo que pretendemos validar / habilitar como compañía.
