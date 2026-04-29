@@ -7,12 +7,17 @@ Este repo es un **marketplace digital curado** de productores artesanales. La in
 
 Cualquier agente que vaya a (a) escribir código de producto, (b) abrir issues, (c) priorizar trabajo o (d) proponer features **debe leer**:
 
-1. [`docs/business/00-index.md`](docs/business/00-index.md) — visión, productores, modelo de comisiones, roadmap.
-2. [`docs/product/00-index.md`](docs/product/00-index.md) — principios, flujos críticos, fricciones conocidas.
-3. [`docs/business/09-decisiones-estrategicas.md`](docs/business/09-decisiones-estrategicas.md) — qué ya se decidió y **no** se discute de nuevo.
-4. La sección "Hacer / No hacer" inmediatamente abajo.
+1. [`docs/AGENT-CONTEXT.md`](docs/AGENT-CONTEXT.md) — **destilado denso** de decisiones (ADR-001..009), invariantes técnicas, anti-patrones y prioridades. Reemplaza al "lee 3 índices + un fichero" anterior. Si necesitas el matiz de algo, abres el enlace correspondiente.
+2. La sección "Hacer / No hacer" inmediatamente abajo.
 
-Si la tarea es puramente técnica (refactor, bug, infra), basta con esa sección + las convenciones técnicas. Si la tarea toca catálogo, productores, checkout, copy, onboarding o cualquier UX visible al usuario final, lee también `docs/product/`.
+Para tareas con scope concreto (checkout, auth, catalog, ingestion, db, webhook, i18n, pwa, security, ci, test, refactor, bugfix, docs), pide el reading list mínimo:
+
+```bash
+scripts/agent-context.sh <task-type>      # imprime la lista mínima de archivos a leer
+scripts/agent-context.sh                  # lista de task types disponibles
+```
+
+Cada doc largo en `docs/business/`, `docs/product/` y `docs/runbooks/` empieza con frontmatter `summary:` / `audience:` / `read_when:`. Lee con `Read limit: 10` para ver el resumen sin cargar todo el archivo; abre completo solo si tu tarea encaja con `read_when:`.
 
 ## Estado actual del marketplace (resumen para agentes)
 

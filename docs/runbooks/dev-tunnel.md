@@ -1,3 +1,9 @@
+---
+summary: dev.feldescloud.com 502 → next dev no está corriendo en :3001 o el tunnel está caído. Cloudflare Tunnel marketplace-dev.
+audience: agents,humans
+read_when: dev.feldescloud.com da 502 o el tunnel se cae
+---
+
 # `dev.feldescloud.com` 502 — Cloudflare Tunnel runbook
 
 `dev.feldescloud.com` is served by a **Cloudflare Tunnel** (`marketplace-dev`) that

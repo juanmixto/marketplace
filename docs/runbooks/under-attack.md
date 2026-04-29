@@ -1,3 +1,9 @@
+---
+summary: L7 DDoS / credential stuffing / scrapers / slowloris contra producción. Cloudflare free tier basta. Cada paso reversible.
+audience: agents,humans
+read_when: incidente activo de tráfico hostil; necesitas activar Under Attack mode o reglas WAF
+---
+
 # Under attack runbook — Cloudflare WAF
 
 Playbook for responding to L7 DDoS, credential stuffing, scraper floods, or slowloris against production. Assumes Cloudflare (free tier is enough) in front of Traefik → Node. Walk top-to-bottom; each step is reversible.
