@@ -8,9 +8,11 @@ The following checks **must pass** before a PR can be merged. They correspond to
 
 | Check | Workflow | Why it gates | Status |
 |---|---|---|---|
-| `Verify` | `ci.yml` | Lint + audit:contracts + typecheck + unit tests | ✅ ACTIVE |
-| `Build And Migrate` | `ci.yml` | `prisma migrate diff` (schema drift) + `migrate deploy` + `next build` | ✅ ACTIVE |
-| `E2E Smoke` | `ci.yml` | Playwright smoke spec — see [`docs/ci-testing-strategy.md §6`](ci-testing-strategy.md) | ✅ ACTIVE |
+| `Verify` | `ci.yml` (real) + `ci-docs.yml` (no-op for docs-only PRs) | Lint + audit:contracts + typecheck + unit tests | ✅ ACTIVE |
+| `Build And Migrate` | `ci.yml` (real) + `ci-docs.yml` (no-op for docs-only PRs) | `prisma migrate diff` (schema drift) + `migrate deploy` + `next build` | ✅ ACTIVE |
+| `E2E Smoke` | `ci.yml` (real) + `ci-docs.yml` (no-op for docs-only PRs) | Playwright smoke spec — see [`docs/ci-testing-strategy.md §6`](ci-testing-strategy.md) | ✅ ACTIVE |
+
+`ci.yml` ignores docs-only paths (`**/*.md`, `.vscode/**`, `LICENSE`, `.gitignore`) to avoid paying the full pipeline tax on typo fixes. Without a sibling, those PRs would never get the required contexts reported and become permanently `BLOCKED` (discovered with #1038 + #1039 on 2026-04-29). `ci-docs.yml` is the path-inverse companion that posts trivial green checks under the same context names so doc-only PRs can satisfy branch protection. **When promoting a check to required, mirror it in both workflows or revert the docs PR's mergeability gain.**
 
 ## Rules that must stay on
 

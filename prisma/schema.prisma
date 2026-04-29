@@ -511,7 +511,12 @@ model Order {
   placedAt                DateTime      @default(now())
   updatedAt               DateTime      @updatedAt
 
-  customer     User                @relation(fields: [customerId], references: [id])
+  // GDPR (#961): Order rows must be retained 5 years for tax compliance
+  // — the account-erase flow at /api/account/delete anonimizes the User
+  // without deleting the row. Restrict makes that contract explicit at
+  // the schema level so a future Prisma migration cannot silently turn
+  // this into a Cascade.
+  customer     User                @relation(fields: [customerId], references: [id], onDelete: Restrict)
   address      Address?            @relation(fields: [addressId], references: [id])
   lines        OrderLine[]
   payments     Payment[]
@@ -562,7 +567,11 @@ model Review {
   order    Order          @relation(fields: [orderId], references: [id])
   product  Product        @relation(fields: [productId], references: [id])
   vendor   Vendor         @relation(fields: [vendorId], references: [id])
-  customer User           @relation(fields: [customerId], references: [id])
+  // GDPR (#961): Reviews are anonimized, not deleted, when the user
+  // erases their account — the rating stays on the product but the
+  // body and authorship are scrubbed. Restrict makes hard-deletion
+  // explicitly forbidden at schema level.
+  customer User           @relation(fields: [customerId], references: [id], onDelete: Restrict)
   reports  ReviewReport[]
 
   @@unique([orderId, productId])
@@ -832,7 +841,11 @@ model Incident {
   updatedAt    DateTime            @updatedAt
 
   order    Order             @relation(fields: [orderId], references: [id])
-  customer User              @relation(fields: [customerId], references: [id])
+  // GDPR (#961): Incident records are part of the order audit trail and
+  // are retained alongside Order rows for tax/dispute compliance. The
+  // account-erase flow does not touch them. Restrict prevents a future
+  // hard-delete from cascade-wiping support history.
+  customer User              @relation(fields: [customerId], references: [id], onDelete: Restrict)
   messages IncidentMessage[]
 
   @@index([status, slaDeadline])
