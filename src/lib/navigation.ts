@@ -31,6 +31,7 @@ export const vendorNavItems: LocalizedNavItem[] = [
   { href: '/vendor/promociones',     labelKey: 'vendor.nav.promotions',    available: true, flag: 'feat-promotions' },
   { href: '/vendor/suscripciones',   labelKey: 'vendor.nav.subscriptions', available: true, flag: 'feat-vendor-subscriptions' },
   { href: '/vendor/pedidos',         labelKey: 'vendor.nav.orders',        available: true },
+  { href: '/vendor/incidencias',     labelKey: 'vendor.nav.incidents',     available: true },
   { href: '/vendor/valoraciones',    labelKey: 'vendor.nav.reviews',       available: true },
   { href: '/vendor/liquidaciones',   labelKey: 'vendor.nav.settlements',   available: true },
   { href: '/vendor/perfil',          labelKey: 'vendor.nav.profile',       available: true },

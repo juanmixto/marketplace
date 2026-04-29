@@ -137,7 +137,10 @@ export async function buildDrafts(
     const vendorDraftId = await upsertVendorDraft(tx, input)
 
     const productDraftIds: string[] = []
-    let reviewItemsEnqueued = 0
+    // Vendor draft always enqueues exactly one VENDOR_DRAFT review
+    // item per call (idempotent upsert on kind+targetId), so seed the
+    // counter at 1 when we created/updated a vendor draft.
+    let reviewItemsEnqueued = vendorDraftId ? 1 : 0
     for (const product of input.extraction.products) {
       const normalisedProductConfidence = normaliseConfidence(product.confidenceOverall)
       const draft = await tx.ingestionProductDraft.upsert({
@@ -212,8 +215,9 @@ async function upsertVendorDraft(
   const vendorConfidence = normaliseConfidence(input.extraction.confidenceOverall)
   const band = confidenceBandFor(vendorConfidence)
 
+  let row: { id: string }
   if (hint.externalId) {
-    const row = await tx.ingestionVendorDraft.upsert({
+    row = await tx.ingestionVendorDraft.upsert({
       where: {
         externalId_extractorVersion: {
           externalId: hint.externalId,
@@ -230,22 +234,40 @@ async function upsertVendorDraft(
       },
       update: {},
     })
-    return row.id
+  } else {
+    // No stable external id → we must still record the vendor somewhere,
+    // but we deliberately create a fresh VendorDraft per message so no
+    // auto-merge logic can conflate unknown authors. Admin review will
+    // later decide whether two unknown-author drafts are the same vendor.
+    row = await tx.ingestionVendorDraft.create({
+      data: {
+        externalId: null,
+        displayName,
+        inferredFromMessageIds: [input.messageId],
+        extractorVersion: input.extractorVersion,
+        confidenceOverall: vendorConfidence.toFixed(2),
+        confidenceBand: band,
+      },
+    })
   }
 
-  // No stable external id → we must still record the vendor somewhere,
-  // but we deliberately create a fresh VendorDraft per message so no
-  // auto-merge logic can conflate unknown authors. Admin review will
-  // later decide whether two unknown-author drafts are the same vendor.
-  const row = await tx.ingestionVendorDraft.create({
-    data: {
-      externalId: null,
-      displayName,
-      inferredFromMessageIds: [input.messageId],
-      extractorVersion: input.extractorVersion,
-      confidenceOverall: vendorConfidence.toFixed(2),
-      confidenceBand: band,
+  // Surface the vendor draft on the admin review queue. This is the
+  // entry point for the "vendor lead" workflow: chats whose admins
+  // forbid public prices (and therefore never produce ProductDrafts)
+  // still produce VendorDrafts on every PRODUCT-classified message,
+  // and operators want to triage them as candidate producers for the
+  // public directory. Idempotent on `(kind, targetId)` so re-running
+  // the builder does not stack rows.
+  await tx.ingestionReviewQueueItem.upsert({
+    where: { kind_targetId: { kind: 'VENDOR_DRAFT', targetId: row.id } },
+    create: {
+      kind: 'VENDOR_DRAFT',
+      targetId: row.id,
+      // Lower than dedupe-HIGH (100) and UNEXTRACTABLE_PRODUCT (25)
+      // because vendor leads are informational, not blocking.
+      priority: 10,
     },
+    update: {},
   })
   return row.id
 }

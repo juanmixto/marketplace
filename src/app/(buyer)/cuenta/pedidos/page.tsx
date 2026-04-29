@@ -4,44 +4,106 @@ import { getMyOrders } from '@/domains/orders/actions'
 import Link from 'next/link'
 import Image from 'next/image'
 import { StarIcon } from '@heroicons/react/24/solid'
+import { ChevronRightIcon } from '@heroicons/react/20/solid'
 import { formatPrice, formatDate } from '@/lib/utils'
-import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/constants'
 import { Badge } from '@/components/ui/badge'
 import { RepeatOrderButton } from '@/components/buyer/RepeatOrderButton'
 import type { Metadata } from 'next'
 import { getServerT } from '@/i18n/server'
+import type { TranslationKeys } from '@/i18n/locales'
+
+type T = Awaited<ReturnType<typeof getServerT>>
 import { countPendingReviewsInOrder, firstPendingReviewProductId } from '@/domains/reviews/pending-policy'
+import { getCustomerReviewedProductIds } from '@/domains/reviews/pending'
+import { reviewNudgeIntensity } from '@/domains/reviews/nudge-window'
+import { getBuyerOrderStatus } from '@/domains/orders/buyer-status'
+
+interface Props {
+  searchParams: Promise<{ filter?: string }>
+}
+
+// Filter slugs are Spanish (the dominant locale); the labels are i18n'd. Kept
+// inline because the page is the only consumer — if a second surface adopts
+// the same set, lift to src/domains/orders/buyer-filters.ts.
+type FilterKey = 'all' | 'por-valorar' | 'pago-pendiente' | 'entregados'
+
+const FILTERS: { key: FilterKey; labelKey: TranslationKeys }[] = [
+  { key: 'all',             labelKey: 'account.ordersFilterAll' },
+  { key: 'por-valorar',     labelKey: 'account.ordersFilterPendingReviews' },
+  { key: 'pago-pendiente',  labelKey: 'account.ordersFilterPaymentPending' },
+  { key: 'entregados',      labelKey: 'account.ordersFilterDelivered' },
+]
+
+type OrderForFilter = Awaited<ReturnType<typeof getMyOrders>>[number]
+
+function matchesFilter(
+  order: OrderForFilter,
+  filter: FilterKey,
+  alreadyReviewed: ReadonlySet<string>,
+): boolean {
+  switch (filter) {
+    case 'all': return true
+    case 'por-valorar':
+      return order.status === 'DELIVERED' && countPendingReviewsInOrder(order, alreadyReviewed) > 0
+    case 'pago-pendiente':
+      return order.paymentStatus !== 'SUCCEEDED' && order.paymentStatus !== 'REFUNDED'
+    case 'entregados':
+      return order.status === 'DELIVERED'
+  }
+}
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT()
   return { title: t('account.ordersTitle') }
 }
 
-const STATUS_VARIANT: Record<string, 'green' | 'amber' | 'red' | 'blue' | 'default'> = {
-  PLACED: 'blue',
-  PAYMENT_CONFIRMED: 'blue',
-  PROCESSING: 'amber',
-  PARTIALLY_SHIPPED: 'amber',
-  SHIPPED: 'amber',
-  DELIVERED: 'green',
-  CANCELLED: 'red',
-  REFUNDED: 'default',
+function FilterTabs({ active, t }: { active: FilterKey; t: T }) {
+  return (
+    <div className="mb-6 flex flex-wrap items-center gap-2">
+      {FILTERS.map(f => {
+        const isActive = active === f.key
+        const href = f.key === 'all' ? '/cuenta/pedidos' : `/cuenta/pedidos?filter=${f.key}`
+        return (
+          <Link
+            key={f.key}
+            href={href}
+            aria-current={isActive ? 'page' : undefined}
+            className={
+              isActive
+                ? 'rounded-full bg-emerald-600 px-3 py-1 text-xs font-medium text-white transition dark:bg-emerald-500 dark:text-gray-950'
+                : 'rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--foreground-soft)] transition hover:bg-[var(--surface-raised)]'
+            }
+          >
+            {t(f.labelKey)}
+          </Link>
+        )
+      })}
+    </div>
+  )
 }
 
-const PAYMENT_STATUS_VARIANT: Record<string, 'green' | 'amber' | 'red' | 'blue' | 'default'> = {
-  PENDING: 'amber',
-  SUCCEEDED: 'green',
-  FAILED: 'red',
-  REFUNDED: 'default',
-  PARTIALLY_REFUNDED: 'default',
-}
-
-export default async function MisPedidosPage() {
+export default async function MisPedidosPage({ searchParams }: Props) {
   const session = await auth()
   if (!session) redirect('/login')
 
-  const orders = await getMyOrders()
-  const t = await getServerT()
+  const { filter } = await searchParams
+  // Back-compat: the previous PR landed `?filter=pending-reviews` and the
+  // banner shipped on production with that link. Honour it as an alias of the
+  // new `por-valorar` slug so users with the old URL bookmarked don't 404.
+  const requested: FilterKey =
+    filter === 'pending-reviews' ? 'por-valorar'
+    : (FILTERS.some(f => f.key === filter) ? filter : 'all') as FilterKey
+  const activeFilter = requested
+
+  const [allOrders, alreadyReviewed, t] = await Promise.all([
+    getMyOrders(),
+    getCustomerReviewedProductIds(session.user.id),
+    getServerT(),
+  ])
+
+  const visibleOrders = activeFilter === 'all'
+    ? allOrders
+    : allOrders.filter(o => matchesFilter(o, activeFilter, alreadyReviewed))
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
@@ -52,21 +114,31 @@ export default async function MisPedidosPage() {
         </p>
       </div>
 
-      {orders.length === 0 ? (
+      <FilterTabs active={activeFilter} t={t} />
+
+      {visibleOrders.length === 0 ? (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-6 py-16 text-center shadow-sm">
-          <p className="text-4xl mb-3">📦</p>
-          <p className="font-medium text-[var(--foreground-soft)]">{t('account.ordersEmpty')}</p>
-          <Link href="/productos" className="mt-4 inline-flex rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-300 dark:hover:bg-emerald-950/55">
-            {t('account.ordersExplore')}
+          <p className="text-4xl mb-3">{activeFilter === 'por-valorar' ? '⭐' : '📦'}</p>
+          <p className="font-medium text-[var(--foreground-soft)]">
+            {activeFilter === 'por-valorar' ? t('account.ordersPendingReviewsEmpty')
+              : activeFilter === 'pago-pendiente' ? t('account.ordersPaymentPendingEmpty')
+              : activeFilter === 'entregados' ? t('account.ordersDeliveredEmpty')
+              : t('account.ordersEmpty')}
+          </p>
+          <Link
+            href={activeFilter === 'all' ? '/productos' : '/cuenta/pedidos'}
+            className="mt-4 inline-flex rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-300 dark:hover:bg-emerald-950/55"
+          >
+            {activeFilter === 'all' ? t('account.ordersExplore') : t('account.ordersFilterShowAll')}
           </Link>
         </div>
       ) : (
         <div className="space-y-4">
-          {orders.map(order => {
+          {visibleOrders.map(order => {
             const totalItems = order.lines.reduce((sum, l) => sum + l.quantity, 0)
             const productCount = order.lines.length
             const pendingReviews =
-              order.status === 'DELIVERED' ? countPendingReviewsInOrder(order) : 0
+              order.status === 'DELIVERED' ? countPendingReviewsInOrder(order, alreadyReviewed) : 0
             const pendingLabel =
               pendingReviews === 1
                 ? t('pendingReviews.badgeCountOne')
@@ -74,10 +146,28 @@ export default async function MisPedidosPage() {
             // Deep-link to the first unreviewed product so the buyer lands on
             // the form they need to fill, not at the top of the page. (#204)
             const firstPendingProductId =
-              order.status === 'DELIVERED' ? firstPendingReviewProductId(order) : null
+              order.status === 'DELIVERED' ? firstPendingReviewProductId(order, alreadyReviewed) : null
             const pendingHref = firstPendingProductId
               ? `/cuenta/pedidos/${order.id}#review-${firstPendingProductId}`
               : `/cuenta/pedidos/${order.id}#reseñas`
+            // Decay rule: stale pedidos (>30 días) ocultan la pill aunque
+            // tengan pendientes — el comprador deja de recibir recordatorios
+            // pasivos. La pestaña "Por valorar" sigue mostrando los pedidos
+            // (opt-in: el usuario buscó verlos), así que si el filtro está
+            // activo forzamos prominencia normal.
+            const pillIntensity = activeFilter === 'por-valorar'
+              ? 'fresh'
+              : reviewNudgeIntensity(order.placedAt)
+            const showPill = pendingReviews > 0 && pillIntensity !== 'stale'
+            const pillClass = pillIntensity === 'fresh'
+              ? 'mt-4 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 transition hover:border-amber-300 hover:bg-amber-100 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:border-amber-700 dark:hover:bg-amber-950/60'
+              // Faded variant: hairline border, no fill — present but not
+              // shouting. Same hover affordance so it still reads as actionable.
+              : 'mt-4 flex items-center gap-3 rounded-xl border border-[var(--border)] bg-transparent px-4 py-2.5 text-sm text-[var(--foreground-soft)] transition hover:border-amber-200 hover:bg-amber-50/40 dark:hover:border-amber-800/60 dark:hover:bg-amber-950/20'
+            const pillIconClass = pillIntensity === 'fresh'
+              ? 'h-5 w-5 shrink-0 text-amber-500 dark:text-amber-300'
+              : 'h-4 w-4 shrink-0 text-amber-500/70 dark:text-amber-300/70'
+            const pillStrongClass = pillIntensity === 'fresh' ? 'font-semibold' : 'font-medium'
             return (
             <article
               key={order.id}
@@ -96,12 +186,10 @@ export default async function MisPedidosPage() {
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <Badge variant={STATUS_VARIANT[order.status] ?? 'default'}>
-                      {ORDER_STATUS_LABELS[order.status] ?? order.status}
-                    </Badge>
-                    <Badge variant={PAYMENT_STATUS_VARIANT[order.paymentStatus] ?? 'default'}>
-                      {PAYMENT_STATUS_LABELS[order.paymentStatus] ?? order.paymentStatus}
-                    </Badge>
+                    {(() => {
+                      const badge = getBuyerOrderStatus(order)
+                      return <Badge variant={badge.variant}>{badge.label}</Badge>
+                    })()}
                     <p className="font-bold text-[var(--foreground)]">{formatPrice(Number(order.grandTotal))}</p>
                   </div>
                 </div>
@@ -125,17 +213,16 @@ export default async function MisPedidosPage() {
                 </div>
               </Link>
 
-              {pendingReviews > 0 && (
-                <Link
-                  href={pendingHref}
-                  className="mt-4 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 transition hover:border-amber-300 hover:bg-amber-100 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:border-amber-700 dark:hover:bg-amber-950/60"
-                >
-                  <StarIcon className="h-5 w-5 shrink-0 text-amber-500 dark:text-amber-300" />
+              {showPill && (
+                <Link href={pendingHref} className={pillClass}>
+                  <StarIcon className={pillIconClass} />
                   <span className="flex-1">
-                    <strong className="font-semibold">{t('pendingReviews.badge')}</strong>
+                    <strong className={pillStrongClass}>
+                      {pendingReviews === 1 ? t('pendingReviews.badgeOne') : t('pendingReviews.badgeOther')}
+                    </strong>
                     <span className="ml-1 text-amber-800/80 dark:text-amber-200/80">· {pendingLabel}</span>
                   </span>
-                  <span aria-hidden>→</span>
+                  <ChevronRightIcon className="h-5 w-5 shrink-0 text-amber-700/60 dark:text-amber-300/60" />
                 </Link>
               )}
 

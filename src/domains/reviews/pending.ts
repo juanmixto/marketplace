@@ -18,6 +18,25 @@ export interface PendingReviewsSummary {
   items: PendingReviewLine[]
 }
 
+/**
+ * Set of productIds the customer has already reviewed in any order. Used by
+ * the soft-skip rule: if the customer has already reviewed a product on a
+ * previous purchase, the UI does not push them to review it again on
+ * subsequent orders, even though the data model would still allow a
+ * per-order Review row.
+ *
+ * Lifted to `src/domains/reviews/pending.ts` so the same source of truth
+ * powers the hub banner counter, the order list pending pill, the order
+ * detail wizard, and the back-end `canLeaveReview` / `createReview` checks.
+ */
+export async function getCustomerReviewedProductIds(customerId: string): Promise<Set<string>> {
+  const reviews = await db.review.findMany({
+    where: { customerId },
+    select: { productId: true },
+  })
+  return new Set(reviews.map(r => r.productId))
+}
+
 async function loadDeliveredOrdersWithReviewState(customerId: string, vendorId?: string) {
   const orders = await db.order.findMany({
     where: vendorId
@@ -30,6 +49,7 @@ async function loadDeliveredOrdersWithReviewState(customerId: string, vendorId?:
     orderBy: { placedAt: 'desc' },
     select: {
       id: true,
+      placedAt: true,
       lines: {
         where: vendorId ? { vendorId } : undefined,
         select: {
@@ -52,21 +72,56 @@ async function loadDeliveredOrdersWithReviewState(customerId: string, vendorId?:
 }
 
 /**
+ * Just the placedAt dates of orders that still have pending reviews after the
+ * soft-skip rule. Used by the hub banner to decide whether to show at all
+ * (decay rule: hide when nothing is fresh) and by tests of the same.
+ */
+export async function getPendingOrderPlacedAtDates(customerId: string): Promise<Date[]> {
+  const [orders, alreadyReviewed] = await Promise.all([
+    loadDeliveredOrdersWithReviewState(customerId),
+    getCustomerReviewedProductIds(customerId),
+  ])
+
+  const out: Date[] = []
+  for (const order of orders) {
+    const reviewedInOrder = new Set(order.reviews.map(r => r.productId))
+    const uniqueLineProducts = new Set(order.lines.map(l => l.productId))
+    let hasPending = false
+    for (const productId of uniqueLineProducts) {
+      if (reviewedInOrder.has(productId)) continue
+      if (alreadyReviewed.has(productId)) continue
+      hasPending = true
+      break
+    }
+    if (hasPending) out.push(order.placedAt)
+  }
+  return out
+}
+
+/**
  * Counts how many delivered order lines the customer has that still lack a review.
- * One product purchased in N separate delivered orders counts as N pending items,
- * matching the `(orderId, productId)` unique constraint on `Review`.
+ *
+ * Soft-skip rule: if the customer has already reviewed a product in any prior
+ * order, that product is not pending in subsequent orders either. The data
+ * model still accepts a per-order Review row, but we don't push the buyer to
+ * write the same opinion twice.
  */
 export async function getPendingReviewsCount(
   customerId: string,
   opts?: { vendorId?: string }
 ): Promise<number> {
-  const orders = await loadDeliveredOrdersWithReviewState(customerId, opts?.vendorId)
+  const [orders, alreadyReviewed] = await Promise.all([
+    loadDeliveredOrdersWithReviewState(customerId, opts?.vendorId),
+    getCustomerReviewedProductIds(customerId),
+  ])
   return orders.reduce((acc, order) => {
-    const reviewed = new Set(order.reviews.map(r => r.productId))
+    const reviewedInOrder = new Set(order.reviews.map(r => r.productId))
     const uniqueLineProducts = new Set(order.lines.map(l => l.productId))
     let pending = 0
     for (const productId of uniqueLineProducts) {
-      if (!reviewed.has(productId)) pending += 1
+      if (reviewedInOrder.has(productId)) continue
+      if (alreadyReviewed.has(productId)) continue
+      pending += 1
     }
     return acc + pending
   }, 0)
@@ -76,23 +131,29 @@ export async function getPendingReviewsCount(
  * Returns a full breakdown of pending-review items for a customer, optionally
  * scoped to a single vendor. The first pending order ID is handy to deep-link
  * the user into the corresponding order detail.
+ *
+ * Honours the same soft-skip rule as getPendingReviewsCount.
  */
 export async function getPendingReviewsSummary(
   customerId: string,
   opts?: { vendorId?: string }
 ): Promise<PendingReviewsSummary> {
-  const orders = await loadDeliveredOrdersWithReviewState(customerId, opts?.vendorId)
+  const [orders, alreadyReviewed] = await Promise.all([
+    loadDeliveredOrdersWithReviewState(customerId, opts?.vendorId),
+    getCustomerReviewedProductIds(customerId),
+  ])
 
   const items: PendingReviewLine[] = []
   const pendingOrderIds = new Set<string>()
 
   for (const order of orders) {
-    const reviewed = new Set(order.reviews.map(r => r.productId))
+    const reviewedInOrder = new Set(order.reviews.map(r => r.productId))
     const seenProducts = new Set<string>()
     for (const line of order.lines) {
       if (seenProducts.has(line.productId)) continue
       seenProducts.add(line.productId)
-      if (reviewed.has(line.productId)) continue
+      if (reviewedInOrder.has(line.productId)) continue
+      if (alreadyReviewed.has(line.productId)) continue
       items.push({
         orderId: order.id,
         productId: line.productId,
@@ -123,4 +184,3 @@ export async function getVendorPendingReviews(
   const summary = await getPendingReviewsSummary(customerId, { vendorId })
   return { total: summary.total, firstPendingOrderId: summary.firstPendingOrderId }
 }
-

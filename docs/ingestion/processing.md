@@ -500,16 +500,74 @@ msg-3 author:99  "Manzanas golden 2,80€/kg"         (different seller)
 
 This is pinned by [`test/integration/ingestion-cycle-end-to-end.test.ts`](../../test/integration/ingestion-cycle-end-to-end.test.ts).
 
-## Phase 2.5 gate (LLM)
+## Phase 2.5 — local LLM extractor (opt-in)
 
-LLM extraction reopens **only** when:
+The Phase 2.5 gate documented earlier was opened in PR #935. Why now:
 
-- Processed-message volume on rules-only has a meaningful sample.
-- Confidence distribution histogram exists and is understood.
-- We can point to specific cases where rules clearly fail.
-- Cost / latency / quality target for LLM escalation is written down.
+- ~1 500 raw messages from one live forum-style group ran through the
+  rules pipeline. Result: 1 PRODUCT, 2 PRODUCT_NO_PRICE, 34 SPAM,
+  the rest CONVERSATION/OTHER. The chat's admin policy *forbids*
+  public prices, so the rules extractor cannot find them — by design.
+- A 12-message labelled benchmark across `qwen2.5:0.5b/1.5b/3b/7b`,
+  `phi3.5`, `gemma2:2b`, and `llama3.2:3b` (running locally on
+  Ollama at `127.0.0.1:11434`) showed **`qwen2.5:3b` at 92 % accuracy
+  and 5.5 s avg per message on CPU** — winning *both* on accuracy and
+  latency over the 7B model.
+- Cost target: **0 €** recurring. No third-party APIs.
 
-Until then, `engine='LLM'` rows do not exist in production.
+### How it works
+
+When `feat-ingestion-llm-extractor` is on (and the umbrella kill is
+off), the worker:
+
+1. Calls Ollama's `/api/generate` with `format: "json"` and a frozen
+   system prompt that asks for a 6-way classification + a list of
+   `vendor_offers` with category hints. Hard timeout 60 s.
+2. Validates the response with `llmResponseSchema` (Zod).
+3. Maps the LLM verdict to the existing `MessageClass` /
+   `ExtractionPayload` contract:
+   - `VENDOR_OFFERING` + any `has_price_signal=true` → `PRODUCT`
+   - `VENDOR_OFFERING` without price → `PRODUCT_NO_PRICE`
+   - `BUYER_QUERY` / `QUESTION_ANSWER` / `DISCUSSION` → `CONVERSATION`
+   - `SPAM` / `OTHER` passthrough.
+4. Persists with `extractorVersion='llm-qwen2.5-3b-v1'`. The
+   `IngestionExtractionResult.engine` column stays `RULES` for now —
+   `extractorVersion` is the source of truth for "which extractor
+   ran"; flipping the engine column is a contract migration deferred
+   until we drop rules entirely.
+5. **Any LLM failure** (transport, timeout, JSON parse, schema
+   mismatch) logs `ingestion.processing.llm.fallback_to_rules` and
+   re-runs the rules pipeline. Ingestion is never blocked on the LLM.
+
+### Tunables
+
+| Env var | Default | Purpose |
+|---|---|---|
+| `OLLAMA_URL` | `http://127.0.0.1:11434` | Where the local Ollama listens. |
+| `INGESTION_LLM_MODEL` | `qwen2.5:3b` | Model tag passed to Ollama. |
+| `INGESTION_LLM_TIMEOUT_MS` | `60000` | Hard cap per call. |
+
+### Flags
+
+| Flag | Default | When `true` |
+|---|---|---|
+| `feat-ingestion-llm-extractor` | `false` | Worker tries the LLM first; falls back to rules on any error. |
+
+### Operational notes
+
+- Throughput: ~5–10 messages / second across the 4-worker pool with
+  `qwen2.5:3b` on a CPU box; orders of magnitude slower than rules.
+  Real-time ingestion stays fine — backfilling a 100k-message chat
+  takes hours, not minutes.
+- Fallback rate: tracked via the `ingestion.processing.llm.fallback_to_rules`
+  log scope. Spikes in this metric mean Ollama is unreachable / OOM.
+- Rolling forward to a different model: set `INGESTION_LLM_MODEL`,
+  pull the new model with `ollama pull <name>`, restart the worker.
+  Bump `CURRENT_LLM_EXTRACTOR_VERSION` in `extractor/llm.ts` to
+  signal a re-process — the `(messageId, extractorVersion)` unique
+  constraint preserves history of every model that ever ran.
+- Disabling: set `feat-ingestion-llm-extractor=false`. New jobs run
+  rules-only; existing LLM extraction rows stay in DB as audit.
 
 ## Decisions log
 

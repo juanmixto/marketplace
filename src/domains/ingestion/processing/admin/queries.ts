@@ -24,7 +24,7 @@ import type {
 export const REVIEW_QUEUE_PAGE_SIZE = 50
 
 export type ReviewQueueListKind =
-  | Extract<IngestionDraftKind, 'PRODUCT_DRAFT' | 'UNEXTRACTABLE_PRODUCT'>
+  | Extract<IngestionDraftKind, 'PRODUCT_DRAFT' | 'UNEXTRACTABLE_PRODUCT' | 'VENDOR_DRAFT'>
 
 export type ReviewQueueSortKey =
   | 'fecha'
@@ -87,6 +87,19 @@ export interface ReviewQueueListRowUnextractable {
   confidenceBand: string
 }
 
+export interface ReviewQueueListRowVendorLead {
+  kind: 'VENDOR_DRAFT'
+  vendor: {
+    id: string
+    displayName: string
+    externalId: string | null
+    confidenceOverall: string
+    confidenceBand: string
+    status: string
+    inferredFromMessageCount: number
+  }
+}
+
 export interface ReviewQueueListRow {
   itemId: string
   state: IngestionReviewState
@@ -95,7 +108,10 @@ export interface ReviewQueueListRow {
   messageText: string | null
   messagePostedAt: Date | null
   authorId: string | null
-  target: ReviewQueueListRowProduct | ReviewQueueListRowUnextractable
+  target:
+    | ReviewQueueListRowProduct
+    | ReviewQueueListRowUnextractable
+    | ReviewQueueListRowVendorLead
 }
 
 export interface ReviewQueueListResult {
@@ -125,7 +141,7 @@ export async function listReviewQueue(
   const kindFilter: ReviewQueueListKind[] =
     input.kind && input.kind !== 'ALL'
       ? [input.kind]
-      : ['PRODUCT_DRAFT', 'UNEXTRACTABLE_PRODUCT']
+      : ['PRODUCT_DRAFT', 'UNEXTRACTABLE_PRODUCT', 'VENDOR_DRAFT']
 
   const sortKey: ReviewQueueSortKey = input.sort ?? 'fecha'
   const dir: ReviewQueueSortDir = input.dir === 'asc' ? 'asc' : 'desc'
@@ -146,6 +162,12 @@ export async function listReviewQueue(
     ? Prisma.sql` AND q."state" = ${stateFilter}::"IngestionReviewState"`
     : Prisma.empty
 
+  // VENDOR_DRAFT rows have no direct message FK — provenance lives in
+  // a JSON array on the draft. The order-by columns below all degrade
+  // to NULL for vendor leads, which sort last under `NULLS LAST`. The
+  // ordering is still total because `q."createdAt" DESC` is the
+  // tiebreaker. This is fine for now: vendor leads are a small bucket
+  // and operators usually filter to the kind tab.
   const idRows = await db.$queryRaw<Array<{ id: string }>>(Prisma.sql`
     SELECT q."id"
     FROM "IngestionReviewQueueItem" q
@@ -183,12 +205,14 @@ export async function listReviewQueue(
 
   const draftIds: string[] = []
   const extractionIds: string[] = []
+  const vendorDraftIds: string[] = []
   for (const item of items) {
     if (item.kind === 'PRODUCT_DRAFT') draftIds.push(item.targetId)
     if (item.kind === 'UNEXTRACTABLE_PRODUCT') extractionIds.push(item.targetId)
+    if (item.kind === 'VENDOR_DRAFT') vendorDraftIds.push(item.targetId)
   }
 
-  const [drafts, extractions] = await Promise.all([
+  const [drafts, extractions, vendorDrafts] = await Promise.all([
     draftIds.length
       ? db.ingestionProductDraft.findMany({
           where: { id: { in: draftIds } },
@@ -209,10 +233,37 @@ export async function listReviewQueue(
           },
         })
       : [],
+    vendorDraftIds.length
+      ? db.ingestionVendorDraft.findMany({
+          where: { id: { in: vendorDraftIds } },
+        })
+      : [],
   ])
+
+  // For vendor leads we hydrate the *first* contributing message for
+  // preview purposes. Fetched in a second pass to keep the join above
+  // single-purpose. `inferredFromMessageIds` is `Json` of strings.
+  const firstMessageIdByVendor = new Map<string, string>()
+  for (const v of vendorDrafts) {
+    const ids = Array.isArray(v.inferredFromMessageIds)
+      ? (v.inferredFromMessageIds as unknown[]).filter(
+          (x): x is string => typeof x === 'string',
+        )
+      : []
+    if (ids.length > 0) firstMessageIdByVendor.set(v.id, ids[0]!)
+  }
+  const messageIdsForVendors = [...new Set(firstMessageIdByVendor.values())]
+  const vendorMessages = messageIdsForVendors.length
+    ? await db.telegramIngestionMessage.findMany({
+        where: { id: { in: messageIdsForVendors } },
+        select: { id: true, text: true, postedAt: true, tgAuthorId: true },
+      })
+    : []
+  const vendorMessageById = new Map(vendorMessages.map((m) => [m.id, m]))
 
   const draftById = new Map(drafts.map((d) => [d.id, d]))
   const extractionById = new Map(extractions.map((e) => [e.id, e]))
+  const vendorDraftById = new Map(vendorDrafts.map((v) => [v.id, v]))
 
   const rows: ReviewQueueListRow[] = []
   for (const item of items) {
@@ -258,6 +309,35 @@ export async function listReviewQueue(
           classification: e.classification,
           confidenceOverall: e.confidenceOverall.toString(),
           confidenceBand: e.confidenceBand,
+        },
+      })
+    } else if (item.kind === 'VENDOR_DRAFT') {
+      const v = vendorDraftById.get(item.targetId)
+      if (!v) continue
+      const firstMsgId = firstMessageIdByVendor.get(v.id)
+      const msg = firstMsgId ? vendorMessageById.get(firstMsgId) : undefined
+      const inferredCount = Array.isArray(v.inferredFromMessageIds)
+        ? (v.inferredFromMessageIds as unknown[]).length
+        : 0
+      rows.push({
+        itemId: item.id,
+        state: item.state,
+        autoResolvedReason: item.autoResolvedReason,
+        createdAt: item.createdAt,
+        messageText: truncate(msg?.text ?? null),
+        messagePostedAt: msg?.postedAt ?? null,
+        authorId: msg?.tgAuthorId?.toString() ?? null,
+        target: {
+          kind: 'VENDOR_DRAFT',
+          vendor: {
+            id: v.id,
+            displayName: v.displayName,
+            externalId: v.externalId,
+            confidenceOverall: v.confidenceOverall.toString(),
+            confidenceBand: v.confidenceBand,
+            status: v.status,
+            inferredFromMessageCount: inferredCount,
+          },
         },
       })
     }
@@ -339,6 +419,34 @@ export interface ReviewQueueTelegramLink {
   authorDisplayName: string | null
 }
 
+export interface ReviewQueueDetailVendorLead {
+  kind: 'VENDOR_DRAFT'
+  vendor: {
+    id: string
+    displayName: string
+    externalId: string | null
+    confidenceOverall: string
+    confidenceBand: string
+    status: string
+    extractorVersion: string
+    inferredFromMessageIds: string[]
+    createdAt: Date
+    updatedAt: Date
+  }
+  // Sample of the latest contributing messages so the operator can
+  // judge whether this is a genuine producer (selling) vs a buyer or
+  // a discussion participant. Capped server-side; the operator can
+  // always click through to Telegram for the full history.
+  contributingMessages: Array<{
+    id: string
+    text: string | null
+    postedAt: Date
+    tgMessageId: string
+    chatId: string
+    tgChatId: string | null
+  }>
+}
+
 export interface ReviewQueueDetail {
   itemId: string
   state: IngestionReviewState
@@ -352,7 +460,10 @@ export interface ReviewQueueDetail {
     chatId: string
   }
   telegramLink: ReviewQueueTelegramLink
-  target: ReviewQueueDetailProduct | ReviewQueueDetailUnextractable
+  target:
+    | ReviewQueueDetailProduct
+    | ReviewQueueDetailUnextractable
+    | ReviewQueueDetailVendorLead
 }
 
 function buildTelegramLink(
@@ -563,7 +674,94 @@ export async function getReviewQueueItem(
     }
   }
 
-  // VENDOR_DRAFT / DEDUPE_CANDIDATE are out of Phase 3 scope — callers
-  // should never hit them through the UI.
+  if (item.kind === 'VENDOR_DRAFT') {
+    const vendor = await db.ingestionVendorDraft.findUnique({
+      where: { id: item.targetId },
+    })
+    if (!vendor) return null
+
+    const ids = Array.isArray(vendor.inferredFromMessageIds)
+      ? (vendor.inferredFromMessageIds as unknown[]).filter(
+          (x): x is string => typeof x === 'string',
+        )
+      : []
+
+    // Cap the contributing-messages preview at 10 newest; for the
+    // active chat in dev that's enough to triage, and it keeps the
+    // detail page within a single round-trip even for vendors with
+    // hundreds of inferred messages.
+    const messages = ids.length
+      ? await db.telegramIngestionMessage.findMany({
+          where: { id: { in: ids } },
+          select: {
+            id: true,
+            text: true,
+            postedAt: true,
+            tgMessageId: true,
+            tgAuthorId: true,
+            rawJson: true,
+            chatId: true,
+            chat: { select: { tgChatId: true } },
+          },
+          orderBy: { postedAt: 'desc' },
+          take: 10,
+        })
+      : []
+    const firstMessage = messages[0] ?? null
+    return {
+      itemId: item.id,
+      state: item.state,
+      autoResolvedReason: item.autoResolvedReason,
+      createdAt: item.createdAt,
+      message: firstMessage
+        ? {
+            id: firstMessage.id,
+            text: firstMessage.text,
+            postedAt: firstMessage.postedAt,
+            authorId: firstMessage.tgAuthorId?.toString() ?? null,
+            chatId: firstMessage.chatId,
+          }
+        : {
+            id: vendor.id,
+            text: null,
+            postedAt: vendor.createdAt,
+            authorId: vendor.externalId,
+            chatId: '',
+          },
+      telegramLink: firstMessage
+        ? buildTelegramLink(
+            firstMessage.chat.tgChatId,
+            firstMessage.tgMessageId,
+            firstMessage.tgAuthorId,
+            firstMessage.rawJson,
+          )
+        : { messageUrl: null, profileUrl: null, authorDisplayName: null },
+      target: {
+        kind: 'VENDOR_DRAFT',
+        vendor: {
+          id: vendor.id,
+          displayName: vendor.displayName,
+          externalId: vendor.externalId,
+          confidenceOverall: vendor.confidenceOverall.toString(),
+          confidenceBand: vendor.confidenceBand,
+          status: vendor.status,
+          extractorVersion: vendor.extractorVersion,
+          inferredFromMessageIds: ids,
+          createdAt: vendor.createdAt,
+          updatedAt: vendor.updatedAt,
+        },
+        contributingMessages: messages.map((m) => ({
+          id: m.id,
+          text: m.text,
+          postedAt: m.postedAt,
+          tgMessageId: m.tgMessageId.toString(),
+          chatId: m.chatId,
+          tgChatId: m.chat.tgChatId?.toString() ?? null,
+        })),
+      },
+    }
+  }
+
+  // DEDUPE_CANDIDATE remains out of Phase 3 scope.
   return null
 }

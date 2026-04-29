@@ -8,6 +8,7 @@ import {
   CurrencyEuroIcon, UserCircleIcon, ArrowTopRightOnSquareIcon,
   StarIcon, TagIcon, ArrowPathIcon,
   BellIcon,
+  ExclamationTriangleIcon,
   ChevronDoubleLeftIcon, XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
@@ -23,6 +24,7 @@ import { SignOutButton } from '@/components/auth/SignOutButton'
 const NAV_META = {
   '/vendor/dashboard':     HomeIcon,
   '/vendor/pedidos':       ShoppingBagIcon,
+  '/vendor/incidencias':   ExclamationTriangleIcon,
   '/vendor/productos':     ArchiveBoxIcon,
   '/vendor/promociones':   TagIcon,
   '/vendor/suscripciones': ArrowPathIcon,
