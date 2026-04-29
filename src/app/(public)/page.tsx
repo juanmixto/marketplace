@@ -102,6 +102,7 @@ export default async function HomePage() {
       name: SITE_NAME,
       url: absoluteUrl('/'),
       description: SITE_DESCRIPTION,
+      logo: absoluteUrl('/brand/logo.svg'),
     },
     {
       '@context': 'https://schema.org',

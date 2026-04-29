@@ -51,7 +51,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return buildPageMetadata({
     title: vendor.displayName,
-    description: vendor.description ?? `Conoce a ${vendor.displayName}, productor local en Mercado Productor.`,
+    description: vendor.description ?? `Conoce a ${vendor.displayName}, productor local en Raíz Directa.`,
     path: `/productores/${vendor.slug}`,
     imagePath: vendor.logo ?? '/opengraph-image',
   })

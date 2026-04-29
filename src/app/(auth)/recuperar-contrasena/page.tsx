@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { RequestForm } from './RequestForm'
 
 export const metadata: Metadata = {
-  title: 'Recuperar Contraseña | Mercado Productor',
+  title: 'Recuperar Contraseña | Raíz Directa',
   description: 'Recupera acceso a tu cuenta introduciendo tu email registrado.',
 }
 
