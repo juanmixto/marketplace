@@ -521,8 +521,8 @@ model Order {
   reviews      Review[]
 
   @@index([customerId, status])
-  @@index([customerId, placedAt])
-  @@index([status, placedAt])
+  @@index([customerId, placedAt(sort: Desc)])
+  @@index([status, placedAt(sort: Desc)])
   @@index([orderNumber])
 }
 
@@ -788,6 +788,7 @@ model Payment {
   refunds Refund[]
 
   @@index([orderId])
+  @@index([orderId, status])
   @@index([providerRef])
   @@index([lastStripeEventAt])
 }
