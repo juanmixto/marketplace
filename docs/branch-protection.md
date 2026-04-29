@@ -23,6 +23,37 @@ The following checks **must pass** before a PR can be merged. They correspond to
 - **Restrict deletions on `main`**: yes.
 - **Require signed commits**: not required; the team uses GitHub-verified co-author trailers (see `AGENTS.md`).
 
+## Aggregator gate pattern (matrix shards → single required context)
+
+Required checks like `E2E Smoke` are aggregator jobs that fan out into a matrix (`E2E Smoke (shard 1)` … `(shard 8)`). The aggregator must explicitly fail when any shard fails, otherwise GitHub treats the SKIPPED-on-needs-failure result as **neutral** and lets the PR merge.
+
+The 2026-04-29 incident: #1037, #1040, and #1043 each merged with red shards because the aggregator was the default shape, which evaluates to SKIPPED rather than FAILURE when `needs:` fails. Branch protection passed all three through silently. Fixed in #1041.
+
+```yaml
+# WRONG — `needs` failure → job SKIPPED → branch protection treats as neutral
+e2e-smoke-complete:
+  name: E2E Smoke
+  needs: e2e-smoke
+  steps:
+    - run: echo "All E2E smoke shards passed"
+
+# RIGHT — `if: always()` runs the aggregator, explicit step fails it
+e2e-smoke-complete:
+  name: E2E Smoke
+  needs: e2e-smoke
+  if: always()
+  steps:
+    - if: needs.e2e-smoke.result != 'success'
+      run: |
+        echo "::error::E2E Smoke aggregator failed: shards did not all succeed (result=${{ needs.e2e-smoke.result }})"
+        exit 1
+    - run: echo "All E2E smoke shards passed"
+```
+
+**When promoting a check to required AND it has matrix shards, the aggregator must use the `if: always() + result-check` pattern.** Any other shape is a silent bypass.
+
+The same fix applies to the `integration` aggregator in `ci.yml` (#1041), and to any future required matrix job (e.g., a future `Doctor` if its checks fan out).
+
 ## What is NOT required (and why)
 
 - `Integration shard 0` … `15` and `Integration` (aggregator) — gated by `if: github.event_name == 'push' && github.ref == 'refs/heads/main'` in `ci.yml`, so they only run **post-merge** on `main`. They are NOT in the required-checks list (verified 2026-04-29), so they cannot be a phantom required-skipped check on PRs. Coverage gap (#974): integration tests don't run on PRs at all; revisit if regressions slip past `Verify` repeatedly.

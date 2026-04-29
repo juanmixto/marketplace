@@ -1,3 +1,9 @@
+---
+summary: Cómo ganamos dinero: comisión 20–30 % caso por caso (ADR-008), sin cuotas (ADR-002), devoluciones 14d comprador paga vuelta (ADR-007).
+audience: agents,humans
+read_when: tocar pricing, comisiones, liquidaciones, devoluciones
+---
+
 # 04 — Modelo de negocio y comisiones
 
 ## Cómo ganamos dinero
