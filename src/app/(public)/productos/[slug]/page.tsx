@@ -1,13 +1,9 @@
-import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { getProductBySlug, getProducts } from '@/domains/catalog/queries'
 import { getShippingCost } from '@/domains/shipping/calculator'
-import {
-  getDefaultPostalCodeForZone,
-  resolveShippingZoneFromHeaders,
-} from '@/domains/shipping/zone-default'
+import { getDefaultPostalCodeForZone } from '@/domains/shipping/zone-default'
 import { Badge } from '@/components/ui/badge'
 import { ProductPurchasePanel } from '@/components/catalog/ProductPurchasePanel'
 import { AutoTranslatedBadge } from '@/components/catalog/AutoTranslatedBadge'
@@ -107,11 +103,16 @@ export default async function ProductDetailPage({ params }: Props) {
   const localizedProduct = getLocalizedProductCopy(product, locale)
   const taxRate = Number(product.taxRate)
 
-  // Geo-aware default for the PDP shipping band: a Canarias visitor
-  // gets Canarias cost + label, not peninsula's. Falls back to
-  // peninsula when `cf-region-code` is absent (dev, non-CF traffic).
-  const reqHeaders = await headers()
-  const shippingZone = resolveShippingZoneFromHeaders(reqHeaders)
+  // Geo-IP detection from `cf-region-code` was the original design (#929
+  // follow-up commit + #1038) but `await headers()` in this code path
+  // regressed three @smoke specs (cart-checkout, multi-vendor-cart,
+  // favorites — see #1042). Falling back to a fixed peninsular default
+  // preserves the band's user-facing benefit (cost shown above CTA)
+  // while we keep the geo resolver behind a clean boundary so it can
+  // be re-wired once the regression mechanism is understood. The
+  // resolver module (`zone-default.ts`) and copy keys stay in place
+  // unchanged; only the page-level call to `headers()` is reverted.
+  const shippingZone = 'peninsula' as const
   const defaultShippingPostalCode = getDefaultPostalCodeForZone(shippingZone)
 
   // Four independent reads — fire in parallel to cut TTFB on the
@@ -127,9 +128,9 @@ export default async function ProductDetailPage({ params }: Props) {
       vendorId: product.vendor.id,
       categoryId: product.categoryId ?? null,
     }),
-    // Audit #917: surface delivery cost on PDP for the buyer's actual
-    // shipping zone. Real cost is recomputed at checkout once the
-    // buyer enters their CP; the band copy makes that explicit.
+    // Audit #917: surface delivery cost on PDP using the peninsular
+    // default CP. Real cost is recomputed at checkout once the buyer
+    // enters their CP; the band copy makes that explicit.
     getShippingCost(defaultShippingPostalCode, Number(product.basePrice)).catch(() => null),
   ])
 
