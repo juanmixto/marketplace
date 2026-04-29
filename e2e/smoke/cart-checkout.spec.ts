@@ -55,8 +55,27 @@ test.describe('cart and checkout @smoke', () => {
     await expect(addToCart).toBeEnabled({ timeout: 5_000 })
     await addToCart.click()
     // The button text flips to "Añadido" for ~2s after a successful add —
-    // a reliable signal the Zustand store received the item.
+    // local React state (`setAdded(true)`), useful as a UX signal but
+    // it fires *before* the Zustand persist middleware writes to
+    // localStorage. Chaining `page.goto('/carrito')` immediately after
+    // races that write — the cart page reads from a not-yet-flushed
+    // store and renders empty (#1045 root cause). Hard-gate on the
+    // localStorage write before navigating.
     await expect(page.getByRole('button', { name: /añadido/i }).first()).toBeVisible({ timeout: 5_000 })
+    await page.waitForFunction(
+      (expectedSlug) => {
+        try {
+          const raw = window.localStorage.getItem('cart-storage')
+          if (!raw) return false
+          const parsed = JSON.parse(raw) as { state?: { items?: { slug?: string }[] } }
+          return parsed?.state?.items?.some(item => item.slug === expectedSlug) ?? false
+        } catch {
+          return false
+        }
+      },
+      SEEDED_PRODUCT_SLUG,
+      { timeout: 5_000 },
+    )
 
     // --- CART ---
     await page.goto('/carrito')
@@ -78,6 +97,22 @@ test.describe('cart and checkout @smoke', () => {
       await page.goto(`/productos/${SEEDED_PRODUCT_SLUG}`)
       await page.getByRole('button', { name: /añadir al carrito/i }).first().click()
       await expect(page.getByRole('button', { name: /añadido/i }).first()).toBeVisible({ timeout: 5_000 })
+      // Same persist-write gate as above — the retry path hits the
+      // exact same race against /checkout's empty-cart guard.
+      await page.waitForFunction(
+        (expectedSlug) => {
+          try {
+            const raw = window.localStorage.getItem('cart-storage')
+            if (!raw) return false
+            const parsed = JSON.parse(raw) as { state?: { items?: { slug?: string }[] } }
+            return parsed?.state?.items?.some(item => item.slug === expectedSlug) ?? false
+          } catch {
+            return false
+          }
+        },
+        SEEDED_PRODUCT_SLUG,
+        { timeout: 5_000 },
+      )
       await page.goto('/checkout')
       await expect(page).toHaveURL(/\/checkout(?:\/|$|\?)/, { timeout: 25_000 })
     }
