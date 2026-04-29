@@ -207,7 +207,14 @@ jobs:
 
   integration:
     name: Integration
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # `if: always()` runs the aggregator even when matrix shards
+    # failed, so we can FAIL it explicitly. Without this, GitHub
+    # marks the job as SKIPPED on shard failure, and branch
+    # protection treats SKIPPED as neutral — letting broken PRs
+    # merge silently. See `e2e-smoke-complete` below for the same
+    # pattern; #1037 + #1040 merged with red shards under the old
+    # SKIPPED-behaviour before this fix landed.
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     needs: integration-shard
     # Aggregates the matrix shards into a single status check that
@@ -215,6 +222,10 @@ jobs:
     # runs on its own postgres service with a disjoint subset of test
     # files (see scripts/run-integration-tests.mjs TEST_SHARD_*).
     steps:
+      - if: needs.integration-shard.result != 'success'
+        run: |
+          echo "::error::Integration aggregator failed: shards did not all succeed (result=${{ needs.integration-shard.result }})"
+          exit 1
       - run: echo "All integration shards passed"
 
   e2e-smoke:
@@ -312,7 +323,20 @@ jobs:
     name: E2E Smoke
     runs-on: ubuntu-latest
     needs: e2e-smoke
+    # `if: always()` + explicit shard-result check is mandatory:
+    # without it, a single shard failure makes GitHub mark this
+    # aggregator as SKIPPED, and branch protection treats SKIPPED
+    # as neutral — so PRs with red shards merge silently. #1037
+    # (multi-vendor-cart shard 6 red) and #1040 (shards 5+6 red)
+    # both reached `main` under the old SKIPPED-behaviour before
+    # this fix landed; the resulting broken `main` is what
+    # surfaced the bug.
+    if: always()
     # Aggregates the matrix shards into a single status check that
     # branch protection can require by its stable name.
     steps:
+      - if: needs.e2e-smoke.result != 'success'
+        run: |
+          echo "::error::E2E Smoke aggregator failed: shards did not all succeed (result=${{ needs.e2e-smoke.result }})"
+          exit 1
       - run: echo "All E2E smoke shards passed"
