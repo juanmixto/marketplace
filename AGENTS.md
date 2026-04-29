@@ -5,12 +5,15 @@ Este repo es un **marketplace digital curado** de productores artesanales. La in
 
 ## Contexto obligatorio antes de trabajar
 
-Cualquier agente que vaya a (a) escribir código de producto, (b) abrir issues, (c) priorizar trabajo o (d) proponer features **debe leer**:
+Lee **siempre** la sección "Hacer / No hacer" inmediatamente abajo (parte de este `AGENTS.md`).
 
-1. [`docs/AGENT-CONTEXT.md`](docs/AGENT-CONTEXT.md) — **destilado denso** de decisiones (ADR-001..009), invariantes técnicas, anti-patrones y prioridades. Reemplaza al "lee 3 índices + un fichero" anterior. Si necesitas el matiz de algo, abres el enlace correspondiente.
-2. La sección "Hacer / No hacer" inmediatamente abajo.
+**Solo si tu tarea toca producto, negocio, UX, copy, catálogo, productores, checkout u onboarding** lee también:
 
-Para tareas con scope concreto (checkout, auth, catalog, ingestion, db, webhook, i18n, pwa, security, ci, test, refactor, bugfix, docs), pide el reading list mínimo:
+- [`docs/AGENT-CONTEXT.md`](docs/AGENT-CONTEXT.md) — destilado denso de decisiones (ADR-001..009), prioridades, flujos críticos, anti-patrones. Sustituye al "abre 3 índices + un fichero".
+
+**Si tu tarea es técnica pura (refactor, bugfix, infra, CI, tests, dependencias) NO lo abras** — `AGENTS.md` + las convenciones técnicas listadas más abajo bastan. Cargarlo te cuesta ~2.5k tokens sin aportarte nada (medido, no estimado).
+
+Para cualquier tarea con scope concreto, el reading list mínimo:
 
 ```bash
 scripts/agent-context.sh <task-type>      # imprime la lista mínima de archivos a leer
