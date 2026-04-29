@@ -6,11 +6,15 @@ runs:
   steps:
     - uses: actions/setup-node@v5
       with:
-        # Node 24 kills the Node-20 deprecation warnings GitHub has been
-        # printing against actions/cache@v4 (forced upgrade on June 2nd)
-        # and lets the integration runner use the stable
-        # `--test-isolation=none` flag instead of the experimental alias.
-        node-version: 24
+        # Node version is owned by `.nvmrc` at the repo root so local
+        # dev (nvm/asdf/volta), Doctor, Lighthouse, and CI all read
+        # one source of truth. Bumping Node = edit `.nvmrc`, no
+        # workflow changes needed. Why 24: kills the Node-20
+        # deprecation warnings GitHub has been printing against
+        # actions/cache@v4 (forced upgrade on June 2nd) and lets the
+        # integration runner use the stable `--test-isolation=none`
+        # flag instead of the experimental alias.
+        node-version-file: '.nvmrc'
         cache: npm
 
     - name: Restore node_modules + generated Prisma client cache
@@ -20,14 +24,14 @@ runs:
         # Prisma's generator writes to `src/generated/prisma` (see
         # prisma/schema.prisma `generator client.output`), NOT into
         # node_modules. Cache both paths together, keyed on
-        # package-lock + schema.prisma, so skipping the generate
-        # step on a cache hit is safe. Node version is part of the
-        # key because native modules (e.g. Prisma engines) are ABI-
-        # compatible per major.
+        # .nvmrc + package-lock + schema.prisma, so skipping the
+        # generate step on a cache hit is safe. Hashing .nvmrc means
+        # bumping the Node major automatically invalidates the cache
+        # — Prisma engines are ABI-compatible per major, not across.
         path: |
           node_modules
           src/generated/prisma
-        key: deps-${{ runner.os }}-node24-${{ hashFiles('package-lock.json', 'prisma/schema.prisma') }}
+        key: deps-${{ runner.os }}-${{ hashFiles('.nvmrc', 'package-lock.json', 'prisma/schema.prisma') }}
 
     - name: Install dependencies
       if: steps.cache.outputs.cache-hit != 'true'
