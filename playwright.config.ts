@@ -68,7 +68,7 @@ export default defineConfig({
         // downloading its `.next` artifact before Playwright runs.
         command: useProdServer ? 'npm run start' : 'npm run dev',
         url: webServerUrl,
-        reuseExistingServer: false,
+        reuseExistingServer: true,
         timeout: 120_000,
         env: {
           DATABASE_URL: webServerDatabaseUrl,
@@ -87,10 +87,13 @@ export default defineConfig({
           // #856 full: enable the test-only OAuth provider +
           // endpoints under /api/dev-oauth/ (and the trigger page at
           // /dev/oauth-trigger). All handlers and the provider gate
-          // on this flag AND NODE_ENV !== production, so prod is
-          // doubly safe — but never set this anywhere except
-          // Playwright.
+          // on BOTH flags below; production deploys never set either,
+          // so prod is doubly safe. The PLAYWRIGHT_E2E_PROD_OAUTH
+          // flag exists because `next start` forces NODE_ENV=production
+          // and the previous NODE_ENV-based gate locked Nightly
+          // (PLAYWRIGHT_USE_PROD=1) out of mock-OAuth. See #985.
           MOCK_OAUTH_ENABLED: '1',
+          PLAYWRIGHT_E2E_PROD_OAUTH: '1',
           // Force the kill switch off + the WIP gate on for the
           // mock provider. Without this, isFeatureEnabled() fails
           // OPEN (returns true) when PostHog is unconfigured —

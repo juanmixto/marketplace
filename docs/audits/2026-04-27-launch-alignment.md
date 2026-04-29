@@ -156,6 +156,14 @@ Conditions for upgrade to "full GO":
 
 **Most important data point of this audit**: backlog E7-01 lists "instrumentar funnel CF-1 con PostHog" as a Top-5 P0 — and **the code already has 45 analytics call-sites**. The backlog overestimates remaining work. The weekly PostHog review can be scheduled **this week**, not in 2 months.
 
+## Post-publish corrections
+
+> Per `docs/audits/README.md`, audits accumulate corrections rather than getting silently rewritten. Each row below was discovered after the original audit was filed.
+
+| Date | Correction | Why missed | Follow-up |
+|---|---|---|---|
+| 2026-04-27 | **Buyer transactional emails are NOT wired.** Templates `OrderConfirmation.tsx` + `OrderShipped.tsx` exist in `src/emails/` but no code outside that folder imports them. Only `ReviewRequestEmail` is actually dispatched (`src/domains/reviews/notifications.ts`). CF-1 step 8 ("Email de confirmación al instante") is broken silently — the buyer pays, sees the confirmation page, and the inbox stays empty. | Original Explore agent reported "Resend wired" based on the presence of `src/lib/email.ts` and the templates. The wiring on the dispatch side was never verified with `grep` before claiming the gap was closed (H22 / Notifications row in the findings table). Same shape as the 2026-04-25 mobile audit's autoComplete false-positive: surface read instead of grep-verified. | New issue **#933** (P0) opened to add an email handler under `src/domains/notifications/email/handlers/on-buyer-order-status.ts` mirroring the telegram handler. **Adds a 6th P0 to the "GO completo" gate.** |
+
 ## Verification commands used
 
 ```bash

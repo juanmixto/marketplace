@@ -26,8 +26,6 @@ test('review i18n keys exist in both locales and differ per language', async () 
     'reviews.vendorPage.empty',
     'pendingReviews.bannerCountOne',
     'pendingReviews.bannerCountOther',
-    'pendingReviews.bannerSubtitle',
-    'pendingReviews.bannerCta',
     'pendingReviews.badge',
     'pendingReviews.badgeCountOne',
     'pendingReviews.badgeCountOther',

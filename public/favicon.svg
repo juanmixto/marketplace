@@ -1,14 +1,16 @@
-<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="64" height="64" rx="18" fill="url(#bg)"/>
-  <path d="M19 27.5C19 25.567 20.567 24 22.5 24H41.5C43.433 24 45 25.567 45 27.5V41.5C45 43.433 43.433 45 41.5 45H22.5C20.567 45 19 43.433 19 41.5V27.5Z" fill="#FFFDF8"/>
-  <path d="M24 24C24 19.582 27.582 16 32 16C36.418 16 40 19.582 40 24" stroke="#FFFDF8" stroke-width="4" stroke-linecap="round"/>
-  <path d="M26 36C29.5 35 31.5 31.5 32 29C33.2 33.4 36.333 35.5 39 36C37.8 39.6 34.667 42 32 43C29.2 41.8 27 39.5 26 36Z" fill="#22C55E"/>
-  <circle cx="24.5" cy="29.5" r="1.5" fill="#14532D"/>
-  <circle cx="39.5" cy="29.5" r="1.5" fill="#14532D"/>
-  <defs>
-    <linearGradient id="bg" x1="10" y1="8" x2="55" y2="56" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0F766E"/>
-      <stop offset="1" stop-color="#65A30D"/>
-    </linearGradient>
-  </defs>
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Green circle background -->
+  <circle cx="32" cy="32" r="28" fill="#22C55E"/>
+  <circle cx="32" cy="32" r="28" fill="none" stroke="#0F766E" stroke-width="2"/>
+
+  <!-- Stylized leaf/plant -->
+  <g transform="translate(32, 28)">
+    <!-- Leaf shape -->
+    <path d="M 0 -8 Q 4 -2 4 4 L 0 8 L -4 4 Q -4 -2 0 -8" fill="#FFFDF8" stroke="#0F766E" stroke-width="0.5"/>
+    <!-- Leaf vein -->
+    <line x1="0" y1="-8" x2="0" y2="8" stroke="#0F766E" stroke-width="0.5"/>
+  </g>
+
+  <!-- Stem -->
+  <rect x="30" y="34" width="4" height="12" fill="#0F766E"/>
 </svg>
