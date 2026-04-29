@@ -1,3 +1,9 @@
+---
+summary: Pasos manuales una sola vez para activar el bot de Telegram. Dormido si TELEGRAM_BOT_TOKEN no está set (webhook 404, UI 'próximamente').
+audience: agents,humans
+read_when: activar bot de Telegram en un entorno
+---
+
 # Telegram bot setup runbook
 
 One-time manual steps to bring a Telegram bot online for the marketplace. The feature is dormant until `TELEGRAM_BOT_TOKEN` is set — if the env var is unset, `/api/telegram/webhook` returns 404 and every piece of UI renders a "próximamente" fallback.

@@ -123,6 +123,69 @@ at `DATABASE_URL_TEST` (default `marketplace_test`). The DB must
 already exist; migrations apply via `predev`. Seed runs in CI; for
 local runs, `npm run db:seed` once after `db:reset`.
 
+## Debugging a failing smoke
+
+When a smoke fails on CI, the **page snapshot in the Playwright report** beats every other diagnostic. The 2026-04-29 incident took 30 seconds to triage from snapshot vs hours guessing from logs.
+
+### Pull the report
+
+```sh
+RUN_ID=<from gh run list or the PR check details URL>
+
+# 1. Find the artifact name (it includes the commit SHA, so it varies per run)
+gh api "repos/juanmixto/marketplace/actions/runs/$RUN_ID/artifacts" \
+  -q '.artifacts[] | select(.name | contains("shard5")) | .name'
+
+# 2. Download
+gh run download "$RUN_ID" --name "<artifact-name>" --dir /tmp/pw
+
+# 3. One error-context.md per failed test
+ls /tmp/pw/data/*.md
+```
+
+Each `error-context.md` opens with: test name, failed locator, and a `# Page snapshot` block in YAML showing the live DOM at failure time. Read the snapshot first — log-grep is rarely necessary after that.
+
+Common snapshot signals:
+| What the snapshot shows | What it means |
+|---|---|
+| `heading "Tu carrito está vacío"` after add-to-cart | Cart store didn't persist across navigation (#1042 / #1045) |
+| `heading "Inicia sesión"` after a login flow | Auth session lost; check NextAuth callback URL or cookie domain |
+| Cart with wrong product or quantity | Stale prop / productId mix-up (look for `useState(initial)` derived from props) |
+| Error page or blank `<main>` | Server crash; correlate with `[WebServer] [Error]` lines in run log |
+
+### Quarantine pattern (`test.fixme`)
+
+When a spec is broken and the root cause needs more time than the current PR allows, use `test.fixme` — never delete the spec, never use `.skip`:
+
+```ts
+test.describe('flow @smoke', () => {
+  // Quarantined YYYY-MM-DD (#NNNN). <one-line symptom>.
+  // <reason this is .fixme not deleted>.
+  test.fixme('test name', async ({ page }) => {
+    // body unchanged
+  })
+})
+```
+
+Why `.fixme`:
+- Re-enabling is a one-line revert; no need to re-discover where the spec lived.
+- Playwright reports `.fixme` lines explicitly so they don't disappear from logs.
+- The `@smoke` tag stays, so the spec re-enters the gate the moment `.fixme` is removed.
+
+Open a tracking issue in the same PR. Template: link the run that exposed the bug, paste the page snapshot, list 1-3 hypotheses to validate. Example: #1045 (multi-vendor-cart race).
+
+### "3 runs green" before declaring fix
+
+A single green CI run after a "fix" is not enough. The 2026-04-29 incident saw cart-checkout pass on PR's own run, fail on next main run, pass on the run after. Wait for **3 consecutive green main runs** before closing the bug:
+
+```sh
+gh run list --workflow=ci.yml --branch=main --limit=5 \
+  --json conclusion,headSha,createdAt \
+  -q '.[] | "\(.createdAt) \(.headSha[:8]) \(.conclusion)"'
+```
+
+For broader CI triage (main red, aggregator bypass, doc-PR passthrough, bisect via PR-level CI), see [`docs/runbooks/ci-incident.md`](../runbooks/ci-incident.md).
+
 ## CI integration
 
 PR-blocking jobs (defined in `.github/workflows/ci.yml`):

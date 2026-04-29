@@ -1,3 +1,9 @@
+---
+summary: Backlog vivo de épicas e issues para llegar a soft launch. NO es el roadmap (ese es 08); es la lista de candidatos priorizados.
+audience: agents,humans
+read_when: abrir issues, escoger siguiente épica, ver dependencias entre épicas
+---
+
 # 10 — Backlog de lanzamiento
 
 > Backlog **vivo** con épicas e issues propuestos para llevar el marketplace de "documentación + plataforma técnica" a "vendiendo a comprador frío".

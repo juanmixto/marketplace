@@ -52,8 +52,8 @@ export const adminNavItems: LocalizedNavItem[] = [
   { href: '/admin/auditoria',      labelKey: 'admin.nav.audit',         available: true },
   { href: '/admin/liquidaciones',  labelKey: 'admin.nav.settlements',   available: true },
   { href: '/admin/incidencias',    labelKey: 'admin.nav.incidents',     available: true },
-  { href: '/admin/informes',       labelKey: 'admin.nav.reports',       available: true },
-  { href: '/admin/analytics',      labelKey: 'admin.nav.analytics',     available: true },
+  { href: '/admin/informes',       labelKey: 'admin.nav.reports',       available: true, flag: 'feat-admin-reports' },
+  { href: '/admin/analytics',      labelKey: 'admin.nav.analytics',     available: true, flag: 'feat-admin-analytics' },
   { href: '/admin/notificaciones', labelKey: 'admin.nav.notifications', available: true },
   { href: '/admin/ingestion',      labelKey: 'admin.nav.ingestion',     available: true, flag: 'feat-ingestion-admin' },
 ]

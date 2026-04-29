@@ -1,3 +1,9 @@
+---
+summary: Catálogo vivo de fricciones OBSERVADAS (no hipotéticas) en compradores y productores, con prioridad.
+audience: agents,humans
+read_when: decidir qué fricción atacar; añadir nueva fricción observada con evidencia
+---
+
 # 03 — Fricciones de usuario conocidas
 
 > Catálogo vivo de fricciones **observadas** (no hipotéticas) en compradores y productores.
