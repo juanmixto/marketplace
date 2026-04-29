@@ -128,9 +128,17 @@ type CatalogCopy = {
     trustQuality: string
     aboutProducer: string
     viewProducerProfile: string
-    shippingEta: string
-    shippingCostFormat: (formattedPrice: string) => string
-    shippingDisclaimer: string
+    shippingEtaPeninsula: string
+    shippingCostFormat: (formattedPrice: string, zoneLabel: string) => string
+    shippingZoneLabel: {
+      peninsula: string
+      baleares: string
+      canarias: string
+      ceuta: string
+      melilla: string
+    }
+    shippingDisclaimerPeninsula: string
+    shippingDisclaimerInsular: string
   }
   vendor: {
     heroImageAlt: (name: string) => string
@@ -285,9 +293,17 @@ const ES_CATALOG_COPY: CatalogCopy = {
     trustQuality: 'Calidad garantizada',
     aboutProducer: 'Conoce al productor',
     viewProducerProfile: 'Ver perfil completo',
-    shippingEta: 'Llega en 3–5 días laborables a península',
-    shippingCostFormat: price => `Envío ${price} a península`,
-    shippingDisclaimer: 'El coste exacto se calcula en el checkout con tu código postal.',
+    shippingEtaPeninsula: 'Llega en 3–5 días laborables a península',
+    shippingCostFormat: (price, zoneLabel) => `Envío ${price} a ${zoneLabel}`,
+    shippingZoneLabel: {
+      peninsula: 'península',
+      baleares: 'Baleares',
+      canarias: 'Canarias',
+      ceuta: 'Ceuta',
+      melilla: 'Melilla',
+    },
+    shippingDisclaimerPeninsula: 'El coste exacto se calcula en el checkout con tu código postal.',
+    shippingDisclaimerInsular: 'Plazo y coste exactos según destino. Recalculados en el checkout.',
   },
   vendor: {
     heroImageAlt: name => `Portada de ${name}`,
@@ -442,9 +458,17 @@ const EN_CATALOG_COPY: CatalogCopy = {
     trustQuality: 'Quality guaranteed',
     aboutProducer: 'Meet the producer',
     viewProducerProfile: 'View full profile',
-    shippingEta: 'Arrives in 3–5 business days to mainland Spain',
-    shippingCostFormat: price => `Shipping ${price} to mainland Spain`,
-    shippingDisclaimer: 'Exact cost is calculated at checkout with your postal code.',
+    shippingEtaPeninsula: 'Arrives in 3–5 business days to mainland Spain',
+    shippingCostFormat: (price, zoneLabel) => `Shipping ${price} to ${zoneLabel}`,
+    shippingZoneLabel: {
+      peninsula: 'mainland Spain',
+      baleares: 'the Balearic Islands',
+      canarias: 'the Canary Islands',
+      ceuta: 'Ceuta',
+      melilla: 'Melilla',
+    },
+    shippingDisclaimerPeninsula: 'Exact cost is calculated at checkout with your postal code.',
+    shippingDisclaimerInsular: 'Delivery time and cost depend on destination. Recalculated at checkout.',
   },
   vendor: {
     heroImageAlt: name => `${name} cover`,
