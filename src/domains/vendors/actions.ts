@@ -4,7 +4,13 @@ import { db } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { slugify } from '@/lib/utils'
+import type { Prisma } from '@/generated/prisma/client'
 import type { FulfillmentStatus } from '@/generated/prisma/enums'
+import {
+  VENDOR_FULFILLMENT_PAGE_SIZE,
+  type VendorFulfillmentFilters,
+  type VendorFulfillmentKpis,
+} from './types'
 import { parseExpirationDateInput } from '@/domains/catalog'
 import { getActionSession } from '@/lib/action-session'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
@@ -806,6 +812,239 @@ export async function getMyFulfillments(filter?: 'active' | 'urgent' | 'shipped'
       },
     },
   })
+}
+
+// DB audit P1.2-B (#963): the dashboard at /vendor/pedidos used to
+// hydrate every fulfillment row for the vendor on each load and apply
+// filters/sort/KPIs in JS. That works at zero traffic and breaks
+// silently the moment a vendor crosses a few hundred orders. The
+// helpers below split that into:
+//
+//   - getMyFulfillmentKpis(): aggregate counts (and a 30-day revenue
+//     sum) computed against the full population. Cheap — single
+//     groupBy + a single date-windowed lines query — and never
+//     paginated.
+//   - getMyFulfillmentsPaginated(): cursor-paginated list scoped to
+//     the requesting vendor with optional status / date / search
+//     filters. Mirrors the catalog cursor pattern (take = limit + 1
+//     probe, stable sort, cursor + skip 1).
+//
+// Search is server-side ILIKE on order id, customer name, and product
+// name. Postgres trigram or full-text would be a future upgrade —
+// pre-tracción ILIKE is fast enough.
+//
+// The page-size constant + filter type live in ./types.ts because
+// 'use server' files may only export async functions; importing them
+// from here keeps the page components and tests aligned.
+
+const fulfillmentInclude = {
+  shipment: {
+    select: {
+      id: true,
+      status: true,
+      labelUrl: true,
+      trackingUrl: true,
+      trackingNumber: true,
+      carrierName: true,
+    },
+  },
+  order: {
+    include: {
+      lines: {
+        include: { product: { select: { name: true, images: true, unit: true, slug: true } } },
+      },
+      customer: { select: { firstName: true, lastName: true } },
+      address: true,
+    },
+  },
+} as const
+
+export async function getMyFulfillmentsPaginated(filters: VendorFulfillmentFilters = {}) {
+  const { vendor } = await requireVendor()
+
+  const where: Prisma.VendorFulfillmentWhereInput = {
+    vendorId: vendor.id,
+    ...(filters.statuses && filters.statuses.length > 0
+      ? { status: { in: filters.statuses } }
+      : {}),
+    ...(filters.dateFrom || filters.dateTo
+      ? {
+          createdAt: {
+            ...(filters.dateFrom ? { gte: filters.dateFrom } : {}),
+            ...(filters.dateTo ? { lte: filters.dateTo } : {}),
+          },
+        }
+      : {}),
+    ...(filters.q
+      ? {
+          OR: [
+            { orderId: { contains: filters.q, mode: 'insensitive' } },
+            {
+              order: {
+                customer: {
+                  OR: [
+                    { firstName: { contains: filters.q, mode: 'insensitive' } },
+                    { lastName: { contains: filters.q, mode: 'insensitive' } },
+                  ],
+                },
+              },
+            },
+            {
+              order: {
+                lines: {
+                  some: {
+                    vendorId: vendor.id,
+                    product: { name: { contains: filters.q, mode: 'insensitive' } },
+                  },
+                },
+              },
+            },
+          ],
+        }
+      : {}),
+  }
+
+  const orderBy: Prisma.VendorFulfillmentOrderByWithRelationInput[] = (() => {
+    switch (filters.sort) {
+      case 'oldest':
+        return [{ createdAt: 'asc' }, { id: 'asc' }]
+      case 'recent':
+      default:
+        return [{ createdAt: 'desc' }, { id: 'desc' }]
+      // amount_*/customer can't be expressed cleanly in a single ORDER BY
+      // (amount is a per-fulfillment computed sum; customer is two
+      // columns on a relation). They were already approximate at the JS
+      // layer; we keep the previous behaviour but do the sort in JS over
+      // the page slice.
+    }
+  })()
+
+  const rows = await db.vendorFulfillment.findMany({
+    where,
+    orderBy,
+    take: VENDOR_FULFILLMENT_PAGE_SIZE + 1,
+    cursor: filters.cursor ? { id: filters.cursor } : undefined,
+    skip: filters.cursor ? 1 : 0,
+    include: fulfillmentInclude,
+  })
+
+  const hasNextPage = rows.length > VENDOR_FULFILLMENT_PAGE_SIZE
+  const items = hasNextPage ? rows.slice(0, VENDOR_FULFILLMENT_PAGE_SIZE) : rows
+  // Local sort for amount_*/customer modes — only over the visible page
+  // since these orderings cannot be pushed down to a single SQL ORDER BY.
+  if (filters.sort === 'amount_desc' || filters.sort === 'amount_asc') {
+    const lineTotal = (f: (typeof items)[number]) =>
+      f.order.lines.reduce((s, l) => s + Number(l.unitPrice) * l.quantity, 0)
+    items.sort((a, b) =>
+      filters.sort === 'amount_desc' ? lineTotal(b) - lineTotal(a) : lineTotal(a) - lineTotal(b),
+    )
+  } else if (filters.sort === 'customer') {
+    items.sort((a, b) => {
+      const an = `${a.order.customer.firstName} ${a.order.customer.lastName}`
+      const bn = `${b.order.customer.firstName} ${b.order.customer.lastName}`
+      return an.localeCompare(bn)
+    })
+  }
+
+  return {
+    items,
+    nextCursor: hasNextPage ? items[items.length - 1]?.id ?? null : null,
+    hasNextPage,
+    pageSize: VENDOR_FULFILLMENT_PAGE_SIZE,
+  }
+}
+
+const OVERDUE_HOURS = 24
+const SHIPPED_WINDOW_DAYS = 7
+const REVENUE_WINDOW_DAYS = 30
+
+export async function getMyFulfillmentKpis(): Promise<VendorFulfillmentKpis> {
+  const { vendor } = await requireVendor()
+  const now = Date.now()
+  const overdueCutoff = new Date(now - OVERDUE_HOURS * 3_600_000)
+  const shippedWindowCutoff = new Date(now - SHIPPED_WINDOW_DAYS * 86_400_000)
+  const revenueWindowCutoff = new Date(now - REVENUE_WINDOW_DAYS * 86_400_000)
+
+  // Single groupBy gets us all status-bucketed counts in one query.
+  const grouped = await db.vendorFulfillment.groupBy({
+    by: ['status'],
+    where: { vendorId: vendor.id },
+    _count: { _all: true },
+  })
+  const byStatus = new Map(grouped.map((g) => [g.status, g._count._all]))
+
+  const [overdue, shippedRecent, revenueLines] = await Promise.all([
+    db.vendorFulfillment.count({
+      where: {
+        vendorId: vendor.id,
+        status: 'PENDING',
+        createdAt: { lt: overdueCutoff },
+      },
+    }),
+    db.vendorFulfillment.count({
+      where: {
+        vendorId: vendor.id,
+        status: { in: ['SHIPPED', 'DELIVERED'] },
+        updatedAt: { gte: shippedWindowCutoff },
+      },
+    }),
+    // Revenue is a per-line sum of unitPrice * quantity. We could push
+    // this down with `aggregate({ _sum })`, but the schema stores them
+    // as separate columns — a simple findMany with the numeric fields
+    // is enough at vendor-level volume.
+    db.orderLine.findMany({
+      where: {
+        vendorId: vendor.id,
+        order: { placedAt: { gte: revenueWindowCutoff } },
+        // Don't count cancelled fulfillments. We approximate via the
+        // parent VendorFulfillment status using a relation filter.
+        // This deliberately overcounts incidents (which can still be
+        // refunded) — matching the previous behaviour of the JS sum
+        // that excluded only CANCELLED.
+      },
+      select: { unitPrice: true, quantity: true, order: { select: { id: true } } },
+    }),
+  ])
+
+  // Filter cancelled fulfillments out of the revenue lines (matches
+  // the previous JS behaviour). Since we don't have the fulfillment
+  // status on each line directly we fetch the cancelled order ids
+  // up front; cheap because cancelled orders are rare relative to
+  // all orders.
+  const cancelledFulfillmentOrderIds = new Set(
+    (
+      await db.vendorFulfillment.findMany({
+        where: {
+          vendorId: vendor.id,
+          status: 'CANCELLED',
+          createdAt: { gte: revenueWindowCutoff },
+        },
+        select: { orderId: true },
+      })
+    ).map((f) => f.orderId),
+  )
+
+  const revenue30d = revenueLines.reduce(
+    (sum, line) =>
+      cancelledFulfillmentOrderIds.has(line.order.id)
+        ? sum
+        : sum + Number(line.unitPrice) * line.quantity,
+    0,
+  )
+
+  return {
+    pending: byStatus.get('PENDING') ?? 0,
+    inPrep:
+      (byStatus.get('CONFIRMED') ?? 0) +
+      (byStatus.get('PREPARING') ?? 0) +
+      (byStatus.get('LABEL_REQUESTED') ?? 0) +
+      (byStatus.get('LABEL_FAILED') ?? 0),
+    ready: byStatus.get('READY') ?? 0,
+    shippedRecent,
+    incident: byStatus.get('INCIDENT') ?? 0,
+    overdue,
+    revenue30d,
+  }
 }
 
 export async function getMyFulfillmentByOrderId(orderId: string) {

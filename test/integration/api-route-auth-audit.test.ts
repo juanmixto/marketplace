@@ -90,6 +90,22 @@ const PUBLIC_API_ROUTES: ReadonlyArray<{ path: string; why: string }> = [
     path: 'src/app/api/cron/cleanup-idempotency/route.ts',
     why: 'Vercel cron sweep of expired IdempotencyKey rows. Authenticates via x-vercel-cron header or Bearer CRON_SECRET, not a session. Returns 401 to all other callers.',
   },
+  {
+    path: 'src/app/api/dev-oauth/authorize/route.ts',
+    why: 'Test-only mock OAuth authorize endpoint. Gated by isMockOAuthEnabled() (returns 404 in production). The OAuth flow itself is the auth; no session required by design.',
+  },
+  {
+    path: 'src/app/api/dev-oauth/cleanup/route.ts',
+    why: 'Test-only mock OAuth cleanup endpoint. Gated by isMockOAuthEnabled() (returns 404 in production). Used by Playwright fixtures to wipe mock accounts between specs.',
+  },
+  {
+    path: 'src/app/api/dev-oauth/token/route.ts',
+    why: 'Test-only mock OAuth token endpoint. Gated by isMockOAuthEnabled() (returns 404 in production). Standard OAuth code-for-token exchange.',
+  },
+  {
+    path: 'src/app/api/dev-oauth/userinfo/route.ts',
+    why: 'Test-only mock OAuth userinfo endpoint. Gated by isMockOAuthEnabled() (returns 404 in production). Authenticates via Bearer access_token, not a session.',
+  },
 ]
 
 const SESSION_KEYWORDS = [
@@ -99,6 +115,7 @@ const SESSION_KEYWORDS = [
   'requireAdmin',
   'requireBuyer',
   'requireRole',
+  'requireIngestionAdmin',
   "from '@/lib/auth'",
   'from "@/lib/auth"',
   ' auth()', // NextAuth v5 helper — loose match but scoped by leading space

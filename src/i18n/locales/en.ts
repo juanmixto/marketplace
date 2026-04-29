@@ -1282,6 +1282,9 @@ const en: Record<TranslationKeys, string> = {
   'vendor.orders.kpi.shippedWeek': 'Shipped 7d',
   'vendor.orders.kpi.incident': 'Incidents',
   'vendor.orders.kpi.revenue30d': 'Revenue 30d',
+  'vendor.orders.paginationLabel': 'Orders pagination',
+  'vendor.orders.paginationFirst': '← Most recent',
+  'vendor.orders.paginationOlder': 'Older →',
   'vendor.orders.filters.searchLabel': 'Search',
   'vendor.orders.filters.searchPlaceholder': 'Order #, customer or product…',
   'vendor.orders.filters.from': 'From',
@@ -1908,6 +1911,9 @@ const en: Record<TranslationKeys, string> = {
   'reviews.vendorPage.subtitle': 'Customer reviews of your products',
   'reviews.vendorPage.empty': 'You do not have any ratings yet. Once your customers receive their orders, they will be able to leave you reviews.',
   'reviews.vendorPage.noVendor': 'Producer information not found',
+  'reviews.vendorPage.paginationLabel': 'Reviews pagination',
+  'reviews.vendorPage.paginationFirst': '← Most recent',
+  'reviews.vendorPage.paginationOlder': 'Older →',
 
   // Pending reviews — account banner & order list badge
   'pendingReviews.bannerTitle': 'You have products to review',

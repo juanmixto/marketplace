@@ -1,7 +1,9 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Metadata } from 'next'
-import { getMyFulfillments } from '@/domains/vendors/actions'
+import { getMyFulfillmentKpis, getMyFulfillmentsPaginated } from '@/domains/vendors/actions'
+import type { VendorFulfillmentSort } from '@/domains/vendors/types'
+import type { FulfillmentStatus } from '@/generated/prisma/enums'
 import { Badge } from '@/components/ui/badge'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { FulfillmentActions } from '@/components/vendor/FulfillmentActions'
@@ -28,15 +30,12 @@ const STATUS_CONFIG: Record<string, { labelKey: TranslationKeys; variant: BadgeV
   CANCELLED:       { labelKey: 'vendor.orders.statusCancelled', variant: 'red' },
 }
 
-const ACTIVE = ['PENDING', 'CONFIRMED', 'PREPARING', 'LABEL_REQUESTED', 'LABEL_FAILED', 'READY', 'INCIDENT'] as const
-const SHIPPED_DONE = ['SHIPPED', 'DELIVERED'] as const
+const ACTIVE_STATUSES = ['PENDING', 'CONFIRMED', 'PREPARING', 'LABEL_REQUESTED', 'LABEL_FAILED', 'READY', 'INCIDENT'] as const
 
-type FulfillmentWithDetails = Awaited<ReturnType<typeof getMyFulfillments>>[number]
+type FulfillmentRow = Awaited<ReturnType<typeof getMyFulfillmentsPaginated>>['items'][number]
 type Translate = Awaited<ReturnType<typeof getServerT>>
 
 const OVERDUE_HOURS = 24
-const SHIPPED_WINDOW_DAYS = 7
-const REVENUE_WINDOW_DAYS = 30
 
 interface PageProps {
   searchParams: Promise<{
@@ -45,93 +44,71 @@ interface PageProps {
     hasta?: string
     q?: string
     orden?: string
+    cursor?: string
   }>
+}
+
+function parseStatuses(estado: string): FulfillmentStatus[] | undefined {
+  if (estado === 'all' || !estado) return undefined
+  return estado
+    .split(',')
+    .map((s) => s.trim().toUpperCase())
+    .filter(Boolean) as FulfillmentStatus[]
 }
 
 export default async function VendorPedidosPage({ searchParams }: PageProps) {
   const params = await searchParams
   const t = await getServerT()
 
-  const all = await getMyFulfillments('all')
-
-  const now = Date.now()
-  const overdueCutoff = now - OVERDUE_HOURS * 3_600_000
-  const shippedWindowCutoff = now - SHIPPED_WINDOW_DAYS * 86_400_000
-  const revenueWindowCutoff = now - REVENUE_WINDOW_DAYS * 86_400_000
-
-  const lineTotal = (f: FulfillmentWithDetails) =>
-    f.order.lines.reduce((sum, l) => sum + Number(l.unitPrice) * l.quantity, 0)
-
-  // ── KPIs over full population ────────────────────────────────────────────
-  const kpiNew = all.filter(f => f.status === 'PENDING').length
-  const kpiPrep = all.filter(f => ['CONFIRMED', 'PREPARING', 'LABEL_REQUESTED', 'LABEL_FAILED'].includes(f.status)).length
-  const kpiReady = all.filter(f => f.status === 'READY').length
-  const kpiShippedWeek = all.filter(f =>
-    SHIPPED_DONE.includes(f.status as typeof SHIPPED_DONE[number]) &&
-    new Date(f.updatedAt).getTime() >= shippedWindowCutoff
-  ).length
-  const kpiIncident = all.filter(f => f.status === 'INCIDENT').length
-  const kpiRevenue30d = all
-    .filter(f => new Date(f.createdAt).getTime() >= revenueWindowCutoff && f.status !== 'CANCELLED')
-    .reduce((sum, f) => sum + lineTotal(f), 0)
-
-  const overdue = all.filter(f => f.status === 'PENDING' && new Date(f.createdAt).getTime() < overdueCutoff)
-
-  // ── Apply filters ─────────────────────────────────────────────────────────
   const estado = (params.estado ?? '').trim()
-  const q = (params.q ?? '').trim().toLowerCase()
-  const desde = params.desde ? new Date(params.desde + 'T00:00:00') : null
-  const hasta = params.hasta ? new Date(params.hasta + 'T23:59:59') : null
-  const orden = params.orden ?? 'recent'
+  const q = (params.q ?? '').trim()
+  const desde = params.desde ? new Date(params.desde + 'T00:00:00') : undefined
+  const hasta = params.hasta ? new Date(params.hasta + 'T23:59:59') : undefined
+  const orden = (params.orden ?? 'recent') as VendorFulfillmentSort
+  const cursor = typeof params.cursor === 'string' ? params.cursor : undefined
 
-  let statuses: string[] | null
-  if (estado === 'all') statuses = null
-  else if (estado) statuses = estado.split(',').map(s => s.toUpperCase()).filter(Boolean)
-  else statuses = [...ACTIVE]
+  // Default view: active statuses only — same UX as before pagination.
+  // `?estado=all` opts into the full history. Explicit comma-separated
+  // status lists (KPI clicks, overdue link) round-trip unchanged.
+  const explicitStatuses = parseStatuses(estado)
+  const statuses =
+    estado === 'all'
+      ? undefined
+      : explicitStatuses ?? ([...ACTIVE_STATUSES] as FulfillmentStatus[])
 
-  let filtered = all.filter(f => {
-    if (statuses && !statuses.includes(f.status)) return false
-    const created = new Date(f.createdAt).getTime()
-    if (desde && created < desde.getTime()) return false
-    if (hasta && created > hasta.getTime()) return false
-    if (q) {
-      const customer = `${f.order.customer.firstName} ${f.order.customer.lastName}`.toLowerCase()
-      const idMatch = f.orderId.toLowerCase().includes(q)
-      const customerMatch = customer.includes(q)
-      const productMatch = f.order.lines.some(l => l.product.name.toLowerCase().includes(q))
-      if (!idMatch && !customerMatch && !productMatch) return false
-    }
-    return true
-  })
+  const [kpis, page] = await Promise.all([
+    getMyFulfillmentKpis(),
+    getMyFulfillmentsPaginated({
+      cursor,
+      statuses,
+      q: q || undefined,
+      dateFrom: desde,
+      dateTo: hasta,
+      sort: orden,
+    }),
+  ])
 
-  filtered = [...filtered].sort((a, b) => {
-    switch (orden) {
-      case 'oldest':
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      case 'amount_desc':
-        return lineTotal(b) - lineTotal(a)
-      case 'amount_asc':
-        return lineTotal(a) - lineTotal(b)
-      case 'customer':
-        return `${a.order.customer.firstName} ${a.order.customer.lastName}`
-          .localeCompare(`${b.order.customer.firstName} ${b.order.customer.lastName}`)
-      case 'recent':
-      default:
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    }
-  })
+  const totalLifetime =
+    kpis.pending + kpis.inPrep + kpis.ready + kpis.shippedRecent + kpis.incident
+  const totalLabel =
+    totalLifetime === 1
+      ? t('vendor.orders.totalOne')
+      : t('vendor.orders.totalOther').replace('{count}', String(totalLifetime))
 
-  const active = filtered.filter(f => ACTIVE.includes(f.status as typeof ACTIVE[number]))
-  const trackedOrders = active.map(f => ({
-    fulfillmentId: f.id,
-    orderId: f.orderId,
-    orderValue: lineTotal(f),
-    itemCount: f.order.lines.reduce((sum, line) => sum + line.quantity, 0),
-  }))
+  const trackedOrders = page.items
+    .filter((f) => ACTIVE_STATUSES.includes(f.status as (typeof ACTIVE_STATUSES)[number]))
+    .map((f) => ({
+      fulfillmentId: f.id,
+      orderId: f.orderId,
+      orderValue: f.order.lines.reduce(
+        (sum, line) => sum + Number(line.unitPrice) * line.quantity,
+        0,
+      ),
+      itemCount: f.order.lines.reduce((sum, line) => sum + line.quantity, 0),
+    }))
 
-  const totalLabel = all.length === 1
-    ? t('vendor.orders.totalOne')
-    : t('vendor.orders.totalOther').replace('{count}', String(all.length))
+  const isFirstPage = !cursor
+  const isEmpty = isFirstPage && page.items.length === 0 && totalLifetime === 0
 
   return (
     <div className="space-y-6">
@@ -142,7 +119,7 @@ export default async function VendorPedidosPage({ searchParams }: PageProps) {
         <p className="text-sm text-[var(--muted)] mt-0.5">{totalLabel}</p>
       </div>
 
-      {all.length === 0 ? (
+      {isEmpty ? (
         <div className="rounded-xl border-2 border-dashed border-[var(--border)] px-6 py-12 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
             <ShoppingBagIcon className="h-8 w-8" aria-hidden="true" />
@@ -158,22 +135,9 @@ export default async function VendorPedidosPage({ searchParams }: PageProps) {
         </div>
       ) : (
         <>
-          <KpiBar
-            t={t}
-            currentEstado={estado}
-            kpis={{
-              new: kpiNew,
-              prep: kpiPrep,
-              ready: kpiReady,
-              shippedWeek: kpiShippedWeek,
-              incident: kpiIncident,
-              revenue30d: kpiRevenue30d,
-            }}
-          />
+          <KpiBar t={t} currentEstado={estado} kpis={kpis} />
 
-          {overdue.length > 0 && (
-            <OverdueAlert count={overdue.length} t={t} />
-          )}
+          {kpis.overdue > 0 && <OverdueAlert count={kpis.overdue} t={t} />}
 
           <OrdersFilterBar
             currentQ={q}
@@ -182,21 +146,85 @@ export default async function VendorPedidosPage({ searchParams }: PageProps) {
             currentSort={orden}
           />
 
-          {filtered.length === 0 ? (
+          {page.items.length === 0 ? (
             <div className="rounded-xl border-2 border-dashed border-[var(--border)] py-12 text-center">
               <p className="text-[var(--muted)]">{t('vendor.orders.noMatches')}</p>
             </div>
           ) : (
-            <div>
+            <>
               <p className="mb-2 text-xs text-[var(--muted)]">
-                {t('vendor.orders.showingCount').replace('{count}', String(filtered.length))}
+                {t('vendor.orders.showingCount').replace('{count}', String(page.items.length))}
               </p>
-              <FulfillmentList fulfillments={filtered} t={t} now={now} />
-            </div>
+              <FulfillmentList fulfillments={page.items} t={t} now={Date.now()} />
+              <Pagination
+                t={t}
+                searchParams={params}
+                isFirstPage={isFirstPage}
+                hasNextPage={page.hasNextPage}
+                nextCursor={page.nextCursor}
+              />
+            </>
           )}
         </>
       )}
     </div>
+  )
+}
+
+function buildHref(
+  params: Record<string, string | undefined>,
+  override: { cursor?: string | null },
+) {
+  const query: Record<string, string> = {}
+  for (const [key, value] of Object.entries(params)) {
+    if (key === 'cursor') continue
+    if (typeof value === 'string' && value.length > 0) query[key] = value
+  }
+  if (override.cursor) query.cursor = override.cursor
+  const qs = new URLSearchParams(query).toString()
+  return qs ? `/vendor/pedidos?${qs}` : '/vendor/pedidos'
+}
+
+function Pagination({
+  t,
+  searchParams,
+  isFirstPage,
+  hasNextPage,
+  nextCursor,
+}: {
+  t: Translate
+  searchParams: Record<string, string | undefined>
+  isFirstPage: boolean
+  hasNextPage: boolean
+  nextCursor: string | null
+}) {
+  if (isFirstPage && !hasNextPage) return null
+  return (
+    <nav
+      aria-label={t('vendor.orders.paginationLabel')}
+      className="mt-4 flex items-center justify-between border-t border-[var(--border)] pt-4"
+    >
+      {isFirstPage ? (
+        <span aria-hidden="true" />
+      ) : (
+        <Link
+          href={buildHref(searchParams, { cursor: null })}
+          className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--surface-raised)]"
+        >
+          {t('vendor.orders.paginationFirst')}
+        </Link>
+      )}
+      {hasNextPage && nextCursor ? (
+        <Link
+          href={buildHref(searchParams, { cursor: nextCursor })}
+          className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--surface-raised)]"
+        >
+          {t('vendor.orders.paginationOlder')}
+        </Link>
+      ) : (
+        <span aria-hidden="true" />
+      )}
+    </nav>
   )
 }
 
@@ -206,15 +234,15 @@ function KpiBar({
   currentEstado,
 }: {
   t: Translate
-  kpis: { new: number; prep: number; ready: number; shippedWeek: number; incident: number; revenue30d: number }
+  kpis: Awaited<ReturnType<typeof getMyFulfillmentKpis>>
   currentEstado: string
 }) {
   const cards: Array<{ key: string; label: string; value: string | number; tone: string; estado: string | null }> = [
-    { key: 'new',        label: t('vendor.orders.kpi.new'),        value: kpis.new,        tone: 'amber',   estado: 'PENDING' },
-    { key: 'prep',       label: t('vendor.orders.kpi.prep'),       value: kpis.prep,       tone: 'slate',   estado: 'CONFIRMED,PREPARING,LABEL_REQUESTED,LABEL_FAILED' },
-    { key: 'ready',      label: t('vendor.orders.kpi.ready'),      value: kpis.ready,      tone: 'emerald', estado: 'READY' },
-    { key: 'shippedWeek',label: t('vendor.orders.kpi.shippedWeek'),value: kpis.shippedWeek,tone: 'emerald', estado: 'SHIPPED,DELIVERED' },
-    { key: 'incident',   label: t('vendor.orders.kpi.incident'),   value: kpis.incident,   tone: 'red',     estado: 'INCIDENT' },
+    { key: 'new',        label: t('vendor.orders.kpi.new'),        value: kpis.pending,       tone: 'amber',   estado: 'PENDING' },
+    { key: 'prep',       label: t('vendor.orders.kpi.prep'),       value: kpis.inPrep,        tone: 'slate',   estado: 'CONFIRMED,PREPARING,LABEL_REQUESTED,LABEL_FAILED' },
+    { key: 'ready',      label: t('vendor.orders.kpi.ready'),      value: kpis.ready,         tone: 'emerald', estado: 'READY' },
+    { key: 'shippedWeek',label: t('vendor.orders.kpi.shippedWeek'),value: kpis.shippedRecent, tone: 'emerald', estado: 'SHIPPED,DELIVERED' },
+    { key: 'incident',   label: t('vendor.orders.kpi.incident'),   value: kpis.incident,      tone: 'red',     estado: 'INCIDENT' },
     { key: 'revenue30d', label: t('vendor.orders.kpi.revenue30d'), value: formatPrice(kpis.revenue30d), tone: 'slate', estado: null },
   ]
 
@@ -281,7 +309,7 @@ function ageLabel(created: Date, now: number, t: Translate): string {
   return t('vendor.orders.ageDays').replace('{d}', String(days))
 }
 
-function FulfillmentList({ fulfillments, t, now }: { fulfillments: FulfillmentWithDetails[]; t: Translate; now: number }) {
+function FulfillmentList({ fulfillments, t, now }: { fulfillments: FulfillmentRow[]; t: Translate; now: number }) {
   return (
     <div className="divide-y divide-[var(--border)] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
       {fulfillments.map(f => {
