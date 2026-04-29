@@ -18,10 +18,10 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.14),_transparent_45%),radial-gradient(circle_at_bottom_right,_rgba(45,212,191,0.10),_transparent_35%)] dark:bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.18),_transparent_45%),radial-gradient(circle_at_bottom_right,_rgba(15,23,42,0.2),_transparent_35%)]" />
       <Link
         href="/"
-        className="group relative mb-8 flex items-center gap-2.5 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
+        className="group relative mb-8 flex items-center gap-4 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
       >
-        <BrandMark size={36} className="h-9 w-9 shrink-0" />
-        <span className="text-xl font-bold text-[var(--foreground)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+        <BrandMark size={80} className="h-20 w-20 shrink-0" />
+        <span className="text-4xl font-bold text-[var(--foreground)] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
           {SITE_NAME}
         </span>
       </Link>
