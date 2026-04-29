@@ -4,16 +4,22 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
+    paths-ignore: &ci_paths_ignore
+      # Markdown-only changes don't affect runtime. NOTE: a few audits
+      # do read docs (e.g. scripts/audit-p1-observability.mjs reads
+      # docs/runbooks/payment-incidents.md). A docs-only PR that breaks
+      # those scopes will land without CI catching it; the next
+      # code-touching PR will fail the audit. Accepted trade-off —
+      # mirrors the prior `push` behaviour.
       - '**/*.md'
       - '.vscode/**'
       - 'LICENSE'
       - '.gitignore'
   pull_request:
-    paths-ignore:
-      - '.vscode/**'
-      - 'LICENSE'
-      - '.gitignore'
+    # Same ignore list as `push` so a doc-only PR doesn't trigger the
+    # full pipeline (Verify + Build + 8× E2E shards). YAML anchor keeps
+    # the two lists in sync.
+    paths-ignore: *ci_paths_ignore
   workflow_dispatch:
 
 permissions:
@@ -42,6 +48,15 @@ jobs:
       - uses: ./.github/actions/setup-deps
 
       - name: Lint + audit + typecheck + tests (parallel)
+        # github.{event_name,ref} are runner-provided and not strictly
+        # user-controllable, but interpolating any `github.*` context
+        # directly into a shell `run:` block is flagged by semgrep
+        # (yaml.github-actions.security.run-shell-injection) as a
+        # defense-in-depth issue. Route through `env:` so the shell
+        # only ever sees a plain variable.
+        env:
+          GH_EVENT_NAME: ${{ github.event_name }}
+          GH_REF: ${{ github.ref }}
         run: |
           set +e
           mkdir -p .ci-logs
@@ -52,7 +67,7 @@ jobs:
           npm run audit:findMany   > .ci-logs/audit-findmany.log   2>&1 & PID_AUDIT_FM=$!
           npm run typecheck:app    > .ci-logs/typecheck-app.log    2>&1 & PID_TC_APP=$!
           npm run typecheck:test   > .ci-logs/typecheck-test.log   2>&1 & PID_TC_TEST=$!
-          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          if [ "$GH_EVENT_NAME" = "push" ] && [ "$GH_REF" = "refs/heads/main" ]; then
             npm run test:coverage > .ci-logs/tests.log 2>&1 & PID_TESTS=$!
           else
             npm run test:parallel > .ci-logs/tests.log 2>&1 & PID_TESTS=$!
