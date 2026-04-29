@@ -434,6 +434,18 @@ This is the leading hypothesis behind #1045 (multi-vendor-cart race); confirm be
 
 ---
 
+## Imágenes (next/image)
+
+`next.config.ts` define `images.deviceSizes`, `imageSizes` y `formats` afinados al catálogo real (#1051), no a los defaults de Next:
+
+- `deviceSizes: [360, 640, 750, 828, 1080, 1280, 1600]` — el `<Image sizes>` más alto declarado en el repo es `(max-width: 1280px) 100vw, 1280px`. Cubrir hasta 1600 deja headroom retina sin emitir variantes 1920/2048/3840 que nadie pide.
+- `imageSizes: [16, 32, 64, 96, 128, 256]` — los thumbnails reales rondan 28/40/48/56/64/80/200 px, redondean limpios a esta escala.
+- `formats: ['image/avif', 'image/webp']` — AVIF primero (~20 % menos que WebP en Chrome/Firefox/Safari 16+), WebP fallback. El default de Next sólo emite WebP.
+
+Si añades un `<Image sizes="(min-width: 1700px) ...">` o un slot `>1600px`, falla `audit:image-sizes` ([`scripts/audit-image-sizes.mjs`](../scripts/audit-image-sizes.mjs)). O bien bajas el breakpoint, o bien subes `deviceSizes` y avisas al deploy (cambiar `deviceSizes` invalida la caché de `/_next/image`).
+
+---
+
 ## Related documents
 
 - [`docs/ai-guidelines.md`](./ai-guidelines.md) — contract rules, domain boundaries, and how the audit script enforces them.
