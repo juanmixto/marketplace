@@ -155,19 +155,19 @@ test('resolvePrewarmBaseUrl: prefers IMAGE_PREWARM_BASE_URL', () => {
   const base = resolvePrewarmBaseUrl({
     IMAGE_PREWARM_BASE_URL: 'https://override.example.com',
     NEXT_PUBLIC_APP_URL: 'https://app.example.com',
-  } as NodeJS.ProcessEnv)
+  } as unknown as NodeJS.ProcessEnv)
   assert.equal(base, 'https://override.example.com')
 })
 
 test('resolvePrewarmBaseUrl: falls back to NEXT_PUBLIC_APP_URL', () => {
   const base = resolvePrewarmBaseUrl({
     NEXT_PUBLIC_APP_URL: 'https://app.example.com',
-  } as NodeJS.ProcessEnv)
+  } as unknown as NodeJS.ProcessEnv)
   assert.equal(base, 'https://app.example.com')
 })
 
 test('resolvePrewarmBaseUrl: returns null when neither is set', () => {
-  const base = resolvePrewarmBaseUrl({} as NodeJS.ProcessEnv)
+  const base = resolvePrewarmBaseUrl({} as unknown as NodeJS.ProcessEnv)
   assert.equal(base, null)
 })
 
@@ -175,23 +175,23 @@ test('isImagePrewarmEnabled: only "true" turns it on (default off)', () => {
   // /api/upload only enqueues when this returns true. Anything other
   // than the literal string "true" keeps the legacy lazy-render path,
   // which is the safe default for fresh deployments.
-  assert.equal(isImagePrewarmEnabled({} as NodeJS.ProcessEnv), false)
+  assert.equal(isImagePrewarmEnabled({} as unknown as NodeJS.ProcessEnv), false)
   assert.equal(
     isImagePrewarmEnabled({
       IMAGE_PREWARM_ENABLED: 'false',
-    } as NodeJS.ProcessEnv),
+    } as unknown as NodeJS.ProcessEnv),
     false,
   )
   assert.equal(
     isImagePrewarmEnabled({
       IMAGE_PREWARM_ENABLED: '1',
-    } as NodeJS.ProcessEnv),
+    } as unknown as NodeJS.ProcessEnv),
     false,
   )
   assert.equal(
     isImagePrewarmEnabled({
       IMAGE_PREWARM_ENABLED: 'true',
-    } as NodeJS.ProcessEnv),
+    } as unknown as NodeJS.ProcessEnv),
     true,
   )
 })
