@@ -52,15 +52,15 @@ test.describe('cart and checkout @smoke', () => {
     await expect(page.getByRole('heading', { name: /tomates cherry/i })).toBeVisible({ timeout: 10_000 })
 
     const addToCart = page.getByRole('button', { name: /añadir al carrito/i }).first()
-    await expect(addToCart).toBeEnabled({ timeout: 5_000 })
+    // Button stays disabled until the cart store reports
+    // `hasHydrated === true` (#1045 product fix). `toBeEnabled` here
+    // is the implicit hydration wait; without it the click would
+    // land on a not-yet-rehydrated store and persist would silently
+    // clobber the mutation.
+    await expect(addToCart).toBeEnabled({ timeout: 10_000 })
     await addToCart.click()
     // The button text flips to "Añadido" for ~2s after a successful add —
-    // local React state (`setAdded(true)`), useful as a UX signal but
-    // it fires *before* the Zustand persist middleware writes to
-    // localStorage. Chaining `page.goto('/carrito')` immediately after
-    // races that write — the cart page reads from a not-yet-flushed
-    // store and renders empty (#1045 root cause). Hard-gate on the
-    // localStorage write before navigating.
+    // a reliable signal the Zustand store received the item.
     await expect(page.getByRole('button', { name: /añadido/i }).first()).toBeVisible({ timeout: 5_000 })
     await page.waitForFunction(
       (expectedSlug) => {
@@ -95,7 +95,9 @@ test.describe('cart and checkout @smoke', () => {
     // runners), re-add the product and retry the navigation once.
     if (page.url().includes('/carrito')) {
       await page.goto(`/productos/${SEEDED_PRODUCT_SLUG}`)
-      await page.getByRole('button', { name: /añadir al carrito/i }).first().click()
+      const retryAddToCart = page.getByRole('button', { name: /añadir al carrito/i }).first()
+      await expect(retryAddToCart).toBeEnabled({ timeout: 10_000 })
+      await retryAddToCart.click()
       await expect(page.getByRole('button', { name: /añadido/i }).first()).toBeVisible({ timeout: 5_000 })
       // Same persist-write gate as above — the retry path hits the
       // exact same race against /checkout's empty-cart guard.

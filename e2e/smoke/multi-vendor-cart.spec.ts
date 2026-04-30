@@ -31,18 +31,17 @@ async function addProductToCart(page: import('@playwright/test').Page, slug: str
   await page.goto(`/productos/${slug}`)
   await expect(page.getByRole('heading', { name: headingMatch })).toBeVisible({ timeout: 10_000 })
   const addToCart = page.getByRole('button', { name: /añadir al carrito/i }).first()
-  await expect(addToCart).toBeEnabled({ timeout: 5_000 })
+  // The button is disabled until the cart store reports
+  // `hasHydrated === true` (#1045 product fix in AddToCartButton).
+  // Without that gate, a click on a not-yet-rehydrated store gets
+  // silently clobbered by the persist middleware. `toBeEnabled`
+  // here is the implicit hydration wait.
+  await expect(addToCart).toBeEnabled({ timeout: 10_000 })
   await addToCart.click()
   await expect(page.getByRole('button', { name: /añadido/i }).first()).toBeVisible({ timeout: 5_000 })
-  // Hard-gate on the cart store actually containing this item before
-  // returning. The "Añadido" button text comes from local component
-  // state (`setAdded(true)` in AddToCartButton) and fires *before*
-  // the next React render commits the Zustand mutation. If the test
-  // chains a second `page.goto(...)` immediately, the navigation can
-  // race the persist middleware and the second add ends up clobbering
-  // the first (or hitting a stale closure on a not-yet-rehydrated
-  // store). Reading `localStorage.cart-storage` is the only signal
-  // tied to actual persistence — every other flag is local UI state.
+  // Belt-and-braces: gate on the persist write reaching localStorage
+  // before navigating. Even with hydration done, the next
+  // `page.goto(...)` can outrun a fast click on slow runners.
   await page.waitForFunction(
     (expectedSlug) => {
       try {

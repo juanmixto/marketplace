@@ -48,6 +48,13 @@ export function AddToCartButton({
   const { locale } = useLocale()
   const copy = getCatalogCopy(locale)
   const addItem = useCartStore(s => s.addItem)
+  // Zustand's persist middleware does not block setState while
+  // hydrating. If `addItem` fires before hydration completes, the
+  // mutation is silently overwritten when persist applies the
+  // localStorage value (which is null/empty on first visit). The
+  // button stays disabled until `hasHydrated === true`, so a click
+  // never lands on a not-yet-rehydrated store. Root cause of #1045.
+  const hasHydrated = useCartStore(s => s.hasHydrated)
   const [added, setAdded] = useState(false)
   const quantityToAdd = Number.isFinite(quantity) && quantity > 0 ? Math.floor(quantity) : 1
 
@@ -99,7 +106,7 @@ export function AddToCartButton({
   return (
     <Button
       onClick={handleAdd}
-      disabled={disabled}
+      disabled={disabled || !hasHydrated}
       size={size}
       className={className ?? 'w-full shadow-sm'}
       variant={added ? 'secondary' : 'primary'}
