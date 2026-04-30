@@ -8,6 +8,7 @@ export function serializeProductForCard(product: ProductWithVendor): ProductCard
     slug: product.slug,
     name: product.name,
     images: [...product.images],
+    imageAlts: [...product.imageAlts],
     basePrice: Number(product.basePrice),
     compareAtPrice: product.compareAtPrice == null ? null : Number(product.compareAtPrice),
     stock: product.stock,
