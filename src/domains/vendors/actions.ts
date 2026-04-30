@@ -16,6 +16,7 @@ import { getActionSession } from '@/lib/action-session'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { isVendor } from '@/lib/roles'
 import { isAllowedImageUrl } from '@/lib/image-validation'
+import { deleteBlobs, diffRemovedUrls } from '@/lib/blob-storage'
 import { withIdempotency } from '@/lib/idempotency'
 import { PRODUCT_IMAGE_ALT_MAX } from '@/shared/types/products'
 // eslint-disable-next-line no-restricted-imports -- Telegram bootstrap is server-only and intentionally excluded from the notifications barrel
@@ -219,6 +220,14 @@ export async function updateProduct(productId: string, input: Partial<ProductInp
 
   const previousBasePriceCents = Math.round(Number(product.basePrice) * 100)
 
+  // #1050 — capture the pre-update images so we can clean up Vercel
+  // Blob entries after the row is rewritten. We snapshot BEFORE the
+  // update so a concurrent mutation between read and write cannot
+  // make us delete a URL that is still referenced elsewhere; the
+  // diff against `updated.images` (post-write) is the source of
+  // truth for what actually went away.
+  const previousImages = [...product.images]
+
   const updated = await db.product.update({
     where: { id: productId },
     data: {
@@ -229,6 +238,17 @@ export async function updateProduct(productId: string, input: Partial<ProductInp
       ...(product.status === 'REJECTED' && { rejectionNote: null }),
     },
   })
+
+  // Cleanup orphan blobs. Runs after the update commit so a deletion
+  // can never leave a row pointing at a missing image. `deleteBlobs`
+  // absorbs every error internally — this awaits only so observability
+  // events fire before we return, NOT to gate the response on storage
+  // success. Reorder of the same URL set is a no-op (diffRemovedUrls
+  // ignores order).
+  const removedImages = diffRemovedUrls(previousImages, updated.images)
+  if (removedImages.length > 0) {
+    await deleteBlobs(removedImages, 'product')
+  }
 
   // Price-drop fanout: only when the new basePrice is strictly lower
   // than the previous one. Small drifting changes still fire, but the
@@ -1234,10 +1254,28 @@ export async function updateVendorProfile(input: z.input<typeof profileSchema>) 
   const { vendor } = await requireVendor()
   const data = profileSchema.parse(input)
 
+  // #1050 — snapshot the pre-update logo + cover so we can clean up
+  // Vercel Blob entries after the row is rewritten. `vendor` was
+  // loaded inside `requireVendor` so it reflects the row we are
+  // about to overwrite.
+  const previousLogo = vendor.logo ?? null
+  const previousCover = vendor.coverImage ?? null
+
   const updated = await db.vendor.update({
     where: { id: vendor.id },
     data,
   })
+
+  // Each field is a single URL (or null), but we still funnel through
+  // diffRemovedUrls so the "same URL re-saved" case is a no-op and
+  // null transitions are handled uniformly. No throws — see deleteBlobs.
+  const removed = diffRemovedUrls(
+    [previousLogo, previousCover],
+    [updated.logo, updated.coverImage],
+  )
+  if (removed.length > 0) {
+    await deleteBlobs(removed, 'vendor')
+  }
 
   safeRevalidatePath('/vendor/perfil')
   revalidateCatalogExperience({ vendorSlug: vendor.slug })
