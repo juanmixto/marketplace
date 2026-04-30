@@ -46,6 +46,11 @@ const productFormSchema = z.object({
     },
     'Una o más URLs son inválidas o no están permitidas'
   ),
+  // #1049 — alt text per image, parallel to the image list extracted
+  // from `imagesText`. The form keeps the array padded to the same
+  // length as `validImages`; submit time we send both so the server
+  // action can persist them in lockstep.
+  imageAlts: z.array(z.string().max(200)).default([]),
   expiresAt: z
     .union([z.string().date('Fecha inválida'), z.literal(''), z.null(), z.undefined()])
     .transform(value => (value === '' || value == null ? undefined : value)),
@@ -135,6 +140,7 @@ export function ProductForm({ categories, initialData, vendorLocation, idempoten
       certifications: initialData?.certifications ?? [],
       originRegion: initialData?.originRegion ?? vendorLocation ?? '',
       imagesText: initialData?.images?.join('\n') ?? '',
+      imageAlts: initialData?.imageAlts ?? [],
       expiresAt: formatExpirationDateInput(initialData?.expiresAt),
       status:
         initialData?.status === 'PENDING_REVIEW'
@@ -146,6 +152,7 @@ export function ProductForm({ categories, initialData, vendorLocation, idempoten
   const selectedCertifications = watch('certifications') ?? []
   const imagesTextValue = watch('imagesText')
   const { valid: validImages } = parseAndValidateImages(imagesTextValue)
+  const imageAltsValue = watch('imageAlts') ?? []
   const trackStockValue = watch('trackStock')
   const unitValue = watch('unit')
   const unitOptions = PRODUCT_UNITS.includes(unitValue as (typeof PRODUCT_UNITS)[number])
@@ -225,6 +232,11 @@ export function ProductForm({ categories, initialData, vendorLocation, idempoten
     setVariantError(null)
 
     const { valid: images } = parseAndValidateImages(values.imagesText)
+    // Lock imageAlts to images.length before sending: the server
+    // action validates the invariant and would reject a mismatch.
+    // Padding with '' is cheap and keeps the UI consistent with how
+    // we'll re-render the persisted product on the next page load.
+    const imageAlts = images.map((_, i) => values.imageAlts?.[i] ?? '')
 
     const payload = {
       ...values,
@@ -232,6 +244,7 @@ export function ProductForm({ categories, initialData, vendorLocation, idempoten
       description: values.description?.trim() || undefined,
       originRegion: values.originRegion?.trim() || undefined,
       images,
+      imageAlts,
       compareAtPrice: values.compareAtPrice ?? undefined,
       expiresAt: values.expiresAt ?? undefined,
     }
@@ -540,6 +553,12 @@ export function ProductForm({ categories, initialData, vendorLocation, idempoten
             onChange={next => {
               setValue('imagesText', next.join('\n'), { shouldValidate: true })
             }}
+            alts={imageAltsValue}
+            onAltsChange={next => {
+              setValue('imageAlts', next, { shouldDirty: true })
+            }}
+            altLabel={t('vendor.imageAltLabel')}
+            altPlaceholder={t('vendor.imageAltPlaceholder')}
           />
 
           {errors.imagesText?.message && (

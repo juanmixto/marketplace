@@ -20,6 +20,14 @@ export const PRODUCT_WEIGHT_MAX_GRAMS = 50_000
 export const PRODUCT_ORIGIN_REGION_MAX = 100
 
 /**
+ * Maximum length of a single image alt-text entry (#1049). Empty
+ * strings are intentionally allowed: an empty alt is the vendor's
+ * explicit "I have not provided one"; the renderer falls back to the
+ * product name in that case.
+ */
+export const PRODUCT_IMAGE_ALT_MAX = 200
+
+/**
  * The Spanish IVA rates the marketplace currently bills at:
  *   - 0.04 → reduced (basic foodstuffs)
  *   - 0.10 → intermediate (most prepared foodstuffs)
@@ -52,6 +60,18 @@ export const productSchema = z.object({
   originRegion: z.string().max(PRODUCT_ORIGIN_REGION_MAX).optional(),
   images: z
     .array(z.string().refine(isAllowedImageUrl, 'URL de imagen no permitida'))
+    .default([]),
+  /**
+   * Parallel array to `images`: same length, same order. Each entry
+   * carries the alt text the vendor wrote for that photo. Validation
+   * of `images.length === imageAlts.length` lives in the server
+   * action so partial updates can short-circuit when only one of the
+   * two fields is provided (the action mirrors the missing one from
+   * the existing row). Empty strings are allowed: they mean "vendor
+   * left the alt blank" and the renderer falls back to product.name.
+   */
+  imageAlts: z
+    .array(z.string().max(PRODUCT_IMAGE_ALT_MAX, `Máximo ${PRODUCT_IMAGE_ALT_MAX} caracteres`))
     .default([]),
   expiresAt: z.string().date().optional().nullable(),
   status: z.enum(PRODUCT_VENDOR_SUBMIT_STATUSES).default('DRAFT'),

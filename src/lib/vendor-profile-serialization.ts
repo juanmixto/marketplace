@@ -7,7 +7,9 @@ export type VendorProfileItem = {
   location: string | null
   category: Vendor['category']
   logo: string | null
+  logoAlt: string | null
   coverImage: string | null
+  coverImageAlt: string | null
   orderCutoffTime: string | null
   preparationDays: number | null
   iban: string | null
@@ -23,7 +25,9 @@ type VendorProfileSource = Pick<
   | 'location'
   | 'category'
   | 'logo'
+  | 'logoAlt'
   | 'coverImage'
+  | 'coverImageAlt'
   | 'orderCutoffTime'
   | 'preparationDays'
   | 'iban'
@@ -42,7 +46,9 @@ export function serializeVendorProfile(vendor: VendorProfileSource): VendorProfi
     location: vendor.location,
     category: vendor.category,
     logo: vendor.logo,
+    logoAlt: vendor.logoAlt,
     coverImage: vendor.coverImage,
+    coverImageAlt: vendor.coverImageAlt,
     orderCutoffTime: vendor.orderCutoffTime,
     preparationDays: vendor.preparationDays,
     iban: vendor.iban,
