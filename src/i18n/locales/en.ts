@@ -413,6 +413,10 @@ const en: Record<TranslationKeys, string> = {
   'vendor.upload.unsupported': 'unsupported file type',
   'vendor.upload.tooLarge': 'file too large (max 5 MB)',
   'vendor.upload.error': 'Could not upload the image',
+  // #1049 — per-image alt text (accessibility + Google Images SEO).
+  'vendor.imageAltLabel': 'Alt text',
+  'vendor.imageAltPlaceholder': 'Describe the photo: "Jar of artisan honey on wood"',
+  'vendor.imageAltHint': 'Describe what is visible in the photo. Helps screen-reader users and Google find your product.',
 
   // Vendor – sidebar / header
   'vendor.sidebar.portalTitle': 'Producer Portal',
@@ -1396,6 +1400,11 @@ const en: Record<TranslationKeys, string> = {
   'vendor.profileForm.categoryAuto': 'Automatic (based on name and description)',
   'vendor.profileForm.logoLabel': 'Profile photo',
   'vendor.profileForm.coverLabel': 'Storefront cover',
+  // #1049 — alt text for vendor logo + cover.
+  'vendor.profileForm.logoAltLabel': 'Logo alt text',
+  'vendor.profileForm.logoAltPlaceholder': 'Logo of [your name], producer of [your main product]',
+  'vendor.profileForm.coverImageAltLabel': 'Cover alt text',
+  'vendor.profileForm.coverImageAltPlaceholder': 'View of the bakery with freshly baked bread',
   'vendor.profileForm.logistics': 'Logistics',
   'vendor.profileForm.cutoffLabel': 'Order cutoff time',
   'vendor.profileForm.cutoffHint': 'HH:MM format. Orders received after are processed the next day.',
