@@ -43,6 +43,14 @@ export interface ProductCardProduct {
   slug: string
   name: string
   images: string[]
+  /**
+   * Parallel to `images` (#1049). Each entry is the vendor-supplied
+   * alt text for the photo at the same index. May be empty string
+   * (vendor opted out) — the renderer falls back to the product name.
+   * Always present on serialized products; older callers that haven't
+   * been updated still pass an empty array.
+   */
+  imageAlts: string[]
   basePrice: DecimalLike
   compareAtPrice: DecimalLike | null
   stock: number
@@ -106,7 +114,10 @@ export function ProductCard({ product, locale = 'es' }: ProductCardProps) {
           {product.images?.[0] ? (
             <Image
               src={product.images[0]}
-              alt={localizedProduct.name}
+              // #1049 — vendor-supplied alt for image[0] wins. Empty
+              // string means the vendor explicitly skipped it; fall
+              // back to the (already-localized) product name.
+              alt={product.imageAlts?.[0]?.trim() || localizedProduct.name}
               fill
               className="object-cover transition-transform duration-500 group-hover:scale-105"
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
