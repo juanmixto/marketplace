@@ -36,6 +36,7 @@ test('createProduct persists a vendor product and deleteProduct performs a soft 
     certifications: [],
     originRegion: 'Navarra',
     images: [],
+    imageAlts: [],
     expiresAt: undefined,
     status: 'DRAFT',
   })
@@ -68,6 +69,7 @@ test('createProduct accepts local /uploads/ paths and rejects arbitrary URLs', a
     certifications: [],
     originRegion: 'Navarra',
     images: ['/uploads/products/vendor-x/abc.jpg'],
+    imageAlts: ['Calabacín bio fresco'],
     expiresAt: undefined,
     status: 'DRAFT',
   })
@@ -89,6 +91,7 @@ test('createProduct accepts local /uploads/ paths and rejects arbitrary URLs', a
         certifications: [],
         originRegion: 'Navarra',
         images: ['http://evil.example.com/x.jpg'],
+        imageAlts: ['evil'],
         expiresAt: undefined,
         status: 'DRAFT',
       }),
