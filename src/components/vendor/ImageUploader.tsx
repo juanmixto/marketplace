@@ -37,9 +37,33 @@ interface ImageUploaderProps {
   urls: string[]
   onChange: (urls: string[]) => void
   disabled?: boolean
+  /**
+   * #1049 — when provided, render an "alt text" input under each
+   * thumbnail and emit `onAltsChange` whenever the vendor edits one.
+   * The two arrays stay parallel: an upload appends `''`, a removal
+   * drops the corresponding alt at the same index. Optional so
+   * existing callers (no alt support) keep working unchanged.
+   */
+  alts?: string[]
+  onAltsChange?: (alts: string[]) => void
+  altMaxLength?: number
+  altLabel?: string
+  altPlaceholder?: string
 }
 
-export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) {
+const ALT_INPUT_DEFAULT_MAX = 200
+
+export function ImageUploader({
+  urls,
+  onChange,
+  disabled,
+  alts,
+  onAltsChange,
+  altMaxLength = ALT_INPUT_DEFAULT_MAX,
+  altLabel,
+  altPlaceholder,
+}: ImageUploaderProps) {
+  const altsEnabled = alts !== undefined && onAltsChange !== undefined
   const t = useT()
   const inputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
@@ -93,6 +117,7 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
       // Accumulate locally so sequential uploads don't read a stale `urls`
       // closure — each onChange would otherwise overwrite the previous.
       let current = urls
+      let currentAlts = alts ?? []
       for (const file of files) {
         if (!ACCEPTED_TYPES.has(file.type)) {
           setError(`${file.name}: ${t('vendor.upload.unsupported')}`)
@@ -102,10 +127,14 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
         if (uploaded) {
           current = [...current, uploaded]
           onChange(current)
+          if (altsEnabled) {
+            currentAlts = [...currentAlts, '']
+            onAltsChange?.(currentAlts)
+          }
         }
       }
     },
-    [onChange, remainingSlots, t, uploadOne, urls]
+    [onChange, remainingSlots, t, uploadOne, urls, alts, altsEnabled, onAltsChange]
   )
 
   function handleDrop(event: React.DragEvent<HTMLLabelElement>) {
@@ -116,7 +145,21 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
   }
 
   function handleRemove(url: string) {
+    const idx = urls.indexOf(url)
     onChange(urls.filter(u => u !== url))
+    if (altsEnabled && idx >= 0) {
+      const next = (alts ?? []).slice()
+      next.splice(idx, 1)
+      onAltsChange?.(next)
+    }
+  }
+
+  function handleAltChange(index: number, value: string) {
+    if (!altsEnabled) return
+    const next = (alts ?? []).slice()
+    while (next.length < urls.length) next.push('')
+    next[index] = value.slice(0, altMaxLength)
+    onAltsChange?.(next)
   }
 
   function openCameraPicker() {
@@ -217,21 +260,32 @@ export function ImageUploader({ urls, onChange, disabled }: ImageUploaderProps) 
 
       {(urls.length > 0 || uploading.length > 0) && (
         <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-          {urls.map(url => (
-            <div
-              key={url}
-              className="group relative aspect-square overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-raised)]"
-            >
-              <Image src={url} alt="" fill className="object-cover" sizes="200px" />
-              {!disabled && (
-                <button
-                  type="button"
-                  onClick={() => handleRemove(url)}
-                  className="absolute right-1.5 top-1.5 rounded-full bg-red-500 p-1.5 text-white opacity-0 shadow-lg transition hover:bg-red-600 group-hover:opacity-100 focus-visible:opacity-100"
-                  aria-label={t('vendor.upload.remove')}
-                >
-                  <XMarkIcon className="h-4 w-4" />
-                </button>
+          {urls.map((url, idx) => (
+            <div key={url} className="flex flex-col gap-1.5">
+              <div className="group relative aspect-square overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-raised)]">
+                <Image src={url} alt="" fill className="object-cover" sizes="200px" />
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(url)}
+                    className="absolute right-1.5 top-1.5 rounded-full bg-red-500 p-1.5 text-white opacity-0 shadow-lg transition hover:bg-red-600 group-hover:opacity-100 focus-visible:opacity-100"
+                    aria-label={t('vendor.upload.remove')}
+                  >
+                    <XMarkIcon className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              {altsEnabled && (
+                <input
+                  type="text"
+                  value={alts?.[idx] ?? ''}
+                  onChange={e => handleAltChange(idx, e.target.value)}
+                  disabled={disabled}
+                  maxLength={altMaxLength}
+                  aria-label={altLabel ?? 'Alt text'}
+                  placeholder={altPlaceholder}
+                  className="h-9 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 text-xs text-[var(--foreground)] placeholder:text-[var(--muted-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+                />
               )}
             </div>
           ))}

@@ -25,7 +25,11 @@ export const PUBLIC_VENDOR_SELECT = {
   displayName: true,
   description: true,
   logo: true,
+  // #1049 — vendor-supplied alt text. Public-safe: the vendor wrote it
+  // for buyers to see. Empty / null falls back to displayName at render.
+  logoAlt: true,
   coverImage: true,
+  coverImageAlt: true,
   location: true,
   category: true,
   avgRating: true,
