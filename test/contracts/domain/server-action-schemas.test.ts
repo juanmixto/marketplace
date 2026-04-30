@@ -78,6 +78,7 @@ test('productSchema — frozen shape', () => {
       'certifications', // has .default([]) → optional input
       'originRegion',
       'images', // has .default([])
+      'imageAlts', // #1049 — has .default([])
       'expiresAt',
       'status', // has .default('DRAFT')
     ],

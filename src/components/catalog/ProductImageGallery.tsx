@@ -6,16 +6,37 @@ import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 
 interface Props {
   images: string[]
+  /**
+   * Per-image alt text (#1049) — parallel to `images`. Optional for
+   * legacy callers; when provided, an entry overrides the
+   * fallback `alt` for the image at the same index. Empty strings
+   * are treated as "vendor skipped this one" and we drop back to
+   * the generic product alt.
+   */
+  imageAlts?: string[]
   alt: string
 }
 
-export function ProductImageGallery({ images, alt }: Props) {
+function altFor(index: number, imageAlts: string[] | undefined, fallback: string): string {
+  const candidate = imageAlts?.[index]
+  if (typeof candidate === 'string' && candidate.trim() !== '') return candidate
+  return fallback
+}
+
+export function ProductImageGallery({ images, imageAlts, alt }: Props) {
   const [activeIndex, setActiveIndex] = useState(0)
   const [failedUrls, setFailedUrls] = useState<Set<string>>(() => new Set())
 
+  // Pair each url with its index-aligned alt before filtering, so the
+  // alt-to-url mapping survives the failed-url filter (which would
+  // otherwise desync indices).
+  const indexedImages = useMemo(
+    () => images.map((url, i) => ({ url, alt: altFor(i, imageAlts, alt), index: i })),
+    [images, imageAlts, alt],
+  )
   const validImages = useMemo(
-    () => images.filter(url => !failedUrls.has(url)),
-    [images, failedUrls],
+    () => indexedImages.filter(item => !failedUrls.has(item.url)),
+    [indexedImages, failedUrls],
   )
 
   const handleError = useCallback((url: string) => {
@@ -75,15 +96,15 @@ export function ProductImageGallery({ images, alt }: Props) {
         onTouchEnd={handleTouchEnd}
       >
         <Image
-          key={validImages[safeIndex]!}
-          src={validImages[safeIndex]!}
-          alt={`${alt} — imagen ${safeIndex + 1}`}
+          key={validImages[safeIndex]!.url}
+          src={validImages[safeIndex]!.url}
+          alt={validImages[safeIndex]!.alt}
           fill
           draggable={false}
           className="object-cover transition-opacity duration-200"
           sizes="(max-width: 1024px) 100vw, 50vw"
           priority={safeIndex === 0}
-          onError={() => handleError(validImages[safeIndex]!)}
+          onError={() => handleError(validImages[safeIndex]!.url)}
         />
 
         {validImages.length > 1 && (
@@ -107,9 +128,9 @@ export function ProductImageGallery({ images, alt }: Props) {
             </button>
 
             <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1 sm:hidden">
-              {validImages.map((url, i) => (
+              {validImages.map((item, i) => (
                 <button
-                  key={url}
+                  key={item.url}
                   type="button"
                   onClick={() => setActiveIndex(i)}
                   aria-label={`Ir a imagen ${i + 1}`}
@@ -130,9 +151,9 @@ export function ProductImageGallery({ images, alt }: Props) {
       {/* Thumbnails strip */}
       {validImages.length > 1 && (
         <div className="hidden gap-2 overflow-x-auto pb-1 sm:flex">
-          {validImages.map((img, i) => (
+          {validImages.map((item, i) => (
             <button
-              key={img}
+              key={item.url}
               type="button"
               onClick={() => setActiveIndex(i)}
               aria-label={`Ver imagen ${i + 1}`}
@@ -143,12 +164,12 @@ export function ProductImageGallery({ images, alt }: Props) {
               }`}
             >
               <Image
-                src={img}
-                alt={`${alt} — miniatura ${i + 1}`}
+                src={item.url}
+                alt={item.alt}
                 fill
                 className="object-cover"
                 sizes="80px"
-                onError={() => handleError(img)}
+                onError={() => handleError(item.url)}
               />
             </button>
           ))}

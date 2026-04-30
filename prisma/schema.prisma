@@ -264,7 +264,9 @@ model Vendor {
   displayName     String
   description     String?         @db.Text
   logo            String?
+  logoAlt         String?
   coverImage      String?
+  coverImageAlt   String?
   location        String?
   category        VendorCategory?
   status          VendorStatus    @default(APPLYING)
@@ -357,6 +359,7 @@ model Product {
   slug           String        @unique
   description    String?       @db.Text
   images         String[]
+  imageAlts      String[]      @default([])
   status         ProductStatus @default(DRAFT)
   basePrice      Decimal       @db.Decimal(10, 2)
   compareAtPrice Decimal?      @db.Decimal(10, 2)

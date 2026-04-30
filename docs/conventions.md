@@ -93,6 +93,39 @@ export async function myAction(input: unknown) {
 
 For API routes and Server Components use the existing `requireVendor()` / `requireAdmin()` from `src/lib/auth-guard.ts` instead of rolling your own.
 
+<a id="use-server-only-async"></a>
+### `'use server'` files: only export async functions
+
+Next.js refuses to compile a `'use server'` module that exports anything other than an `async function`. Constants, types, interfaces, classes, sync helpers — all rejected at build time with:
+
+```
+Only async functions are allowed to be exported in a "use server" file.
+```
+
+`tsc --noEmit` does **not** catch this — the restriction lives in the Next.js compiler, not in TypeScript. Local typecheck passes, then `next build` (or `npx next build`, or any of the E2E shards in CI) breaks. PRs #1000 / #1001 hit this exact trap when they exported `VENDOR_*_PAGE_SIZE` constants and `Vendor*Filters` types directly from `actions.ts`.
+
+**Where the contract types live:** `src/domains/<domain>/types.ts` (or `<domain>/index.ts`). Import them back from `actions.ts` if the action signature needs the type.
+
+**Verification before push:** if you added or moved an export in a `'use server'` file, run `npx next build` locally — not just `tsc --noEmit`. The dev server doesn't catch it either; only a full build does.
+
+```ts
+// ❌ Wrong — fails at next build
+'use server'
+export const PAGE_SIZE = 25
+export type Filters = { cursor?: string }
+export async function listThings(f: Filters) { /* ... */ }
+
+// ✅ Right — types and constants in a sibling module
+// src/domains/things/types.ts
+export const PAGE_SIZE = 25
+export type Filters = { cursor?: string }
+
+// src/domains/things/actions.ts
+'use server'
+import { PAGE_SIZE, type Filters } from './types'
+export async function listThings(f: Filters) { /* ... */ }
+```
+
 ---
 
 ## Cross-domain imports — go through the barrel
@@ -442,6 +475,33 @@ Two fixes:
   ```
 
 This is the leading hypothesis behind #1045 (multi-vendor-cart race); confirm before fixing.
+
+---
+
+## Imágenes (next/image)
+
+`next.config.ts` define `images.deviceSizes`, `imageSizes` y `formats` afinados al catálogo real (#1051), no a los defaults de Next:
+
+- `deviceSizes: [360, 640, 750, 828, 1080, 1280, 1600]` — el `<Image sizes>` más alto declarado en el repo es `(max-width: 1280px) 100vw, 1280px`. Cubrir hasta 1600 deja headroom retina sin emitir variantes 1920/2048/3840 que nadie pide.
+- `imageSizes: [16, 32, 64, 96, 128, 256]` — los thumbnails reales rondan 28/40/48/56/64/80/200 px, redondean limpios a esta escala.
+- `formats: ['image/avif', 'image/webp']` — AVIF primero (~20 % menos que WebP en Chrome/Firefox/Safari 16+), WebP fallback. El default de Next sólo emite WebP.
+
+Si añades un `<Image sizes="(min-width: 1700px) ...">` o un slot `>1600px`, falla `audit:image-sizes` ([`scripts/audit-image-sizes.mjs`](../scripts/audit-image-sizes.mjs)). O bien bajas el breakpoint, o bien subes `deviceSizes` y avisas al deploy (cambiar `deviceSizes` invalida la caché de `/_next/image`).
+
+### Alt text de imágenes (#1049)
+
+El `alt` lo escribe el productor desde su panel, no se infiere. Se persiste en columnas paralelas a la URL:
+
+- **Producto:** `Product.imageAlts: String[]` — invariante `images.length === imageAlts.length`, asegurada por las server actions `createProduct` / `updateProduct` (`src/domains/vendors/actions.ts`). Una entrada vacía es legítima: significa "el productor no rellenó este alt".
+- **Vendor:** `Vendor.logoAlt: String?` y `Vendor.coverImageAlt: String?` (escalares, no arrays — solo hay un logo y una portada). Vacío / `null` se trata igual que el caso anterior.
+
+**Renderizado, regla única:** `alt = altPersistido?.trim() || nombreFallback || ''`.
+
+- Producto: fallback al nombre del producto (`localizedProduct.name`).
+- Vendor logo: fallback a `vendor.displayName`.
+- Vendor cover: fallback a `displayName` solo cuando `vendor.coverImage` existe; si la portada es la imagen *fallback* generada por `getVendorHeroImage`, se conserva el copy localizado de "imagen genérica del productor X".
+
+No inventes alt sintético en cliente / servidor (LLMs, palabras clave, etc.) — eso es decisión de negocio fuera de este contrato.
 
 ---
 

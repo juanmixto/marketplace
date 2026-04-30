@@ -40,6 +40,8 @@ Default to **cursor pagination** mirroring [`src/domains/catalog/queries.ts:62-2
 
 Legitimate exceptions (workers, sitemap, KPI computation, settlement) are allowlisted in `scripts/audit-unbounded-findMany.mjs` with a one-line reason. CI tolerates the existing baseline; new violations fail.
 
+**Where the page-size constant and filter type live:** `src/domains/<domain>/types.ts`. Server Actions modules (`actions.ts`) are `'use server'`, which forbids exporting anything other than async functions — see the rule in [`docs/conventions.md`](conventions.md#use-server-only-async). The trap is silent under `tsc --noEmit` and only surfaces under `next build`.
+
 ## 3. Money is `Decimal(10, 2)` with `currency` defaulting to `"EUR"`
 
 The schema mixes `Decimal(10, 2)` (orders / payments / settlements / shipping rates) and `Int` cents (`IngestionProductDraft.priceCents`). The split is intentional, not legacy: ingestion is parsed, untrusted input (Telegram messages); the marketplace uses `Decimal` because that's what Stripe negotiates.

@@ -5,6 +5,7 @@ export type VendorCatalogItem = {
   slug: string
   name: string
   images: string[]
+  imageAlts: string[]
   status: string
   stock: number
   trackStock: boolean
@@ -24,6 +25,7 @@ export type VendorProductPreviewItem = {
   name: string
   description: string | null
   images: string[]
+  imageAlts: string[]
   certifications: string[]
   originRegion: string | null
   basePrice: number
@@ -51,6 +53,7 @@ export type VendorProductFormItem = {
   certifications: string[]
   originRegion: string | null
   images: string[]
+  imageAlts: string[]
   expiresAt: Date | string | null
   status: 'DRAFT' | 'PENDING_REVIEW' | 'ACTIVE' | 'REJECTED' | 'SUSPENDED'
   variants: { id: string; name: string; priceModifier: number; stock: number; isActive: boolean }[]
@@ -65,6 +68,7 @@ export function serializeVendorCatalogItem(product: MyProductsProduct): VendorCa
     slug: product.slug,
     name: product.name,
     images: [...product.images],
+    imageAlts: [...product.imageAlts],
     status: product.status,
     stock: product.stock,
     trackStock: product.trackStock,
@@ -86,6 +90,7 @@ export function serializeVendorProductPreview(product: MyProduct): VendorProduct
     name: product.name,
     description: product.description,
     images: [...product.images],
+    imageAlts: [...product.imageAlts],
     certifications: [...product.certifications],
     originRegion: product.originRegion,
     basePrice: Number(product.basePrice),
@@ -121,6 +126,7 @@ export function serializeVendorProductForm(product: MyProduct): VendorProductFor
     certifications: [...product.certifications],
     originRegion: product.originRegion,
     images: [...product.images],
+    imageAlts: [...product.imageAlts],
     expiresAt: product.expiresAt,
     status: product.status,
     variants: product.variants.map(variant => ({
