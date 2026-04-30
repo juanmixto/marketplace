@@ -4,11 +4,18 @@ import { isAdminRole, isVendor } from '@/lib/roles'
 import { db } from '@/lib/db'
 import { getBlobUploader } from '@/lib/blob-storage'
 import { checkRateLimit } from '@/lib/ratelimit'
+import { enqueue } from '@/lib/queue'
+import { logger } from '@/lib/logger'
 import {
   MAX_UPLOAD_BYTES,
   UploadValidationError,
   validateImageUpload,
 } from '@/lib/upload-validation'
+import {
+  PREWARM_IMAGE_VARIANTS_JOB,
+  isImagePrewarmEnabled,
+  type PrewarmImageVariantsJobData,
+} from '@/workers/jobs/prewarm-image-variants'
 
 // Per-user upload throttle (#539). 50 uploads per 10-minute window is
 // generous for a human editor but cuts off a compromised vendor token
@@ -137,6 +144,33 @@ export async function POST(request: NextRequest) {
     originalName: file.name,
     prefix,
   })
+
+  // #1052: prewarm /_next/image variants for the most common
+  // (width, format) pairs so the first buyer to load this product
+  // doesn't pay the encode latency. Fire-and-forget — enqueue must
+  // never block the upload response. If the queue is unreachable we
+  // log and move on; the variants will still be generated lazily on
+  // first real client request, exactly like before #1052.
+  if (isImagePrewarmEnabled()) {
+    const payload: PrewarmImageVariantsJobData = { url: result.url }
+    void enqueue<Record<string, unknown>>(
+      PREWARM_IMAGE_VARIANTS_JOB,
+      payload as unknown as Record<string, unknown>,
+      // Idempotent on URL: if a re-upload happens to dedupe to the
+      // same blob URL within a short window, don't pile up duplicate
+      // jobs.
+      { singletonKey: `prewarm:${result.url}`, retryLimit: 0 },
+    )
+      .then((jobId) => {
+        logger.info('photo.prewarm.queued', { url: result.url, jobId })
+      })
+      .catch((err) => {
+        logger.warn('photo.prewarm.enqueue_failed', {
+          url: result.url,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      })
+  }
 
   return NextResponse.json(result, { status: 201 })
 }

@@ -261,7 +261,7 @@ export default async function ProductDetailPage({ params }: Props) {
 
       <div className="grid gap-10 lg:grid-cols-2">
         {/* Gallery */}
-        <ProductImageGallery images={product.images} alt={localizedProduct.name} />
+        <ProductImageGallery images={product.images} imageAlts={product.imageAlts} alt={localizedProduct.name} />
 
         {/* Info */}
         <div>
@@ -408,7 +408,8 @@ export default async function ProductDetailPage({ params }: Props) {
               {product.vendor.logo ? (
                 <Image
                   src={product.vendor.logo}
-                  alt={product.vendor.displayName}
+                  // #1049 — vendor-supplied alt wins; fall back to displayName.
+                  alt={product.vendor.logoAlt?.trim() || product.vendor.displayName}
                   width={56}
                   height={56}
                   className="h-14 w-14 shrink-0 rounded-2xl object-cover"

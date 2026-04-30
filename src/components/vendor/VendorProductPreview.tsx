@@ -26,6 +26,8 @@ interface Props {
     description: string | null
     location: string | null
     logo: string | null
+    /** #1049 — vendor-supplied alt for the logo image. */
+    logoAlt: string | null
     avgRating: number | null
     totalReviews: number
   }
@@ -141,7 +143,7 @@ export async function VendorProductPreview({ product, vendor, activePromotions =
       {/* Rendered product view — closely matches the public page */}
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
         <div className="grid gap-8 lg:grid-cols-2">
-          <ProductImageGallery images={product.images} alt={product.name} />
+          <ProductImageGallery images={product.images} imageAlts={product.imageAlts} alt={product.name} />
 
           <div>
             {product.certifications.length > 0 && (
@@ -227,7 +229,7 @@ export async function VendorProductPreview({ product, vendor, activePromotions =
               {vendor.logo ? (
                 <Image
                   src={vendor.logo}
-                  alt={vendor.displayName}
+                  alt={vendor.logoAlt?.trim() || vendor.displayName}
                   width={48}
                   height={48}
                   className="h-12 w-12 shrink-0 rounded-xl object-cover"

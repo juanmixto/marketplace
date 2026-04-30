@@ -38,6 +38,11 @@ import {
   runUnextractableDedupeJob,
   type UnextractableDedupeJobData,
 } from './jobs/ingestion-unextractable-dedupe'
+import {
+  PREWARM_IMAGE_VARIANTS_JOB,
+  runPrewarmImageVariantsJob,
+  type PrewarmImageVariantsJobData,
+} from './jobs/prewarm-image-variants'
 
 async function main() {
   logger.info('worker.starting', {
@@ -103,6 +108,18 @@ async function main() {
     processingWorkOpts,
   )
 
+  // #1052: prewarm /_next/image variants on upload. The handler is
+  // pure I/O against the same Next instance, so a small batchSize is
+  // safe — running 4 jobs in parallel keeps a publish burst snappy
+  // without overwhelming the image optimizer.
+  await registerHandler<PrewarmImageVariantsJobData>(
+    PREWARM_IMAGE_VARIANTS_JOB,
+    async (job) => {
+      await runPrewarmImageVariantsJob(job)
+    },
+    { batchSize: 4 },
+  )
+
   logger.info('worker.ready', {
     handlers: [
       INGESTION_JOB_KINDS.telegramSync,
@@ -110,6 +127,7 @@ async function main() {
       PROCESSING_JOB_KINDS.buildDrafts,
       PROCESSING_JOB_KINDS.dedupeDrafts,
       PROCESSING_JOB_KINDS.unextractableDedupe,
+      PREWARM_IMAGE_VARIANTS_JOB,
     ],
     config,
   })
