@@ -15,6 +15,7 @@ import {
   isSaveDataEnabled,
   isSlowConnection,
   getAdaptiveImageQuality,
+  getAdaptiveImageProfile,
 } from '@/lib/connection'
 
 test('getEffectiveType returns the value when API present', () => {
@@ -67,4 +68,43 @@ test('getAdaptiveImageQuality matches the policy table', () => {
 
   setConnection(undefined)
   assert.equal(getAdaptiveImageQuality(), 85)
+})
+
+test('getAdaptiveImageProfile returns quality + sizesDownscale per network', () => {
+  // Save-Data wins over effectiveType.
+  setConnection({ saveData: true })
+  assert.deepEqual(getAdaptiveImageProfile(), { quality: 50, sizesDownscale: 0.66 })
+
+  // Save-Data + 4g still treated as Save-Data.
+  setConnection({ saveData: true, effectiveType: '4g' })
+  assert.deepEqual(getAdaptiveImageProfile(), { quality: 50, sizesDownscale: 0.66 })
+
+  setConnection({ effectiveType: 'slow-2g' })
+  assert.deepEqual(getAdaptiveImageProfile(), { quality: 50, sizesDownscale: 0.5 })
+
+  setConnection({ effectiveType: '2g' })
+  assert.deepEqual(getAdaptiveImageProfile(), { quality: 50, sizesDownscale: 0.66 })
+
+  setConnection({ effectiveType: '3g' })
+  assert.deepEqual(getAdaptiveImageProfile(), { quality: 70, sizesDownscale: 1.0 })
+
+  setConnection({ effectiveType: '4g' })
+  assert.deepEqual(getAdaptiveImageProfile(), { quality: 85, sizesDownscale: 1.0 })
+
+  setConnection(undefined)
+  assert.deepEqual(getAdaptiveImageProfile(), { quality: 85, sizesDownscale: 1.0 })
+})
+
+test('getAdaptiveImageQuality stays in sync with getAdaptiveImageProfile', () => {
+  for (const c of [
+    { saveData: true },
+    { effectiveType: 'slow-2g' as const },
+    { effectiveType: '2g' as const },
+    { effectiveType: '3g' as const },
+    { effectiveType: '4g' as const },
+    undefined,
+  ]) {
+    setConnection(c)
+    assert.equal(getAdaptiveImageQuality(), getAdaptiveImageProfile().quality)
+  }
 })
