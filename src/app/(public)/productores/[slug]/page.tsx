@@ -168,7 +168,15 @@ export default async function VendorPublicPage({ params }: Props) {
         <div className="relative aspect-[3/1] min-h-[240px] sm:min-h-[300px]">
           <Image
             src={heroImage}
-            alt={copy.vendor.heroImageAlt(vendor.displayName)}
+            // #1049 — vendor-supplied alt wins when they uploaded a
+            // real cover. The fallback copy is only meaningful for the
+            // category-default hero (`getVendorHeroImage` falls back to
+            // a stock image keyed on category/slug), so we only honour
+            // coverImageAlt when the vendor actually has a cover.
+            alt={
+              (vendor.coverImage && vendor.coverImageAlt?.trim()) ||
+              copy.vendor.heroImageAlt(vendor.displayName)
+            }
             fill
             className="object-cover"
             sizes="(max-width: 1280px) 100vw, 1280px"
@@ -191,7 +199,9 @@ export default async function VendorPublicPage({ params }: Props) {
               {vendor.logo ? (
                 <Image
                   src={vendor.logo}
-                  alt={copy.vendor.logoAlt(vendor.displayName)}
+                  // #1049 — vendor-supplied alt wins; fall back to the
+                  // localized "logo of {displayName}" copy when blank.
+                  alt={vendor.logoAlt?.trim() || copy.vendor.logoAlt(vendor.displayName)}
                   width={96}
                   height={96}
                   className="h-full w-full rounded-full object-cover"

@@ -112,6 +112,7 @@ export async function createActiveProduct(vendorId: string, overrides: Record<st
       stock: 8,
       trackStock: true,
       images: [],
+      imageAlts: [],
       certifications: [],
       tags: [],
       status: 'ACTIVE',

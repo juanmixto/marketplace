@@ -36,6 +36,7 @@ export default async function VendorProductPreviewPage({ params }: Props) {
         description: vendor.description,
         location: vendor.location,
         logo: vendor.logo,
+        logoAlt: vendor.logoAlt,
         avgRating: vendor.avgRating == null ? null : Number(vendor.avgRating),
         totalReviews: vendor.totalReviews,
       }}

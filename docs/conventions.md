@@ -477,6 +477,21 @@ This is the leading hypothesis behind #1045 (multi-vendor-cart race); confirm be
 
 Si añades un `<Image sizes="(min-width: 1700px) ...">` o un slot `>1600px`, falla `audit:image-sizes` ([`scripts/audit-image-sizes.mjs`](../scripts/audit-image-sizes.mjs)). O bien bajas el breakpoint, o bien subes `deviceSizes` y avisas al deploy (cambiar `deviceSizes` invalida la caché de `/_next/image`).
 
+### Alt text de imágenes (#1049)
+
+El `alt` lo escribe el productor desde su panel, no se infiere. Se persiste en columnas paralelas a la URL:
+
+- **Producto:** `Product.imageAlts: String[]` — invariante `images.length === imageAlts.length`, asegurada por las server actions `createProduct` / `updateProduct` (`src/domains/vendors/actions.ts`). Una entrada vacía es legítima: significa "el productor no rellenó este alt".
+- **Vendor:** `Vendor.logoAlt: String?` y `Vendor.coverImageAlt: String?` (escalares, no arrays — solo hay un logo y una portada). Vacío / `null` se trata igual que el caso anterior.
+
+**Renderizado, regla única:** `alt = altPersistido?.trim() || nombreFallback || ''`.
+
+- Producto: fallback al nombre del producto (`localizedProduct.name`).
+- Vendor logo: fallback a `vendor.displayName`.
+- Vendor cover: fallback a `displayName` solo cuando `vendor.coverImage` existe; si la portada es la imagen *fallback* generada por `getVendorHeroImage`, se conserva el copy localizado de "imagen genérica del productor X".
+
+No inventes alt sintético en cliente / servidor (LLMs, palabras clave, etc.) — eso es decisión de negocio fuera de este contrato.
+
 ---
 
 ## Related documents
