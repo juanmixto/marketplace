@@ -17,6 +17,7 @@ import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidat
 import { isVendor } from '@/lib/roles'
 import { isAllowedImageUrl } from '@/lib/image-validation'
 import { withIdempotency } from '@/lib/idempotency'
+import { PRODUCT_IMAGE_ALT_MAX } from '@/shared/types/products'
 // eslint-disable-next-line no-restricted-imports -- Telegram bootstrap is server-only and intentionally excluded from the notifications barrel
 import { ensureTelegramHandlersRegistered } from '@/domains/notifications/telegram/ensure-registered'
 // eslint-disable-next-line no-restricted-imports -- Web-push bootstrap mirrors the Telegram one; same reason
@@ -57,6 +58,55 @@ async function requireVendor() {
 
 import { productSchema, type ProductInput } from '@/shared/types/products'
 
+/**
+ * Pads / trims `alts` to `images.length` so the parallel-array
+ * invariant is preserved on every write. Used for both create and
+ * update paths:
+ *
+ *   - Create: a vendor can submit a product with no alts at all
+ *     (legacy callers, ingestion-published drafts). We materialize
+ *     an array of empty strings so the DB column is always the
+ *     same length as `images`.
+ *
+ *   - Update: a partial update may touch `images` without sending
+ *     `imageAlts` — when that happens we keep the previous alts in
+ *     place where indices still line up, and pad the rest with ''.
+ *     Symmetric: a partial update touching only `imageAlts` is
+ *     rejected because we cannot know which `images` array to align
+ *     against (caller must send both or neither).
+ */
+function normalizeImageAlts(images: string[], alts: string[] | undefined, previous?: string[]): string[] {
+  const base = alts ?? previous ?? []
+  if (base.length === images.length) {
+    return base.map(a => (typeof a === 'string' ? a.slice(0, PRODUCT_IMAGE_ALT_MAX) : ''))
+  }
+  // Length mismatch: align to images.length, preserving the prefix
+  // and padding any new positions with ''. Truncate the suffix when
+  // alts was longer than images (the photos in those positions are
+  // gone).
+  const out: string[] = []
+  for (let i = 0; i < images.length; i++) {
+    const candidate = base[i]
+    out.push(typeof candidate === 'string' ? candidate.slice(0, PRODUCT_IMAGE_ALT_MAX) : '')
+  }
+  return out
+}
+
+/**
+ * Invariant guard for callers that pass both `images` and `imageAlts`
+ * (the vendor product form does this). When only one is provided we
+ * resolve the other side via `normalizeImageAlts` against the existing
+ * row, which is itself the contract.
+ */
+function assertImageAltsInvariant(images: string[] | undefined, alts: string[] | undefined) {
+  if (images === undefined || alts === undefined) return
+  if (images.length !== alts.length) {
+    throw new Error(
+      `imageAlts (${alts.length}) must have the same length as images (${images.length})`,
+    )
+  }
+}
+
 ensureTelegramHandlersRegistered()
 ensureWebPushHandlersRegistered()
 
@@ -73,7 +123,23 @@ ensureWebPushHandlersRegistered()
 export async function createProduct(input: ProductInput, idempotencyToken?: string) {
   const { vendor, session } = await requireVendor()
 
+  // #1049 — `productSchema` declares `.default([])` on `imageAlts`
+  // so `parse(...)` would always materialize the field; we need to
+  // detect "caller didn't provide it" from the raw input first.
+  const rawInputCreate = (input ?? {}) as Record<string, unknown>
+  const altsProvidedCreate = 'imageAlts' in rawInputCreate
   const data = productSchema.parse(input)
+  // Length-invariant: only enforce when the caller actually sent
+  // `imageAlts`. When they didn't, we synthesize an empty alt per
+  // image (the renderer falls back to product.name) so the column
+  // is always exactly as long as `images`.
+  if (altsProvidedCreate) {
+    assertImageAltsInvariant(data.images, data.imageAlts)
+  }
+  const imageAlts = normalizeImageAlts(
+    data.images,
+    altsProvidedCreate ? data.imageAlts : undefined,
+  )
 
   const doCreate = async () => {
     // Generate unique slug
@@ -84,6 +150,7 @@ export async function createProduct(input: ProductInput, idempotencyToken?: stri
     const product = await db.product.create({
       data: {
         ...data,
+        imageAlts,
         slug,
         vendorId: vendor.id,
         compareAtPrice: data.compareAtPrice ?? null,
@@ -119,6 +186,36 @@ export async function updateProduct(productId: string, input: Partial<ProductInp
   if (!product) throw new Error('Producto no encontrado')
 
   const data = productSchema.partial().parse(input)
+  // #1049 — keep imageAlts aligned to images on partial updates. Two
+  // resolution rules:
+  //   - both arrays sent → must match length, store as-is.
+  //   - only `images` sent → preserve previous alts where indices
+  //     line up, pad the rest with '' (vendor changed photo set
+  //     without revisiting alt fields).
+  //   - only `imageAlts` sent → align against the unchanged
+  //     `product.images`, truncating/padding as needed.
+  // We probe the *raw* input (`'imageAlts' in input`) rather than the
+  // parsed shape because `productSchema` declares `.default([])` on
+  // both arrays — `.partial().parse(...)` would otherwise materialize
+  // empty arrays for callers who never sent the field, collapsing
+  // case 2 (only images) into the invariant rejection.
+  const rawInput = (input ?? {}) as Record<string, unknown>
+  const altsProvided = 'imageAlts' in rawInput
+  const imagesProvided = 'images' in rawInput
+  if (altsProvided && imagesProvided) {
+    assertImageAltsInvariant(data.images, data.imageAlts)
+  }
+  const nextImages = imagesProvided ? data.images ?? product.images : product.images
+  const altsPatch: Partial<{ imageAlts: string[] }> =
+    imagesProvided || altsProvided
+      ? {
+          imageAlts: normalizeImageAlts(
+            nextImages,
+            altsProvided ? data.imageAlts : undefined,
+            product.imageAlts,
+          ),
+        }
+      : {}
 
   const previousBasePriceCents = Math.round(Number(product.basePrice) * 100)
 
@@ -126,6 +223,7 @@ export async function updateProduct(productId: string, input: Partial<ProductInp
     where: { id: productId },
     data: {
       ...data,
+      ...altsPatch,
       ...(data.expiresAt !== undefined && { expiresAt: parseExpirationDateInput(data.expiresAt) }),
       // Reset rejection note when re-editing a rejected product
       ...(product.status === 'REJECTED' && { rejectionNote: null }),
@@ -1108,6 +1206,13 @@ const profileSchema = z.object({
     .refine(v => v === null || isAllowedImageUrl(v), {
       message: 'Imagen no permitida. Súbela desde tu equipo o pega una URL permitida.',
     }),
+  // #1049 — alt text for the logo image. Empty / missing falls back
+  // to vendor.displayName at render time. 200-char cap matches
+  // PRODUCT_IMAGE_ALT_MAX so vendors get one rule everywhere.
+  logoAlt: z
+    .union([z.string(), z.literal(''), z.null()])
+    .optional()
+    .transform(v => (v == null || v === '' ? null : v.slice(0, PRODUCT_IMAGE_ALT_MAX))),
   coverImage: z
     .union([z.string(), z.literal('')])
     .optional()
@@ -1115,6 +1220,10 @@ const profileSchema = z.object({
     .refine(v => v === null || isAllowedImageUrl(v), {
       message: 'Imagen no permitida. Súbela desde tu equipo o pega una URL permitida.',
     }),
+  coverImageAlt: z
+    .union([z.string(), z.literal(''), z.null()])
+    .optional()
+    .transform(v => (v == null || v === '' ? null : v.slice(0, PRODUCT_IMAGE_ALT_MAX))),
   orderCutoffTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   preparationDays: z.coerce.number().int().min(0).max(30).optional(),
   iban: z.string().max(34).optional(),
