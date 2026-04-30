@@ -320,6 +320,17 @@ CONTACT_EMAIL
 
 # Admin host isolation (optional — see docs/admin-host.md)
 ADMIN_HOST                   # e.g. admin.your-domain.com
+
+# Image prewarm (optional — #1052, epic #1047)
+IMAGE_PREWARM_ENABLED        # "true" enqueues a pg-boss job after each
+                             # successful /api/upload that hits
+                             # /_next/image for the catalog's most
+                             # common (width, format) pairs (640/1080/
+                             # 1280 × avif/webp at q=85). Failures are
+                             # non-blocking; variants fall back to
+                             # lazy on-demand rendering.
+IMAGE_PREWARM_BASE_URL       # optional override for the worker; falls
+                             # back to NEXT_PUBLIC_APP_URL.
 ```
 
 See `.env.example` for the canonical list and `docs/admin-host.md` for the
