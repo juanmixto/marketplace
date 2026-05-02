@@ -24,9 +24,7 @@ import {
   type SavedCheckoutAddress,
 } from '@/domains/orders/checkout'
 import { applyCartDiscounts } from '@/domains/pricing'
-import {
-  SPAIN_PROVINCES,
-} from '@/domains/shipping/spain-provinces'
+import { SPAIN_PROVINCE_BY_PREFIX } from '@/domains/shipping/spain-provinces'
 import { useT } from '@/i18n'
 import { createAnalyticsItem, trackAnalyticsEvent } from '@/lib/analytics'
 import { CheckoutProgress } from '@/components/checkout/CheckoutProgress'
@@ -204,6 +202,22 @@ export function CheckoutPageClient({
   // cannot live below conditional returns.
   const attemptIdRef = useRef(checkoutAttemptId)
   const shouldRedirectToCart = cartHydrated && items.length === 0 && step !== 'processing' && !completedOrderNumber
+
+  // #1074: derive province from the postal code's 2-digit prefix and
+  // keep the form value in sync. The native <select> for 52 provinces
+  // was the anti-pattern flagged in docs/product/04 § 50-57. Eliminating
+  // it cuts a tap target on mobile and removes a redundant decision —
+  // the postal code already determines the province uniquely. The
+  // server-side `postalProvinceRefiner` validates the pair, so the
+  // derivation here just keeps client and server in lock-step.
+  useEffect(() => {
+    if (watchedPostalCode.length !== 5) return
+    const prefix = watchedPostalCode.slice(0, 2)
+    const derived = SPAIN_PROVINCE_BY_PREFIX[prefix]
+    if (!derived) return
+    if (watchedProvince === derived) return
+    setValue('province', derived, { shouldValidate: true, shouldDirty: true })
+  }, [watchedPostalCode, watchedProvince, setValue])
 
   useEffect(() => {
     if (items.length === 0 || hasTrackedCheckoutRef.current) return
@@ -531,36 +545,6 @@ export function CheckoutPageClient({
                   <Input label={t('checkout.line1')} autoComplete="address-line1" placeholder={t('checkout.line1Placeholder')} error={errors.line1?.message} {...register('line1')} />
                   <Input label={t('checkout.line2')} autoComplete="address-line2" {...register('line2')} />
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div className="space-y-1.5 sm:col-span-3">
-                      <label className="block text-sm font-medium text-[var(--foreground)]">
-                        {t('checkout.province')}
-                      </label>
-                      <select
-                        autoComplete="address-level1"
-                        className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-base sm:text-sm text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
-                        value={watchedProvince}
-                        onChange={e =>
-                          setValue('province', e.target.value, {
-                            shouldValidate: true,
-                            shouldDirty: true,
-                          })
-                        }
-                      >
-                        <option value="" disabled>
-                          {t('checkout.provincePlaceholder')}
-                        </option>
-                        {SPAIN_PROVINCES.map(p => (
-                          <option key={p.prefix} value={p.name}>
-                            {p.name}
-                          </option>
-                        ))}
-                      </select>
-                      {errors.province?.message && (
-                        <p className="text-xs text-red-600 dark:text-red-400">
-                          {errors.province.message}
-                        </p>
-                      )}
-                    </div>
                     <Input
                       label={t('checkout.postalCode')}
                       placeholder={t('checkout.postalCodePlaceholder')}
@@ -584,6 +568,26 @@ export function CheckoutPageClient({
                       />
                     </div>
                   </div>
+                  {/* #1074: province auto-derived from postal code. The
+                      visible chip lets the buyer verify the match without a
+                      52-option <select> picker. The form value is set by
+                      the postal-code useEffect; on submit, the server-side
+                      `postalProvinceRefiner` cross-checks the pair. */}
+                  {watchedPostalCode.length === 5 && watchedProvince && (
+                    <p className="text-xs text-[var(--muted)]">
+                      {t('checkout.provinceDerived').replace('{province}', watchedProvince)}
+                    </p>
+                  )}
+                  {watchedPostalCode.length === 5 && !watchedProvince && (
+                    <p className="text-xs text-red-600 dark:text-red-400" role="alert">
+                      {t('checkout.provinceUnknownCp')}
+                    </p>
+                  )}
+                  {errors.province?.message && watchedPostalCode.length === 5 && watchedProvince && (
+                    <p className="text-xs text-red-600 dark:text-red-400">
+                      {errors.province.message}
+                    </p>
+                  )}
                   <Input
                     label={t('checkout.phone')}
                     type="tel"
