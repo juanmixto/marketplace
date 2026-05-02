@@ -5,12 +5,15 @@ Este repo es un **marketplace digital curado** de productores artesanales. La in
 
 ## Contexto obligatorio antes de trabajar
 
-Cualquier agente que vaya a (a) escribir código de producto, (b) abrir issues, (c) priorizar trabajo o (d) proponer features **debe leer**:
+Lee **siempre** la sección "Hacer / No hacer" inmediatamente abajo (parte de este `AGENTS.md`).
 
-1. [`docs/AGENT-CONTEXT.md`](docs/AGENT-CONTEXT.md) — **destilado denso** de decisiones (ADR-001..009), invariantes técnicas, anti-patrones y prioridades. Reemplaza al "lee 3 índices + un fichero" anterior. Si necesitas el matiz de algo, abres el enlace correspondiente.
-2. La sección "Hacer / No hacer" inmediatamente abajo.
+**Solo si tu tarea toca producto, negocio, UX, copy, catálogo, productores, checkout u onboarding** lee también:
 
-Para tareas con scope concreto (checkout, auth, catalog, ingestion, db, webhook, i18n, pwa, security, ci, test, refactor, bugfix, docs), pide el reading list mínimo:
+- [`docs/AGENT-CONTEXT.md`](docs/AGENT-CONTEXT.md) — destilado denso de decisiones (ADR-001..009), prioridades, flujos críticos, anti-patrones. Sustituye al "abre 3 índices + un fichero".
+
+**Si tu tarea es técnica pura (refactor, bugfix, infra, CI, tests, dependencias) NO lo abras** — `AGENTS.md` + las convenciones técnicas listadas más abajo bastan. Cargarlo te cuesta ~2.5k tokens sin aportarte nada (medido, no estimado).
+
+Para cualquier tarea con scope concreto, el reading list mínimo:
 
 ```bash
 scripts/agent-context.sh <task-type>      # imprime la lista mínima de archivos a leer
@@ -81,15 +84,15 @@ This repo is shared by several Claude Code agents at the same time. Skip this ch
 
 ### Structural enforcement (active 2026-04-26)
 
-A guard wrapper at `~/.local/bin/git` (installed on the laptop) actively blocks HEAD-moving and working-tree-mutating subcommands inside `/home/whisper/marketplace` when invoked by an agent (detected via `CLAUDE_CODE_SESSION_ID` env var):
+A guard wrapper at `~/.local/bin/git` (installed on the laptop) actively blocks HEAD-moving and working-tree-mutating subcommands inside `/home/whisper/marketplace` for any process that is NOT marked as a human shell. The detection model inverted on 2026-04-26 from "detect Claude Code via env var" to **"block by default, humans opt out"** so that Codex CLI, GitHub Copilot CLI, and any future agent harness inherits the guard automatically without per-agent allowlist maintenance.
 
 - **Blocked:** `checkout`, `switch`, `reset`, `restore`, `stash`, `merge`, `rebase`, `pull`, `cherry-pick`, `revert`, `am`
 - **Allowed:** `fetch`, `worktree add/remove/list`, `log`, `status`, `diff`, `show`, `branch -l`, `remote`, etc.
 - **Scope:** only the main repo path. Worktrees under `/home/whisper/worktrees/*` and any other repo are unaffected.
-- **Bypass:** if you genuinely need to override (emergency recovery, after explicit user confirmation), prefix one command with `CLAUDE_AGENT_BYPASS=1`.
-- **Humans:** never affected. The guard only fires when `CLAUDE_CODE_SESSION_ID` is in the environment.
+- **Humans opt out:** add `export HUMAN_SHELL=1` to your `~/.bashrc` / `~/.zshrc` / equivalent. Once set, your shells run unrestricted.
+- **One-shot bypass:** if an agent genuinely needs to override (emergency recovery, after explicit user confirmation), prefix one command with `AGENT_BYPASS=1` (or the legacy `CLAUDE_AGENT_BYPASS=1` for back-compat).
 
-Wrapper source: `~/.local/bin/git`. The wrapper is part of the laptop setup, not committed to the repo.
+Wrapper source: `~/.local/bin/git`. The wrapper is part of the laptop setup, not committed to the repo. A reference copy lives at `scripts/agent-guard-git.sh`.
 
 For the full policy and rationale see [`docs/git-workflow.md`](docs/git-workflow.md). For branch naming see the same doc § "Allowed branch prefixes". For deeper hygiene signals (gone branches, stale worktrees) run `scripts/git-hygiene.sh`.
 
