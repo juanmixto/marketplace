@@ -8,7 +8,7 @@ import { isVendorRole } from '@/lib/roles'
 import { getServerT } from '@/i18n/server'
 import { VendorApplicationForm } from './VendorApplicationForm'
 
-export const metadata: Metadata = { title: 'Hazte vendedor' }
+export const metadata: Metadata = { title: 'Solicita invitación al marketplace' }
 
 interface PageProps {
   searchParams?: Promise<{ enviada?: string }>
