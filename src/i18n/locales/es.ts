@@ -253,6 +253,9 @@ const es = {
 
   // Checkout
   'checkout.title': 'Finalizar pedido',
+  'checkout.guestEmailHeading': 'Email de contacto',
+  'checkout.guestEmailHelp': 'Te enviaremos la confirmación del pedido a este correo. Si ya tienes cuenta, inicia sesión en su lugar.',
+  'checkout.guestEmailLabel': 'Email',
   'checkout.provinceDerived': 'Provincia: {province}',
   'checkout.provinceUnknownCp': 'No reconocemos ese código postal. Comprueba que es de España.',
   'checkout.address': 'Dirección de entrega',

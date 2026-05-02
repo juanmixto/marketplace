@@ -255,6 +255,9 @@ const en: Record<TranslationKeys, string> = {
 
   // Checkout
   'checkout.title': 'Complete order',
+  'checkout.guestEmailHeading': 'Contact email',
+  'checkout.guestEmailHelp': "We'll send your order confirmation to this address. If you already have an account, sign in instead.",
+  'checkout.guestEmailLabel': 'Email',
   'checkout.provinceDerived': 'Province: {province}',
   'checkout.provinceUnknownCp': "We don't recognise that postal code. Make sure it's a Spanish one.",
   'checkout.address': 'Delivery address',

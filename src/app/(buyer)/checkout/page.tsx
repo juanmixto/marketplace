@@ -72,6 +72,7 @@ export default async function CheckoutPage() {
       userLastName={userLastName}
       checkoutAttemptId={checkoutAttemptId}
       initialAddresses={initialAddresses}
+      hasSession={Boolean(session?.user?.id)}
     />
   )
 }

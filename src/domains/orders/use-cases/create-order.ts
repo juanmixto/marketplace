@@ -2,7 +2,6 @@
 
 import { db } from '@/lib/db'
 import { hashCartForDedupe } from '@/domains/cart'
-import { redirect } from 'next/navigation'
 import { generateOrderNumber } from '@/lib/utils'
 import { createPaymentIntent } from '@/domains/payments'
 import {
@@ -25,6 +24,7 @@ import {
 // eslint-disable-next-line no-restricted-imports -- calculator stays out of the shipping barrel (dynamic db import)
 import { getShippingCost } from '@/domains/shipping/calculator'
 import { getActionSession } from '@/lib/action-session'
+import { resolveGuestCustomer } from '../guest-customer'
 import { logger } from '@/lib/logger'
 import { generateCorrelationId } from '@/lib/correlation'
 import {
@@ -47,6 +47,8 @@ import {
 import {
   CheckoutAttemptCrossUserError,
   EmptyCartOrUnavailableProductsError,
+  GuestEmailBelongsToRealAccountError,
+  GuestEmailRequiredError,
   InsufficientStockError,
   InvalidPromotionCodeError,
   SavedAddressUnavailableError,
@@ -400,11 +402,33 @@ export async function createOrder(
   options: { promotionCode?: string | null; checkoutAttemptId?: string | null } = {}
 ): Promise<CreateOrderResult> {
   const session = await getActionSession()
-  if (!session) redirect('/login')
-  const sessionUserId = session.user.id
 
   const correlationId = generateCorrelationId()
   const checkoutAttemptId = options.checkoutAttemptId ?? null
+
+  // #1072: guest checkout. If no session, mint or reuse a User row
+  // from the form's guestEmail. Real accounts are rejected here so the
+  // order never auto-attaches to an email whose owner did not log in.
+  let sessionUserId: string
+  let isGuest = false
+  if (session) {
+    sessionUserId = session.user.id
+  } else {
+    const guestEmail = formData.guestEmail?.trim()
+    if (!guestEmail) {
+      throw new GuestEmailRequiredError()
+    }
+    const resolved = await resolveGuestCustomer(
+      guestEmail,
+      formData.address.firstName,
+      formData.address.lastName,
+    )
+    if (!resolved.ok) {
+      throw new GuestEmailBelongsToRealAccountError()
+    }
+    sessionUserId = resolved.userId
+    isGuest = resolved.isGuest
+  }
 
   if (checkoutAttemptId) {
     const replay = await replayCheckoutAttempt({
@@ -421,6 +445,7 @@ export async function createOrder(
   logger.info('checkout.start', {
     correlationId,
     userId: sessionUserId,
+    isGuest,
     itemCount: items.length,
     hasSelectedAddress:
       typeof formData.selectedAddressId === 'string' && formData.selectedAddressId.length > 0,
@@ -729,7 +754,10 @@ export async function createOrder(
 
   const orderSideEffects = recordOrderCreatedSideEffects({
     orderId: order.id,
-    customerName: session.user.name?.trim() || 'Cliente',
+    customerName:
+      session?.user.name?.trim() ||
+      `${formData.address.firstName} ${formData.address.lastName}`.trim() ||
+      'Cliente',
     vendorIds,
     fulfillmentByVendor,
     lines,

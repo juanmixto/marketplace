@@ -120,7 +120,7 @@ test('addressSchema — postal/province cross-field check still active', () => {
 test('checkoutSchema — frozen shape', () => {
   assertShape('checkoutSchema', checkoutSchema as never, {
     required: ['address'],
-    optional: ['saveAddress', 'selectedAddressId'],
+    optional: ['saveAddress', 'selectedAddressId', 'guestEmail'],
   })
 })
 
@@ -129,7 +129,7 @@ test('checkoutSchema — frozen shape', () => {
 test('checkoutWithSavedAddressSchema — frozen shape', () => {
   assertShape('checkoutWithSavedAddressSchema', checkoutWithSavedAddressSchema as never, {
     required: ['selectedAddressId'],
-    optional: ['address', 'saveAddress'],
+    optional: ['address', 'saveAddress', 'guestEmail'],
   })
 })
 
@@ -140,7 +140,7 @@ test('checkoutWithSavedAddressSchema — frozen shape', () => {
 test('checkoutFormSchema — frozen shape', () => {
   assertShape('checkoutFormSchema', checkoutFormSchema as never, {
     required: ['firstName', 'lastName', 'line1', 'city', 'province', 'postalCode'],
-    optional: ['line2', 'phone', 'saveAddress', 'selectedAddressId'],
+    optional: ['line2', 'phone', 'saveAddress', 'selectedAddressId', 'guestEmail'],
   })
 })
 
