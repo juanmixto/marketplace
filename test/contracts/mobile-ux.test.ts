@@ -575,18 +575,24 @@ test('mobile header drawer is reorganised into Mi cuenta / Ajustes / Explorar (n
 
 test('service worker disables /_next/static SWR cache on dev hostnames', () => {
   // Stale chunks in the SW's static cache caused real "I fixed it on disk
-  // but the device serves yesterday's bundle" confusion on dev.feldescloud.com
+  // but the device serves yesterday's bundle" confusion on dev tunnel hosts
   // until the SWR revalidate happened to race a fresh navigation. On dev
   // hosts we now bypass the cache entirely; production keeps it.
+  // The list of dev hostnames is injected at build time by scripts/build-sw.mjs
+  // from DEV_TUNNEL_HOSTS, so the template carries a placeholder and the
+  // build script owns the default during the domain coexistence window.
   const sw = read('public/sw.template.js')
-  assert.match(sw, /const DEV_HOSTNAMES = new Set\(/, 'sw.template.js must declare DEV_HOSTNAMES')
-  assert.match(sw, /'dev\.feldescloud\.com'/, 'DEV_HOSTNAMES must include dev.feldescloud.com')
-  assert.match(sw, /'localhost'/, 'DEV_HOSTNAMES must include localhost')
+  assert.match(sw, /const DEV_HOSTNAMES = new Set\(__DEV_HOSTNAMES__\)/, 'sw.template.js must declare DEV_HOSTNAMES from the __DEV_HOSTNAMES__ placeholder')
   assert.match(
     sw,
     /DEV_HOSTNAMES\.has\(self\.location\.hostname\)\)\s*return false/,
     'isCacheableStatic must short-circuit to false on dev hostnames so chunks are passthrough',
   )
+  const builder = read('scripts/build-sw.mjs')
+  assert.match(builder, /__DEV_HOSTNAMES__/, 'build-sw.mjs must substitute the __DEV_HOSTNAMES__ placeholder')
+  assert.match(builder, /dev\.raizdirecta\.es/, 'build-sw.mjs default must include dev.raizdirecta.es')
+  assert.match(builder, /dev\.feldescloud\.com/, 'build-sw.mjs default must include dev.feldescloud.com during coexistence')
+  assert.match(builder, /localhost/, 'build-sw.mjs default must include localhost')
 })
 
 test('BuildBadge formats build time in Europe/Madrid, not UTC', () => {
