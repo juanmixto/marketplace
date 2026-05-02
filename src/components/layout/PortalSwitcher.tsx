@@ -8,6 +8,19 @@ import {
   ChevronDownIcon,
   CheckIcon,
 } from '@heroicons/react/24/outline'
+import {
+  FloatingPortal,
+  autoUpdate,
+  flip,
+  offset,
+  shift,
+  size,
+  useClick,
+  useDismiss,
+  useFloating,
+  useInteractions,
+  useRole,
+} from '@floating-ui/react'
 import { cn } from '@/lib/utils'
 import { useT } from '@/i18n'
 import { switchPortal } from '@/domains/portals/actions'
@@ -29,6 +42,29 @@ export function PortalSwitcher({ portals, current }: Props) {
   const [open, setOpen] = useState(false)
   const t = useT()
 
+  const { refs, floatingStyles, context } = useFloating({
+    open,
+    onOpenChange: setOpen,
+    placement: 'bottom-end',
+    whileElementsMounted: autoUpdate,
+    middleware: [
+      offset(8),
+      flip({ padding: 8 }),
+      shift({ padding: 8 }),
+      size({
+        padding: 8,
+        apply({ availableWidth, elements }) {
+          elements.floating.style.maxWidth = `${Math.min(availableWidth, 360)}px`
+        },
+      }),
+    ],
+  })
+
+  const click = useClick(context)
+  const dismiss = useDismiss(context, { outsidePress: true, escapeKey: true })
+  const role = useRole(context, { role: 'menu' })
+  const { getReferenceProps, getFloatingProps } = useInteractions([click, dismiss, role])
+
   // Hide the control entirely when there's nothing to switch to.
   if (portals.length < 2) return null
 
@@ -36,14 +72,15 @@ export function PortalSwitcher({ portals, current }: Props) {
   const CurrentIcon = ICONS[current]
 
   return (
-    <div className="relative">
+    <>
       <button
+        ref={refs.setReference}
         type="button"
-        onClick={() => setOpen(v => !v)}
         aria-label={t('portalSwitcher.label')}
         aria-haspopup="menu"
         aria-expanded={open}
         className="flex items-center gap-2 rounded-xl border border-[var(--border)] px-2.5 py-1.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
+        {...getReferenceProps()}
       >
         <CurrentIcon className="h-4 w-4" />
         <span className="hidden sm:inline max-w-[140px] truncate">
@@ -53,11 +90,13 @@ export function PortalSwitcher({ portals, current }: Props) {
       </button>
 
       {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden="true" />
+        <FloatingPortal>
           <div
-            role="menu"
-            className="absolute right-0 top-full z-20 mt-2 w-60 rounded-2xl border border-[var(--border)] bg-[var(--surface)] py-1.5 shadow-2xl ring-1 ring-black/5 backdrop-blur dark:ring-white/10"
+            // eslint-disable-next-line react-hooks/refs -- Floating UI's setFloating is a stable callback setter, not a useRef.
+            ref={refs.setFloating}
+            style={floatingStyles}
+            className="z-[60] w-60 rounded-2xl border border-[var(--border)] bg-[var(--surface)] py-1.5 shadow-2xl ring-1 ring-black/5 backdrop-blur dark:ring-white/10"
+            {...getFloatingProps()}
           >
             <p className="px-3 py-2 text-[11px] uppercase tracking-wide text-[var(--muted)] border-b border-[var(--border)] mb-1">
               {t('portalSwitcher.current')}
@@ -92,8 +131,8 @@ export function PortalSwitcher({ portals, current }: Props) {
               )
             })}
           </div>
-        </>
+        </FloatingPortal>
       )}
-    </div>
+    </>
   )
 }

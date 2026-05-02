@@ -18,6 +18,7 @@ import {
   ArchiveBoxIcon,
   PhotoIcon,
 } from '@heroicons/react/24/outline'
+import { FloatingPortal, autoUpdate, flip, offset, shift, size, useFloating } from '@floating-ui/react'
 import { ProductActions } from '@/components/vendor/ProductActions'
 import { setProductStock, submitForReview } from '@/domains/vendors/actions'
 import { useT } from '@/i18n'
@@ -471,6 +472,23 @@ function QuickSubmitButton({ productId }: { productId: string }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const { refs, floatingStyles } = useFloating({
+    open: !!error,
+    placement: 'bottom-end',
+    whileElementsMounted: autoUpdate,
+    middleware: [
+      offset(4),
+      flip({ padding: 8, fallbackAxisSideDirection: 'start' }),
+      shift({ padding: 8 }),
+      size({
+        padding: 8,
+        apply({ availableWidth, elements }) {
+          elements.floating.style.maxWidth = `${Math.min(availableWidth, 256)}px`
+        },
+      }),
+    ],
+  })
+
   async function handleClick() {
     setLoading(true)
     setError(null)
@@ -484,8 +502,9 @@ function QuickSubmitButton({ productId }: { productId: string }) {
   }
 
   return (
-    <div className="relative flex flex-col items-end">
+    <>
       <button
+        ref={refs.setReference}
         type="button"
         onClick={handleClick}
         disabled={loading}
@@ -496,14 +515,18 @@ function QuickSubmitButton({ productId }: { productId: string }) {
         {loading ? t('vendor.productActions.sending') : t('vendor.productActions.sendReview')}
       </button>
       {error && (
-        <p
-          role="alert"
-          className="absolute right-0 top-full z-20 mt-1 max-w-[16rem] rounded-md border border-red-200 bg-white px-2 py-1 text-[11px] leading-snug text-red-700 shadow-md dark:border-red-900/60 dark:bg-gray-900 dark:text-red-300"
-        >
-          {error}
-        </p>
+        <FloatingPortal>
+          <p
+            ref={refs.setFloating}
+            style={floatingStyles}
+            role="alert"
+            className="z-[60] rounded-md border border-red-200 bg-white px-2 py-1 text-[11px] leading-snug text-red-700 shadow-md dark:border-red-900/60 dark:bg-gray-900 dark:text-red-300"
+          >
+            {error}
+          </p>
+        </FloatingPortal>
       )}
-    </div>
+    </>
   )
 }
 
