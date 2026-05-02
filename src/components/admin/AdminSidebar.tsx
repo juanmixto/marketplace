@@ -64,10 +64,14 @@ export function AdminSidebar({ user }: Props = {}) {
     direction: 'left',
   })
   const ingestionAdminEnabled = useFeatureFlagStrict('feat-ingestion-admin')
+  const promotionsEnabled = useFeatureFlagStrict('feat-promotions')
+  const vendorSubscriptionsEnabled = useFeatureFlagStrict('feat-vendor-subscriptions')
   const adminAnalyticsEnabled = useFeatureFlagStrict('feat-admin-analytics')
   const adminReportsEnabled = useFeatureFlagStrict('feat-admin-reports')
   const flagState: Record<string, boolean> = {
     'feat-ingestion-admin': ingestionAdminEnabled,
+    'feat-promotions': promotionsEnabled,
+    'feat-vendor-subscriptions': vendorSubscriptionsEnabled,
     'feat-admin-analytics': adminAnalyticsEnabled,
     'feat-admin-reports': adminReportsEnabled,
   }
