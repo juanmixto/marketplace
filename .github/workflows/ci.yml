@@ -65,6 +65,7 @@ jobs:
           npm run audit:flags-cleanup > .ci-logs/audit-flags.log   2>&1 & PID_AUDIT_FLAGS=$!
           npm run audit:fk         > .ci-logs/audit-fk.log         2>&1 & PID_AUDIT_FK=$!
           npm run audit:findMany   > .ci-logs/audit-findmany.log   2>&1 & PID_AUDIT_FM=$!
+          npm run audit:image-sizes > .ci-logs/audit-image-sizes.log 2>&1 & PID_AUDIT_IMG=$!
           npm run typecheck:app    > .ci-logs/typecheck-app.log    2>&1 & PID_TC_APP=$!
           npm run typecheck:test   > .ci-logs/typecheck-test.log   2>&1 & PID_TC_TEST=$!
           if [ "$GH_EVENT_NAME" = "push" ] && [ "$GH_REF" = "refs/heads/main" ]; then
@@ -79,6 +80,7 @@ jobs:
           wait $PID_AUDIT_FLAGS || { echo "::group::audit:flags-cleanup FAILED"; cat .ci-logs/audit-flags.log; echo "::endgroup::"; STATUS=1; }
           wait $PID_AUDIT_FK || { echo "::group::audit:fk FAILED";        cat .ci-logs/audit-fk.log;         echo "::endgroup::"; STATUS=1; }
           wait $PID_AUDIT_FM || { echo "::group::audit:findMany FAILED";  cat .ci-logs/audit-findmany.log;   echo "::endgroup::"; STATUS=1; }
+          wait $PID_AUDIT_IMG || { echo "::group::audit:image-sizes FAILED"; cat .ci-logs/audit-image-sizes.log; echo "::endgroup::"; STATUS=1; }
           wait $PID_TC_APP  || { echo "::group::typecheck:app FAILED";    cat .ci-logs/typecheck-app.log;    echo "::endgroup::"; STATUS=1; }
           wait $PID_TC_TEST || { echo "::group::typecheck:test FAILED";   cat .ci-logs/typecheck-test.log;   echo "::endgroup::"; STATUS=1; }
           wait $PID_TESTS   || { echo "::group::tests FAILED";            cat .ci-logs/tests.log;            echo "::endgroup::"; STATUS=1; }
@@ -89,6 +91,7 @@ jobs:
             echo "::group::audit:flags-cleanup"; cat .ci-logs/audit-flags.log;   echo "::endgroup::"
             echo "::group::audit:fk";        cat .ci-logs/audit-fk.log;         echo "::endgroup::"
             echo "::group::audit:findMany";  cat .ci-logs/audit-findmany.log;   echo "::endgroup::"
+            echo "::group::audit:image-sizes"; cat .ci-logs/audit-image-sizes.log; echo "::endgroup::"
             echo "::group::typecheck:app";   cat .ci-logs/typecheck-app.log;    echo "::endgroup::"
             echo "::group::typecheck:test";  cat .ci-logs/typecheck-test.log;   echo "::endgroup::"
             echo "::group::tests";           cat .ci-logs/tests.log;            echo "::endgroup::"

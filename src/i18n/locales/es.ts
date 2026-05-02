@@ -75,6 +75,8 @@ const es = {
   privacy: 'Privacidad',
   cookies: 'Cookies',
   terms: 'Términos',
+  shippingPolicy: 'Envíos',
+  returnsPolicy: 'Devoluciones',
 
   /* Language switcher */
   language: 'Idioma',
@@ -411,6 +413,10 @@ const es = {
   'vendor.upload.unsupported': 'tipo de archivo no soportado',
   'vendor.upload.tooLarge': 'archivo demasiado grande (máximo 5 MB)',
   'vendor.upload.error': 'No se pudo subir la imagen',
+  // #1049 — alt text per image (accesibilidad y SEO de Google Imágenes).
+  'vendor.imageAltLabel': 'Texto alternativo',
+  'vendor.imageAltPlaceholder': 'Describe la foto: \"Bote de miel artesana sobre madera\"',
+  'vendor.imageAltHint': 'Describe lo que se ve en la foto. Ayuda a usuarios con lectores de pantalla y a Google a encontrar tu producto.',
 
   // Vendor – sidebar / header
   'vendor.sidebar.portalTitle': 'Portal Productor',
@@ -1396,6 +1402,11 @@ const es = {
   'vendor.profileForm.categoryAuto': 'Automático (según tu nombre y descripción)',
   'vendor.profileForm.logoLabel': 'Foto de perfil',
   'vendor.profileForm.coverLabel': 'Portada del escaparate',
+  // #1049 — alt text para logo + portada del vendor.
+  'vendor.profileForm.logoAltLabel': 'Texto alternativo del logo',
+  'vendor.profileForm.logoAltPlaceholder': 'Logo de [tu nombre], productor de [tu producto principal]',
+  'vendor.profileForm.coverImageAltLabel': 'Texto alternativo de la portada',
+  'vendor.profileForm.coverImageAltPlaceholder': 'Vista del obrador con panes recién horneados',
   'vendor.profileForm.logistics': 'Logística',
   'vendor.profileForm.cutoffLabel': 'Hora de corte de pedidos',
   'vendor.profileForm.cutoffHint': 'Formato HH:MM. Pedidos recibidos después se procesan al día siguiente.',
