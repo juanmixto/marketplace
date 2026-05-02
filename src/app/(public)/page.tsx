@@ -9,6 +9,7 @@ import {
   TruckIcon,
 } from '@heroicons/react/24/outline'
 import { ProductCard } from '@/components/catalog/ProductCard'
+import { CatalogViewedTracker } from '@/components/analytics/CatalogViewedTracker'
 import { buildHomeStats, type HomeStat } from '@/domains/catalog/home'
 import { getHomeSnapshot } from '@/domains/catalog/queries'
 import { getVendorHeroImage, getVendorVisualLabelKey } from '@/domains/vendors/visuals'
@@ -120,6 +121,7 @@ export default async function HomePage() {
   return (
     <>
       <JsonLd data={structuredData} />
+      <CatalogViewedTracker surface="home" />
       <div>
         {publicConfig.MAINTENANCE_MODE && (
           <div className="border-b border-rose-200 bg-rose-50 dark:border-rose-900/50 dark:bg-rose-950/50">
