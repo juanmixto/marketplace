@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { TrashIcon, PencilIcon, CheckIcon } from '@heroicons/react/24/outline'
@@ -35,6 +36,7 @@ export function DireccionesClient({
   userLastName = '',
   initialAddresses,
 }: DireccionesClientProps = {}) {
+  const router = useRouter()
   const [addresses, setAddresses] = useState<Address[]>(initialAddresses ?? [])
   // If the page already passed server-rendered addresses we can paint
   // immediately; otherwise preserve the old behaviour of showing a
@@ -134,6 +136,11 @@ export function DireccionesClient({
         setAddresses([...base, savedAddress])
       }
 
+      // Invalidate the Next.js Router Cache so server-rendered pages
+      // that read addresses (/checkout, /cuenta/suscripciones/nueva,
+      // /cuenta with default-address summary) re-fetch on next nav.
+      router.refresh()
+
       reset()
       setShowForm(false)
       setEditingId(null)
@@ -163,6 +170,7 @@ export function DireccionesClient({
       })
       if (!res.ok) throw new Error('Error al eliminar')
       setAddresses(addresses.filter(a => a.id !== id))
+      router.refresh()
     } catch {
       setError('Error al eliminar dirección')
     } finally {
@@ -214,6 +222,7 @@ export function DireccionesClient({
         ...a,
         isDefault: a.id === id,
       })))
+      router.refresh()
     } catch {
       setError('Error al establecer dirección predeterminada')
     }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -48,6 +49,7 @@ interface Props {
 }
 
 export function IncidentDetailClient({ incidentId, status, messages: initial }: Props) {
+  const router = useRouter()
   const [messages, setMessages]           = useState<Message[]>(initial)
   const [showResolve, setShowResolve]     = useState(false)
   const [busy, setBusy]                   = useState(false)
@@ -71,6 +73,9 @@ export function IncidentDetailClient({ incidentId, status, messages: initial }: 
       const msg: Message = await res.json()
       setMessages(prev => [...prev, msg])
       msgForm.reset()
+      // Refresh so /admin/incidencias (list) reflects the updated
+      // last-activity / message count on next navigation.
+      router.refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : t('admin.incidentDetail.errorSendMessage'))
     } finally {
@@ -90,6 +95,9 @@ export function IncidentDetailClient({ incidentId, status, messages: initial }: 
       if (!res.ok) throw new Error((await res.json()).message ?? t('admin.incidentDetail.errorResolve'))
       setResolved(true)
       setShowResolve(false)
+      // Refresh so /admin/incidencias (list) shows the new RESOLVED
+      // status without a hard reload.
+      router.refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : t('admin.incidentDetail.errorResolveIncident'))
     } finally {
