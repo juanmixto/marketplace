@@ -71,7 +71,7 @@ test('buildContentSecurityPolicy with nonce enforces strict script-src (#537)', 
     /img-src[^;]* https:(?=\s|;|$)/,
     'img-src must not contain a bare `https:` wildcard'
   )
-  assert.match(csp, /connect-src 'self' https:\/\/api\.stripe\.com https:\/\/js\.stripe\.com/)
+  assert.match(csp, /connect-src 'self' https:\/\/api\.stripe\.com https:\/\/js\.stripe\.com https:\/\/\*\.posthog\.com/)
 
   process.env.NEXT_PUBLIC_APP_URL = previousAppUrl
 })
@@ -116,7 +116,7 @@ test('buildContentSecurityPolicy allows React development tooling requirements i
   assert.match(csp, /script-src [^;]*'unsafe-inline'/)
   assert.match(csp, /script-src [^;]*'unsafe-eval'/)
   assert.doesNotMatch(csp, /script-src [^;]*'strict-dynamic'/)
-  assert.match(csp, /connect-src 'self' ws: wss: https:\/\/api\.stripe\.com https:\/\/js\.stripe\.com/)
+  assert.match(csp, /connect-src 'self' ws: wss: https:\/\/api\.stripe\.com https:\/\/js\.stripe\.com https:\/\/\*\.posthog\.com/)
 })
 
 test('buildContentSecurityPolicy keeps strict-dynamic and drops unsafe-inline in production', () => {
@@ -126,6 +126,27 @@ test('buildContentSecurityPolicy keeps strict-dynamic and drops unsafe-inline in
   assert.match(csp, /script-src [^;]*'strict-dynamic'/)
   assert.doesNotMatch(csp, /script-src [^;]*'unsafe-inline'/)
   assert.doesNotMatch(csp, /script-src [^;]*'unsafe-eval'/)
+})
+
+test('buildContentSecurityPolicy allows PostHog connections in connect-src (dev + prod)', () => {
+  // PostHog runs entirely from npm bundle (script-src does not need a host),
+  // but the SDK opens XHR/fetch/sendBeacon to https://eu.i.posthog.com (or
+  // https://us.i.posthog.com for US-region projects, plus the asset CDN
+  // PostHog rotates to). The allowlist uses a wildcard *.posthog.com to
+  // cover all of those without listing each.
+  //
+  // This test pins the rule explicitly so a future "tighten the CSP" PR
+  // doesn't silently drop PostHog and reintroduce the silent-failure class
+  // of bug we hit on 2026-05-02 (see #1093 + the CSP-blocked Live events
+  // it caused before this PR landed).
+  const dev = buildContentSecurityPolicy({ nonce: 'n', isDevelopment: true })
+  const prod = buildContentSecurityPolicy({ nonce: 'n', isDevelopment: false })
+
+  assert.match(dev, /connect-src [^;]* https:\/\/\*\.posthog\.com/)
+  assert.match(prod, /connect-src [^;]* https:\/\/\*\.posthog\.com/)
+  // script-src must NOT list posthog — the SDK is bundled, not CDN-loaded.
+  assert.doesNotMatch(dev, /script-src [^;]*posthog\.com/)
+  assert.doesNotMatch(prod, /script-src [^;]*posthog\.com/)
 })
 
 test('buildHeaderRules forces /_next/static no-store during development', () => {

@@ -100,7 +100,15 @@ export function buildContentSecurityPolicy(
       ' https://*.public.blob.vercel-storage.com',
     "font-src 'self' data:",
     "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
-    `connect-src 'self'${isDevelopment ? ' ws: wss:' : ''} https://api.stripe.com https://js.stripe.com`,
+    // connect-src allowlist:
+    //   - Stripe: required for payment intents and JS SDK telemetry.
+    //   - PostHog EU: NEXT_PUBLIC_POSTHOG_HOST defaults to https://eu.i.posthog.com
+    //     (src/lib/posthog.ts:15). The wildcard `https://*.posthog.com` covers
+    //     EU + US + the asset CDN PostHog occasionally rotates to. The SDK is
+    //     bundled (npm dep), so script-src does NOT need a posthog entry.
+    //     If posthog hosting moves to a non-posthog.com domain in the future,
+    //     update both this entry and src/lib/posthog.ts:15 in lockstep.
+    `connect-src 'self'${isDevelopment ? ' ws: wss:' : ''} https://api.stripe.com https://js.stripe.com https://*.posthog.com`,
     "object-src 'none'",
     "media-src 'self' blob:",
     "worker-src 'self' blob:",
