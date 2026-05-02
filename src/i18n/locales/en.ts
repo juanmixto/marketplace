@@ -287,6 +287,8 @@ const en: Record<TranslationKeys, string> = {
   'checkout.processing': 'Processing order...',
   'checkout.yourOrder': 'Your order',
   'checkout.shippingHint': 'Cost is adjusted automatically based on the postal code and shipping zone.',
+  'checkout.shippingPendingCp': 'To be calculated',
+  'checkout.shippingHintNoCp': 'Enter the postal code to see the exact shipping cost.',
   'checkout.promo.label': 'Have a promo code?',
   'checkout.promo.placeholder': 'Enter your code',
   'checkout.promo.apply': 'Apply',
