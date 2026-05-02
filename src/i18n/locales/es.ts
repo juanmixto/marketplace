@@ -253,6 +253,8 @@ const es = {
 
   // Checkout
   'checkout.title': 'Finalizar pedido',
+  'checkout.provinceDerived': 'Provincia: {province}',
+  'checkout.provinceUnknownCp': 'No reconocemos ese código postal. Comprueba que es de España.',
   'checkout.address': 'Dirección de entrega',
   'checkout.savedAddresses': 'Direcciones guardadas',
   'checkout.savedAddressesLoading': 'Cargando tus direcciones guardadas...',
@@ -281,7 +283,7 @@ const es = {
   'checkout.payment': 'Pago',
   'checkout.demoMode': 'Modo demo activado',
   'checkout.demoModeDesc': 'El pago se simulará automáticamente. En producción se integra Stripe.',
-  'checkout.confirm': 'Confirmar pedido',
+  'checkout.confirm': 'Continuar al pago',
   'checkout.processing': 'Procesando pedido...',
   'checkout.yourOrder': 'Tu pedido',
   'checkout.shippingHint': 'El coste se ajusta automáticamente según el código postal y la zona de envío.',
