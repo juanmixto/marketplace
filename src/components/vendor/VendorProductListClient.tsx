@@ -2,8 +2,8 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useMemo, useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState, useTransition } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { formatPrice } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -22,7 +22,7 @@ import { ProductActions } from '@/components/vendor/ProductActions'
 import { setProductStock, submitForReview } from '@/domains/vendors/actions'
 import { useT } from '@/i18n'
 import type { BadgeVariant } from '@/domains/catalog/types'
-import { formatExpirationLabel, getExpirationTone, isProductExpired } from '@/domains/catalog/availability'
+import { formatExpirationLabel, getExpirationTone } from '@/domains/catalog/availability'
 import type { VendorCatalogItem } from '@/lib/vendor-serialization'
 
 import type { TranslationKeys } from '@/i18n/locales'
@@ -50,33 +50,45 @@ const FILTERS: { key: FilterKey; labelKey: TranslationKeys }[] = [
   { key: 'archived',      labelKey: 'vendor.productsList.filterArchived' },
 ]
 
-function matchesFilter(product: VendorCatalogItem, filter: FilterKey): boolean {
-  // Archived products are hidden from every view except the explicit
-  // "Archivados" filter, so they don't pollute counts and the regular
-  // workflow.
-  if (filter !== 'archived' && product.archivedAt) return false
-  switch (filter) {
-    case 'all':           return true
-    case 'active':        return product.status === 'ACTIVE'
-    case 'draft':         return product.status === 'DRAFT'
-    case 'pendingReview': return product.status === 'PENDING_REVIEW'
-    case 'rejected':      return product.status === 'REJECTED'
-    case 'outOfStock':    return product.trackStock && product.stock === 0
-    case 'archived':      return !!product.archivedAt
-  }
+interface AlertCounts {
+  lowStockCount: number
+  outOfStockCount: number
+  expiredCount: number
+  totalActiveCatalog: number
 }
 
 interface Props {
   products: VendorCatalogItem[]
+  alerts: AlertCounts
+  filter: FilterKey
+  query: string
+  hasNextPage: boolean
+  nextCursor: string | null
+  isFirstPage: boolean
 }
 
-export function VendorProductListClient({ products }: Props) {
+export function VendorProductListClient({
+  products,
+  alerts,
+  filter: serverFilter,
+  query: serverQuery,
+  hasNextPage,
+  nextCursor,
+  isFirstPage,
+}: Props) {
   const t = useT()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const now = new Date()
 
   const [view, setView] = useState<ViewMode>('list')
-  const [filter, setFilter] = useState<FilterKey>('all')
-  const [query, setQuery] = useState('')
+  // Local search input mirrors the URL param; on submit (Enter / blur)
+  // we navigate so the server can re-run the query.
+  const [queryInput, setQueryInput] = useState(serverQuery)
+
+  useEffect(() => {
+    setQueryInput(serverQuery)
+  }, [serverQuery])
 
   useEffect(() => {
     try {
@@ -90,20 +102,39 @@ export function VendorProductListClient({ products }: Props) {
     try { window.localStorage.setItem(VIEW_STORAGE_KEY, next) } catch { /* ignore */ }
   }
 
-  const lowStock = products.filter(p => p.trackStock && p.stock > 0 && p.stock <= 5)
-  const outOfStock = products.filter(p => p.trackStock && p.stock === 0 && p.status === 'ACTIVE')
-  const expired = products.filter(product => isProductExpired(product.expiresAt, now))
+  function navigateWith(updates: Record<string, string | null>) {
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
+    params.delete('cursor') // any filter / search change resets pagination
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === null || value === '') params.delete(key)
+      else params.set(key, value)
+    }
+    const qs = params.toString()
+    router.push(qs ? `/vendor/productos?${qs}` : '/vendor/productos')
+  }
 
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    return products.filter(p => {
-      if (!matchesFilter(p, filter)) return false
-      if (needle && !p.name.toLowerCase().includes(needle)) return false
-      return true
-    })
-  }, [products, filter, query])
+  function applyQuery() {
+    const next = queryInput.trim()
+    if (next === serverQuery) return
+    navigateWith({ q: next || null })
+  }
 
-  const hasActiveFilters = filter !== 'all' || query.trim() !== ''
+  function applyFilter(next: FilterKey) {
+    if (next === serverFilter) return
+    navigateWith({ filter: next === 'all' ? null : next })
+  }
+
+  function clearFilters() {
+    navigateWith({ filter: null, q: null })
+    setQueryInput('')
+  }
+
+  // Use the page items directly. Server already applied filter + search.
+  const filtered = products
+  // Alerts come from the server (computed over the full catalog). Keep
+  // the lookup cheap by exposing only the counts; clicking an alert
+  // navigates to the appropriate filtered view.
+  const hasActiveFilters = serverFilter !== 'all' || serverQuery.trim() !== ''
 
   return (
     <div className="space-y-5 max-w-5xl">
@@ -111,9 +142,12 @@ export function VendorProductListClient({ products }: Props) {
         <div>
           <h1 className="text-2xl font-bold text-[var(--foreground)]">{t('vendor.myCatalog')}</h1>
           <p className="text-sm text-[var(--muted)]">
-            {products.length === 1
+            {alerts.totalActiveCatalog === 1
               ? t('vendor.productsList.productsOne')
-              : t('vendor.productsList.productsOther').replace('{count}', String(products.length))}
+              : t('vendor.productsList.productsOther').replace(
+                  '{count}',
+                  String(alerts.totalActiveCatalog),
+                )}
           </p>
         </div>
         <Link
@@ -124,52 +158,54 @@ export function VendorProductListClient({ products }: Props) {
         </Link>
       </div>
 
-      {/* Stock alerts — interactive: each product name links to its editor */}
-      {(lowStock.length > 0 || outOfStock.length > 0 || expired.length > 0) && (
+      {/* Stock alerts — counts only. Clicking a count drills into the
+          filtered view; the deep editor links per product no longer
+          fit because the catalog is paginated. */}
+      {(alerts.lowStockCount > 0 || alerts.outOfStockCount > 0 || alerts.expiredCount > 0) && (
         <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-800 dark:bg-amber-950/30">
           <ExclamationTriangleIcon className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
           <div className="text-sm min-w-0 flex-1 space-y-1.5">
-            {expired.length > 0 && (
-              <AlertLine
-                labelKey={
-                  expired.length === 1
-                    ? 'vendor.productsList.expiredOne'
-                    : 'vendor.productsList.expiredOther'
-                }
-                count={expired.length}
-                products={expired}
-                fixLabel={t('vendor.productsList.alertFixExpired')}
-                tone="strong"
-              />
+            {alerts.expiredCount > 0 && (
+              <p className="font-medium text-amber-900 dark:text-amber-300">
+                {alerts.expiredCount === 1
+                  ? t('vendor.productsList.expiredCountOne')
+                  : t('vendor.productsList.expiredCountOther').replace(
+                      '{count}',
+                      String(alerts.expiredCount),
+                    )}
+              </p>
             )}
-            {outOfStock.length > 0 && (
-              <AlertLine
-                labelKey={
-                  outOfStock.length === 1
-                    ? 'vendor.productsList.outOfStockOne'
-                    : 'vendor.productsList.outOfStockOther'
-                }
-                count={outOfStock.length}
-                products={outOfStock}
-                fixLabel={t('vendor.productsList.alertFixStock')}
-                tone="strong"
-              />
+            {alerts.outOfStockCount > 0 && (
+              <p className="font-medium text-amber-900 dark:text-amber-300">
+                <button
+                  type="button"
+                  onClick={() => applyFilter('outOfStock')}
+                  className="underline decoration-amber-400/60 underline-offset-2 hover:text-amber-700 hover:decoration-amber-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 dark:hover:text-amber-200"
+                >
+                  {alerts.outOfStockCount === 1
+                    ? t('vendor.productsList.outOfStockCountOne')
+                    : t('vendor.productsList.outOfStockCountOther').replace(
+                        '{count}',
+                        String(alerts.outOfStockCount),
+                      )}
+                </button>
+              </p>
             )}
-            {lowStock.length > 0 && (
-              <AlertLine
-                labelKey="vendor.productsList.lowStock"
-                count={lowStock.length}
-                products={lowStock}
-                renderItem={p => `${p.name} (${p.stock})`}
-                fixLabel={t('vendor.productsList.alertFixStock')}
-                tone="soft"
-              />
+            {alerts.lowStockCount > 0 && (
+              <p className="text-amber-800 dark:text-amber-400">
+                {alerts.lowStockCount === 1
+                  ? t('vendor.productsList.lowStockCountOne')
+                  : t('vendor.productsList.lowStockCountOther').replace(
+                      '{count}',
+                      String(alerts.lowStockCount),
+                    )}
+              </p>
             )}
           </div>
         </div>
       )}
 
-      {products.length === 0 ? (
+      {alerts.totalActiveCatalog === 0 ? (
         <div className="rounded-xl border-2 border-dashed border-[var(--border)] px-6 py-12 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
             <ArchiveBoxIcon className="h-8 w-8" aria-hidden="true" />
@@ -189,16 +225,26 @@ export function VendorProductListClient({ products }: Props) {
               <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--muted)]" />
               <input
                 type="search"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
+                value={queryInput}
+                onChange={e => setQueryInput(e.target.value)}
+                onBlur={applyQuery}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    applyQuery()
+                  }
+                }}
                 placeholder={t('vendor.productsList.searchPlaceholder')}
                 aria-label={t('vendor.productsList.searchPlaceholder')}
                 className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] pl-9 pr-9 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
               />
-              {query && (
+              {queryInput && (
                 <button
                   type="button"
-                  onClick={() => setQuery('')}
+                  onClick={() => {
+                    setQueryInput('')
+                    navigateWith({ q: null })
+                  }}
                   aria-label={t('vendor.productsList.clearFilters')}
                   className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-[var(--muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
                 >
@@ -243,12 +289,12 @@ export function VendorProductListClient({ products }: Props) {
           {/* Filter chips */}
           <div className="flex flex-wrap items-center gap-2">
             {FILTERS.map(f => {
-              const active = filter === f.key
+              const active = serverFilter === f.key
               return (
                 <button
                   key={f.key}
                   type="button"
-                  onClick={() => setFilter(f.key)}
+                  onClick={() => applyFilter(f.key)}
                   aria-pressed={active}
                   className={`rounded-full px-3 py-1 text-xs font-medium transition ${
                     active
@@ -273,7 +319,7 @@ export function VendorProductListClient({ products }: Props) {
               {hasActiveFilters && (
                 <button
                   type="button"
-                  onClick={() => { setFilter('all'); setQuery('') }}
+                  onClick={clearFilters}
                   className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-sm text-[var(--foreground-soft)] hover:bg-[var(--surface-raised)]"
                 >
                   <XMarkIcon className="h-4 w-4" /> {t('vendor.productsList.clearFilters')}
@@ -295,68 +341,42 @@ export function VendorProductListClient({ products }: Props) {
               ))}
             </div>
           )}
+
+          {(hasNextPage || !isFirstPage) && filtered.length > 0 && (
+            <nav
+              aria-label={t('vendor.productsList.paginationLabel')}
+              className="mt-2 flex items-center justify-between border-t border-[var(--border)] pt-4"
+            >
+              {isFirstPage ? (
+                <span aria-hidden="true" />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => navigateWith({ cursor: null })}
+                  className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--surface-raised)]"
+                >
+                  {t('vendor.productsList.paginationFirst')}
+                </button>
+              )}
+              {hasNextPage && nextCursor ? (
+                <button
+                  type="button"
+                  onClick={() => navigateWith({ cursor: nextCursor })}
+                  className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--surface-raised)]"
+                >
+                  {t('vendor.productsList.paginationOlder')}
+                </button>
+              ) : (
+                <span aria-hidden="true" />
+              )}
+            </nav>
+          )}
         </>
       )}
     </div>
   )
 }
 
-function AlertLine({
-  labelKey,
-  count,
-  products,
-  renderItem,
-  fixLabel,
-  tone,
-}: {
-  labelKey: TranslationKeys
-  count: number
-  products: VendorCatalogItem[]
-  renderItem?: (p: VendorCatalogItem) => string
-  fixLabel: string
-  tone: 'strong' | 'soft'
-}) {
-  const t = useT()
-  const template = t(labelKey).replace('{count}', String(count))
-  // Template contains either {names} or {items}
-  const placeholder = template.includes('{names}') ? '{names}' : '{items}'
-  const [prefix, suffix = ''] = template.split(placeholder)
-
-  const toneClass =
-    tone === 'strong'
-      ? 'font-medium text-amber-900 dark:text-amber-300'
-      : 'text-amber-800 dark:text-amber-400'
-
-  return (
-    <p className={toneClass}>
-      <span>{prefix}</span>
-      {products.map((p, i) => (
-        <span key={p.id}>
-          <Link
-            href={`/vendor/productos/${p.id}`}
-            className="font-semibold underline decoration-amber-400/60 underline-offset-2 hover:text-amber-700 hover:decoration-amber-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 dark:hover:text-amber-200"
-          >
-            {renderItem ? renderItem(p) : p.name}
-          </Link>
-          {i < products.length - 1 && <span>, </span>}
-        </span>
-      ))}
-      <span>{suffix}</span>
-      {products.length > 0 && products[0] && (
-        <>
-          {' '}
-          <Link
-            href={`/vendor/productos/${products[0].id}`}
-            className="ml-1 inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2 py-0.5 text-xs font-semibold text-amber-800 shadow-sm hover:bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-900/40"
-          >
-            <PencilSquareIcon className="h-3 w-3" />
-            {fixLabel}
-          </Link>
-        </>
-      )}
-    </p>
-  )
-}
 
 function QuickStockInput({
   product,

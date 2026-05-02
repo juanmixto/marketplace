@@ -156,12 +156,16 @@ test('vendor layout keeps vendor content from overflowing horizontally on mobile
 
 test('checkout address form exposes autoComplete tokens for mobile prefill', () => {
   const source = read('src/components/buyer/CheckoutPageClient.tsx')
+  // `address-level1` (province) was dropped in #1083 — the value is
+  // now derived client-side from the postal code's INE prefix and is
+  // never an interactive input, so mobile browsers have nothing to
+  // prefill there. The remaining tokens still gate the autoComplete
+  // contract for the visible inputs.
   const required = [
     'autoComplete="given-name"',
     'autoComplete="family-name"',
     'autoComplete="address-line1"',
     'autoComplete="address-line2"',
-    'autoComplete="address-level1"',
     'autoComplete="address-level2"',
     'autoComplete="postal-code"',
     'autoComplete="tel"',
