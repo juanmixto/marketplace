@@ -27,6 +27,15 @@ const BUILD_BRANCH =
   process.env.NEXT_PUBLIC_GIT_BRANCH ?? readGitOutput('git rev-parse --abbrev-ref HEAD', 'unknown')
 const BUILD_TIME = process.env.NEXT_PUBLIC_BUILD_TIME ?? new Date().toISOString()
 
+// Tunnel hostnames allowed for cross-origin /_next/* requests in dev. Sourced
+// from DEV_TUNNEL_HOSTS so coexistence (raizdirecta.es + feldescloud.com) and
+// the eventual cleanup happen via env, not a code change. Default mirrors the
+// coexistence window of docs/runbooks/domain-migration.md.
+const devTunnelHosts = (process.env.DEV_TUNNEL_HOSTS ?? '*.raizdirecta.es,*.feldescloud.com')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean)
+
 const NO_STORE_CACHE_HEADER = {
   key: 'Cache-Control',
   value: 'no-store, no-cache, must-revalidate, proxy-revalidate',
@@ -109,9 +118,9 @@ const nextConfig: NextConfig = {
   // requests to /_next/* dev resources, which breaks HMR AND client hydration
   // (dropdowns, theme toggle, cart, sidebar collapse all stop responding)
   // when the page is loaded from a non-localhost host.
-  // `*.feldescloud.com` covers the Cloudflare Tunnel (dev.feldescloud.com →
-  // localhost:3001, see docs/runbooks/dev-tunnel.md) and any future subdomain.
-  allowedDevOrigins: ['192.168.*.*', '10.*.*.*', '*.local', '*.trycloudflare.com', '*.feldescloud.com'],
+  // Tunnel hostnames come from DEV_TUNNEL_HOSTS (see top of file) so the
+  // allow-list tracks the domain migration without a code change.
+  allowedDevOrigins: ['192.168.*.*', '10.*.*.*', '*.local', '*.trycloudflare.com', ...devTunnelHosts],
   experimental: {
     staleTimes: {
       // Default is 300 s (matches revalidate = 300). That causes Link-navigation to serve

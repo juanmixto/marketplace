@@ -60,11 +60,7 @@ function isProtected(url) {
 // just confuses developers (you fix something on disk, the bundle changes,
 // but the device keeps serving the previous chunk until SWR revalidates).
 // Pass-through is the right default on these hosts; production keeps cache.
-const DEV_HOSTNAMES = new Set([
-  'localhost',
-  '127.0.0.1',
-  'dev.feldescloud.com',
-])
+const DEV_HOSTNAMES = new Set(__DEV_HOSTNAMES__)
 
 function isCacheableStatic(url) {
   if (url.origin !== self.location.origin) return false
