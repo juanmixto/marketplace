@@ -60,11 +60,13 @@ interface Props {
    */
   initialAddresses?: SavedCheckoutAddress[]
   /**
-   * Whether the buyer is authenticated. Drives the guest-email field
-   * (#1072): when false, an extra `guestEmail` input renders above the
-   * address form and the server-side `createOrder` mints a passwordless
-   * User from it. Defaults to `true` so callers that don't pass it
-   * keep the authenticated-only flow.
+   * Whether the buyer is authenticated. Drives both the guest-email
+   * field (#1072) and the welcome band (#926): when false, the band
+   * surfaces "Comprar como invitado" copy and the form renders an
+   * extra `guestEmail` input above the address. The server-side
+   * `createOrder` mints a passwordless User from it. Defaults to
+   * `true` so callers that don't pass it keep the authenticated-only
+   * flow with no UI noise.
    */
   hasSession?: boolean
 }
@@ -462,6 +464,28 @@ export function CheckoutPageClient({
       <div className="mx-auto max-w-5xl px-4 py-10 pb-28 sm:px-6 sm:pb-10 lg:px-8">
       <div className="mb-6 space-y-4">
         <h1 className="text-2xl font-bold text-[var(--foreground)]">{t('checkout.title')}</h1>
+        {!hasSession && (
+          <div
+            className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm dark:border-emerald-800/60 dark:bg-emerald-950/30"
+            data-testid="checkout-guest-band"
+          >
+            <p className="font-semibold text-emerald-900 dark:text-emerald-100">
+              {t('checkout.guest.title')}
+            </p>
+            <p className="mt-1 text-emerald-800/90 dark:text-emerald-200/90">
+              {t('checkout.guest.body')}
+            </p>
+            <p className="mt-2 text-emerald-800/80 dark:text-emerald-200/80">
+              {t('checkout.guest.signInPrompt')}{' '}
+              <a
+                href="/login?callbackUrl=%2Fcheckout"
+                className="font-medium underline underline-offset-2 hover:text-emerald-900 dark:hover:text-emerald-100"
+              >
+                {t('checkout.guest.signInLink')}
+              </a>
+            </p>
+          </div>
+        )}
         <CheckoutProgress
           title={t('checkout.flowLabel')}
           subtitle={t('checkout.flowSubtitle')}

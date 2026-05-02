@@ -255,6 +255,10 @@ const en: Record<TranslationKeys, string> = {
 
   // Checkout
   'checkout.title': 'Complete order',
+  'checkout.guest.title': 'Check out as a guest',
+  'checkout.guest.body': "You don't need an account to complete this order. We'll send the confirmation to the email you provide.",
+  'checkout.guest.signInPrompt': 'Already have an account?',
+  'checkout.guest.signInLink': 'Sign in',
   'checkout.guestEmailHeading': 'Contact email',
   'checkout.guestEmailHelp': "We'll send your order confirmation to this address. If you already have an account, sign in instead.",
   'checkout.guestEmailLabel': 'Email',
