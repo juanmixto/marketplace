@@ -28,12 +28,15 @@ export function CategoryPieChart({ data }: Props) {
             ))}
           </Pie>
           <Tooltip
-            wrapperStyle={{ pointerEvents: 'auto' }}
+            allowEscapeViewBox={{ x: false, y: false }}
+            wrapperStyle={{ pointerEvents: 'auto', maxWidth: 'min(280px, calc(100vw - 16px))' }}
             contentStyle={{
               backgroundColor: 'var(--surface)',
               border: '1px solid var(--border)',
               borderRadius: '8px',
               fontSize: '12px',
+              maxWidth: '100%',
+              overflowWrap: 'anywhere',
             }}
             formatter={(value, _name, item) => {
               const num = Number(value ?? 0)

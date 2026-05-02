@@ -638,11 +638,22 @@ test('BuildBadge formats build time in Europe/Madrid, not UTC', () => {
   )
 })
 
-test('Recharts tooltips opt the wrapper into pointer events so touch devices can interact', () => {
-  // Recharts defaults the tooltip wrapper to `pointer-events: none`, which on
-  // touch devices traps the tooltip in a "stuck after tap" state. Setting
-  // wrapperStyle={{ pointerEvents: 'auto' }} lets the user dismiss it by
-  // tapping elsewhere on the chart.
+test('Recharts tooltips stay in the viewport, are tappable on touch, and wrap long text', () => {
+  // Three invariants for every Recharts <Tooltip> in the codebase:
+  //
+  //   1. wrapperStyle.pointerEvents === 'auto' so a touch user can dismiss
+  //      the tooltip by tapping elsewhere (default is 'none', which traps
+  //      the tooltip in a "stuck after tap" state on iOS/Android).
+  //   2. wrapperStyle.maxWidth caps to the viewport (`min(280px, calc(100vw - 16px))`)
+  //      so wide labels (e.g. a long vendor name + currency) cannot push the
+  //      tooltip past the screen edge on a 360px phone.
+  //   3. allowEscapeViewBox={{ x: false, y: false }} so even with very small
+  //      chart containers the tooltip stays clipped to the chart, not free
+  //      to overflow the page.
+  //
+  // Tooltip styles may be inlined or extracted to a module-scope constant
+  // (AdminAnalyticsCharts.tsx does the latter), so these regexes match the
+  // literals anywhere in the file rather than only on the <Tooltip> node.
   const files = [
     'src/components/admin/analytics/charts/RankedBarChart.tsx',
     'src/components/admin/analytics/charts/CategoryPieChart.tsx',
@@ -653,8 +664,18 @@ test('Recharts tooltips opt the wrapper into pointer events so touch devices can
     const source = read(file)
     assert.match(
       source,
-      /wrapperStyle=\{\{\s*pointerEvents:\s*'auto'\s*\}\}/,
-      `${file} must opt the Recharts <Tooltip> wrapper into pointerEvents: auto`,
+      /pointerEvents:\s*'auto'/,
+      `${file} must keep pointerEvents: 'auto' on the Recharts wrapper so touch users can dismiss the tooltip`,
+    )
+    assert.match(
+      source,
+      /maxWidth:\s*'min\(280px,\s*calc\(100vw\s*-\s*16px\)\)'/,
+      `${file} must clamp the Recharts wrapper width to min(280px, calc(100vw - 16px)) so it cannot escape the viewport`,
+    )
+    assert.match(
+      source,
+      /allowEscapeViewBox=\{\{\s*x:\s*false,\s*y:\s*false\s*\}\}/,
+      `${file} must pass allowEscapeViewBox={{ x: false, y: false }} so the tooltip stays inside the chart container`,
     )
   }
 })
