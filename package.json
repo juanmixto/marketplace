@@ -23,7 +23,6 @@
     "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
     "lint": "eslint . --max-warnings=0",
     "audit:contracts": "node ./scripts/audit-domain-contracts.mjs",
-    "audit:authz": "node ./scripts/audit-authz-coverage.mjs",
     "audit:flags-cleanup": "node ./scripts/audit-flag-cleanup-tickets.mjs",
     "audit:fk": "node ./scripts/audit-fk-onDelete.mjs",
     "audit:findMany": "node ./scripts/audit-unbounded-findMany.mjs",
