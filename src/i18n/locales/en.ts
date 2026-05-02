@@ -255,6 +255,8 @@ const en: Record<TranslationKeys, string> = {
 
   // Checkout
   'checkout.title': 'Complete order',
+  'checkout.provinceDerived': 'Province: {province}',
+  'checkout.provinceUnknownCp': "We don't recognise that postal code. Make sure it's a Spanish one.",
   'checkout.address': 'Delivery address',
   'checkout.savedAddresses': 'Saved addresses',
   'checkout.savedAddressesLoading': 'Loading your saved addresses...',
@@ -283,7 +285,7 @@ const en: Record<TranslationKeys, string> = {
   'checkout.payment': 'Payment',
   'checkout.demoMode': 'Demo mode enabled',
   'checkout.demoModeDesc': 'Payment will be simulated automatically. In production, Stripe is integrated.',
-  'checkout.confirm': 'Confirm order',
+  'checkout.confirm': 'Continue to payment',
   'checkout.processing': 'Processing order...',
   'checkout.yourOrder': 'Your order',
   'checkout.shippingHint': 'Cost is adjusted automatically based on the postal code and shipping zone.',
