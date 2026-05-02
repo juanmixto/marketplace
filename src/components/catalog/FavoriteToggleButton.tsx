@@ -61,6 +61,13 @@ export function FavoriteToggleButton({
       })
     }
 
+    // Invalidate the Next.js Router Cache so SSR pages that depend on
+    // the favorites list (notably /cuenta/favoritos) re-fetch on the
+    // next navigation. Without this, navigating to /cuenta/favoritos
+    // shows a stale RSC payload and newly-favorited items don't appear
+    // until a hard reload.
+    router.refresh()
+
     setToggling(false)
   }
 
