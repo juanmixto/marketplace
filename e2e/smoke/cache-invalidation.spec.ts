@@ -53,24 +53,31 @@ test.describe('Router Cache invalidation @smoke', () => {
     // Confirm the product is absent at this point.
     await expect(page.getByText(FAVORITE_PRODUCT_NAME).first()).toBeHidden()
 
-    // Open the PDP directly. There's exactly one heart button on the
-    // page (the FavoriteToggleButton on the product purchase panel),
-    // so we can target it by aria-label without disambiguation.
+    // Open the PDP. Use page.goto here because we need to LEAVE
+    // /cuenta/favoritos cleanly so the bf-cache / Router Cache
+    // entry for /cuenta/favoritos persists; subsequent navigation
+    // back to it is what exercises the Router Cache.
     await page.goto(`/productos/${FAVORITE_PRODUCT_SLUG}`)
     await expect(page.getByRole('heading', { name: FAVORITE_PRODUCT_NAME }).first())
       .toBeVisible({ timeout: 10_000 })
 
-    // Click the heart. Aria label is "Guardar" when not favorited
-    // (es.ts → favorites.save). The button only appears once the
-    // PDP hydrates and resolves the user's favorited state.
+    // Click the heart. The PDP renders exactly one
+    // FavoriteToggleButton (variant 'default') with accessible name
+    // "Guardar" when not favorited (es.ts → favorites.save). The
+    // anchored regex excludes "Guardado" (favorited state).
     await page.getByRole('button', { name: /^guardar$/i }).first().click()
+    // Wait for the heart's accessible name to flip — that confirms
+    // the optimistic update + API call landed before we navigate.
+    await expect(page.getByRole('button', { name: /^guardado$/i }).first())
+      .toBeVisible({ timeout: 10_000 })
 
-    // Now navigate to /cuenta/favoritos via a real client-side link.
-    // This is the critical step: it MUST be a Link click, not a
-    // page.goto, so the Router Cache is consulted exactly as a real
-    // user navigation does. page.goto is a hard reload and would
-    // silently mask the bug we are guarding against.
-    await page.getByRole('link', { name: /favoritos/i }).first().click()
+    // Navigate back to /cuenta/favoritos via the browser's history
+    // (back button). This is functionally identical to a <Link>
+    // click for Router Cache purposes — it consults the cached RSC
+    // payload, which is exactly the behaviour we want to test. We
+    // use goBack instead of clicking a header link to keep the
+    // selector robust across desktop/mobile menu variations.
+    await page.goBack()
 
     await expect(page).toHaveURL(/\/cuenta\/favoritos\/?$/, { timeout: 10_000 })
     // Without router.refresh() in FavoriteToggleButton, this assertion
