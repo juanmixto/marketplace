@@ -290,6 +290,8 @@ const es = {
   'checkout.processing': 'Procesando pedido...',
   'checkout.yourOrder': 'Tu pedido',
   'checkout.shippingHint': 'El coste se ajusta automáticamente según el código postal y la zona de envío.',
+  'checkout.shippingPendingCp': 'Por calcular',
+  'checkout.shippingHintNoCp': 'Introduce el código postal para ver el coste de envío exacto.',
   'checkout.promo.label': '¿Tienes un código de descuento?',
   'checkout.promo.placeholder': 'Introduce tu código',
   'checkout.promo.apply': 'Aplicar',

@@ -495,7 +495,15 @@ export function CheckoutPageClient({
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <h2 className="mb-4 font-semibold text-[var(--foreground)]">{t('checkout.address')}</h2>
               {loadingAddresses && (
-                <p className="mb-4 text-sm text-[var(--muted)]">{t('checkout.savedAddressesLoading')}</p>
+                <div
+                  className="mb-4 space-y-3"
+                  aria-busy="true"
+                  aria-live="polite"
+                  aria-label={t('checkout.savedAddressesLoading')}
+                >
+                  <div className="h-20 animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface-raised)]" />
+                  <div className="h-20 animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface-raised)]" />
+                </div>
               )}
               {!loadingAddresses && savedAddresses.length > 0 && (
                 <div className="mb-5 space-y-3">
@@ -566,16 +574,17 @@ export function CheckoutPageClient({
                     </button>
                   )}
                   <div className="grid grid-cols-2 gap-3">
-                    <Input label={t('checkout.firstName')} autoComplete="given-name" error={errors.firstName?.message} {...register('firstName')} />
-                    <Input label={t('checkout.lastName')} autoComplete="family-name" error={errors.lastName?.message} {...register('lastName')} />
+                    <Input label={t('checkout.firstName')} autoComplete="given-name" enterKeyHint="next" error={errors.firstName?.message} {...register('firstName')} />
+                    <Input label={t('checkout.lastName')} autoComplete="family-name" enterKeyHint="next" error={errors.lastName?.message} {...register('lastName')} />
                   </div>
-                  <Input label={t('checkout.line1')} autoComplete="address-line1" placeholder={t('checkout.line1Placeholder')} error={errors.line1?.message} {...register('line1')} />
-                  <Input label={t('checkout.line2')} autoComplete="address-line2" {...register('line2')} />
+                  <Input label={t('checkout.line1')} autoComplete="address-line1" enterKeyHint="next" placeholder={t('checkout.line1Placeholder')} error={errors.line1?.message} {...register('line1')} />
+                  <Input label={t('checkout.line2')} autoComplete="address-line2" enterKeyHint="next" {...register('line2')} />
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <Input
                       label={t('checkout.postalCode')}
                       placeholder={t('checkout.postalCodePlaceholder')}
                       inputMode="numeric"
+                      enterKeyHint="next"
                       autoComplete="postal-code"
                       maxLength={5}
                       error={errors.postalCode?.message}
@@ -590,6 +599,7 @@ export function CheckoutPageClient({
                       <Input
                         label={t('checkout.city')}
                         autoComplete="address-level2"
+                        enterKeyHint="next"
                         error={errors.city?.message}
                         {...register('city')}
                       />
@@ -619,6 +629,7 @@ export function CheckoutPageClient({
                     label={t('checkout.phone')}
                     type="tel"
                     inputMode="tel"
+                    enterKeyHint="done"
                     autoComplete="tel"
                     placeholder="+34 600 000 000"
                     error={errors.phone?.message}
@@ -714,14 +725,25 @@ export function CheckoutPageClient({
               )}
               <div className="flex justify-between text-[var(--foreground-soft)]">
                 <span>{t('cart.shipping')}</span>
-                <span>{shipping === 0 ? <span className="text-emerald-600 dark:text-emerald-400">{t('cart.shippingFree')}</span> : formatPrice(shipping)}</span>
+                <span>
+                  {watchedPostalCode.length < 5
+                    ? <span className="text-[var(--muted)]">{t('checkout.shippingPendingCp')}</span>
+                    : shipping === 0
+                      ? <span className="text-emerald-600 dark:text-emerald-400">{t('cart.shippingFree')}</span>
+                      : formatPrice(shipping)}
+                </span>
               </div>
               {shippingDiscount > 0 && (
                 <p className="text-xs text-emerald-700 dark:text-emerald-400">
                   {t('checkout.promo.freeShippingApplied')}
                 </p>
               )}
-              {shipping > 0 && shippingDiscount === 0 && (
+              {watchedPostalCode.length < 5 && (
+                <p className="text-xs text-[var(--muted-light)]">
+                  {t('checkout.shippingHintNoCp')}
+                </p>
+              )}
+              {shipping > 0 && shippingDiscount === 0 && watchedPostalCode.length === 5 && (
                 <p className="text-xs text-[var(--muted-light)]">
                   {t('checkout.shippingHint')}
                 </p>
