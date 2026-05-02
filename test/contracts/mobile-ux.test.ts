@@ -361,34 +361,60 @@ test('PDP purchase panel renders a mobile-only sticky add-to-cart bar', () => {
   assert.match(source, /IntersectionObserver/, 'sticky CTA must toggle via IntersectionObserver on the inline CTA')
 })
 
-test('Tooltip primitive caps width to viewport, swaps left/right to bottom on <sm, and silences hover on touch', () => {
+test('Tooltip primitive uses Floating UI with viewport collision avoidance and a portal', () => {
+  // The previous CSS-only positioning (left-1/2 + translate-x-1/2 anchored to
+  // the trigger) clipped off-screen whenever the trigger sat near a viewport
+  // edge — even with a width cap. The robust fix is real collision detection
+  // via @floating-ui/react: flip + shift + size keep the tooltip inside the
+  // viewport regardless of where the trigger lives, and FloatingPortal escapes
+  // any overflow:clip / stacking-context ancestor.
   const source = read('src/components/ui/tooltip.tsx')
   assert.match(
     source,
-    /max-w-\[min\(14rem,calc\(100vw-2rem\)\)\]/,
-    'tooltip width must be capped to viewport minus a 1rem gutter so it never escapes on narrow screens',
+    /from '@floating-ui\/react'/,
+    'tooltip must be implemented on top of @floating-ui/react for collision-aware positioning',
   )
   assert.match(
     source,
-    /max-sm:left-1\/2[\s\S]*max-sm:top-full/,
-    'side="right" must collapse to bottom on <sm to avoid escaping the right edge',
+    /\bflip\(/,
+    'tooltip must use flip() so it swaps to the opposite side when the preferred side overflows',
   )
   assert.match(
     source,
-    /max-sm:left-1\/2[\s\S]*max-sm:top-full[\s\S]*max-sm:left-1\/2[\s\S]*max-sm:top-full/,
-    'side="left" must also collapse to bottom on <sm',
+    /\bshift\(/,
+    'tooltip must use shift() so it slides along the cross axis to stay in the viewport',
   )
   assert.match(
     source,
-    /pointer-coarse:group-hover\/tooltip:opacity-0/,
-    'on touch (hover: none) the hover-stuck state must be suppressed so tooltips do not linger after a tap',
+    /\bsize\(/,
+    'tooltip must use size() so it clamps its max-width to the available viewport width',
+  )
+  assert.match(
+    source,
+    /FloatingPortal/,
+    'tooltip must render through FloatingPortal so it escapes overflow:clip / stacking ancestors',
+  )
+  assert.match(
+    source,
+    /useDismiss\(/,
+    'tooltip must wire useDismiss so an outside tap or escape closes it on touch devices',
+  )
+  assert.match(
+    source,
+    /useFocus\(/,
+    'tooltip must wire useFocus so keyboard users (and the touch-tap focus fallback) can open it',
+  )
+  assert.match(
+    source,
+    /role="tooltip"|role: 'tooltip'/,
+    'the floating element must keep the ARIA tooltip role for screen-reader users',
   )
 
   const css = read('src/app/globals.css')
   assert.match(
     css,
     /@custom-variant pointer-coarse \(@media \(hover: none\)\)/,
-    'globals.css must declare the pointer-coarse custom variant the Tooltip relies on',
+    'globals.css must keep the pointer-coarse custom variant for other touch-aware components',
   )
 })
 
