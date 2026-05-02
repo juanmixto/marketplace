@@ -1,7 +1,7 @@
 name: CI (docs passthrough)
 
 # Companion to `ci.yml`. The main pipeline ignores docs-only changes
-# via `paths-ignore` to save the ~5-min Verify + Build + 8× E2E shards
+# via `paths-ignore` to save the ~5-min Verify + Build + 4× E2E shards
 # tax on every typo PR. But branch protection requires Verify, Build
 # And Migrate, and E2E Smoke as status contexts — when no workflow
 # reports them, doc-only PRs become structurally unmergeable, even via
