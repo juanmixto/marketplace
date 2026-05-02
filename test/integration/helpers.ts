@@ -3,8 +3,13 @@ import { db } from '@/lib/db'
 import { resetTestActionSession, setTestActionSession, type ActionSession } from '@/lib/action-session'
 import { waitForPendingNotifications } from '@/domains/notifications/dispatcher'
 import type { UserRole } from '@/generated/prisma/enums'
+import { assertSafeToTruncate } from './safety'
 
 export async function resetIntegrationDatabase() {
+  // Block accidental TRUNCATE of the dev DB when an integration test
+  // is invoked outside `npm run test:integration`. See ./safety.ts.
+  assertSafeToTruncate()
+
   // Drain fire-and-forget notification handlers from the previous
   // test before truncating. Server actions like `approveVendor` and
   // `createOrder` schedule handlers via `queueMicrotask`, and those
