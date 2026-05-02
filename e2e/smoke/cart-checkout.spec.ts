@@ -101,8 +101,11 @@ test.describe('cart and checkout @smoke', () => {
       await firstName.fill(FALLBACK_CHECKOUT_ADDRESS.firstName)
       await page.getByRole('textbox', { name: /apellidos/i }).fill(FALLBACK_CHECKOUT_ADDRESS.lastName)
       await page.getByRole('textbox', { name: /dirección/i }).fill(FALLBACK_CHECKOUT_ADDRESS.line1)
-      await page.getByRole('combobox', { name: /provincia/i }).selectOption({ label: FALLBACK_CHECKOUT_ADDRESS.province })
+      // #1083: province <select> is gone — the form derives the
+      // province from the postal code's INE prefix. Filling CP is
+      // sufficient; the chip "Provincia: Madrid" then renders.
       await page.getByRole('textbox', { name: /código postal/i }).fill(FALLBACK_CHECKOUT_ADDRESS.postalCode)
+      await page.getByRole('textbox', { name: /ciudad|localidad/i }).fill(FALLBACK_CHECKOUT_ADDRESS.city)
       await page.getByRole('textbox', { name: /teléfono/i }).fill(FALLBACK_CHECKOUT_ADDRESS.phone)
     }
 
@@ -110,7 +113,9 @@ test.describe('cart and checkout @smoke', () => {
     // The page renders a desktop submit AND a mobile sticky-bar submit
     // (one is CSS-hidden depending on viewport); pick the first match —
     // both submit the same form so either click is correct.
-    const confirm = page.getByRole('button', { name: /confirmar pedido/i }).first()
+    // #1083 retitled the CTA to "Continuar al pago" — old "Confirmar
+    // pedido" copy is gone.
+    const confirm = page.getByRole('button', { name: /continuar al pago/i }).first()
     await expect(confirm).toBeEnabled({ timeout: 5_000 })
     await Promise.all([
       page.waitForURL(/\/checkout\/confirmacion\?orderNumber=/, { timeout: 20_000 }),
