@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { createAnalyticsItem, trackAnalyticsEvent } from '@/lib/analytics'
+import { getBuyerFunnelContext } from '@/lib/analytics-buyer-context'
 
 export interface PurchaseTrackerItem {
   productId: string
@@ -74,6 +75,23 @@ export function PurchaseTracker({
           category: item.categoryName,
         }),
       ),
+    })
+
+    // CF-1 funnel: `order.placed`. Reuses the same once-per-order
+    // sessionStorage guard above (the early-return at the top of this
+    // effect) so replay-path renders don't double-fire. Multi-vendor
+    // carts surface as multiple `vendor_id` values in the items
+    // array; the funnel insight cares about the order-level event,
+    // not per-vendor.
+    const { device, referrer } = getBuyerFunnelContext()
+    trackAnalyticsEvent('order.placed', {
+      order_id: orderId,
+      order_number: orderNumber,
+      value: revenue,
+      currency,
+      item_count: items.reduce((sum, item) => sum + item.quantity, 0),
+      device,
+      referrer,
     })
   }, [orderId, orderNumber, currency, revenue, tax, shipping, items])
 

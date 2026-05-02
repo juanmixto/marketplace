@@ -27,6 +27,7 @@ import { applyCartDiscounts } from '@/domains/pricing'
 import { SPAIN_PROVINCE_BY_PREFIX } from '@/domains/shipping/spain-provinces'
 import { useT } from '@/i18n'
 import { createAnalyticsItem, trackAnalyticsEvent } from '@/lib/analytics'
+import { getBuyerFunnelContext, shouldFireOnce } from '@/lib/analytics-buyer-context'
 import { CheckoutProgress } from '@/components/checkout/CheckoutProgress'
 
 function sanitizePhoneChar(input: string): string {
@@ -249,6 +250,20 @@ export function CheckoutPageClient({
         })
       ),
     })
+
+    // CF-1 funnel: `checkout.started`. First-paint of the checkout
+    // page, once per session. Sibling to `begin_checkout` (commerce
+    // event) but lives on the stable CF-1 funnel — see
+    // `docs/posthog-dashboards.md` § Dashboard 5 for why both exist.
+    if (shouldFireOnce('cf1.checkout.started')) {
+      const { device, referrer } = getBuyerFunnelContext()
+      trackAnalyticsEvent('checkout.started', {
+        item_count: items.length,
+        value: total,
+        device,
+        referrer,
+      })
+    }
   }, [items, total])
 
   useEffect(() => {
@@ -413,6 +428,19 @@ export function CheckoutPageClient({
       }
 
       const { orderId, orderNumber, clientSecret, replayed } = result
+
+      // CF-1 funnel: address step completed (form validated, order
+      // created server-side). The replay branch below fires the same
+      // event for consistency — replay still represents the buyer
+      // having "completed the address step", just from a stale session.
+      const stepCtx = getBuyerFunnelContext()
+      trackAnalyticsEvent('checkout.step_completed', {
+        step: 'address',
+        order_number: orderNumber,
+        replayed: Boolean(replayed),
+        device: stepCtx.device,
+        referrer: stepCtx.referrer,
+      })
 
       // #524 replay path: the backend found an existing Order for this
       // attempt id. That means a previous submit (maybe from a dropped
