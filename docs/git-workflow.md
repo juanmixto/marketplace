@@ -78,19 +78,24 @@ This rule comes directly from the 2026-04-12 incident, where an agent overwrote 
 
 ### Structural enforcement (active 2026-04-26)
 
-A guard wrapper at `~/.local/bin/git` (laptop-local install, **not** committed to this repo) actively rejects HEAD-moving and working-tree-mutating subcommands inside `/home/whisper/marketplace` when invoked by a Claude Code agent. Detection is by the presence of the `CLAUDE_CODE_SESSION_ID` env var that the harness sets automatically; humans are never affected.
+A guard wrapper at `~/.local/bin/git` (laptop-local install, **not** committed to this repo) actively rejects HEAD-moving and working-tree-mutating subcommands inside `/home/whisper/marketplace`. The detection model inverted on 2026-04-26 from "detect a specific agent harness via env var" to **"block by default, humans opt out"**. Reason: Codex CLI, GitHub Copilot CLI, and any future agent harness should inherit the guard automatically without per-agent allowlist maintenance. There is no env var that all agents share, so the only stable signal is the absence of the human marker.
 
 | Behaviour | When it fires |
 |---|---|
-| **Block:** `checkout`, `switch`, `reset`, `restore`, `stash`, `merge`, `rebase`, `pull`, `cherry-pick`, `revert`, `am` | Agent + cwd inside `/home/whisper/marketplace` |
+| **Block:** `checkout`, `switch`, `reset`, `restore`, `stash`, `merge`, `rebase`, `pull`, `cherry-pick`, `revert`, `am` | cwd inside `/home/whisper/marketplace` AND `HUMAN_SHELL` is unset |
 | **Allow:** `fetch`, `worktree add/remove/list`, `log`, `status`, `diff`, `show`, `branch`, `remote`, etc. | Always |
-| **Bypass:** prefix with `CLAUDE_AGENT_BYPASS=1` for one invocation | Manual override (after explicit user confirmation) |
+| **Humans opt out:** add `export HUMAN_SHELL=1` to your shell rc file once. Your shells then run unrestricted on the protected path. | Persistent |
+| **One-shot bypass:** prefix one invocation with `AGENT_BYPASS=1` (or the legacy `CLAUDE_AGENT_BYPASS=1` for back-compat). | Manual override after explicit user confirmation |
 
 When blocked, the wrapper prints a message pointing to this section and `AGENTS.md`, and exits with code 1.
 
-The wrapper's source lives at `~/.local/bin/git` on the laptop. Updating it requires editing that file directly — it is laptop tooling, not project tooling, because it depends on absolute paths (`/home/whisper/marketplace`) and the harness env var.
+The wrapper's source lives at `~/.local/bin/git` on the laptop. A reference copy with the same logic ships at [`scripts/agent-guard-git.sh`](../scripts/agent-guard-git.sh) for reviewers and replication; editing the repo copy does NOT change behaviour. To change behaviour, edit the laptop file directly.
 
-History: motivated by an inventory pass on 2026-04-26 that found 21 long-lived stashes (oldest 13 days, 15 over the 24h limit) and 7 worktrees with stale uncommitted WIP, several self-labelled `wip-other-agent`. The previous mitigation (docs-only nudge in #833) was insufficient because it relied on every agent reading and obeying. The wrapper makes the rule structural rather than procedural.
+**Setup for humans:** add `export HUMAN_SHELL=1` to `~/.bashrc` (bash) or `~/.zshrc` (zsh). Verify with `git -C /home/whisper/marketplace stash list` — if you see the actual stash list (or empty), you are set up; if you see the BLOCKED banner, the env var is not propagating into your shell.
+
+**Setup for agent harnesses:** none required. Any process that does not export `HUMAN_SHELL=1` is treated as agent-controlled.
+
+History: motivated by an inventory pass on 2026-04-26 that found 21 long-lived stashes (oldest 13 days, 15 over the 24h limit) and 7 worktrees with stale uncommitted WIP, several self-labelled `wip-other-agent`. The previous mitigation (docs-only nudge in #833) was insufficient because it relied on every agent reading and obeying. The first wrapper iteration in #839 detected only Claude Code (via `CLAUDE_CODE_SESSION_ID`); the inversion to "block by default" extends the guard to every agent without per-vendor maintenance.
 
 ### Concrete conventions
 

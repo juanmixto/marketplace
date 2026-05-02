@@ -27,18 +27,37 @@ set -euo pipefail
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$REPO_ROOT"
 
-# Always-on baseline. Every task starts here.
-BASELINE=(
+# Baselines. Task types that touch product/business/UX get the dense
+# AGENT-CONTEXT.md; technical-only task types do NOT (it costs ~2.5k
+# tokens and aports nothing for refactor/bugfix/infra/ci/test work —
+# measured against pre-PR-1048 state).
+BASELINE_TECH=(
+  "AGENTS.md                              # multi-agent contract + repo rules"
+)
+BASELINE_PRODUCT=(
   "AGENTS.md                              # multi-agent contract + repo rules"
   "docs/AGENT-CONTEXT.md                  # decisions + invariants + anti-patterns (dense)"
 )
+
+# Task types that get the product baseline (need ADRs / flows / principios).
+# Anything not listed here gets the lighter tech baseline.
+is_product_task() {
+  case "$1" in
+    product|checkout|catalog|vendor|admin|i18n|pwa) return 0 ;;
+    *) return 1 ;;
+  esac
+}
 
 print_list() {
   local task="$1"
   shift
   echo "# task: $task"
   echo "# baseline (read first):"
-  printf '  %s\n' "${BASELINE[@]}"
+  if is_product_task "$task"; then
+    printf '  %s\n' "${BASELINE_PRODUCT[@]}"
+  else
+    printf '  %s\n' "${BASELINE_TECH[@]}"
+  fi
   echo "# task-specific:"
   if [ "$#" -eq 0 ]; then
     echo "  (no extra reading — baseline is enough)"
