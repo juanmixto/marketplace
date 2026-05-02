@@ -264,7 +264,9 @@ model Vendor {
   displayName     String
   description     String?         @db.Text
   logo            String?
+  logoAlt         String?
   coverImage      String?
+  coverImageAlt   String?
   location        String?
   category        VendorCategory?
   status          VendorStatus    @default(APPLYING)
@@ -287,8 +289,8 @@ model Vendor {
   claimCode          String?   @unique
   claimCodeExpiresAt DateTime?
 
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user              User                @relation(fields: [userId], references: [id])
   products          Product[]
@@ -357,6 +359,7 @@ model Product {
   slug           String        @unique
   description    String?       @db.Text
   images         String[]
+  imageAlts      String[]      @default([])
   status         ProductStatus @default(DRAFT)
   basePrice      Decimal       @db.Decimal(10, 2)
   compareAtPrice Decimal?      @db.Decimal(10, 2)
@@ -511,7 +514,12 @@ model Order {
   placedAt                DateTime      @default(now())
   updatedAt               DateTime      @updatedAt
 
-  customer     User                @relation(fields: [customerId], references: [id])
+  // GDPR (#961): Order rows must be retained 5 years for tax compliance
+  // — the account-erase flow at /api/account/delete anonimizes the User
+  // without deleting the row. Restrict makes that contract explicit at
+  // the schema level so a future Prisma migration cannot silently turn
+  // this into a Cascade.
+  customer     User                @relation(fields: [customerId], references: [id], onDelete: Restrict)
   address      Address?            @relation(fields: [addressId], references: [id])
   lines        OrderLine[]
   payments     Payment[]
@@ -521,8 +529,8 @@ model Order {
   reviews      Review[]
 
   @@index([customerId, status])
-  @@index([customerId, placedAt])
-  @@index([status, placedAt])
+  @@index([customerId, placedAt(sort: Desc)])
+  @@index([status, placedAt(sort: Desc)])
   @@index([orderNumber])
 }
 
@@ -562,7 +570,11 @@ model Review {
   order    Order          @relation(fields: [orderId], references: [id])
   product  Product        @relation(fields: [productId], references: [id])
   vendor   Vendor         @relation(fields: [vendorId], references: [id])
-  customer User           @relation(fields: [customerId], references: [id])
+  // GDPR (#961): Reviews are anonimized, not deleted, when the user
+  // erases their account — the rating stays on the product but the
+  // body and authorship are scrubbed. Restrict makes hard-deletion
+  // explicitly forbidden at schema level.
+  customer User           @relation(fields: [customerId], references: [id], onDelete: Restrict)
   reports  ReviewReport[]
 
   @@unique([orderId, productId])
@@ -704,6 +716,11 @@ model OrderEvent {
   orderId   String
   actorId   String?
   type      String
+  // Payload schema version (#965). Bump in code when the shape of
+  // `payload` changes for a given `type`, so historical reports can
+  // parse old rows with the matching reader. See
+  // src/domains/orders/order-events.ts for the typed enum + readers.
+  schemaVersion Int   @default(1)
   payload   Json?
   createdAt DateTime @default(now())
 
@@ -773,6 +790,14 @@ model Payment {
   currency    String        @default("EUR")
   status      PaymentStatus @default(PENDING)
   metadata    Json?
+  // Watermark for out-of-order webhook delivery (#959). Mirrors the
+  // pattern on Subscription.lastStripeEventAt: the handler drops any
+  // event whose `event.created` is older than this value, so a late
+  // payment_intent.succeeded arriving after charge.refunded cannot
+  // resurrect a refunded order. Updated only on successful state
+  // transition; concurrent handlers for the same eventId are still
+  // deduped upstream by WebhookDelivery(provider, eventId).
+  lastStripeEventAt DateTime?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -780,7 +805,9 @@ model Payment {
   refunds Refund[]
 
   @@index([orderId])
+  @@index([orderId, status])
   @@index([providerRef])
+  @@index([lastStripeEventAt])
 }
 
 model Refund {
@@ -789,10 +816,12 @@ model Refund {
   amount      Decimal  @db.Decimal(10, 2)
   reason      String
   fundedBy    String
-  providerRef String?
+  providerRef String?  @unique
   createdAt   DateTime @default(now())
 
   payment Payment @relation(fields: [paymentId], references: [id])
+
+  @@index([paymentId])
 }
 
 // ─── Incidents ────────────────────────────────────────────────────────────────
@@ -804,6 +833,7 @@ model Incident {
   type         IncidentType
   status       IncidentStatus      @default(OPEN)
   description  String              @db.Text
+  attachments  String[]            @default([])
   resolution   IncidentResolution?
   fundedBy     String?
   refundAmount Decimal?            @db.Decimal(10, 2)
@@ -814,7 +844,11 @@ model Incident {
   updatedAt    DateTime            @updatedAt
 
   order    Order             @relation(fields: [orderId], references: [id])
-  customer User              @relation(fields: [customerId], references: [id])
+  // GDPR (#961): Incident records are part of the order audit trail and
+  // are retained alongside Order rows for tax/dispute compliance. The
+  // account-erase flow does not touch them. Restrict prevents a future
+  // hard-delete from cascade-wiping support history.
+  customer User              @relation(fields: [customerId], references: [id], onDelete: Restrict)
   messages IncidentMessage[]
 
   @@index([status, slaDeadline])
@@ -1366,8 +1400,8 @@ model TelegramIngestionMessage {
   // without re-parsing rawJson) and a snapshot of the title at
   // ingestion time (cheap denormalisation; can be re-resolved from
   // the chat's topic list if it ever drifts).
-  topicId    BigInt?
-  topicTitle String?
+  topicId     BigInt?
+  topicTitle  String?
 
   chat                       TelegramIngestionChat           @relation(fields: [chatId], references: [id], onDelete: Cascade)
   media                      TelegramIngestionMessageMedia[]

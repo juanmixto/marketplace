@@ -93,6 +93,39 @@ export async function myAction(input: unknown) {
 
 For API routes and Server Components use the existing `requireVendor()` / `requireAdmin()` from `src/lib/auth-guard.ts` instead of rolling your own.
 
+<a id="use-server-only-async"></a>
+### `'use server'` files: only export async functions
+
+Next.js refuses to compile a `'use server'` module that exports anything other than an `async function`. Constants, types, interfaces, classes, sync helpers — all rejected at build time with:
+
+```
+Only async functions are allowed to be exported in a "use server" file.
+```
+
+`tsc --noEmit` does **not** catch this — the restriction lives in the Next.js compiler, not in TypeScript. Local typecheck passes, then `next build` (or `npx next build`, or any of the E2E shards in CI) breaks. PRs #1000 / #1001 hit this exact trap when they exported `VENDOR_*_PAGE_SIZE` constants and `Vendor*Filters` types directly from `actions.ts`.
+
+**Where the contract types live:** `src/domains/<domain>/types.ts` (or `<domain>/index.ts`). Import them back from `actions.ts` if the action signature needs the type.
+
+**Verification before push:** if you added or moved an export in a `'use server'` file, run `npx next build` locally — not just `tsc --noEmit`. The dev server doesn't catch it either; only a full build does.
+
+```ts
+// ❌ Wrong — fails at next build
+'use server'
+export const PAGE_SIZE = 25
+export type Filters = { cursor?: string }
+export async function listThings(f: Filters) { /* ... */ }
+
+// ✅ Right — types and constants in a sibling module
+// src/domains/things/types.ts
+export const PAGE_SIZE = 25
+export type Filters = { cursor?: string }
+
+// src/domains/things/actions.ts
+'use server'
+import { PAGE_SIZE, type Filters } from './types'
+export async function listThings(f: Filters) { /* ... */ }
+```
+
 ---
 
 ## Cross-domain imports — go through the barrel
@@ -287,6 +320,17 @@ CONTACT_EMAIL
 
 # Admin host isolation (optional — see docs/admin-host.md)
 ADMIN_HOST                   # e.g. admin.your-domain.com
+
+# Image prewarm (optional — #1052, epic #1047)
+IMAGE_PREWARM_ENABLED        # "true" enqueues a pg-boss job after each
+                             # successful /api/upload that hits
+                             # /_next/image for the catalog's most
+                             # common (width, format) pairs (640/1080/
+                             # 1280 × avif/webp at q=85). Failures are
+                             # non-blocking; variants fall back to
+                             # lazy on-demand rendering.
+IMAGE_PREWARM_BASE_URL       # optional override for the worker; falls
+                             # back to NEXT_PUBLIC_APP_URL.
 ```
 
 See `.env.example` for the canonical list and `docs/admin-host.md` for the
@@ -381,8 +425,89 @@ Set `POSTHOG_PERSONAL_API_KEY` in prod to enable in-process evaluation — avoid
 
 ---
 
+## Next.js 16 gotchas (run-time pitfalls)
+
+`AGENTS.md` already warns "this is NOT the Next.js you know". The list below records gotchas that surfaced in production code and cost real debugging time. Add to it as new ones land.
+
+### `headers()` / `cookies()` BEFORE `unstable_cache`
+
+Calling a dynamic API (`headers()`, `cookies()`, `searchParams`) AFTER an `unstable_cache`-wrapped query in the same server component breaks PDP hydration in ways that aren't visible until specific user flows fail. The 2026-04-29 incident: #929's geo-IP follow-up commit added `await headers()` after `getProductBySlug` (which is `unstable_cache`-wrapped in `src/domains/catalog/queries.ts`). Three smoke specs went from green to red because cart/favorites mutations stopped persisting across navigation. The reverting commit is #1043; full diagnosis in memory under `feedback_headers_before_unstable_cache.md`.
+
+```tsx
+// WRONG — dynamic API after a cached query
+export default async function PdpPage({ params }: Props) {
+  const { slug } = await params
+  const product = await getProductBySlug(slug)         // unstable_cache
+  const reqHeaders = await headers()                    // breaks hydration
+  // ...
+}
+
+// RIGHT — dynamic APIs first, then cached queries
+export default async function PdpPage({ params }: Props) {
+  const reqHeaders = await headers()                    // dynamic context registered
+  const { slug } = await params
+  const product = await getProductBySlug(slug)         // cache key derives correctly
+  // ...
+}
+```
+
+If the dynamic value is needed to parametrize the cache key (e.g., zone-aware shipping cost), hoist the dynamic call up the tree (layout, parent server component) and pass it as a prop into the segment that owns the cached query. **Never** call a dynamic API in the same component below an `unstable_cache` boundary.
+
+### `useState(initial)` from props doesn't update on same-route param change
+
+In App Router, navigating from `/productos/A` to `/productos/B` reuses the `[slug]/page.tsx` segment's React tree. Client components beneath it keep their state — including `useState` initial values derived from props. This is correct React behaviour but surprises when the prop is supposed to be the source of truth.
+
+```tsx
+// SUSPECT — selectedVariantId initial captures defaultVariant from product A.
+// On nav to product B, the prop updates but state remains stale.
+const [selectedVariantId, setSelectedVariantId] = useState<string>(
+  defaultVariant?.id ?? ''
+)
+```
+
+Two fixes:
+- Add `key={slug}` (or any stable per-product identifier) on the parent so React unmounts and re-mounts the subtree on slug change.
+- Re-derive in `useEffect` when the relevant prop changes:
+  ```tsx
+  useEffect(() => {
+    setSelectedVariantId(defaultVariant?.id ?? '')
+  }, [defaultVariant?.id])
+  ```
+
+This is the leading hypothesis behind #1045 (multi-vendor-cart race); confirm before fixing.
+
+---
+
+## Imágenes (next/image)
+
+`next.config.ts` define `images.deviceSizes`, `imageSizes` y `formats` afinados al catálogo real (#1051), no a los defaults de Next:
+
+- `deviceSizes: [360, 640, 750, 828, 1080, 1280, 1600]` — el `<Image sizes>` más alto declarado en el repo es `(max-width: 1280px) 100vw, 1280px`. Cubrir hasta 1600 deja headroom retina sin emitir variantes 1920/2048/3840 que nadie pide.
+- `imageSizes: [16, 32, 64, 96, 128, 256]` — los thumbnails reales rondan 28/40/48/56/64/80/200 px, redondean limpios a esta escala.
+- `formats: ['image/avif', 'image/webp']` — AVIF primero (~20 % menos que WebP en Chrome/Firefox/Safari 16+), WebP fallback. El default de Next sólo emite WebP.
+
+Si añades un `<Image sizes="(min-width: 1700px) ...">` o un slot `>1600px`, falla `audit:image-sizes` ([`scripts/audit-image-sizes.mjs`](../scripts/audit-image-sizes.mjs)). O bien bajas el breakpoint, o bien subes `deviceSizes` y avisas al deploy (cambiar `deviceSizes` invalida la caché de `/_next/image`).
+
+### Alt text de imágenes (#1049)
+
+El `alt` lo escribe el productor desde su panel, no se infiere. Se persiste en columnas paralelas a la URL:
+
+- **Producto:** `Product.imageAlts: String[]` — invariante `images.length === imageAlts.length`, asegurada por las server actions `createProduct` / `updateProduct` (`src/domains/vendors/actions.ts`). Una entrada vacía es legítima: significa "el productor no rellenó este alt".
+- **Vendor:** `Vendor.logoAlt: String?` y `Vendor.coverImageAlt: String?` (escalares, no arrays — solo hay un logo y una portada). Vacío / `null` se trata igual que el caso anterior.
+
+**Renderizado, regla única:** `alt = altPersistido?.trim() || nombreFallback || ''`.
+
+- Producto: fallback al nombre del producto (`localizedProduct.name`).
+- Vendor logo: fallback a `vendor.displayName`.
+- Vendor cover: fallback a `displayName` solo cuando `vendor.coverImage` existe; si la portada es la imagen *fallback* generada por `getVendorHeroImage`, se conserva el copy localizado de "imagen genérica del productor X".
+
+No inventes alt sintético en cliente / servidor (LLMs, palabras clave, etc.) — eso es decisión de negocio fuera de este contrato.
+
+---
+
 ## Related documents
 
 - [`docs/ai-guidelines.md`](./ai-guidelines.md) — contract rules, domain boundaries, and how the audit script enforces them.
 - [`docs/ai-workflows.md`](./ai-workflows.md) — recipes: add a feature, refactor safely, change a contract.
+- [`docs/runbooks/ci-incident.md`](./runbooks/ci-incident.md) — main red, what now: triage flow, branch-protection bypass shapes, page-snapshot recipe.
 - [`src/i18n/README.md`](../src/i18n/README.md) — i18n conventions (flat keys vs `*-copy.ts` vs `labelKey`).

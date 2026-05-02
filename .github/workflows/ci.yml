@@ -4,16 +4,22 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
+    paths-ignore: &ci_paths_ignore
+      # Markdown-only changes don't affect runtime. NOTE: a few audits
+      # do read docs (e.g. scripts/audit-p1-observability.mjs reads
+      # docs/runbooks/payment-incidents.md). A docs-only PR that breaks
+      # those scopes will land without CI catching it; the next
+      # code-touching PR will fail the audit. Accepted trade-off —
+      # mirrors the prior `push` behaviour.
       - '**/*.md'
       - '.vscode/**'
       - 'LICENSE'
       - '.gitignore'
   pull_request:
-    paths-ignore:
-      - '.vscode/**'
-      - 'LICENSE'
-      - '.gitignore'
+    # Same ignore list as `push` so a doc-only PR doesn't trigger the
+    # full pipeline (Verify + Build + 4× E2E shards). YAML anchor keeps
+    # the two lists in sync.
+    paths-ignore: *ci_paths_ignore
   workflow_dispatch:
 
 permissions:
@@ -42,15 +48,27 @@ jobs:
       - uses: ./.github/actions/setup-deps
 
       - name: Lint + audit + typecheck + tests (parallel)
+        # github.{event_name,ref} are runner-provided and not strictly
+        # user-controllable, but interpolating any `github.*` context
+        # directly into a shell `run:` block is flagged by semgrep
+        # (yaml.github-actions.security.run-shell-injection) as a
+        # defense-in-depth issue. Route through `env:` so the shell
+        # only ever sees a plain variable.
+        env:
+          GH_EVENT_NAME: ${{ github.event_name }}
+          GH_REF: ${{ github.ref }}
         run: |
           set +e
           mkdir -p .ci-logs
           npm run lint             > .ci-logs/lint.log             2>&1 & PID_LINT=$!
           npm run audit:contracts  > .ci-logs/audit-contracts.log  2>&1 & PID_AUDIT=$!
           npm run audit:flags-cleanup > .ci-logs/audit-flags.log   2>&1 & PID_AUDIT_FLAGS=$!
+          npm run audit:fk         > .ci-logs/audit-fk.log         2>&1 & PID_AUDIT_FK=$!
+          npm run audit:findMany   > .ci-logs/audit-findmany.log   2>&1 & PID_AUDIT_FM=$!
+          npm run audit:image-sizes > .ci-logs/audit-image-sizes.log 2>&1 & PID_AUDIT_IMG=$!
           npm run typecheck:app    > .ci-logs/typecheck-app.log    2>&1 & PID_TC_APP=$!
           npm run typecheck:test   > .ci-logs/typecheck-test.log   2>&1 & PID_TC_TEST=$!
-          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          if [ "$GH_EVENT_NAME" = "push" ] && [ "$GH_REF" = "refs/heads/main" ]; then
             npm run test:coverage > .ci-logs/tests.log 2>&1 & PID_TESTS=$!
           else
             npm run test:parallel > .ci-logs/tests.log 2>&1 & PID_TESTS=$!
@@ -60,6 +78,9 @@ jobs:
           wait $PID_LINT    || { echo "::group::lint FAILED";             cat .ci-logs/lint.log;             echo "::endgroup::"; STATUS=1; }
           wait $PID_AUDIT   || { echo "::group::audit:contracts FAILED";  cat .ci-logs/audit-contracts.log;  echo "::endgroup::"; STATUS=1; }
           wait $PID_AUDIT_FLAGS || { echo "::group::audit:flags-cleanup FAILED"; cat .ci-logs/audit-flags.log; echo "::endgroup::"; STATUS=1; }
+          wait $PID_AUDIT_FK || { echo "::group::audit:fk FAILED";        cat .ci-logs/audit-fk.log;         echo "::endgroup::"; STATUS=1; }
+          wait $PID_AUDIT_FM || { echo "::group::audit:findMany FAILED";  cat .ci-logs/audit-findmany.log;   echo "::endgroup::"; STATUS=1; }
+          wait $PID_AUDIT_IMG || { echo "::group::audit:image-sizes FAILED"; cat .ci-logs/audit-image-sizes.log; echo "::endgroup::"; STATUS=1; }
           wait $PID_TC_APP  || { echo "::group::typecheck:app FAILED";    cat .ci-logs/typecheck-app.log;    echo "::endgroup::"; STATUS=1; }
           wait $PID_TC_TEST || { echo "::group::typecheck:test FAILED";   cat .ci-logs/typecheck-test.log;   echo "::endgroup::"; STATUS=1; }
           wait $PID_TESTS   || { echo "::group::tests FAILED";            cat .ci-logs/tests.log;            echo "::endgroup::"; STATUS=1; }
@@ -68,6 +89,9 @@ jobs:
             echo "::group::lint";            cat .ci-logs/lint.log;             echo "::endgroup::"
             echo "::group::audit:contracts"; cat .ci-logs/audit-contracts.log;  echo "::endgroup::"
             echo "::group::audit:flags-cleanup"; cat .ci-logs/audit-flags.log;   echo "::endgroup::"
+            echo "::group::audit:fk";        cat .ci-logs/audit-fk.log;         echo "::endgroup::"
+            echo "::group::audit:findMany";  cat .ci-logs/audit-findmany.log;   echo "::endgroup::"
+            echo "::group::audit:image-sizes"; cat .ci-logs/audit-image-sizes.log; echo "::endgroup::"
             echo "::group::typecheck:app";   cat .ci-logs/typecheck-app.log;    echo "::endgroup::"
             echo "::group::typecheck:test";  cat .ci-logs/typecheck-test.log;   echo "::endgroup::"
             echo "::group::tests";           cat .ci-logs/tests.log;            echo "::endgroup::"
@@ -110,9 +134,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .next/cache
-          key: nextcache-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          key: nextcache-${{ runner.os }}-${{ hashFiles('package-lock.json', 'next.config.ts') }}
           restore-keys: |
-            nextcache-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+            nextcache-${{ runner.os }}-
 
       - name: Apply Prisma migrations
         run: npx prisma migrate deploy
@@ -144,7 +168,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
 
     services:
       postgres:
@@ -165,7 +189,7 @@ jobs:
       DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
       DATABASE_URL_TEST: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
       TEST_SHARD_INDEX: ${{ matrix.shard }}
-      TEST_SHARD_TOTAL: "16"
+      TEST_SHARD_TOTAL: "8"
 
     steps:
       - uses: actions/checkout@v5
@@ -180,13 +204,20 @@ jobs:
       # any global seed data would be wiped before the first test
       # ever runs. Skipping saves ~5-8s per shard.
 
-      - name: Integration tests (shard ${{ matrix.shard }} of 16)
+      - name: Integration tests (shard ${{ matrix.shard }} of 8)
         run: npm run test:integration
         timeout-minutes: 10
 
   integration:
     name: Integration
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # `if: always()` runs the aggregator even when matrix shards
+    # failed, so we can FAIL it explicitly. Without this, GitHub
+    # marks the job as SKIPPED on shard failure, and branch
+    # protection treats SKIPPED as neutral — letting broken PRs
+    # merge silently. See `e2e-smoke-complete` below for the same
+    # pattern; #1037 + #1040 merged with red shards under the old
+    # SKIPPED-behaviour before this fix landed.
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     needs: integration-shard
     # Aggregates the matrix shards into a single status check that
@@ -194,6 +225,10 @@ jobs:
     # runs on its own postgres service with a disjoint subset of test
     # files (see scripts/run-integration-tests.mjs TEST_SHARD_*).
     steps:
+      - if: needs.integration-shard.result != 'success'
+        run: |
+          echo "::error::Integration aggregator failed: shards did not all succeed (result=${{ needs.integration-shard.result }})"
+          exit 1
       - run: echo "All integration shards passed"
 
   e2e-smoke:
@@ -201,9 +236,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
-      fail-fast: false
+      # PRs: bail on first shard failure to free runners for the queue.
+      # Push to main keeps fail-fast on too — a red shard there means
+      # something already merged broke; running the rest only delays the
+      # signal and burns runner-time we need for the next PR's CI.
+      fail-fast: true
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [1, 2, 3, 4]
     # Runs in parallel with verify/build/integration against `next dev`.
     # Playwright's native --shard splits specs across runners.
     # Prod-mode coverage (`next start` + DYNAMIC_SERVER_USAGE etc.) runs
@@ -267,14 +306,14 @@ jobs:
       - name: Seed database
         run: npm run db:seed
 
-      - name: Run E2E smoke suite (shard ${{ matrix.shard }}/8)
+      - name: Run E2E smoke suite (shard ${{ matrix.shard }}/4)
         # DISABLE_LOGIN_RATELIMIT=1 exempts the suite from the
         # (IP+email) login throttle from #592. CI shares a single
         # seeded credential and easily exhausts the bucket within a
         # run; the route guard only honours the flag when
         # NODE_ENV !== 'production', so a prod deploy cannot bypass
         # the limit even if this env leaks into another workflow.
-        run: npx playwright test --grep @smoke --workers=1 --shard=${{ matrix.shard }}/8
+        run: npx playwright test --grep @smoke --workers=1 --shard=${{ matrix.shard }}/4
         env:
           DISABLE_LOGIN_RATELIMIT: '1'
 
@@ -291,7 +330,20 @@ jobs:
     name: E2E Smoke
     runs-on: ubuntu-latest
     needs: e2e-smoke
+    # `if: always()` + explicit shard-result check is mandatory:
+    # without it, a single shard failure makes GitHub mark this
+    # aggregator as SKIPPED, and branch protection treats SKIPPED
+    # as neutral — so PRs with red shards merge silently. #1037
+    # (multi-vendor-cart shard 6 red) and #1040 (shards 5+6 red)
+    # both reached `main` under the old SKIPPED-behaviour before
+    # this fix landed; the resulting broken `main` is what
+    # surfaced the bug.
+    if: always()
     # Aggregates the matrix shards into a single status check that
     # branch protection can require by its stable name.
     steps:
+      - if: needs.e2e-smoke.result != 'success'
+        run: |
+          echo "::error::E2E Smoke aggregator failed: shards did not all succeed (result=${{ needs.e2e-smoke.result }})"
+          exit 1
       - run: echo "All E2E smoke shards passed"

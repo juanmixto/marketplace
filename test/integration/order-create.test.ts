@@ -1,5 +1,6 @@
 import test, { afterEach, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
+import { randomUUID } from 'node:crypto'
 import { confirmOrder, createCheckoutOrder, createOrder } from '@/domains/orders/actions'
 import { db } from '@/lib/db'
 import { resetServerEnvCache } from '@/lib/env'
@@ -634,4 +635,128 @@ test('concurrent orders for last unit with variants: only one succeeds, variant 
 
   const finalVariant = await db.productVariant.findUnique({ where: { id: variant.id } })
   assert.equal(finalVariant?.stock, 0, 'Variant stock must be exactly 0, never negative')
+})
+
+// #1072: guest checkout
+test('createOrder creates a guest user when no session and email is fresh', async () => {
+  const { vendor } = await createVendorUser()
+  const product = await createActiveProduct(vendor.id, { stock: 5 })
+  clearTestSession()
+
+  const created = await createOrder(
+    [{ productId: product.id, quantity: 1 }],
+    {
+      address: {
+        firstName: 'Guest',
+        lastName: 'Smith',
+        line1: 'Calle Mayor 1',
+        city: 'Madrid',
+        province: 'Madrid',
+        postalCode: '28001',
+      },
+      saveAddress: false,
+      guestEmail: 'fresh-guest@example.com',
+    },
+  )
+
+  const order = await db.order.findUnique({
+    where: { id: created.orderId },
+    include: { customer: true },
+  })
+  assert.ok(order)
+  assert.equal(order!.customer.email, 'fresh-guest@example.com')
+  assert.equal(order!.customer.passwordHash, null)
+  assert.equal(order!.customer.emailVerified, null)
+})
+
+test('createOrder rejects guest email belonging to a real account', async () => {
+  const realUser = await db.user.create({
+    data: {
+      email: `real-${randomUUID()}@example.com`,
+      firstName: 'Real',
+      lastName: 'User',
+      role: 'CUSTOMER',
+      isActive: true,
+      passwordHash: 'bcrypt-hash-not-real',
+    },
+  })
+  const { vendor } = await createVendorUser()
+  const product = await createActiveProduct(vendor.id, { stock: 5 })
+  clearTestSession()
+
+  await assert.rejects(
+    () =>
+      createOrder(
+        [{ productId: product.id, quantity: 1 }],
+        {
+          address: {
+            firstName: 'Guest',
+            lastName: 'Smith',
+            line1: 'Calle Mayor 1',
+            city: 'Madrid',
+            province: 'Madrid',
+            postalCode: '28001',
+          },
+          saveAddress: false,
+          guestEmail: realUser.email,
+        },
+      ),
+    /Ya existe una cuenta con este email/,
+  )
+})
+
+test('createOrder requires guestEmail when there is no session', async () => {
+  const { vendor } = await createVendorUser()
+  const product = await createActiveProduct(vendor.id, { stock: 5 })
+  clearTestSession()
+
+  await assert.rejects(
+    () =>
+      createOrder(
+        [{ productId: product.id, quantity: 1 }],
+        {
+          address: {
+            firstName: 'Guest',
+            lastName: 'Smith',
+            line1: 'Calle Mayor 1',
+            city: 'Madrid',
+            province: 'Madrid',
+            postalCode: '28001',
+          },
+          saveAddress: false,
+        },
+      ),
+    /Introduce un email para recibir la confirmación/,
+  )
+})
+
+test('createOrder reuses an existing guest user when called twice with same email', async () => {
+  const { vendor } = await createVendorUser()
+  const product = await createActiveProduct(vendor.id, { stock: 5 })
+  const guestEmail = `repeat-guest-${randomUUID()}@example.com`
+  clearTestSession()
+
+  const formData = {
+    address: {
+      firstName: 'Guest',
+      lastName: 'Smith',
+      line1: 'Calle Mayor 1',
+      city: 'Madrid',
+      province: 'Madrid',
+      postalCode: '28001',
+    },
+    saveAddress: false,
+    guestEmail,
+  }
+
+  const first = await createOrder([{ productId: product.id, quantity: 1 }], formData)
+  const second = await createOrder([{ productId: product.id, quantity: 1 }], formData)
+
+  const orders = await db.order.findMany({
+    where: { id: { in: [first.orderId, second.orderId] } },
+    select: { customerId: true },
+  })
+
+  assert.equal(orders.length, 2)
+  assert.equal(orders[0]?.customerId, orders[1]?.customerId)
 })

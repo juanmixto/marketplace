@@ -142,7 +142,7 @@ const publicPageCopy: Record<Locale, PublicPageCopy> = {
   es: {
     contact: {
       metadataTitle: 'Contacto',
-      metadataDescription: 'Ponte en contacto con el equipo de Mercado Productor. Estamos aquí para ayudarte.',
+      metadataDescription: 'Ponte en contacto con el equipo de Raíz Directa. Estamos aquí para ayudarte.',
       heroTitle: 'Contacto',
       heroBody: '¿Tienes dudas o necesitas ayuda? Nos encantaría saber de ti.',
       infoTitle: 'Información de contacto',
@@ -187,15 +187,15 @@ const publicPageCopy: Record<Locale, PublicPageCopy> = {
     },
     faq: {
       metadataTitle: 'Preguntas frecuentes',
-      metadataDescription: 'Resuelve tus dudas sobre cómo funciona Mercado Productor, pagos, entregas y más.',
+      metadataDescription: 'Resuelve tus dudas sobre cómo funciona Raíz Directa, pagos, entregas y más.',
       heroTitle: 'Preguntas frecuentes',
-      heroBody: 'Encuentra respuestas a las preguntas más comunes sobre Mercado Productor.',
+      heroBody: 'Encuentra respuestas a las preguntas más comunes sobre Raíz Directa.',
       sections: [
         {
           category: 'Compras',
           questions: [
             {
-              q: '¿Cómo puedo comprar en Mercado Productor?',
+              q: '¿Cómo puedo comprar en Raíz Directa?',
               a: 'Es sencillo: crea una cuenta, navega nuestro catálogo, selecciona productos, añade al carrito y completa el pago. Recibirás tu pedido en pocos días.',
             },
             {
@@ -291,7 +291,7 @@ const publicPageCopy: Record<Locale, PublicPageCopy> = {
               a: 'Sí. Desde tus preferencias de notificaciones puedes vincular tu cuenta de Telegram y recibir alertas instantáneas de nuevos pedidos, pagos confirmados e incidencias. La vinculación se hace con un enlace seguro y puedes desconectarla o elegir qué eventos recibir en cualquier momento.',
             },
             {
-              q: '¿Puedo instalar Mercado Productor como app en el móvil?',
+              q: '¿Puedo instalar Raíz Directa como app en el móvil?',
               a: 'Sí. La plataforma es una app instalable (PWA): desde el navegador del móvil o la tablet puedes añadirla a la pantalla de inicio y abrirla como una app nativa, sin pasar por ninguna tienda. Carga rápido, consume pocos datos y se actualiza sola.',
             },
           ],
@@ -316,7 +316,7 @@ const publicPageCopy: Record<Locale, PublicPageCopy> = {
     },
     howItWorks: {
       metadataTitle: 'Cómo funciona',
-      metadataDescription: 'Descubre cómo funciona Mercado Productor, la plataforma de venta directa de productos locales.',
+      metadataDescription: 'Descubre cómo funciona Raíz Directa, la plataforma de venta directa de productos locales.',
       heroTitle: 'Cómo funciona',
       heroBody: 'Conectamos productores locales con consumidores que valoran la calidad y la proximidad. Sin intermediarios, sin sorpresas.',
       steps: [
@@ -381,12 +381,12 @@ const publicPageCopy: Record<Locale, PublicPageCopy> = {
     },
     aboutUs: {
       metadataTitle: 'Sobre nosotros',
-      metadataDescription: 'Conoce la historia de Mercado Productor, la plataforma que conecta productores locales con consumidores conscientes.',
-      heroTitle: 'Sobre Mercado Productor',
+      metadataDescription: 'Conoce la historia de Raíz Directa, la plataforma que conecta productores locales con consumidores conscientes.',
+      heroTitle: 'Sobre Raíz Directa',
       heroBody: 'Una plataforma española dedicada a conectar productores agrícolas locales con consumidores que valoran la calidad, la sostenibilidad y la proximidad.',
       missionTitle: 'Nuestra misión',
       missionBody1: 'Eliminar intermediarios innecesarios entre productores y consumidores. Creemos que la venta directa beneficia a todos: los productores reciben mejores precios, los consumidores acceden a productos frescos y locales, y el medio ambiente se beneficia de menores transportes.',
-      missionBody2: 'Cada compra en Mercado Productor es un acto de apoyo a la agricultura local y a la sostenibilidad.',
+      missionBody2: 'Cada compra en Raíz Directa es un acto de apoyo a la agricultura local y a la sostenibilidad.',
       missionQuote: '“Conectamos productores con consumidores, sin intermediarios.”',
       valuesTitle: 'Nuestros valores',
       values: [
@@ -423,7 +423,7 @@ const publicPageCopy: Record<Locale, PublicPageCopy> = {
       ],
       storyTitle: 'Nuestra historia',
       storyParagraphs: [
-        'Mercado Productor nace con la convicción de que existe una mejor forma de comercializar productos locales. Observamos cómo los intermediarios se llevaban la mayor parte del margen, mientras productores y consumidores no estaban completamente satisfechos.',
+        'Raíz Directa nace con la convicción de que existe una mejor forma de comercializar productos locales. Observamos cómo los intermediarios se llevaban la mayor parte del margen, mientras productores y consumidores no estaban completamente satisfechos.',
         'Decidimos crear una plataforma simple, transparente y fácil de usar que permitiera a productores vender directamente a consumidores. Sin capas de intermediarios, sin complicaciones innecesarias, solo conexión real.',
         'Hoy conectamos a productores con consumidores que valoran la agricultura local y sostenible. Cada compra es un voto de confianza en ese modelo.',
         'Seguimos mejorando el producto para hacerlo más fácil para productores y compradores. Porque creemos que, si simplificamos, todos ganamos.',
@@ -449,12 +449,12 @@ const publicPageCopy: Record<Locale, PublicPageCopy> = {
     },
     sell: {
       metadataTitle: 'Vende tus productos',
-      metadataDescription: 'Únete a Mercado Productor y vende tus productos directamente a consumidores locales. Sin intermediarios, cobro semanal, gestión sencilla.',
+      metadataDescription: 'Únete a Raíz Directa y vende tus productos directamente a consumidores locales. Sin intermediarios, cobro semanal, gestión sencilla.',
       heroTitle: 'Vende tus productos directamente',
-      heroBody: 'Únete al marketplace de productores locales y vende directamente a clientes finales. En Mercado Productor, tú fijas los precios.',
+      heroBody: 'Únete al marketplace de productores locales y vende directamente a clientes finales. En Raíz Directa, tú fijas los precios.',
       heroPrimaryCta: 'Empezar a vender gratis',
       heroSecondaryCta: 'Ver cómo funciona',
-      whyTitle: '¿Por qué Mercado Productor?',
+      whyTitle: '¿Por qué Raíz Directa?',
       whyBody: '6 razones para vender con un flujo claro, sin cuotas mensuales y con reglas operativas transparentes.',
       benefits: [
         {
@@ -496,7 +496,7 @@ const publicPageCopy: Record<Locale, PublicPageCopy> = {
         },
         {
           title: 'App instalable en el móvil (PWA)',
-          description: 'Mercado Productor se instala como una app nativa en tu móvil o tablet, sin pasar por ninguna tienda. Rápida, ligera y lista para el día a día.',
+          description: 'Raíz Directa se instala como una app nativa en tu móvil o tablet, sin pasar por ninguna tienda. Rápida, ligera y lista para el día a día.',
           bullets: [
             'Icono en la pantalla de inicio y pantalla completa, sin barra del navegador.',
             'Carga rápida y consumo mínimo de datos, incluso con conexión irregular.',
@@ -558,7 +558,7 @@ const publicPageCopy: Record<Locale, PublicPageCopy> = {
   en: {
     contact: {
       metadataTitle: 'Contact',
-      metadataDescription: 'Get in touch with the Mercado Productor team. We are here to help.',
+      metadataDescription: 'Get in touch with the Raíz Directa team. We are here to help.',
       heroTitle: 'Contact',
       heroBody: 'Got questions or need help? We would love to hear from you.',
       infoTitle: 'Contact information',
@@ -603,15 +603,15 @@ const publicPageCopy: Record<Locale, PublicPageCopy> = {
     },
     faq: {
       metadataTitle: 'Frequently asked questions',
-      metadataDescription: 'Find answers about how Mercado Productor works, payments, deliveries, and more.',
+      metadataDescription: 'Find answers about how Raíz Directa works, payments, deliveries, and more.',
       heroTitle: 'Frequently asked questions',
-      heroBody: 'Find quick answers to the most common questions about Mercado Productor.',
+      heroBody: 'Find quick answers to the most common questions about Raíz Directa.',
       sections: [
         {
           category: 'Buying',
           questions: [
             {
-              q: 'How do I buy on Mercado Productor?',
+              q: 'How do I buy on Raíz Directa?',
               a: 'It is simple: create an account, browse the catalogue, pick your products, add them to the cart, and complete checkout. Your order will arrive in a few days.',
             },
             {
@@ -707,7 +707,7 @@ const publicPageCopy: Record<Locale, PublicPageCopy> = {
               a: 'Yes. From your notification preferences you can link your Telegram account and receive instant alerts for new orders, confirmed payments, and incidents. Linking happens through a secure link and you can disconnect it or pick which events to receive at any time.',
             },
             {
-              q: 'Can I install Mercado Productor as an app on my phone?',
+              q: 'Can I install Raíz Directa as an app on my phone?',
               a: 'Yes. The platform is an installable app (PWA): from your mobile or tablet browser you can add it to your home screen and open it like a native app, no app store required. It loads fast, uses little data, and updates itself.',
             },
           ],
@@ -732,7 +732,7 @@ const publicPageCopy: Record<Locale, PublicPageCopy> = {
     },
     howItWorks: {
       metadataTitle: 'How it works',
-      metadataDescription: 'Learn how Mercado Productor works, from discovering local producers to receiving your order at home.',
+      metadataDescription: 'Learn how Raíz Directa works, from discovering local producers to receiving your order at home.',
       heroTitle: 'How it works',
       heroBody: 'We connect local producers with people who value quality and proximity. No middlemen, no surprises.',
       steps: [
@@ -797,12 +797,12 @@ const publicPageCopy: Record<Locale, PublicPageCopy> = {
     },
     aboutUs: {
       metadataTitle: 'About us',
-      metadataDescription: 'Learn the story behind Mercado Productor, the marketplace connecting local producers with conscious consumers.',
-      heroTitle: 'About Mercado Productor',
+      metadataDescription: 'Learn the story behind Raíz Directa, the marketplace connecting local producers with conscious consumers.',
+      heroTitle: 'About Raíz Directa',
       heroBody: 'A Spanish platform built to connect local agricultural producers with people who care about quality, sustainability, and proximity.',
       missionTitle: 'Our mission',
       missionBody1: 'We remove unnecessary middlemen between producers and consumers. Direct selling benefits everyone: producers earn fairer prices, shoppers gain access to fresher local food, and the environment benefits from shorter transport routes.',
-      missionBody2: 'Every order placed on Mercado Productor is a direct show of support for local farming and more sustainable food systems.',
+      missionBody2: 'Every order placed on Raíz Directa is a direct show of support for local farming and more sustainable food systems.',
       missionQuote: '“We connect producers and consumers without unnecessary middlemen.”',
       valuesTitle: 'Our values',
       values: [
@@ -839,7 +839,7 @@ const publicPageCopy: Record<Locale, PublicPageCopy> = {
       ],
       storyTitle: 'Our story',
       storyParagraphs: [
-        'Mercado Productor started with a simple belief: there had to be a better way to sell local food. We saw middlemen taking most of the margin while neither producers nor customers felt fully served.',
+        'Raíz Directa started with a simple belief: there had to be a better way to sell local food. We saw middlemen taking most of the margin while neither producers nor customers felt fully served.',
         'So we built a platform that is simple, transparent, and easy to use, helping producers sell directly to consumers without unnecessary layers or friction.',
         'Today we connect producers with shoppers who value sustainable local agriculture. Every purchase is a vote of confidence in that model.',
         'We keep improving the product to make life easier for both producers and buyers, because when the process is simpler, everyone wins.',
@@ -865,12 +865,12 @@ const publicPageCopy: Record<Locale, PublicPageCopy> = {
     },
     sell: {
       metadataTitle: 'Sell your products',
-      metadataDescription: 'Join Mercado Productor and sell directly to local customers with weekly payouts and simple management tools.',
+      metadataDescription: 'Join Raíz Directa and sell directly to local customers with weekly payouts and simple management tools.',
       heroTitle: 'Sell your products directly',
-      heroBody: 'Join our marketplace for local producers and sell straight to end customers. On Mercado Productor, you stay in control of your pricing.',
+      heroBody: 'Join our marketplace for local producers and sell straight to end customers. On Raíz Directa, you stay in control of your pricing.',
       heroPrimaryCta: 'Start selling for free',
       heroSecondaryCta: 'See how it works',
-      whyTitle: 'Why Mercado Productor?',
+      whyTitle: 'Why Raíz Directa?',
       whyBody: 'Six clear reasons to sell with a simple workflow, no monthly fees, and transparent operating rules.',
       benefits: [
         {
@@ -912,7 +912,7 @@ const publicPageCopy: Record<Locale, PublicPageCopy> = {
         },
         {
           title: 'Installable mobile app (PWA)',
-          description: 'Mercado Productor installs on your phone or tablet like a native app, no app store required. Fast, lightweight, and ready for day-to-day use.',
+          description: 'Raíz Directa installs on your phone or tablet like a native app, no app store required. Fast, lightweight, and ready for day-to-day use.',
           bullets: [
             'Home-screen icon and full-screen mode, no browser bar.',
             'Fast loading and low data use, even on unstable connections.',

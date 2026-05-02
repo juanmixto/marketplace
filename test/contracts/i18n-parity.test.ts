@@ -24,6 +24,7 @@ const INTENTIONAL_COPY_KEYS = new Set<string>([
   // Words that are internationally identical or brand-style labels.
   'account.cityPlaceholder',      // city name placeholder (e.g. "Madrid")
   'account.profileEmailLabel',    // "Email" is the same word in both locales
+  'checkout.guestEmailLabel',     // "Email" is the same word in both locales (#1072)
   'auth.recoveryEmail',           // "recovery@example.com" placeholder
   'cart.subtotal',                // "Subtotal" is the same word in both locales
   'cart.total',                   // "Total" is the same word in both locales

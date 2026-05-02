@@ -5,14 +5,22 @@ Este repo es un **marketplace digital curado** de productores artesanales. La in
 
 ## Contexto obligatorio antes de trabajar
 
-Cualquier agente que vaya a (a) escribir código de producto, (b) abrir issues, (c) priorizar trabajo o (d) proponer features **debe leer**:
+Lee **siempre** la sección "Hacer / No hacer" inmediatamente abajo (parte de este `AGENTS.md`).
 
-1. [`docs/business/00-index.md`](docs/business/00-index.md) — visión, productores, modelo de comisiones, roadmap.
-2. [`docs/product/00-index.md`](docs/product/00-index.md) — principios, flujos críticos, fricciones conocidas.
-3. [`docs/business/09-decisiones-estrategicas.md`](docs/business/09-decisiones-estrategicas.md) — qué ya se decidió y **no** se discute de nuevo.
-4. La sección "Hacer / No hacer" inmediatamente abajo.
+**Solo si tu tarea toca producto, negocio, UX, copy, catálogo, productores, checkout u onboarding** lee también:
 
-Si la tarea es puramente técnica (refactor, bug, infra), basta con esa sección + las convenciones técnicas. Si la tarea toca catálogo, productores, checkout, copy, onboarding o cualquier UX visible al usuario final, lee también `docs/product/`.
+- [`docs/AGENT-CONTEXT.md`](docs/AGENT-CONTEXT.md) — destilado denso de decisiones (ADR-001..009), prioridades, flujos críticos, anti-patrones. Sustituye al "abre 3 índices + un fichero".
+
+**Si tu tarea es técnica pura (refactor, bugfix, infra, CI, tests, dependencias) NO lo abras** — `AGENTS.md` + las convenciones técnicas listadas más abajo bastan. Cargarlo te cuesta ~2.5k tokens sin aportarte nada (medido, no estimado).
+
+Para cualquier tarea con scope concreto, el reading list mínimo:
+
+```bash
+scripts/agent-context.sh <task-type>      # imprime la lista mínima de archivos a leer
+scripts/agent-context.sh                  # lista de task types disponibles
+```
+
+Cada doc largo en `docs/business/`, `docs/product/` y `docs/runbooks/` empieza con frontmatter `summary:` / `audience:` / `read_when:`. Lee con `Read limit: 10` para ver el resumen sin cargar todo el archivo; abre completo solo si tu tarea encaja con `read_when:`.
 
 ## Estado actual del marketplace (resumen para agentes)
 
@@ -76,27 +84,32 @@ This repo is shared by several Claude Code agents at the same time. Skip this ch
 
 ### Structural enforcement (active 2026-04-26)
 
-A guard wrapper at `~/.local/bin/git` (installed on the laptop) actively blocks HEAD-moving and working-tree-mutating subcommands inside `/home/whisper/marketplace` when invoked by an agent (detected via `CLAUDE_CODE_SESSION_ID` env var):
+A guard wrapper at `~/.local/bin/git` (installed on the laptop) actively blocks HEAD-moving and working-tree-mutating subcommands inside `/home/whisper/marketplace` for any process that is NOT marked as a human shell. The detection model inverted on 2026-04-26 from "detect Claude Code via env var" to **"block by default, humans opt out"** so that Codex CLI, GitHub Copilot CLI, and any future agent harness inherits the guard automatically without per-agent allowlist maintenance.
 
 - **Blocked:** `checkout`, `switch`, `reset`, `restore`, `stash`, `merge`, `rebase`, `pull`, `cherry-pick`, `revert`, `am`
 - **Allowed:** `fetch`, `worktree add/remove/list`, `log`, `status`, `diff`, `show`, `branch -l`, `remote`, etc.
 - **Scope:** only the main repo path. Worktrees under `/home/whisper/worktrees/*` and any other repo are unaffected.
-- **Bypass:** if you genuinely need to override (emergency recovery, after explicit user confirmation), prefix one command with `CLAUDE_AGENT_BYPASS=1`.
-- **Humans:** never affected. The guard only fires when `CLAUDE_CODE_SESSION_ID` is in the environment.
+- **Humans opt out:** add `export HUMAN_SHELL=1` to your `~/.bashrc` / `~/.zshrc` / equivalent. Once set, your shells run unrestricted.
+- **One-shot bypass:** if an agent genuinely needs to override (emergency recovery, after explicit user confirmation), prefix one command with `AGENT_BYPASS=1` (or the legacy `CLAUDE_AGENT_BYPASS=1` for back-compat).
 
-Wrapper source: `~/.local/bin/git`. The wrapper is part of the laptop setup, not committed to the repo.
+Wrapper source: `~/.local/bin/git`. The wrapper is part of the laptop setup, not committed to the repo. A reference copy lives at `scripts/agent-guard-git.sh`.
 
 For the full policy and rationale see [`docs/git-workflow.md`](docs/git-workflow.md). For branch naming see the same doc § "Allowed branch prefixes". For deeper hygiene signals (gone branches, stale worktrees) run `scripts/git-hygiene.sh`.
 
 ## Conventions
 
 - **Project conventions (stack, imports, Prisma fields, server-action pattern)** — see [`docs/conventions.md`](docs/conventions.md). Read this before implementing any ticket.
+- **Database conventions (FK `onDelete`, paginated `findMany`, Decimal vs Int money, webhook idempotency, `$transaction` timeouts, indexes, Json snapshots, account-erase contract)** — see [`docs/db-conventions.md`](docs/db-conventions.md). Required reading before adding a Prisma model, a relation into User/Order/Vendor, a server-side `findMany`, a webhook handler, or a money column. Two rules are CI-enforced via [`scripts/audit-fk-onDelete.mjs`](scripts/audit-fk-onDelete.mjs) and [`scripts/audit-unbounded-findMany.mjs`](scripts/audit-unbounded-findMany.mjs); both ratchet against a baseline so net-new violations fail the build without forcing a sweep.
 - **AI guidelines (contract rules, domain boundaries, enforcement)** — see [`docs/ai-guidelines.md`](docs/ai-guidelines.md). Rules for parallel agents. Enforced by [`scripts/audit-domain-contracts.mjs`](scripts/audit-domain-contracts.mjs).
 - **AI workflows (recipes)** — see [`docs/ai-workflows.md`](docs/ai-workflows.md) for how to add a feature, refactor safely, or change a contract.
 - **i18n** — see [`src/i18n/README.md`](src/i18n/README.md) for when to use flat keys vs `*-copy.ts` modules and the `labelKey` server pattern.
 - **Git workflow (trunk-based, branch prefixes, hygiene)** — see [`docs/git-workflow.md`](docs/git-workflow.md). `main` is the only long-lived branch; no `integration/*`, `develop`, `next`. Run `scripts/git-hygiene.sh` periodically.
 - **PWA (service worker, manifest, install prompts, offline fallback, cache allow-list)** — see [`docs/pwa.md`](docs/pwa.md). Required reading before touching `public/sw.js`, `src/app/manifest.ts`, or anything under `src/components/pwa/`. The SW has a strict denylist (`/api`, `/admin`, `/vendor`, `/checkout`, `/auth`) that must never be weakened.
+- **CI incident runbook (main red, branch-protection bypass shapes, page-snapshot recipe)** — see [`docs/runbooks/ci-incident.md`](docs/runbooks/ci-incident.md). Read when `gh run list --workflow=ci.yml --branch=main` shows a recent failure. Covers the aggregator-SKIPPED-as-neutral bypass that shipped #1037 + #1040 + #1043 with red shards on 2026-04-29, the doc-only PR passthrough contract, and the "page snapshot beats log grep" diagnostic shortcut. Pairs with [`docs/branch-protection.md`](docs/branch-protection.md) § Aggregator gate pattern.
 - **Payment incidents runbook (checkout + webhook log events, investigation recipes)** — see [`docs/runbooks/payment-incidents.md`](docs/runbooks/payment-incidents.md). Read before renaming any `checkout.*` or `stripe.webhook.*` log scope; oncall queries depend on them.
+- **Photo storage (orphan cleanup sync + nightly sweep)** — see [`docs/runbooks/photo-storage.md`](docs/runbooks/photo-storage.md). Read before touching `src/lib/blob-storage.ts`, `updateProduct` / `updateVendorProfile` image diff logic, or `src/workers/jobs/sweep-orphan-blobs.ts`. The sweep is DRY-RUN by default (`PHOTO_SWEEP_DRY_RUN=true`); never enable real deletes without inspecting `photo.sweep.orphans_found` in PostHog/logs first. Metrics scopes (`photo.cleanup.*`, `photo.sweep.*`) are stable contract; do not rename without updating the runbook.
+- **DB backup + restore (pgBackRest + logical dump on B2, Healthchecks)** — see [`docs/runbooks/db-backup.md`](docs/runbooks/db-backup.md) and [`docs/runbooks/db-restore.md`](docs/runbooks/db-restore.md). Read before touching `infra/pgbackrest/`, `infra/postgres/`, `scripts/db/`, or the `db` service in `docker-compose.prod.yml`. Phase 0 of epic #1002. Templates render to live secrets via Bitwarden — never commit a rendered config.
+- **DB failover + data corruption (incident playbooks)** — see [`docs/runbooks/db-failover.md`](docs/runbooks/db-failover.md) and [`docs/runbooks/db-data-corruption.md`](docs/runbooks/db-data-corruption.md). Phase 0 = no standby; "failover" today means *restore* (placeholder for Phase 1). The corruption checklist is 12 steps; never `pg_resetwal` / `REINDEX` / `VACUUM FULL` before snapshotting.
 - **Checkout idempotency (`checkoutAttemptId`, double-submit dedupe, replay UX)** — see [`docs/checkout-dedupe.md`](docs/checkout-dedupe.md). Required reading before changing `createOrder` / `createCheckoutOrder` signatures or the `Order.checkoutAttemptId` UNIQUE constraint.
 - **Generic idempotency tokens (admin/vendor forms, `IdempotencyKey` table, `withIdempotency` wrapper)** — see [`docs/idempotency.md`](docs/idempotency.md). Generalizes the checkout pattern to any mutation form. Pages that issue tokens MUST be `force-dynamic`. Wrapped actions still need their own role/ownership checks (see `docs/authz-audit.md`); idempotency does not replace authz. Foundation shipped in #788 PR-A; rollout to remaining forms in PR-B.
 - **OrderEvent vs WebhookDelivery (post-#308 separation of concerns)** — see [`docs/orderevent-vs-webhookdelivery.md`](docs/orderevent-vs-webhookdelivery.md). Read before adding a webhook source or reusing `OrderEvent.payload` for dedupe; the UNIQUE lives on `WebhookDelivery`, not on `OrderEvent`.

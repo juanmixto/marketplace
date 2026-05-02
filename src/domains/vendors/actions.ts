@@ -4,13 +4,25 @@ import { db } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { slugify } from '@/lib/utils'
+import type { Prisma } from '@/generated/prisma/client'
 import type { FulfillmentStatus } from '@/generated/prisma/enums'
+import {
+  VENDOR_FULFILLMENT_PAGE_SIZE,
+  VENDOR_PRODUCT_PAGE_SIZE,
+  type VendorFulfillmentFilters,
+  type VendorFulfillmentKpis,
+  type VendorProductAlerts,
+  type VendorProductFilter,
+  type VendorProductFilters,
+} from './types'
 import { parseExpirationDateInput } from '@/domains/catalog'
 import { getActionSession } from '@/lib/action-session'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { isVendor } from '@/lib/roles'
 import { isAllowedImageUrl } from '@/lib/image-validation'
+import { deleteBlobs, diffRemovedUrls } from '@/lib/blob-storage'
 import { withIdempotency } from '@/lib/idempotency'
+import { PRODUCT_IMAGE_ALT_MAX } from '@/shared/types/products'
 // eslint-disable-next-line no-restricted-imports -- Telegram bootstrap is server-only and intentionally excluded from the notifications barrel
 import { ensureTelegramHandlersRegistered } from '@/domains/notifications/telegram/ensure-registered'
 // eslint-disable-next-line no-restricted-imports -- Web-push bootstrap mirrors the Telegram one; same reason
@@ -51,6 +63,55 @@ async function requireVendor() {
 
 import { productSchema, type ProductInput } from '@/shared/types/products'
 
+/**
+ * Pads / trims `alts` to `images.length` so the parallel-array
+ * invariant is preserved on every write. Used for both create and
+ * update paths:
+ *
+ *   - Create: a vendor can submit a product with no alts at all
+ *     (legacy callers, ingestion-published drafts). We materialize
+ *     an array of empty strings so the DB column is always the
+ *     same length as `images`.
+ *
+ *   - Update: a partial update may touch `images` without sending
+ *     `imageAlts` — when that happens we keep the previous alts in
+ *     place where indices still line up, and pad the rest with ''.
+ *     Symmetric: a partial update touching only `imageAlts` is
+ *     rejected because we cannot know which `images` array to align
+ *     against (caller must send both or neither).
+ */
+function normalizeImageAlts(images: string[], alts: string[] | undefined, previous?: string[]): string[] {
+  const base = alts ?? previous ?? []
+  if (base.length === images.length) {
+    return base.map(a => (typeof a === 'string' ? a.slice(0, PRODUCT_IMAGE_ALT_MAX) : ''))
+  }
+  // Length mismatch: align to images.length, preserving the prefix
+  // and padding any new positions with ''. Truncate the suffix when
+  // alts was longer than images (the photos in those positions are
+  // gone).
+  const out: string[] = []
+  for (let i = 0; i < images.length; i++) {
+    const candidate = base[i]
+    out.push(typeof candidate === 'string' ? candidate.slice(0, PRODUCT_IMAGE_ALT_MAX) : '')
+  }
+  return out
+}
+
+/**
+ * Invariant guard for callers that pass both `images` and `imageAlts`
+ * (the vendor product form does this). When only one is provided we
+ * resolve the other side via `normalizeImageAlts` against the existing
+ * row, which is itself the contract.
+ */
+function assertImageAltsInvariant(images: string[] | undefined, alts: string[] | undefined) {
+  if (images === undefined || alts === undefined) return
+  if (images.length !== alts.length) {
+    throw new Error(
+      `imageAlts (${alts.length}) must have the same length as images (${images.length})`,
+    )
+  }
+}
+
 ensureTelegramHandlersRegistered()
 ensureWebPushHandlersRegistered()
 
@@ -67,7 +128,23 @@ ensureWebPushHandlersRegistered()
 export async function createProduct(input: ProductInput, idempotencyToken?: string) {
   const { vendor, session } = await requireVendor()
 
+  // #1049 — `productSchema` declares `.default([])` on `imageAlts`
+  // so `parse(...)` would always materialize the field; we need to
+  // detect "caller didn't provide it" from the raw input first.
+  const rawInputCreate = (input ?? {}) as Record<string, unknown>
+  const altsProvidedCreate = 'imageAlts' in rawInputCreate
   const data = productSchema.parse(input)
+  // Length-invariant: only enforce when the caller actually sent
+  // `imageAlts`. When they didn't, we synthesize an empty alt per
+  // image (the renderer falls back to product.name) so the column
+  // is always exactly as long as `images`.
+  if (altsProvidedCreate) {
+    assertImageAltsInvariant(data.images, data.imageAlts)
+  }
+  const imageAlts = normalizeImageAlts(
+    data.images,
+    altsProvidedCreate ? data.imageAlts : undefined,
+  )
 
   const doCreate = async () => {
     // Generate unique slug
@@ -78,6 +155,7 @@ export async function createProduct(input: ProductInput, idempotencyToken?: stri
     const product = await db.product.create({
       data: {
         ...data,
+        imageAlts,
         slug,
         vendorId: vendor.id,
         compareAtPrice: data.compareAtPrice ?? null,
@@ -113,18 +191,68 @@ export async function updateProduct(productId: string, input: Partial<ProductInp
   if (!product) throw new Error('Producto no encontrado')
 
   const data = productSchema.partial().parse(input)
+  // #1049 — keep imageAlts aligned to images on partial updates. Two
+  // resolution rules:
+  //   - both arrays sent → must match length, store as-is.
+  //   - only `images` sent → preserve previous alts where indices
+  //     line up, pad the rest with '' (vendor changed photo set
+  //     without revisiting alt fields).
+  //   - only `imageAlts` sent → align against the unchanged
+  //     `product.images`, truncating/padding as needed.
+  // We probe the *raw* input (`'imageAlts' in input`) rather than the
+  // parsed shape because `productSchema` declares `.default([])` on
+  // both arrays — `.partial().parse(...)` would otherwise materialize
+  // empty arrays for callers who never sent the field, collapsing
+  // case 2 (only images) into the invariant rejection.
+  const rawInput = (input ?? {}) as Record<string, unknown>
+  const altsProvided = 'imageAlts' in rawInput
+  const imagesProvided = 'images' in rawInput
+  if (altsProvided && imagesProvided) {
+    assertImageAltsInvariant(data.images, data.imageAlts)
+  }
+  const nextImages = imagesProvided ? data.images ?? product.images : product.images
+  const altsPatch: Partial<{ imageAlts: string[] }> =
+    imagesProvided || altsProvided
+      ? {
+          imageAlts: normalizeImageAlts(
+            nextImages,
+            altsProvided ? data.imageAlts : undefined,
+            product.imageAlts,
+          ),
+        }
+      : {}
 
   const previousBasePriceCents = Math.round(Number(product.basePrice) * 100)
+
+  // #1050 — capture the pre-update images so we can clean up Vercel
+  // Blob entries after the row is rewritten. We snapshot BEFORE the
+  // update so a concurrent mutation between read and write cannot
+  // make us delete a URL that is still referenced elsewhere; the
+  // diff against `updated.images` (post-write) is the source of
+  // truth for what actually went away.
+  const previousImages = [...product.images]
 
   const updated = await db.product.update({
     where: { id: productId },
     data: {
       ...data,
+      ...altsPatch,
       ...(data.expiresAt !== undefined && { expiresAt: parseExpirationDateInput(data.expiresAt) }),
       // Reset rejection note when re-editing a rejected product
       ...(product.status === 'REJECTED' && { rejectionNote: null }),
     },
   })
+
+  // Cleanup orphan blobs. Runs after the update commit so a deletion
+  // can never leave a row pointing at a missing image. `deleteBlobs`
+  // absorbs every error internally — this awaits only so observability
+  // events fire before we return, NOT to gate the response on storage
+  // success. Reorder of the same URL set is a no-op (diffRemovedUrls
+  // ignores order).
+  const removedImages = diffRemovedUrls(previousImages, updated.images)
+  if (removedImages.length > 0) {
+    await deleteBlobs(removedImages, 'product')
+  }
 
   // Price-drop fanout: only when the new basePrice is strictly lower
   // than the previous one. Small drifting changes still fire, but the
@@ -436,6 +564,112 @@ export async function getMyProducts() {
       variants: { where: { isActive: true }, select: { id: true } },
     },
   })
+}
+
+// DB audit P1.2-C (#963): paginated variant of getMyProducts for the
+// /vendor/productos dashboard, plus a small helper that surfaces the
+// stock/expiration alerts which must reflect the full vendor catalog
+// (not just the visible page). Promotions edit / new pages keep using
+// the unbounded `getMyProducts` because they hydrate a selector with
+// every product, which is acceptable until the catalog grows.
+//
+// The page-size constant + filter type live in ./types.ts (this file
+// is 'use server'; Next.js refuses to compile a 'use server' module
+// that exports anything other than async functions).
+
+function buildVendorProductWhere(
+  vendorId: string,
+  filter: VendorProductFilter | undefined,
+  q: string | undefined,
+): Prisma.ProductWhereInput {
+  // `archived` is the only filter that opts INTO archived products.
+  // Every other filter mode hides them, including `all`. Matches the
+  // previous client-side behaviour in VendorProductListClient.
+  const archivedScope: Prisma.ProductWhereInput =
+    filter === 'archived' ? { archivedAt: { not: null } } : { archivedAt: null }
+
+  const statusScope: Prisma.ProductWhereInput = (() => {
+    switch (filter) {
+      case 'active':
+        return { status: 'ACTIVE' }
+      case 'draft':
+        return { status: 'DRAFT' }
+      case 'pendingReview':
+        return { status: 'PENDING_REVIEW' }
+      case 'rejected':
+        return { status: 'REJECTED' }
+      case 'outOfStock':
+        return { trackStock: true, stock: 0 }
+      case 'archived':
+      case 'all':
+      case undefined:
+      default:
+        return {}
+    }
+  })()
+
+  const search: Prisma.ProductWhereInput = q
+    ? { name: { contains: q, mode: 'insensitive' } }
+    : {}
+
+  return {
+    vendorId,
+    deletedAt: null,
+    ...archivedScope,
+    ...statusScope,
+    ...search,
+  }
+}
+
+export async function getMyProductsPaginated(filters: VendorProductFilters = {}) {
+  const { vendor } = await requireVendor()
+  const where = buildVendorProductWhere(vendor.id, filters.filter, filters.q)
+
+  const rows = await db.product.findMany({
+    where,
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: VENDOR_PRODUCT_PAGE_SIZE + 1,
+    cursor: filters.cursor ? { id: filters.cursor } : undefined,
+    skip: filters.cursor ? 1 : 0,
+    include: {
+      category: { select: { name: true } },
+      variants: { where: { isActive: true }, select: { id: true } },
+    },
+  })
+
+  const hasNextPage = rows.length > VENDOR_PRODUCT_PAGE_SIZE
+  const items = hasNextPage ? rows.slice(0, VENDOR_PRODUCT_PAGE_SIZE) : rows
+
+  return {
+    items,
+    nextCursor: hasNextPage ? items[items.length - 1]?.id ?? null : null,
+    hasNextPage,
+    pageSize: VENDOR_PRODUCT_PAGE_SIZE,
+  }
+}
+
+export async function getMyProductAlerts(): Promise<VendorProductAlerts> {
+  const { vendor } = await requireVendor()
+  const now = new Date()
+  const baseScope: Prisma.ProductWhereInput = {
+    vendorId: vendor.id,
+    deletedAt: null,
+    archivedAt: null,
+  }
+  const [lowStockCount, outOfStockCount, expiredCount, totalActiveCatalog] =
+    await Promise.all([
+      db.product.count({
+        where: { ...baseScope, trackStock: true, stock: { gt: 0, lte: 5 } },
+      }),
+      db.product.count({
+        where: { ...baseScope, trackStock: true, stock: 0, status: 'ACTIVE' },
+      }),
+      db.product.count({
+        where: { ...baseScope, expiresAt: { lt: now } },
+      }),
+      db.product.count({ where: baseScope }),
+    ])
+  return { lowStockCount, outOfStockCount, expiredCount, totalActiveCatalog }
 }
 
 export async function getMyProduct(productId: string) {
@@ -808,6 +1042,239 @@ export async function getMyFulfillments(filter?: 'active' | 'urgent' | 'shipped'
   })
 }
 
+// DB audit P1.2-B (#963): the dashboard at /vendor/pedidos used to
+// hydrate every fulfillment row for the vendor on each load and apply
+// filters/sort/KPIs in JS. That works at zero traffic and breaks
+// silently the moment a vendor crosses a few hundred orders. The
+// helpers below split that into:
+//
+//   - getMyFulfillmentKpis(): aggregate counts (and a 30-day revenue
+//     sum) computed against the full population. Cheap — single
+//     groupBy + a single date-windowed lines query — and never
+//     paginated.
+//   - getMyFulfillmentsPaginated(): cursor-paginated list scoped to
+//     the requesting vendor with optional status / date / search
+//     filters. Mirrors the catalog cursor pattern (take = limit + 1
+//     probe, stable sort, cursor + skip 1).
+//
+// Search is server-side ILIKE on order id, customer name, and product
+// name. Postgres trigram or full-text would be a future upgrade —
+// pre-tracción ILIKE is fast enough.
+//
+// The page-size constant + filter type live in ./types.ts because
+// 'use server' files may only export async functions; importing them
+// from here keeps the page components and tests aligned.
+
+const fulfillmentInclude = {
+  shipment: {
+    select: {
+      id: true,
+      status: true,
+      labelUrl: true,
+      trackingUrl: true,
+      trackingNumber: true,
+      carrierName: true,
+    },
+  },
+  order: {
+    include: {
+      lines: {
+        include: { product: { select: { name: true, images: true, unit: true, slug: true } } },
+      },
+      customer: { select: { firstName: true, lastName: true } },
+      address: true,
+    },
+  },
+} as const
+
+export async function getMyFulfillmentsPaginated(filters: VendorFulfillmentFilters = {}) {
+  const { vendor } = await requireVendor()
+
+  const where: Prisma.VendorFulfillmentWhereInput = {
+    vendorId: vendor.id,
+    ...(filters.statuses && filters.statuses.length > 0
+      ? { status: { in: filters.statuses } }
+      : {}),
+    ...(filters.dateFrom || filters.dateTo
+      ? {
+          createdAt: {
+            ...(filters.dateFrom ? { gte: filters.dateFrom } : {}),
+            ...(filters.dateTo ? { lte: filters.dateTo } : {}),
+          },
+        }
+      : {}),
+    ...(filters.q
+      ? {
+          OR: [
+            { orderId: { contains: filters.q, mode: 'insensitive' } },
+            {
+              order: {
+                customer: {
+                  OR: [
+                    { firstName: { contains: filters.q, mode: 'insensitive' } },
+                    { lastName: { contains: filters.q, mode: 'insensitive' } },
+                  ],
+                },
+              },
+            },
+            {
+              order: {
+                lines: {
+                  some: {
+                    vendorId: vendor.id,
+                    product: { name: { contains: filters.q, mode: 'insensitive' } },
+                  },
+                },
+              },
+            },
+          ],
+        }
+      : {}),
+  }
+
+  const orderBy: Prisma.VendorFulfillmentOrderByWithRelationInput[] = (() => {
+    switch (filters.sort) {
+      case 'oldest':
+        return [{ createdAt: 'asc' }, { id: 'asc' }]
+      case 'recent':
+      default:
+        return [{ createdAt: 'desc' }, { id: 'desc' }]
+      // amount_*/customer can't be expressed cleanly in a single ORDER BY
+      // (amount is a per-fulfillment computed sum; customer is two
+      // columns on a relation). They were already approximate at the JS
+      // layer; we keep the previous behaviour but do the sort in JS over
+      // the page slice.
+    }
+  })()
+
+  const rows = await db.vendorFulfillment.findMany({
+    where,
+    orderBy,
+    take: VENDOR_FULFILLMENT_PAGE_SIZE + 1,
+    cursor: filters.cursor ? { id: filters.cursor } : undefined,
+    skip: filters.cursor ? 1 : 0,
+    include: fulfillmentInclude,
+  })
+
+  const hasNextPage = rows.length > VENDOR_FULFILLMENT_PAGE_SIZE
+  const items = hasNextPage ? rows.slice(0, VENDOR_FULFILLMENT_PAGE_SIZE) : rows
+  // Local sort for amount_*/customer modes — only over the visible page
+  // since these orderings cannot be pushed down to a single SQL ORDER BY.
+  if (filters.sort === 'amount_desc' || filters.sort === 'amount_asc') {
+    const lineTotal = (f: (typeof items)[number]) =>
+      f.order.lines.reduce((s, l) => s + Number(l.unitPrice) * l.quantity, 0)
+    items.sort((a, b) =>
+      filters.sort === 'amount_desc' ? lineTotal(b) - lineTotal(a) : lineTotal(a) - lineTotal(b),
+    )
+  } else if (filters.sort === 'customer') {
+    items.sort((a, b) => {
+      const an = `${a.order.customer.firstName} ${a.order.customer.lastName}`
+      const bn = `${b.order.customer.firstName} ${b.order.customer.lastName}`
+      return an.localeCompare(bn)
+    })
+  }
+
+  return {
+    items,
+    nextCursor: hasNextPage ? items[items.length - 1]?.id ?? null : null,
+    hasNextPage,
+    pageSize: VENDOR_FULFILLMENT_PAGE_SIZE,
+  }
+}
+
+const OVERDUE_HOURS = 24
+const SHIPPED_WINDOW_DAYS = 7
+const REVENUE_WINDOW_DAYS = 30
+
+export async function getMyFulfillmentKpis(): Promise<VendorFulfillmentKpis> {
+  const { vendor } = await requireVendor()
+  const now = Date.now()
+  const overdueCutoff = new Date(now - OVERDUE_HOURS * 3_600_000)
+  const shippedWindowCutoff = new Date(now - SHIPPED_WINDOW_DAYS * 86_400_000)
+  const revenueWindowCutoff = new Date(now - REVENUE_WINDOW_DAYS * 86_400_000)
+
+  // Single groupBy gets us all status-bucketed counts in one query.
+  const grouped = await db.vendorFulfillment.groupBy({
+    by: ['status'],
+    where: { vendorId: vendor.id },
+    _count: { _all: true },
+  })
+  const byStatus = new Map(grouped.map((g) => [g.status, g._count._all]))
+
+  const [overdue, shippedRecent, revenueLines] = await Promise.all([
+    db.vendorFulfillment.count({
+      where: {
+        vendorId: vendor.id,
+        status: 'PENDING',
+        createdAt: { lt: overdueCutoff },
+      },
+    }),
+    db.vendorFulfillment.count({
+      where: {
+        vendorId: vendor.id,
+        status: { in: ['SHIPPED', 'DELIVERED'] },
+        updatedAt: { gte: shippedWindowCutoff },
+      },
+    }),
+    // Revenue is a per-line sum of unitPrice * quantity. We could push
+    // this down with `aggregate({ _sum })`, but the schema stores them
+    // as separate columns — a simple findMany with the numeric fields
+    // is enough at vendor-level volume.
+    db.orderLine.findMany({
+      where: {
+        vendorId: vendor.id,
+        order: { placedAt: { gte: revenueWindowCutoff } },
+        // Don't count cancelled fulfillments. We approximate via the
+        // parent VendorFulfillment status using a relation filter.
+        // This deliberately overcounts incidents (which can still be
+        // refunded) — matching the previous behaviour of the JS sum
+        // that excluded only CANCELLED.
+      },
+      select: { unitPrice: true, quantity: true, order: { select: { id: true } } },
+    }),
+  ])
+
+  // Filter cancelled fulfillments out of the revenue lines (matches
+  // the previous JS behaviour). Since we don't have the fulfillment
+  // status on each line directly we fetch the cancelled order ids
+  // up front; cheap because cancelled orders are rare relative to
+  // all orders.
+  const cancelledFulfillmentOrderIds = new Set(
+    (
+      await db.vendorFulfillment.findMany({
+        where: {
+          vendorId: vendor.id,
+          status: 'CANCELLED',
+          createdAt: { gte: revenueWindowCutoff },
+        },
+        select: { orderId: true },
+      })
+    ).map((f) => f.orderId),
+  )
+
+  const revenue30d = revenueLines.reduce(
+    (sum, line) =>
+      cancelledFulfillmentOrderIds.has(line.order.id)
+        ? sum
+        : sum + Number(line.unitPrice) * line.quantity,
+    0,
+  )
+
+  return {
+    pending: byStatus.get('PENDING') ?? 0,
+    inPrep:
+      (byStatus.get('CONFIRMED') ?? 0) +
+      (byStatus.get('PREPARING') ?? 0) +
+      (byStatus.get('LABEL_REQUESTED') ?? 0) +
+      (byStatus.get('LABEL_FAILED') ?? 0),
+    ready: byStatus.get('READY') ?? 0,
+    shippedRecent,
+    incident: byStatus.get('INCIDENT') ?? 0,
+    overdue,
+    revenue30d,
+  }
+}
+
 export async function getMyFulfillmentByOrderId(orderId: string) {
   const { vendor } = await requireVendor()
 
@@ -869,6 +1336,13 @@ const profileSchema = z.object({
     .refine(v => v === null || isAllowedImageUrl(v), {
       message: 'Imagen no permitida. Súbela desde tu equipo o pega una URL permitida.',
     }),
+  // #1049 — alt text for the logo image. Empty / missing falls back
+  // to vendor.displayName at render time. 200-char cap matches
+  // PRODUCT_IMAGE_ALT_MAX so vendors get one rule everywhere.
+  logoAlt: z
+    .union([z.string(), z.literal(''), z.null()])
+    .optional()
+    .transform(v => (v == null || v === '' ? null : v.slice(0, PRODUCT_IMAGE_ALT_MAX))),
   coverImage: z
     .union([z.string(), z.literal('')])
     .optional()
@@ -876,6 +1350,10 @@ const profileSchema = z.object({
     .refine(v => v === null || isAllowedImageUrl(v), {
       message: 'Imagen no permitida. Súbela desde tu equipo o pega una URL permitida.',
     }),
+  coverImageAlt: z
+    .union([z.string(), z.literal(''), z.null()])
+    .optional()
+    .transform(v => (v == null || v === '' ? null : v.slice(0, PRODUCT_IMAGE_ALT_MAX))),
   orderCutoffTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   preparationDays: z.coerce.number().int().min(0).max(30).optional(),
   iban: z.string().max(34).optional(),
@@ -886,10 +1364,28 @@ export async function updateVendorProfile(input: z.input<typeof profileSchema>) 
   const { vendor } = await requireVendor()
   const data = profileSchema.parse(input)
 
+  // #1050 — snapshot the pre-update logo + cover so we can clean up
+  // Vercel Blob entries after the row is rewritten. `vendor` was
+  // loaded inside `requireVendor` so it reflects the row we are
+  // about to overwrite.
+  const previousLogo = vendor.logo ?? null
+  const previousCover = vendor.coverImage ?? null
+
   const updated = await db.vendor.update({
     where: { id: vendor.id },
     data,
   })
+
+  // Each field is a single URL (or null), but we still funnel through
+  // diffRemovedUrls so the "same URL re-saved" case is a no-op and
+  // null transitions are handled uniformly. No throws — see deleteBlobs.
+  const removed = diffRemovedUrls(
+    [previousLogo, previousCover],
+    [updated.logo, updated.coverImage],
+  )
+  if (removed.length > 0) {
+    await deleteBlobs(removed, 'vendor')
+  }
 
   safeRevalidatePath('/vendor/perfil')
   revalidateCatalogExperience({ vendorSlug: vendor.slug })

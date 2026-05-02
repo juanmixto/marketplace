@@ -124,6 +124,24 @@ const nextConfig: NextConfig = {
     dangerouslyAllowSVG: true,
     contentDispositionType: 'inline',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // Tuned to the actual catalog (#1051). Defaults bake breakpoints up to
+    // 3840px and only emit WebP — both wrong for our surface:
+    //   - No `<Image sizes>` in the repo declares a breakpoint above 1280px
+    //     (max declared is `(max-width: 1280px) 100vw, 1280px` on the
+    //     producer detail hero), so 1920/2048/3840 just spawn variants
+    //     nobody requests and waste cache space.
+    //   - AVIF saves ~20 % over WebP in supporting browsers (Chrome /
+    //     Firefox / Safari 16+); listing it first lets Next negotiate via
+    //     Accept-headers automatically. WebP stays as fallback.
+    //   - imageSizes trimmed to the thumbnail widths in actual use
+    //     (28/40/48/56/64/80/200 px round up cleanly into 32/64/96/128/256).
+    // The 1600 ceiling leaves headroom for a single 2× retina pass on a
+    // 1280-CSS-px hero without overshooting. An audit script
+    // (scripts/audit-image-sizes.mjs) checks net-new `sizes` props don't
+    // declare a breakpoint above this.
+    formats: ['image/avif', 'image/webp'],
+    deviceSizes: [360, 640, 750, 828, 1080, 1280, 1600],
+    imageSizes: [16, 32, 64, 96, 128, 256],
     remotePatterns: [
       {
         protocol: 'https',
@@ -142,6 +160,11 @@ const nextConfig: NextConfig = {
         // BLOB_READ_WRITE_TOKEN is set (#31).
         protocol: 'https',
         hostname: '**.public.blob.vercel-storage.com',
+      },
+      {
+        // Google account avatars (User.image when signed in via Google).
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
       },
     ],
   },

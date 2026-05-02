@@ -38,6 +38,11 @@ import {
   runUnextractableDedupeJob,
   type UnextractableDedupeJobData,
 } from './jobs/ingestion-unextractable-dedupe'
+import {
+  PREWARM_IMAGE_VARIANTS_JOB,
+  runPrewarmImageVariantsJob,
+  type PrewarmImageVariantsJobData,
+} from './jobs/prewarm-image-variants'
 
 async function main() {
   logger.info('worker.starting', {
@@ -65,17 +70,32 @@ async function main() {
   // raw message. The umbrella `kill-ingestion-processing` + the
   // `feat-ingestion-rules-extractor` stage flag both default to off,
   // so the handler is inert until operators opt in.
+  //
+  // Pure CPU + Postgres + idempotent on (messageId, extractorVersion):
+  // safe to parallelise. INGESTION_PROCESSING_CONCURRENCY (default 1,
+  // max 8) lets operators drain backlog faster without touching the
+  // sync handler, which still talks to rate-limited Telegram and
+  // stays at concurrency 1.
+  // pg-boss v10 expresses concurrency through batchSize (jobs per
+  // poll) — the queue.ts wrapper runs the batch with Promise.all,
+  // so batchSize=N is N concurrent in-flight jobs.
+  const processingWorkOpts = {
+    batchSize: config.processingConcurrency,
+    pollingIntervalSeconds: config.processingPollingSeconds,
+  }
   await registerHandler<ProcessMessageJobData>(
     PROCESSING_JOB_KINDS.buildDrafts,
     async (job) => {
       await runProcessMessageJob(job)
     },
+    processingWorkOpts,
   )
   await registerHandler<DedupeJobData>(
     PROCESSING_JOB_KINDS.dedupeDrafts,
     async (job) => {
       await runDedupeJob(job)
     },
+    processingWorkOpts,
   )
   // rules-1.2.0: unextractable dedupe runs after UNEXTRACTABLE
   // builder outcomes. Same stage flag (`feat-ingestion-dedupe`)
@@ -85,6 +105,19 @@ async function main() {
     async (job) => {
       await runUnextractableDedupeJob(job)
     },
+    processingWorkOpts,
+  )
+
+  // #1052: prewarm /_next/image variants on upload. The handler is
+  // pure I/O against the same Next instance, so a small batchSize is
+  // safe — running 4 jobs in parallel keeps a publish burst snappy
+  // without overwhelming the image optimizer.
+  await registerHandler<PrewarmImageVariantsJobData>(
+    PREWARM_IMAGE_VARIANTS_JOB,
+    async (job) => {
+      await runPrewarmImageVariantsJob(job)
+    },
+    { batchSize: 4 },
   )
 
   logger.info('worker.ready', {
@@ -94,6 +127,7 @@ async function main() {
       PROCESSING_JOB_KINDS.buildDrafts,
       PROCESSING_JOB_KINDS.dedupeDrafts,
       PROCESSING_JOB_KINDS.unextractableDedupe,
+      PREWARM_IMAGE_VARIANTS_JOB,
     ],
     config,
   })

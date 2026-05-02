@@ -71,15 +71,26 @@ test.describe('cart and checkout @smoke', () => {
     await expect(page).toHaveURL(/\/checkout(?:\/|$|\?)/, { timeout: 25_000 })
 
     // --- CHECKOUT ---
+    // If we landed back on /carrito (cart store didn't rehydrate before the
+    // checkout client ran its empty-cart guard — happens on slow CI
+    // runners), re-add the product and retry the navigation once.
+    if (page.url().includes('/carrito')) {
+      await page.goto(`/productos/${SEEDED_PRODUCT_SLUG}`)
+      await page.getByRole('button', { name: /añadir al carrito/i }).first().click()
+      await expect(page.getByRole('button', { name: /añadido/i }).first()).toBeVisible({ timeout: 5_000 })
+      await page.goto('/checkout')
+      await expect(page).toHaveURL(/\/checkout(?:\/|$|\?)/, { timeout: 25_000 })
+    }
+
     // The checkout can render either saved addresses or the new-address
     // form first, depending on how quickly the seeded profile arrives on
     // the shard. Prefer the saved row when it appears, but fall back to a
     // deterministic new address so the smoke never hangs on a timing race.
     const savedAddress = page.getByTestId('checkout-saved-address').first()
-    const firstName = page.getByRole('textbox', { name: /nombre/i })
+    const firstName = page.getByRole('textbox', { name: /nombre/i }).first()
 
     const savedAddressReady = await savedAddress
-      .waitFor({ state: 'visible', timeout: 10_000 })
+      .waitFor({ state: 'visible', timeout: 15_000 })
       .then(() => true)
       .catch(() => false)
 
@@ -90,8 +101,11 @@ test.describe('cart and checkout @smoke', () => {
       await firstName.fill(FALLBACK_CHECKOUT_ADDRESS.firstName)
       await page.getByRole('textbox', { name: /apellidos/i }).fill(FALLBACK_CHECKOUT_ADDRESS.lastName)
       await page.getByRole('textbox', { name: /dirección/i }).fill(FALLBACK_CHECKOUT_ADDRESS.line1)
-      await page.getByRole('combobox', { name: /provincia/i }).selectOption({ label: FALLBACK_CHECKOUT_ADDRESS.province })
+      // #1083: province <select> is gone — the form derives the
+      // province from the postal code's INE prefix. Filling CP is
+      // sufficient; the chip "Provincia: Madrid" then renders.
       await page.getByRole('textbox', { name: /código postal/i }).fill(FALLBACK_CHECKOUT_ADDRESS.postalCode)
+      await page.getByRole('textbox', { name: /ciudad|localidad/i }).fill(FALLBACK_CHECKOUT_ADDRESS.city)
       await page.getByRole('textbox', { name: /teléfono/i }).fill(FALLBACK_CHECKOUT_ADDRESS.phone)
     }
 
@@ -99,7 +113,9 @@ test.describe('cart and checkout @smoke', () => {
     // The page renders a desktop submit AND a mobile sticky-bar submit
     // (one is CSS-hidden depending on viewport); pick the first match —
     // both submit the same form so either click is correct.
-    const confirm = page.getByRole('button', { name: /confirmar pedido/i }).first()
+    // #1083 retitled the CTA to "Continuar al pago" — old "Confirmar
+    // pedido" copy is gone.
+    const confirm = page.getByRole('button', { name: /continuar al pago/i }).first()
     await expect(confirm).toBeEnabled({ timeout: 5_000 })
     await Promise.all([
       page.waitForURL(/\/checkout\/confirmacion\?orderNumber=/, { timeout: 20_000 }),

@@ -1,9 +1,25 @@
 import { randomUUID } from 'node:crypto'
 import { db } from '@/lib/db'
 import { resetTestActionSession, setTestActionSession, type ActionSession } from '@/lib/action-session'
+import { waitForPendingNotifications } from '@/domains/notifications/dispatcher'
 import type { UserRole } from '@/generated/prisma/enums'
+import { assertSafeToTruncate } from './safety'
 
 export async function resetIntegrationDatabase() {
+  // Block accidental TRUNCATE of the dev DB when an integration test
+  // is invoked outside `npm run test:integration`. See ./safety.ts.
+  assertSafeToTruncate()
+
+  // Drain fire-and-forget notification handlers from the previous
+  // test before truncating. Server actions like `approveVendor` and
+  // `createOrder` schedule handlers via `queueMicrotask`, and those
+  // handlers insert into `NotificationDelivery` referencing a User
+  // by id. Under shared-process isolation (--test-isolation=none) a
+  // late handler from the previous test can otherwise race this
+  // truncate and crash the next test with a FK violation
+  // ("NotificationDelivery_userId_fkey"). See issue #975.
+  await waitForPendingNotifications()
+
   const tables = await db.$queryRawUnsafe<Array<{ tablename: string }>>(
     "SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'"
   )
@@ -101,6 +117,7 @@ export async function createActiveProduct(vendorId: string, overrides: Record<st
       stock: 8,
       trackStock: true,
       images: [],
+      imageAlts: [],
       certifications: [],
       tags: [],
       status: 'ACTIVE',

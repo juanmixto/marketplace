@@ -5,5 +5,5 @@ export const siteAppearance = {
   foreground: '#1f2937',
   accent: '#0f766e',
   accentStrong: '#14532d',
-  faviconPath: '/favicon.svg',
+  faviconPath: '/favicon.ico',
 }

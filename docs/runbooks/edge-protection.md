@@ -1,3 +1,9 @@
+---
+summary: Playbook para añadir Cloudflare/WAF delante de Traefik (#540). Self-hosted Proxmox sin edge gestionado por defecto.
+audience: agents,humans
+read_when: configurar edge protection; tocar src/lib/ratelimit.ts o resolución de client IP
+---
+
 # Edge protection runbook (Cloudflare / WAF)
 
 Tracks the infra work for [#540](https://github.com/juanmixto/marketplace/issues/540). The marketplace runs self-hosted (Proxmox + Traefik) with no managed edge in front by default. This document is the playbook for adding one.
@@ -76,6 +82,29 @@ curl -X PATCH "https://api.cloudflare.com/client/v4/zones/$CF_ZONE/settings/secu
 ```
 
 Every request gets a JS challenge. Add `$CF_ZONE` and a scoped `$CF_API_TOKEN` (permission: Zone Settings: Edit) to the ops vault before an incident happens, not during one.
+
+### 8. Visitor location headers
+
+Cloudflare → Network → **Add visitor location headers** → ON.
+
+This enables Cloudflare to inject `cf-ipcountry`, `cf-region`, `cf-region-code`, `cf-iplongitude`, `cf-iplatitude`, `cf-timezone`, `cf-postal-code` and `cf-iata` on every proxied request. **The toggle is OFF by default** and the headers never arrive without it.
+
+The marketplace currently reads **`cf-region-code`** in [`src/domains/shipping/zone-default.ts`](../../src/domains/shipping/zone-default.ts) to localize the PDP shipping band: visitors from the Balearic Islands (`ES-IB`), Canary Islands (`ES-CN`), Ceuta (`ES-CE`) or Melilla (`ES-ML`) see a CP that's actually relevant for their zone instead of a peninsular default. Without this header the resolver silently falls back to peninsula for everyone — no error, no log, just a worse experience for ~3 % of Spanish buyers.
+
+Verify with a one-shot probe from an external IP:
+
+```sh
+curl -sI "https://${APP_HOST}/" | grep -i "^cf-region-code:"
+# Expected: cf-region-code: ES-XX
+```
+
+If the header is missing:
+
+1. Check the toggle in CF dashboard (Network → Add visitor location headers).
+2. Confirm the request is proxied (orange cloud), not DNS-only (grey).
+3. Confirm Traefik is **not** stripping `cf-*` headers in middleware. The default Traefik forwarding leaves them intact; only an explicit `headers.customRequestHeaders` rule would drop them.
+
+The other location headers are not consumed by the app today. If a future feature reads `cf-iplongitude` / `cf-iplatitude` (e.g., a regional store-locator) it inherits the same toggle dependency — the runbook check above stays valid.
 
 ## Traefik hardening (defence in depth)
 

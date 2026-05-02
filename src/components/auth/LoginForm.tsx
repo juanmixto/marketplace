@@ -35,11 +35,11 @@ export function LoginForm({ callbackUrl = '/', topSlot }: LoginFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showPass, setShowPass] = useState(false)
-  // Admin-only two-step flow (#: two-step admin login). Step 1 collects
-  // email+password and pings /api/auth/login-precheck to learn whether
-  // 2FA is required (false when the trusted-device cookie is valid or
-  // the admin hasn't enrolled yet). Step 2, when needed, collects the
-  // TOTP code plus an opt-in "remember this device 30 days" checkbox.
+  // Two-step flow. Step 1 collects email+password and pings
+  // /api/auth/login-precheck to learn whether 2FA is required
+  // (false when the trusted-device cookie is valid or the user
+  // hasn't enrolled yet). Step 2, when needed, collects the TOTP
+  // code plus an opt-in "remember this device 30 days" checkbox.
   const [step, setStep] = useState<Step>('credentials')
   const [totpCode, setTotpCode] = useState('')
   const [rememberDevice, setRememberDevice] = useState(true)
@@ -114,13 +114,15 @@ export function LoginForm({ callbackUrl = '/', topSlot }: LoginFormProps) {
     const email = String(formData.get('email') ?? '')
     const password = String(formData.get('password') ?? '')
 
-    // Buyer / vendor portals have no 2FA surface — go straight to
-    // signIn and let authorize() do its thing.
-    if (!isAdminPortal) {
-      await completeSignIn({ email, password }, {})
-      return
-    }
-
+    // Always run the precheck. We used to skip it for non-admin
+    // portals on the assumption that only admins enroll 2FA, but the
+    // portal is decided by the callback URL — so an admin who lands
+    // on /login directly (without ?callbackUrl=/admin) would skip
+    // straight to signIn without the TOTP step and get rejected with
+    // a generic "invalid credentials" error. Same trap fires the day
+    // a vendor or buyer opts into 2FA. Cost: one ~50ms POST per
+    // login attempt; benefit: the form's behaviour matches what the
+    // user has actually enrolled.
     try {
       const res = await fetch('/api/auth/login-precheck', {
         method: 'POST',
@@ -152,13 +154,18 @@ export function LoginForm({ callbackUrl = '/', topSlot }: LoginFormProps) {
       }
 
       // Password is valid and no 2FA step is required (either the
-      // admin hasn't enrolled yet — in which case the proxy will
-      // redirect to /admin/security/enroll — or a trusted-device
-      // cookie is still valid).
+      // user hasn't enrolled yet — in which case the proxy will
+      // redirect admins to /admin/security/enroll — or a trusted-
+      // device cookie is still valid).
       await completeSignIn({ email, password }, {})
     } catch {
-      setError(t('login.error.generic'))
-      setLoading(false)
+      // Graceful fallback: if the precheck network call itself
+      // fails (offline, transient 5xx, CORS), don't lock everyone
+      // out. Hand off to NextAuth's signIn — users without 2FA log
+      // in normally; users with 2FA still get a generic rejection
+      // (the same behaviour as before this branch ran the precheck
+      // unconditionally).
+      await completeSignIn({ email, password }, {})
     }
   }
 

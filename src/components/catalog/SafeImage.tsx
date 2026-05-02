@@ -3,7 +3,8 @@
 import { useMemo, useState } from 'react'
 import Image from 'next/image'
 import { PhotoIcon } from '@heroicons/react/24/outline'
-import { getAdaptiveImageQuality } from '@/lib/connection'
+import { getAdaptiveImageProfile } from '@/lib/connection'
+import { transformSizesWithDownscale } from '@/lib/image-sizes'
 
 interface SafeImageProps {
   src?: string | null
@@ -42,7 +43,16 @@ export function SafeImage({
   // Derive once per mount. We deliberately don't re-derive on connection
   // change events: switching the quality mid-render would re-fetch every
   // image, defeating the purpose. Refresh = re-derive.
-  const effectiveQuality = useMemo(() => quality ?? getAdaptiveImageQuality(), [quality])
+  const { effectiveQuality, effectiveSizes } = useMemo(() => {
+    const profile = getAdaptiveImageProfile()
+    return {
+      effectiveQuality: quality ?? profile.quality,
+      effectiveSizes:
+        sizes && profile.sizesDownscale < 1
+          ? transformSizesWithDownscale(sizes, profile.sizesDownscale)
+          : sizes,
+    }
+  }, [quality, sizes])
 
   if (!src || hasError) {
     return (
@@ -70,7 +80,7 @@ export function SafeImage({
         alt={alt}
         fill={fill}
         className={className}
-        sizes={sizes}
+        sizes={effectiveSizes}
         onError={() => setHasError(true)}
         onLoadingComplete={() => setIsLoading(false)}
         priority={priority}

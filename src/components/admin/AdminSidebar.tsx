@@ -18,6 +18,7 @@ import { useSidebar } from '@/components/layout/SidebarProvider'
 import { useSwipeToClose } from '@/lib/hooks/useSwipeToClose'
 import { useFeatureFlagStrict } from '@/lib/flags.client'
 import { LanguageToggle } from '@/components/LanguageToggle'
+import { BrandMark } from '@/components/brand/BrandMark'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { SignOutButton } from '@/components/auth/SignOutButton'
 import { useT } from '@/i18n'
@@ -63,10 +64,20 @@ export function AdminSidebar({ user }: Props = {}) {
     direction: 'left',
   })
   const ingestionAdminEnabled = useFeatureFlagStrict('feat-ingestion-admin')
+  const promotionsEnabled = useFeatureFlagStrict('feat-promotions')
+  const vendorSubscriptionsEnabled = useFeatureFlagStrict('feat-vendor-subscriptions')
+  const adminAnalyticsEnabled = useFeatureFlagStrict('feat-admin-analytics')
+  const adminReportsEnabled = useFeatureFlagStrict('feat-admin-reports')
+  const flagState: Record<string, boolean> = {
+    'feat-ingestion-admin': ingestionAdminEnabled,
+    'feat-promotions': promotionsEnabled,
+    'feat-vendor-subscriptions': vendorSubscriptionsEnabled,
+    'feat-admin-analytics': adminAnalyticsEnabled,
+    'feat-admin-reports': adminReportsEnabled,
+  }
   const visibleNavItems = adminNavItems.filter((item) => {
     if (!item.flag) return true
-    if (item.flag === 'feat-ingestion-admin') return ingestionAdminEnabled
-    return false
+    return flagState[item.flag] ?? false
   })
 
   const labelCls = cn(
@@ -130,9 +141,7 @@ export function AdminSidebar({ user }: Props = {}) {
               className="pointer-events-none hidden md:flex md:absolute md:inset-0 md:items-center md:justify-center"
               aria-hidden="true"
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-500/30 dark:bg-emerald-500 dark:text-gray-950 dark:ring-emerald-300/30">
-                <span className="text-[11px] font-bold">MP</span>
-              </div>
+              <BrandMark size={32} className="h-8 w-8 rounded-lg" />
             </div>
           )}
           <button

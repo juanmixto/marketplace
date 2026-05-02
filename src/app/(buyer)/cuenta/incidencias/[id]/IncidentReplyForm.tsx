@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useT } from '@/i18n'
 import { Button } from '@/components/ui/button'
+import { IncidentAttachmentPicker } from '@/components/incidents/IncidentAttachmentPicker'
 
 interface Props {
   incidentId: string
@@ -13,6 +14,7 @@ export function IncidentReplyForm({ incidentId }: Props) {
   const t = useT()
   const router = useRouter()
   const [body, setBody] = useState('')
+  const [attachments, setAttachments] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -26,7 +28,10 @@ export function IncidentReplyForm({ incidentId }: Props) {
       const response = await fetch(`/api/incidents/${incidentId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: body.trim() }),
+        body: JSON.stringify({
+          body: body.trim(),
+          attachments,
+        }),
       })
       if (!response.ok) {
         setError(t('incident.error.generic'))
@@ -34,6 +39,7 @@ export function IncidentReplyForm({ incidentId }: Props) {
         return
       }
       setBody('')
+      setAttachments([])
       router.refresh()
       setSubmitting(false)
     } catch {
@@ -61,6 +67,11 @@ export function IncidentReplyForm({ incidentId }: Props) {
         className="block w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
         maxLength={5000}
         required
+        disabled={submitting}
+      />
+      <IncidentAttachmentPicker
+        value={attachments}
+        onChange={setAttachments}
         disabled={submitting}
       />
       {error && (

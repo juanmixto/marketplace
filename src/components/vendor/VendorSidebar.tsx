@@ -8,11 +8,13 @@ import {
   CurrencyEuroIcon, UserCircleIcon, ArrowTopRightOnSquareIcon,
   StarIcon, TagIcon, ArrowPathIcon,
   BellIcon,
+  ExclamationTriangleIcon,
   ChevronDoubleLeftIcon, XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from '@/lib/utils'
 import { vendorNavItems } from '@/lib/navigation'
 import { useT } from '@/i18n'
+import { useFeatureFlagStrict } from '@/lib/flags.client'
 import { useSidebar } from '@/components/layout/SidebarProvider'
 import { useSwipeToClose } from '@/lib/hooks/useSwipeToClose'
 import { LanguageToggle } from '@/components/LanguageToggle'
@@ -22,6 +24,7 @@ import { SignOutButton } from '@/components/auth/SignOutButton'
 const NAV_META = {
   '/vendor/dashboard':     HomeIcon,
   '/vendor/pedidos':       ShoppingBagIcon,
+  '/vendor/incidencias':   ExclamationTriangleIcon,
   '/vendor/productos':     ArchiveBoxIcon,
   '/vendor/promociones':   TagIcon,
   '/vendor/suscripciones': ArrowPathIcon,
@@ -54,6 +57,17 @@ export function VendorSidebar({ vendor, user }: Props) {
 
   const collapseLabel = collapsed ? t('vendor.sidebar.expand') : t('vendor.sidebar.collapse')
   const closeMenuLabel = t('vendor.sidebar.closeMenu')
+
+  const promotionsEnabled = useFeatureFlagStrict('feat-promotions')
+  const vendorSubscriptionsEnabled = useFeatureFlagStrict('feat-vendor-subscriptions')
+  const flagState: Record<string, boolean> = {
+    'feat-promotions': promotionsEnabled,
+    'feat-vendor-subscriptions': vendorSubscriptionsEnabled,
+  }
+  const visibleVendorNavItems = vendorNavItems.filter((item) => {
+    if (!item.flag) return true
+    return flagState[item.flag] ?? false
+  })
 
   const labelCls = cn(
     'overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] ease-out',
@@ -155,7 +169,7 @@ export function VendorSidebar({ vendor, user }: Props) {
         </div>
 
         <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
-          {vendorNavItems.map(({ href, labelKey, available }) => {
+          {visibleVendorNavItems.map(({ href, labelKey, available }) => {
             const Icon = NAV_META[href as keyof typeof NAV_META]
             const isActive = pathname === href || pathname.startsWith(href + '/')
             const label = t(labelKey)

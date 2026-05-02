@@ -1,0 +1,63 @@
+name: CI (docs passthrough)
+
+# Companion to `ci.yml`. The main pipeline ignores docs-only changes
+# via `paths-ignore` to save the ~5-min Verify + Build + 4× E2E shards
+# tax on every typo PR. But branch protection requires Verify, Build
+# And Migrate, and E2E Smoke as status contexts — when no workflow
+# reports them, doc-only PRs become structurally unmergeable, even via
+# `gh pr merge --auto`. (#1038 + #1039, 2026-04-29.)
+#
+# This workflow fires on the **same paths** that `ci.yml` ignores, and
+# defines three trivial jobs whose names exactly match the required
+# contexts. They post green checks in seconds so doc-only PRs satisfy
+# branch protection without paying for the real pipeline.
+#
+# Mixed PRs (touching both code and docs) trigger BOTH workflows. Both
+# post check runs under the same names; GitHub branch protection
+# requires every same-named check run to pass, so a real failure in
+# `ci.yml` still blocks the merge — the passthrough cannot mask it.
+#
+# When adding a new required context to `ci.yml`, mirror it here too.
+# The single source of truth for required contexts lives in
+# `docs/branch-protection.md`.
+
+on:
+  push:
+    branches:
+      - main
+    paths: &ci_docs_paths
+      - '**/*.md'
+      - '.vscode/**'
+      - 'LICENSE'
+      - '.gitignore'
+  pull_request:
+    paths: *ci_docs_paths
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - run: echo "Docs-only PR — Verify is a no-op (real job in ci.yml is path-filtered)."
+
+  build-and-migrate:
+    name: Build And Migrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - run: echo "Docs-only PR — Build And Migrate is a no-op (real job in ci.yml is path-filtered)."
+
+  e2e-smoke:
+    name: E2E Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - run: echo "Docs-only PR — E2E Smoke is a no-op (real job in ci.yml is path-filtered)."

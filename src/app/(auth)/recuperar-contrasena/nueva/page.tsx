@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { ResetForm } from './ResetForm'
 
 export const metadata: Metadata = {
-  title: 'Establecer Nueva Contraseña | Mercado Productor',
+  title: 'Establecer Nueva Contraseña | Raíz Directa',
   description: 'Establece una nueva contraseña para tu cuenta.',
 }
 

@@ -1,3 +1,9 @@
+---
+summary: Hipótesis de partida y plan de adquisición orgánica. Sin paid acquisition antes de validar conversión (ADR-004).
+audience: agents,humans
+read_when: proponer canales de adquisición o experimentos de growth
+---
+
 # 06 — Growth y lanzamiento
 
 ## Hipótesis de partida

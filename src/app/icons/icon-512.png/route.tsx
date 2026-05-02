@@ -3,6 +3,6 @@ import { renderBrandIcon } from '@/lib/pwa/brand-icon'
 export const dynamic = 'force-static'
 export const revalidate = false
 
-export function GET() {
-  return renderBrandIcon(512, 'any')
+export async function GET() {
+  return await renderBrandIcon(512, 'any')
 }

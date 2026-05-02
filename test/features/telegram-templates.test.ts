@@ -341,6 +341,15 @@ test('incidentOpenedTemplate names the buyer and shows the description snippet',
   )
   assert.ok(msg.text.includes('Ana'))
   assert.ok(msg.text.includes('No ha llegado'))
+  // The recipient is the vendor; /cuenta/incidencias is buyer-only and
+  // would 404 for them. The deep link goes to the new vendor-side
+  // /vendor/incidencias/<id> page (guarded by getVendorIncidentDetail).
+  // InlineKeyboardButton is a union; only the URL variant carries
+  // `url`, so we narrow before reading it.
+  const button = msg.inline_keyboard?.[0]?.[0]
+  assert.ok(button && 'url' in button, 'expected a url button')
+  assert.ok(button.url.endsWith('/vendor/incidencias/inc_1'))
+  assert.ok(!button.url.includes('/cuenta/incidencias'))
 })
 
 test('payoutPaidTemplate shows the order count in the period', () => {

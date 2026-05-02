@@ -32,6 +32,11 @@ const VENDOR_CATEGORY_OPTIONS = [
 
 type VendorCategoryOption = (typeof VENDOR_CATEGORY_OPTIONS)[number]['value']
 
+// Cap matches PRODUCT_IMAGE_ALT_MAX in src/shared/types/products.ts.
+// One rule for both surfaces is easier to teach the vendor than "200 here,
+// something else there".
+const IMAGE_ALT_MAX = 200
+
 function buildProfileSchema(t: ReturnType<typeof useT>) {
   const imageFieldSchema = z
     .union([z.string(), z.literal(''), z.undefined()])
@@ -40,6 +45,9 @@ function buildProfileSchema(t: ReturnType<typeof useT>) {
       v => v === '' || isAllowedImageUrl(v),
       t('vendor.profileForm.imageUrlError'),
     )
+  const altFieldSchema = z
+    .union([z.string().max(IMAGE_ALT_MAX), z.literal(''), z.undefined()])
+    .transform(v => (v ?? '').trim())
   return z.object({
     displayName: z.string().min(3, t('vendor.profileForm.nameMin')).max(80),
     description: z.string().max(2000).optional(),
@@ -52,7 +60,9 @@ function buildProfileSchema(t: ReturnType<typeof useT>) {
       ])
       .optional(),
     logo: imageFieldSchema,
+    logoAlt: altFieldSchema,
     coverImage: imageFieldSchema,
+    coverImageAlt: altFieldSchema,
     orderCutoffTime: z
       .union([z.string().regex(/^\d{2}:\d{2}$/, t('vendor.profileForm.cutoffFormat')), z.literal(''), z.undefined()])
       .transform(v => v || undefined),
@@ -97,7 +107,9 @@ export function VendorProfileForm({ vendor }: Props) {
       location: vendor.location ?? '',
       category: (vendor.category ?? '') as VendorCategoryOption | '',
       logo: vendor.logo ?? '',
+      logoAlt: vendor.logoAlt ?? '',
       coverImage: vendor.coverImage ?? '',
+      coverImageAlt: vendor.coverImageAlt ?? '',
       orderCutoffTime: vendor.orderCutoffTime ?? '',
       preparationDays: vendor.preparationDays ?? 2,
       iban: vendor.iban ?? '',
@@ -256,6 +268,31 @@ export function VendorProfileForm({ vendor }: Props) {
         {errors.coverImage?.message && (
           <p className="text-xs text-red-600 dark:text-red-400">{errors.coverImage.message}</p>
         )}
+
+        {/*
+          #1049 — alt text for logo + cover. Empty falls back to the
+          vendor display name at render time. Kept right under the
+          hero upload so the vendor sees both fields in the same
+          glance.
+        */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input
+            label={t('vendor.profileForm.logoAltLabel')}
+            placeholder={t('vendor.profileForm.logoAltPlaceholder')}
+            hint={t('vendor.imageAltHint')}
+            maxLength={IMAGE_ALT_MAX}
+            error={errors.logoAlt?.message}
+            {...register('logoAlt')}
+          />
+          <Input
+            label={t('vendor.profileForm.coverImageAltLabel')}
+            placeholder={t('vendor.profileForm.coverImageAltPlaceholder')}
+            hint={t('vendor.imageAltHint')}
+            maxLength={IMAGE_ALT_MAX}
+            error={errors.coverImageAlt?.message}
+            {...register('coverImageAlt')}
+          />
+        </div>
       </section>
 
       {/* Logistics */}

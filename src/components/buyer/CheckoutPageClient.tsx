@@ -24,9 +24,7 @@ import {
   type SavedCheckoutAddress,
 } from '@/domains/orders/checkout'
 import { applyCartDiscounts } from '@/domains/pricing'
-import {
-  SPAIN_PROVINCES,
-} from '@/domains/shipping/spain-provinces'
+import { SPAIN_PROVINCE_BY_PREFIX } from '@/domains/shipping/spain-provinces'
 import { useT } from '@/i18n'
 import { createAnalyticsItem, trackAnalyticsEvent } from '@/lib/analytics'
 import { CheckoutProgress } from '@/components/checkout/CheckoutProgress'
@@ -62,11 +60,13 @@ interface Props {
    */
   initialAddresses?: SavedCheckoutAddress[]
   /**
-   * Whether the buyer has an authenticated session. Surfaced from the
-   * server component so the client can render the guest-checkout band
-   * without a hydration mismatch. Guest checkout is the golden path
-   * (docs/product/01-principios-producto.md § 4); when there is no
-   * session we welcome the buyer instead of nudging them to sign in.
+   * Whether the buyer is authenticated. Drives both the guest-email
+   * field (#1072) and the welcome band (#926): when false, the band
+   * surfaces "Comprar como invitado" copy and the form renders an
+   * extra `guestEmail` input above the address. The server-side
+   * `createOrder` mints a passwordless User from it. Defaults to
+   * `true` so callers that don't pass it keep the authenticated-only
+   * flow with no UI noise.
    */
   hasSession?: boolean
 }
@@ -80,7 +80,7 @@ export function CheckoutPageClient({
   userLastName = '',
   checkoutAttemptId,
   initialAddresses,
-  hasSession = false,
+  hasSession = true,
 }: Props) {
   const router = useRouter()
   const { items, subtotal, clearCart } = useCartStore()
@@ -124,6 +124,7 @@ export function CheckoutPageClient({
       postalCode: '',
       phone: '',
       saveAddress: true,
+      guestEmail: '',
     },
   })
   const watchedPostalCode = useWatch({ control, name: 'postalCode' }) ?? ''
@@ -213,6 +214,22 @@ export function CheckoutPageClient({
   // cannot live below conditional returns.
   const attemptIdRef = useRef(checkoutAttemptId)
   const shouldRedirectToCart = cartHydrated && items.length === 0 && step !== 'processing' && !completedOrderNumber
+
+  // #1074: derive province from the postal code's 2-digit prefix and
+  // keep the form value in sync. The native <select> for 52 provinces
+  // was the anti-pattern flagged in docs/product/04 § 50-57. Eliminating
+  // it cuts a tap target on mobile and removes a redundant decision —
+  // the postal code already determines the province uniquely. The
+  // server-side `postalProvinceRefiner` validates the pair, so the
+  // derivation here just keeps client and server in lock-step.
+  useEffect(() => {
+    if (watchedPostalCode.length !== 5) return
+    const prefix = watchedPostalCode.slice(0, 2)
+    const derived = SPAIN_PROVINCE_BY_PREFIX[prefix]
+    if (!derived) return
+    if (watchedProvince === derived) return
+    setValue('province', derived, { shouldValidate: true, shouldDirty: true })
+  }, [watchedPostalCode, watchedProvince, setValue])
 
   useEffect(() => {
     if (items.length === 0 || hasTrackedCheckoutRef.current) return
@@ -384,6 +401,7 @@ export function CheckoutPageClient({
           address: data,
           saveAddress: data.saveAddress,
           selectedAddressId: selectedAddressId ?? undefined,
+          guestEmail: hasSession ? undefined : data.guestEmail?.trim() || undefined,
         },
         { promotionCode: appliedCode, checkoutAttemptId: attemptIdRef.current }
       )
@@ -482,10 +500,34 @@ export function CheckoutPageClient({
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <form id="checkout-form" onSubmit={handleSubmit(onSubmit, handleInvalid)} className="space-y-6">
+            {!hasSession && (
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
+                <h2 className="mb-1 font-semibold text-[var(--foreground)]">{t('checkout.guestEmailHeading')}</h2>
+                <p className="mb-4 text-sm text-[var(--muted)]">{t('checkout.guestEmailHelp')}</p>
+                <Input
+                  label={t('checkout.guestEmailLabel')}
+                  type="email"
+                  inputMode="email"
+                  enterKeyHint="next"
+                  autoComplete="email"
+                  placeholder="tucorreo@ejemplo.com"
+                  error={errors.guestEmail?.message}
+                  {...register('guestEmail')}
+                />
+              </div>
+            )}
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <h2 className="mb-4 font-semibold text-[var(--foreground)]">{t('checkout.address')}</h2>
               {loadingAddresses && (
-                <p className="mb-4 text-sm text-[var(--muted)]">{t('checkout.savedAddressesLoading')}</p>
+                <div
+                  className="mb-4 space-y-3"
+                  aria-busy="true"
+                  aria-live="polite"
+                  aria-label={t('checkout.savedAddressesLoading')}
+                >
+                  <div className="h-20 animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface-raised)]" />
+                  <div className="h-20 animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface-raised)]" />
+                </div>
               )}
               {!loadingAddresses && savedAddresses.length > 0 && (
                 <div className="mb-5 space-y-3">
@@ -556,46 +598,17 @@ export function CheckoutPageClient({
                     </button>
                   )}
                   <div className="grid grid-cols-2 gap-3">
-                    <Input label={t('checkout.firstName')} autoComplete="given-name" error={errors.firstName?.message} {...register('firstName')} />
-                    <Input label={t('checkout.lastName')} autoComplete="family-name" error={errors.lastName?.message} {...register('lastName')} />
+                    <Input label={t('checkout.firstName')} autoComplete="given-name" enterKeyHint="next" error={errors.firstName?.message} {...register('firstName')} />
+                    <Input label={t('checkout.lastName')} autoComplete="family-name" enterKeyHint="next" error={errors.lastName?.message} {...register('lastName')} />
                   </div>
-                  <Input label={t('checkout.line1')} autoComplete="address-line1" placeholder={t('checkout.line1Placeholder')} error={errors.line1?.message} {...register('line1')} />
-                  <Input label={t('checkout.line2')} autoComplete="address-line2" {...register('line2')} />
+                  <Input label={t('checkout.line1')} autoComplete="address-line1" enterKeyHint="next" placeholder={t('checkout.line1Placeholder')} error={errors.line1?.message} {...register('line1')} />
+                  <Input label={t('checkout.line2')} autoComplete="address-line2" enterKeyHint="next" {...register('line2')} />
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div className="space-y-1.5 sm:col-span-3">
-                      <label className="block text-sm font-medium text-[var(--foreground)]">
-                        {t('checkout.province')}
-                      </label>
-                      <select
-                        autoComplete="address-level1"
-                        className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
-                        value={watchedProvince}
-                        onChange={e =>
-                          setValue('province', e.target.value, {
-                            shouldValidate: true,
-                            shouldDirty: true,
-                          })
-                        }
-                      >
-                        <option value="" disabled>
-                          {t('checkout.provincePlaceholder')}
-                        </option>
-                        {SPAIN_PROVINCES.map(p => (
-                          <option key={p.prefix} value={p.name}>
-                            {p.name}
-                          </option>
-                        ))}
-                      </select>
-                      {errors.province?.message && (
-                        <p className="text-xs text-red-600 dark:text-red-400">
-                          {errors.province.message}
-                        </p>
-                      )}
-                    </div>
                     <Input
                       label={t('checkout.postalCode')}
                       placeholder={t('checkout.postalCodePlaceholder')}
                       inputMode="numeric"
+                      enterKeyHint="next"
                       autoComplete="postal-code"
                       maxLength={5}
                       error={errors.postalCode?.message}
@@ -610,15 +623,37 @@ export function CheckoutPageClient({
                       <Input
                         label={t('checkout.city')}
                         autoComplete="address-level2"
+                        enterKeyHint="next"
                         error={errors.city?.message}
                         {...register('city')}
                       />
                     </div>
                   </div>
+                  {/* #1074: province auto-derived from postal code. The
+                      visible chip lets the buyer verify the match without a
+                      52-option <select> picker. The form value is set by
+                      the postal-code useEffect; on submit, the server-side
+                      `postalProvinceRefiner` cross-checks the pair. */}
+                  {watchedPostalCode.length === 5 && watchedProvince && (
+                    <p className="text-xs text-[var(--muted)]">
+                      {t('checkout.provinceDerived').replace('{province}', watchedProvince)}
+                    </p>
+                  )}
+                  {watchedPostalCode.length === 5 && !watchedProvince && (
+                    <p className="text-xs text-red-600 dark:text-red-400" role="alert">
+                      {t('checkout.provinceUnknownCp')}
+                    </p>
+                  )}
+                  {errors.province?.message && watchedPostalCode.length === 5 && watchedProvince && (
+                    <p className="text-xs text-red-600 dark:text-red-400">
+                      {errors.province.message}
+                    </p>
+                  )}
                   <Input
                     label={t('checkout.phone')}
                     type="tel"
                     inputMode="tel"
+                    enterKeyHint="done"
                     autoComplete="tel"
                     placeholder="+34 600 000 000"
                     error={errors.phone?.message}
@@ -714,14 +749,25 @@ export function CheckoutPageClient({
               )}
               <div className="flex justify-between text-[var(--foreground-soft)]">
                 <span>{t('cart.shipping')}</span>
-                <span>{shipping === 0 ? <span className="text-emerald-600 dark:text-emerald-400">{t('cart.shippingFree')}</span> : formatPrice(shipping)}</span>
+                <span>
+                  {watchedPostalCode.length < 5
+                    ? <span className="text-[var(--muted)]">{t('checkout.shippingPendingCp')}</span>
+                    : shipping === 0
+                      ? <span className="text-emerald-600 dark:text-emerald-400">{t('cart.shippingFree')}</span>
+                      : formatPrice(shipping)}
+                </span>
               </div>
               {shippingDiscount > 0 && (
                 <p className="text-xs text-emerald-700 dark:text-emerald-400">
                   {t('checkout.promo.freeShippingApplied')}
                 </p>
               )}
-              {shipping > 0 && shippingDiscount === 0 && (
+              {watchedPostalCode.length < 5 && (
+                <p className="text-xs text-[var(--muted-light)]">
+                  {t('checkout.shippingHintNoCp')}
+                </p>
+              )}
+              {shipping > 0 && shippingDiscount === 0 && watchedPostalCode.length === 5 && (
                 <p className="text-xs text-[var(--muted-light)]">
                   {t('checkout.shippingHint')}
                 </p>
@@ -752,7 +798,7 @@ export function CheckoutPageClient({
                       value={promoCodeInput}
                       onChange={e => setPromoCodeInput(e.target.value.toUpperCase())}
                       placeholder={t('checkout.promo.placeholder')}
-                      className="h-9 flex-1 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 font-mono text-xs uppercase text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+                      className="h-9 flex-1 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 font-mono text-base sm:text-xs uppercase text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
                     />
                     <button
                       type="button"

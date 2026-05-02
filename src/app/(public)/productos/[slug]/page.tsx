@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { getProductBySlug, getProducts } from '@/domains/catalog/queries'
+import { getShippingCost } from '@/domains/shipping/calculator'
+import { getDefaultPostalCodeForZone } from '@/domains/shipping/zone-default'
 import { Badge } from '@/components/ui/badge'
 import { ProductPurchasePanel } from '@/components/catalog/ProductPurchasePanel'
 import { AutoTranslatedBadge } from '@/components/catalog/AutoTranslatedBadge'
@@ -101,9 +103,21 @@ export default async function ProductDetailPage({ params }: Props) {
   const localizedProduct = getLocalizedProductCopy(product, locale)
   const taxRate = Number(product.taxRate)
 
-  // Three independent reads — fire in parallel to cut TTFB on the
+  // Geo-IP detection from `cf-region-code` was the original design (#929
+  // follow-up commit + #1038) but `await headers()` in this code path
+  // regressed three @smoke specs (cart-checkout, multi-vendor-cart,
+  // favorites — see #1042). Falling back to a fixed peninsular default
+  // preserves the band's user-facing benefit (cost shown above CTA)
+  // while we keep the geo resolver behind a clean boundary so it can
+  // be re-wired once the regression mechanism is understood. The
+  // resolver module (`zone-default.ts`) and copy keys stay in place
+  // unchanged; only the page-level call to `headers()` is reverted.
+  const shippingZone = 'peninsula' as const
+  const defaultShippingPostalCode = getDefaultPostalCodeForZone(shippingZone)
+
+  // Four independent reads — fire in parallel to cut TTFB on the
   // product page (SEO + CWV: each sequential hop is ~1 RTT).
-  const [related, reviewSummary, activePromotions] = await Promise.all([
+  const [related, reviewSummary, activePromotions, estimatedShippingCost] = await Promise.all([
     getProducts({
       categorySlug: product.category?.slug,
       limit: 4,
@@ -114,6 +128,10 @@ export default async function ProductDetailPage({ params }: Props) {
       vendorId: product.vendor.id,
       categoryId: product.categoryId ?? null,
     }),
+    // Audit #917: surface delivery cost on PDP using the peninsular
+    // default CP. Real cost is recomputed at checkout once the buyer
+    // enters their CP; the band copy makes that explicit.
+    getShippingCost(defaultShippingPostalCode, Number(product.basePrice)).catch(() => null),
   ])
 
   // An "auto-applied" promo is one that a buyer gets without typing a
@@ -243,7 +261,7 @@ export default async function ProductDetailPage({ params }: Props) {
 
       <div className="grid gap-10 lg:grid-cols-2">
         {/* Gallery */}
-        <ProductImageGallery images={product.images} alt={localizedProduct.name} />
+        <ProductImageGallery images={product.images} imageAlts={product.imageAlts} alt={localizedProduct.name} />
 
         {/* Info */}
         <div>
@@ -353,6 +371,8 @@ export default async function ProductDetailPage({ params }: Props) {
                   }
                 : null
             }
+            estimatedShippingCost={estimatedShippingCost ?? null}
+            shippingZone={shippingZone}
           />
 
           <ProductPromotions promotions={informationalPromotions} locale={locale} />
@@ -388,7 +408,8 @@ export default async function ProductDetailPage({ params }: Props) {
               {product.vendor.logo ? (
                 <Image
                   src={product.vendor.logo}
-                  alt={product.vendor.displayName}
+                  // #1049 — vendor-supplied alt wins; fall back to displayName.
+                  alt={product.vendor.logoAlt?.trim() || product.vendor.displayName}
                   width={56}
                   height={56}
                   className="h-14 w-14 shrink-0 rounded-2xl object-cover"
