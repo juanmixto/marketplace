@@ -152,6 +152,10 @@ Apple OAuth (#852) stays deferred until **at least one** of these fires, measure
 
 If none fire in the 30-day window, Apple stays deferred and the audit's case E (3rd-provider link for solo-social user) also stays out — no users will be solo-social.
 
+## 9.1 Manual test plan
+
+Casos concretos a ejecutar en staging y durante canary: ver [`docs/auth/rollout-test-plan.md`](./rollout-test-plan.md). Cubre §A pre-rollout staging (10 casos), §B canary 2h, §C 24h/48h, §D incidente, §E post-100%.
+
 ## 10. Pre-rollout final checklist
 
 Run this once before flipping `kill-auth-social=false` in production:
