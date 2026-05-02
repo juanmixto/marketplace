@@ -66,6 +66,11 @@ const baseEnvSchema = z.object({
   //     incident" case. Value is a JSON object: {"kill-checkout":false}.
   POSTHOG_PERSONAL_API_KEY: z.string().min(1).optional(),
   FEATURE_FLAGS_OVERRIDE: z.string().optional(),
+  // Domain migration scaffolding (Fase 4 / PR 1 of docs/runbooks/domain-migration.md).
+  // Defaults preserve pre-migration behaviour; staging/production override via env.
+  APP_ENV: z.enum(['development', 'staging', 'production']).default('development'),
+  SUPPORT_EMAIL: z.string().email().default('soporte@feldescloud.com'),
+  DEV_TUNNEL_HOSTS: z.string().default('*.raizdirecta.es,*.feldescloud.com'),
 })
 
 export function parseServerEnv(env: NodeJS.ProcessEnv) {
@@ -197,6 +202,9 @@ export function parseServerEnv(env: NodeJS.ProcessEnv) {
     sendcloudConfigured,
     posthogPersonalApiKey: parsed.POSTHOG_PERSONAL_API_KEY,
     featureFlagsOverrideRaw: parsed.FEATURE_FLAGS_OVERRIDE,
+    appEnv: parsed.APP_ENV,
+    supportEmail: parsed.SUPPORT_EMAIL,
+    devTunnelHosts: parsed.DEV_TUNNEL_HOSTS.split(',').map(s => s.trim()).filter(Boolean),
   }
 }
 

@@ -188,7 +188,7 @@ async function notifyAccountLinked(params: {
   ipAddress: string
 }): Promise<void> {
   try {
-    const { appUrl } = getServerEnv()
+    const { appUrl, supportEmail } = getServerEnv()
     const providerLabel = PROVIDER_LABEL[params.provider] ?? params.provider
     await sendEmail({
       to: params.to,
@@ -199,7 +199,7 @@ async function notifyAccountLinked(params: {
         linkedAt: new Date(),
         ipAddress: params.ipAddress,
         securityUrl: `${appUrl}/cuenta/seguridad`,
-        supportEmail: 'soporte@feldescloud.com',
+        supportEmail,
       }),
     })
     logger.info('auth.account_linked_email.sent', {
