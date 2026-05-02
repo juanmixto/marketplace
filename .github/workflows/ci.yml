@@ -17,7 +17,7 @@ on:
       - '.gitignore'
   pull_request:
     # Same ignore list as `push` so a doc-only PR doesn't trigger the
-    # full pipeline (Verify + Build + 8× E2E shards). YAML anchor keeps
+    # full pipeline (Verify + Build + 4× E2E shards). YAML anchor keeps
     # the two lists in sync.
     paths-ignore: *ci_paths_ignore
   workflow_dispatch:
@@ -168,7 +168,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
 
     services:
       postgres:
@@ -189,7 +189,7 @@ jobs:
       DATABASE_URL: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
       DATABASE_URL_TEST: postgresql://mp_user:mp_pass@localhost:5432/marketplace_test
       TEST_SHARD_INDEX: ${{ matrix.shard }}
-      TEST_SHARD_TOTAL: "16"
+      TEST_SHARD_TOTAL: "8"
 
     steps:
       - uses: actions/checkout@v5
@@ -204,7 +204,7 @@ jobs:
       # any global seed data would be wiped before the first test
       # ever runs. Skipping saves ~5-8s per shard.
 
-      - name: Integration tests (shard ${{ matrix.shard }} of 16)
+      - name: Integration tests (shard ${{ matrix.shard }} of 8)
         run: npm run test:integration
         timeout-minutes: 10
 
@@ -236,9 +236,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
-      fail-fast: false
+      # PRs: bail on first shard failure to free runners for the queue.
+      # Push to main keeps fail-fast on too — a red shard there means
+      # something already merged broke; running the rest only delays the
+      # signal and burns runner-time we need for the next PR's CI.
+      fail-fast: true
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [1, 2, 3, 4]
     # Runs in parallel with verify/build/integration against `next dev`.
     # Playwright's native --shard splits specs across runners.
     # Prod-mode coverage (`next start` + DYNAMIC_SERVER_USAGE etc.) runs
@@ -302,14 +306,14 @@ jobs:
       - name: Seed database
         run: npm run db:seed
 
-      - name: Run E2E smoke suite (shard ${{ matrix.shard }}/8)
+      - name: Run E2E smoke suite (shard ${{ matrix.shard }}/4)
         # DISABLE_LOGIN_RATELIMIT=1 exempts the suite from the
         # (IP+email) login throttle from #592. CI shares a single
         # seeded credential and easily exhausts the bucket within a
         # run; the route guard only honours the flag when
         # NODE_ENV !== 'production', so a prod deploy cannot bypass
         # the limit even if this env leaks into another workflow.
-        run: npx playwright test --grep @smoke --workers=1 --shard=${{ matrix.shard }}/8
+        run: npx playwright test --grep @smoke --workers=1 --shard=${{ matrix.shard }}/4
         env:
           DISABLE_LOGIN_RATELIMIT: '1'
 
