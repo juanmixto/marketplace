@@ -52,11 +52,31 @@ export function FavoriteToggleButton({
       return
     }
 
+    // Capture the intent BEFORE awaiting toggle. `isFavorited` reflects
+    // pre-mutation state (this render's closure); after toggle, the
+    // store is the source of truth.
+    const intent: 'add' | 'remove' = isFavorited ? 'remove' : 'add'
+
     setToggling(true)
     await toggle(productId)
 
-    if (!isFavorited) {
+    // The store rolls back on API failure (see favorites-store.ts), so
+    // reading from getState() AFTER the await tells us the real outcome:
+    // if the post-toggle state matches our intent, we succeeded.
+    const isFavoritedAfter = useFavoritesStore.getState().productIds.has(productId)
+    const succeeded =
+      (intent === 'add' && isFavoritedAfter) ||
+      (intent === 'remove' && !isFavoritedAfter)
+    const result: 'success' | 'failure' = succeeded ? 'success' : 'failure'
+
+    if (intent === 'add') {
       trackAnalyticsEvent('add_to_favorites', {
+        result,
+        items: [createAnalyticsItem({ id: productId, name: productName })],
+      })
+    } else {
+      trackAnalyticsEvent('remove_from_favorites', {
+        result,
         items: [createAnalyticsItem({ id: productId, name: productName })],
       })
     }
