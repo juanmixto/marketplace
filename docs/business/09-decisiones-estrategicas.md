@@ -111,6 +111,40 @@ read_when: antes de proponer algo que choque con un ADR; al cerrar una nueva dec
 
 ---
 
+## ADR-011 — Guest checkout sin migración de schema: User passwordless on-the-fly
+
+- **Fecha**: 2026-05-02.
+- **Decisión**: El comprador sin sesión introduce un email en `/checkout`. El servidor crea o reutiliza un `User` con `passwordHash=null` y `emailVerified=null` y le adjunta el pedido. **`Order.customerId` se mantiene NOT NULL.** Si el email ya pertenece a una cuenta real (cualquiera de: passwordHash, OAuth Account, emailVerified), el checkout se rechaza y se invita a iniciar sesión.
+- **Alternativas**:
+  - **A) `Order.customerId` nullable + `Order.guestEmail` propio.** Refactor invasivo: toca queries, joins, reports, dashboards de admin, contratos del state machine.
+  - **B) "Sentinel guest user" único + `Order.guestEmail`.** Evita el null pero rompe analytics ("¿quién es ese usuario con 5.000 pedidos?") y obliga a una seed migration.
+  - **C) (la elegida) User passwordless on-the-fly.** Un `User` real por email, sin password, no verificado. Una posterior login por magic link / OAuth con ese mismo email "reclama" la cuenta y hereda los pedidos sin migración.
+- **Razón**: la opción C respeta el invariant "un pedido pertenece a un usuario", evita una migración con riesgo en `Order` (la tabla más caliente del esquema), y abre la puerta natural al claim flow vía magic link en el email de confirmación. Coste: una columna `User` por email guest, asumible al volumen actual (< 100 pedidos/semana esperados).
+- **Implicaciones**:
+  - El email de confirmación debe (más adelante) llevar un magic link "reclamar mi cuenta" para los registros guest. Issue por abrir cuando #933 esté operativo en producción.
+  - Para evitar privilege grants, **un email que ya tiene cuenta real no se reutiliza silenciosamente** — el guest es rechazado. Esto añade fricción a un caso real (usuario con cuenta que olvida que la tiene), aceptado a cambio de no convertir checkout en una vía de acceso a cuentas ajenas.
+  - Cambia ligeramente el contrato implícito de `User`: ahora hay `User`s sin auth ni consentimiento que existen exclusivamente como customers. Cualquier query de "usuarios activos" que cuente `User` rows debe filtrar por `passwordHash IS NOT NULL OR accounts.length > 0` o equivalente.
+- **Se revisa cuando**: el ratio de guests / cuentas reales > 5:1 sostenido, o aparece una necesidad de "comprar para alguien sin email" (que no estaría cubierta — pero no la tenemos en horizonte).
+- **Implementación**: PR #1082 (closes #1072 + unblocks #926).
+
+---
+
+## ADR-012 — Provincia derivada del código postal, sin picker
+
+- **Fecha**: 2026-05-02.
+- **Decisión**: El formulario de checkout no pide provincia. La provincia se deriva client-side del prefijo de 2 dígitos del CP (`SPAIN_PROVINCE_BY_PREFIX`) en cuanto el CP está completo, y se muestra como chip read-only. El servidor sigue cross-validando el par CP↔provincia (`postalProvinceRefiner`) sin cambios.
+- **Alternativas**:
+  - **A) `<select>` nativo con 52 opciones.** El estado original. `docs/product/04 § 50-57` lo marca como anti-patrón explícito en móvil.
+  - **B) Combobox autocompletable.** Mejor que A pero sigue pidiendo al usuario datos que ya tecleó (el CP ya determina la provincia unívocamente).
+- **Razón**: el CP determina la provincia (es el código INE de los primeros 2 dígitos); pedirla otra vez es asking-the-buyer-twice. La opción C reduce un campo, elimina un anti-patrón móvil, y mantiene la integridad del par CP↔provincia porque el servidor sigue siendo la fuente de verdad. Para CPs con prefijo no válido (00xx, 99xx, etc.) se muestra un error inline en lugar del chip — el caso es ~0% de tráfico real (no hay CPs españoles con esos prefijos).
+- **Implicaciones**:
+  - El form schema `checkoutFormSchema` mantiene `province` como campo requerido — el cliente lo setea programáticamente, el server lo valida.
+  - Si en algún momento aceptamos envíos a Andorra / Portugal / etc., esta decisión NO escala — los prefijos son cosa del INE español. Documentado para evitar la ilusión de que "ya no hay select".
+- **Se revisa cuando**: el catálogo/envíos abren a un país adicional, o cuando alguien necesite un campo "provincia" manual por compliance.
+- **Implementación**: PR #1083 (closes #1074 + #1076).
+
+---
+
 ## Decisiones pendientes (no cerradas)
 
 > Decisiones identificadas como necesarias pero **aún no tomadas**. No son ADRs todavía. Cuando se cierren, se moverán arriba con número ADR asignado y se eliminarán de esta sección.
