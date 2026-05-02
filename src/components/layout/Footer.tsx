@@ -90,6 +90,8 @@ export function Footer() {
           </p>
           <div className="-mx-2 flex flex-wrap gap-x-2 gap-y-1">
             {[
+              { labelKey: 'shippingPolicy' as TranslationKeys, href: '/envios' },
+              { labelKey: 'returnsPolicy'  as TranslationKeys, href: '/devoluciones' },
               { labelKey: 'legal'   as TranslationKeys,  href: '/aviso-legal' },
               { labelKey: 'privacy' as TranslationKeys, href: '/privacidad' },
               { labelKey: 'cookies' as TranslationKeys, href: '/cookies' },
