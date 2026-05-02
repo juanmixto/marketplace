@@ -82,22 +82,31 @@ test.describe('cart and checkout @smoke', () => {
       await expect(page).toHaveURL(/\/checkout(?:\/|$|\?)/, { timeout: 25_000 })
     }
 
-    // The checkout can render either saved addresses or the new-address
-    // form first, depending on how quickly the seeded profile arrives on
-    // the shard. Prefer the saved row when it appears, but fall back to a
-    // deterministic new address so the smoke never hangs on a timing race.
-    const savedAddress = page.getByTestId('checkout-saved-address').first()
-    const firstName = page.getByRole('textbox', { name: /nombre/i }).first()
+    // The address block in CheckoutPageClient renders one of three
+    // states:
+    //   (a) `aria-busy="true"` skeleton while /api/direcciones is in flight
+    //   (b) the saved-addresses list (DB returned at least one row)
+    //   (c) the new-address form (no saved addresses, or the user clicked
+    //       "Usar otra dirección")
+    //
+    // The earlier flake came from racing (a) → (b)/(c) on slow shards:
+    // the saved-address waitFor (15s) and the firstName waitFor (10s)
+    // could both expire before /api/direcciones returned. The fix is to
+    // wait for the skeleton's aria-busy to flip to "false" first — a
+    // single deterministic signal that the load completed — and only
+    // then decide which branch to take.
+    const addressLoadingSkeleton = page.locator('[aria-label*="direcciones" i][aria-busy="true"]').first()
+    await addressLoadingSkeleton
+      .waitFor({ state: 'detached', timeout: 30_000 })
+      .catch(() => undefined)
 
-    const savedAddressReady = await savedAddress
-      .waitFor({ state: 'visible', timeout: 15_000 })
-      .then(() => true)
-      .catch(() => false)
+    const savedCount = await page.getByTestId('checkout-saved-address').count()
 
-    if (savedAddressReady) {
-      await savedAddress.click()
+    if (savedCount > 0) {
+      await page.getByTestId('checkout-saved-address').first().click()
     } else {
-      await expect(firstName).toBeVisible({ timeout: 10_000 })
+      const firstName = page.getByRole('textbox', { name: /nombre/i }).first()
+      await expect(firstName).toBeVisible({ timeout: 25_000 })
       await firstName.fill(FALLBACK_CHECKOUT_ADDRESS.firstName)
       await page.getByRole('textbox', { name: /apellidos/i }).fill(FALLBACK_CHECKOUT_ADDRESS.lastName)
       await page.getByRole('textbox', { name: /dirección/i }).fill(FALLBACK_CHECKOUT_ADDRESS.line1)
