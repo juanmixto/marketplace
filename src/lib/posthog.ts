@@ -12,6 +12,17 @@ function getApiKey(): string | null {
 }
 
 function getApiHost(): string {
+  // Production sets this to https://raizdirecta.es/ingest, which is
+  // routed by a Cloudflare Worker (infra/cloudflare/posthog-proxy/)
+  // to eu.i.posthog.com — the proxy evades ad-blockers that
+  // recognize *.posthog.com as a tracker and would otherwise drop
+  // 10-25% of events. Dev and staging leave the var unset and
+  // connect to PostHog directly so debugging doesn't need a Worker
+  // deploy round-trip.
+  //
+  // src/lib/flags.ts:61 mirrors this fallback. Keep both in sync
+  // if the EU host ever changes — see infra/cloudflare/posthog-proxy/
+  // README.md § "Rotate the upstream host".
   return process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com'
 }
 
