@@ -64,12 +64,15 @@ function extractDocumentedEvents(doc: string): Set<string> {
   // Doc events live in markdown table rows like: `| \`event_name\` | ... |`.
   // We only count names found inside backticks in the leftmost cell of
   // a row whose first column is a backticked identifier (so we don't
-  // sweep up free-form mentions in prose).
+  // sweep up free-form mentions in prose). The `.` is part of the
+  // CF-1 buyer-funnel naming contract (`catalog.viewed`,
+  // `order.placed`, …) — it's a legal character in PostHog event
+  // names and must be allowed here.
   const rows = doc.split('\n').filter(line => line.trimStart().startsWith('|'))
   const events = new Set<string>()
   for (const row of rows) {
     const firstCell = row.split('|')[1]?.trim() ?? ''
-    const m = firstCell.match(/^`([a-z_$]+)`$/)
+    const m = firstCell.match(/^`([a-z_.$]+)`$/)
     if (m) events.add(m[1])
   }
   return events
@@ -81,10 +84,22 @@ function listFiringSites(eventName: string): Array<{ file: string; lineRange: st
   // capture a window from the call to its closing brace so the
   // contract test can grep `result:` inside that window.
   const out: Array<{ file: string; lineRange: string; block: string }> = []
-  const grep = execSync(
-    `git grep -n -E "(trackAnalyticsEvent|capturePostHog)\\\\(\\s*['\\"]${eventName}['\\"]" -- 'src/**/*.ts' 'src/**/*.tsx'`,
-    { encoding: 'utf8' }
-  ).trim()
+  // `--untracked` so a brand-new tracker file (not yet committed)
+  // counts as a fire-site. Otherwise the contract test would force a
+  // staging-then-running workflow and fail on the first iteration of
+  // any new event wiring. `--no-index` would also work but disables
+  // the .gitignore filter, which we want.
+  let grep = ''
+  try {
+    grep = execSync(
+      `git grep -n --untracked -E "(trackAnalyticsEvent|capturePostHog)\\\\(\\s*['\\"]${eventName}['\\"]" -- 'src/**/*.ts' 'src/**/*.tsx'`,
+      { encoding: 'utf8' }
+    ).trim()
+  } catch {
+    // git grep exits 1 when no matches: that's the "no fire-site"
+    // signal the caller already handles via the empty-string branch.
+    grep = ''
+  }
 
   if (!grep) return out
 
@@ -183,6 +198,46 @@ describe('PostHog event taxonomy contract', () => {
       `These documented events have no entry in AnalyticsEventName:\n  - ${orphaned.join(
         '\n  - '
       )}\n\nEither add to the union or drop the doc row — drift will silently break dashboards.`
+    )
+  })
+
+  test('every BUYER_FUNNEL_EVENTS event is wired and emits `device` + `referrer`', () => {
+    const analyticsSource = read('src/lib/analytics.ts')
+    const funnelEvents = extractReadonlyArray(analyticsSource, 'BUYER_FUNNEL_EVENTS')
+
+    const violations: string[] = []
+    for (const eventName of funnelEvents) {
+      const sites = listFiringSites(eventName)
+      if (sites.length === 0) {
+        violations.push(
+          `${eventName}: declared in BUYER_FUNNEL_EVENTS but no fire-site found (the CF-1 funnel insight would have a hole at this step).`
+        )
+        continue
+      }
+      for (const site of sites) {
+        // Both events must carry device + referrer so funnel
+        // breakdowns by device/source remain consistent. The check is
+        // deliberately textual: a property named `device` (object key
+        // or shorthand) and a property named `referrer` somewhere in
+        // the call-window source. Conservative — false negatives are
+        // fine, false positives block unrelated PRs.
+        if (!/\bdevice\s*[:,}]/.test(site.block)) {
+          violations.push(
+            `${eventName} fired at ${site.file}:${site.lineRange} without a 'device' property.\n${site.block}\n  → use getBuyerFunnelContext() so device breakdowns work.`
+          )
+        }
+        if (!/\breferrer\s*[:,}]/.test(site.block)) {
+          violations.push(
+            `${eventName} fired at ${site.file}:${site.lineRange} without a 'referrer' property.\n${site.block}\n  → use getBuyerFunnelContext() so source attribution works.`
+          )
+        }
+      }
+    }
+
+    assert.deepEqual(
+      violations,
+      [],
+      `Buyer-funnel events must always carry device + referrer (CF-1 funnel contract). Violations:\n\n${violations.join('\n\n')}`
     )
   })
 
