@@ -1,15 +1,20 @@
 ---
-summary: dev.feldescloud.com 502 → next dev no está corriendo en :3001 o el tunnel está caído. Cloudflare Tunnel marketplace-dev.
+summary: dev.raizdirecta.es 502 → next dev no está corriendo en :3001 o el tunnel está caído. Cloudflare Tunnel marketplace-dev.
 audience: agents,humans
-read_when: dev.feldescloud.com da 502 o el tunnel se cae
+read_when: dev.raizdirecta.es da 502 o el tunnel se cae
 ---
 
-# `dev.feldescloud.com` 502 — Cloudflare Tunnel runbook
+# `dev.raizdirecta.es` 502 — Cloudflare Tunnel runbook
 
-`dev.feldescloud.com` is served by a **Cloudflare Tunnel** (`marketplace-dev`) that
+`dev.raizdirecta.es` is served by a **Cloudflare Tunnel** (`marketplace-dev`) that
 forwards traffic to `http://localhost:3001` on the developer machine running
 `cloudflared`. There is no remote host, no PaaS, no CI deploy — the "dev origin"
 is literally a `next dev` process on a laptop.
+
+> Durante la ventana de coexistencia (30 días post-cutover), `dev.feldescloud.com`
+> sigue apuntando al mismo tunnel y al mismo puerto 3001. Todo lo que dice este
+> runbook aplica también a esa URL hasta que el cleanup T+60 la retire. Ver
+> [`docs/runbooks/domain-migration.md`](domain-migration.md).
 
 `cloudflared` runs as a **systemd service** (`/etc/systemd/system/cloudflared.service`,
 installed via `cloudflared service install <TOKEN>`). It starts automatically at
@@ -56,7 +61,8 @@ ss -tlnp | grep 3001
 - The tunnel route is configured in the Cloudflare Zero Trust dashboard
   (Networks → Tunnels → `marketplace-dev` → Published application routes).
   Catch-all is `http_status:404`; the only real route is
-  `dev.feldescloud.com → http://localhost:3001`.
+  `dev.raizdirecta.es → http://localhost:3001` (plus `dev.feldescloud.com →
+  http://localhost:3001` during the coexistence window).
 
 ## Prevention
 
@@ -70,7 +76,7 @@ Two options, pick one:
 
 ## Diagnostics checklist
 
-If `dev.feldescloud.com` 502s:
+If `dev.raizdirecta.es` 502s:
 
 1. `ss -tlnp | grep 3001` — is anything listening?
 2. If not, start `next dev -p 3001` (see above).
@@ -82,7 +88,7 @@ If `dev.feldescloud.com` 502s:
    issue.
 
 None of this is fixable by editing code in the repo. The repo has no
-deployment pipeline for `dev.feldescloud.com`.
+deployment pipeline for `dev.raizdirecta.es`.
 
 ## "The page loads but nothing is interactive"
 
@@ -90,20 +96,21 @@ Different failure mode from 502 — the HTML renders, but the cart button, theme
 toggle, language switcher, and vendor-sidebar collapse all silently do nothing.
 
 **Cause:** Next.js 16 blocks cross-origin requests to `/_next/*` dev resources
-by default. When the page is reached via `dev.feldescloud.com` (not
+by default. When the page is reached via `dev.raizdirecta.es` (not
 `localhost`), the client JS chunks and HMR socket are refused, hydration dies,
 and every interactive control becomes a no-op.
 
 **Symptom in the dev-server log:**
 
 ```
-⚠ Blocked cross-origin request to Next.js dev resource /_next/webpack-hmr from "dev.feldescloud.com".
+⚠ Blocked cross-origin request to Next.js dev resource /_next/webpack-hmr from "dev.raizdirecta.es".
 ```
 
 **Fix:** the tunnel host must be in `allowedDevOrigins` in
-[`next.config.ts`](../../next.config.ts). `*.feldescloud.com` is already listed
-there — do not remove it. If you add a new tunnel host, add it to that list
-and restart `next dev`.
+[`next.config.ts`](../../next.config.ts). `*.raizdirecta.es` is included
+through the `DEV_TUNNEL_HOSTS` env var (default covers both the new and the
+legacy `*.feldescloud.com` host during coexistence). If you add a new tunnel
+host, add it to `DEV_TUNNEL_HOSTS` in your env and restart `next dev`.
 
 After fixing, a **hard refresh** in the browser (Ctrl+Shift+R) is required to
 drop the stale service worker and broken JS chunks.
