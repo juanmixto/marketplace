@@ -308,6 +308,12 @@ export function CheckoutPageClient({
       } catch (error) {
         if (cancelled) return
         setAddressLoadError(error instanceof Error ? error.message : 'No se pudieron cargar las direcciones')
+        // If we cannot fetch saved addresses (network blip, slow shard
+        // session race, transient 500), don't trap the buyer with an
+        // error banner and no form. Surface the new-address form so they
+        // can still complete the purchase by typing manually — the worst
+        // case is they re-enter an address they already had saved.
+        setShowNewAddressForm(true)
       } finally {
         if (!cancelled) {
           setLoadingAddresses(false)
