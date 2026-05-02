@@ -13,6 +13,8 @@ export type OrderErrorCode =
   | 'INVALID_CHECKOUT_AMOUNT'
   | 'ORDER_CONFIRMATION_FORBIDDEN'
   | 'MANUAL_CONFIRMATION_NOT_ALLOWED'
+  | 'GUEST_EMAIL_REQUIRED'
+  | 'GUEST_EMAIL_BELONGS_TO_REAL_ACCOUNT'
 
 export abstract class OrderDomainError extends Error {
   readonly code: OrderErrorCode
@@ -113,6 +115,24 @@ export class ManualConfirmationNotAllowedError extends OrderDomainError {
     super(
       'MANUAL_CONFIRMATION_NOT_ALLOWED',
       'La confirmacion manual solo esta disponible en modo mock'
+    )
+  }
+}
+
+export class GuestEmailRequiredError extends OrderDomainError {
+  constructor() {
+    super(
+      'GUEST_EMAIL_REQUIRED',
+      'Introduce un email para recibir la confirmación del pedido.',
+    )
+  }
+}
+
+export class GuestEmailBelongsToRealAccountError extends OrderDomainError {
+  constructor() {
+    super(
+      'GUEST_EMAIL_BELONGS_TO_REAL_ACCOUNT',
+      'Ya existe una cuenta con este email. Inicia sesión para continuar con tu pedido.',
     )
   }
 }

@@ -61,6 +61,14 @@ interface Props {
    * sites fall back to the legacy client-fetch path.
    */
   initialAddresses?: SavedCheckoutAddress[]
+  /**
+   * Whether the buyer is authenticated. Drives the guest-email field
+   * (#1072): when false, an extra `guestEmail` input renders above the
+   * address form and the server-side `createOrder` mints a passwordless
+   * User from it. Defaults to `true` so callers that don't pass it
+   * keep the authenticated-only flow.
+   */
+  hasSession?: boolean
 }
 
 export function CheckoutPageClient({
@@ -72,6 +80,7 @@ export function CheckoutPageClient({
   userLastName = '',
   checkoutAttemptId,
   initialAddresses,
+  hasSession = true,
 }: Props) {
   const router = useRouter()
   const { items, subtotal, clearCart } = useCartStore()
@@ -115,6 +124,7 @@ export function CheckoutPageClient({
       postalCode: '',
       phone: '',
       saveAddress: true,
+      guestEmail: '',
     },
   })
   const watchedPostalCode = useWatch({ control, name: 'postalCode' }) ?? ''
@@ -375,6 +385,7 @@ export function CheckoutPageClient({
           address: data,
           saveAddress: data.saveAddress,
           selectedAddressId: selectedAddressId ?? undefined,
+          guestEmail: hasSession ? undefined : data.guestEmail?.trim() || undefined,
         },
         { promotionCode: appliedCode, checkoutAttemptId: attemptIdRef.current }
       )
@@ -451,6 +462,22 @@ export function CheckoutPageClient({
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <form id="checkout-form" onSubmit={handleSubmit(onSubmit, handleInvalid)} className="space-y-6">
+            {!hasSession && (
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
+                <h2 className="mb-1 font-semibold text-[var(--foreground)]">{t('checkout.guestEmailHeading')}</h2>
+                <p className="mb-4 text-sm text-[var(--muted)]">{t('checkout.guestEmailHelp')}</p>
+                <Input
+                  label={t('checkout.guestEmailLabel')}
+                  type="email"
+                  inputMode="email"
+                  enterKeyHint="next"
+                  autoComplete="email"
+                  placeholder="tucorreo@ejemplo.com"
+                  error={errors.guestEmail?.message}
+                  {...register('guestEmail')}
+                />
+              </div>
+            )}
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <h2 className="mb-4 font-semibold text-[var(--foreground)]">{t('checkout.address')}</h2>
               {loadingAddresses && (

@@ -253,6 +253,9 @@ const es = {
 
   // Checkout
   'checkout.title': 'Finalizar pedido',
+  'checkout.guestEmailHeading': 'Email de contacto',
+  'checkout.guestEmailHelp': 'Te enviaremos la confirmación del pedido a este correo. Si ya tienes cuenta, inicia sesión en su lugar.',
+  'checkout.guestEmailLabel': 'Email',
   'checkout.address': 'Dirección de entrega',
   'checkout.savedAddresses': 'Direcciones guardadas',
   'checkout.savedAddressesLoading': 'Cargando tus direcciones guardadas...',

@@ -89,6 +89,16 @@ export const checkoutFormSchema = z
       ),
     saveAddress: z.boolean().optional(),
     selectedAddressId: z.string().optional(),
+    // Guest checkout (#1072): email collected from non-authenticated
+    // buyers so the order can be created and the confirmation email
+    // can reach them. The server rejects this if a real account
+    // already exists for the email (passwordHash / linked account /
+    // verified) — it asks the buyer to log in instead.
+    guestEmail: z
+      .string()
+      .trim()
+      .email('Introduce un email válido')
+      .optional(),
   })
   .superRefine(postalProvinceRefiner)
 
@@ -98,6 +108,7 @@ export const checkoutSchema = z.object({
   address: addressSchema,
   saveAddress: z.boolean().optional(),
   selectedAddressId: z.string().min(1).optional(),
+  guestEmail: z.string().trim().email().optional(),
 })
 
 /**
@@ -125,6 +136,7 @@ export const checkoutWithSavedAddressSchema = z.object({
     .optional(),
   saveAddress: z.boolean().optional(),
   selectedAddressId: z.string().min(1),
+  guestEmail: z.string().trim().email().optional(),
 })
 
 export type CheckoutFormData = z.infer<typeof checkoutSchema>
