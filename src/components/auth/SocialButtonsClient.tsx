@@ -8,6 +8,7 @@ import { capturePostHog } from '@/lib/posthog'
 interface Props {
   callbackUrl: string
   googleEnabled: boolean
+  mode?: 'login' | 'register'
 }
 
 const GoogleLogo = () => (
@@ -37,7 +38,7 @@ const GoogleLogo = () => (
   </svg>
 )
 
-export function SocialButtonsClient({ callbackUrl, googleEnabled }: Props) {
+export function SocialButtonsClient({ callbackUrl, googleEnabled, mode = 'login' }: Props) {
   const t = useT()
   const [pending, setPending] = useState<string | null>(null)
 
@@ -46,17 +47,22 @@ export function SocialButtonsClient({ callbackUrl, googleEnabled }: Props) {
     // Canonical rollout event: numerator-denominator pair with the
     // server-side `auth.social.success` so PostHog can compute the
     // success rate. Captured BEFORE the redirect so the event ships
-    // even if the navigation fails.
-    capturePostHog('auth.social.start', { provider, callbackUrl })
+    // even if the navigation fails. `intent` distinguishes sign-up
+    // from sign-in clicks so we can read each conversion separately.
+    capturePostHog('auth.social.start', { provider, callbackUrl, intent: mode })
     try {
       await signIn(provider, { callbackUrl })
     } catch {
       setPending(null)
-      capturePostHog('auth.social.error', { provider, where: 'client_signin_threw' })
+      capturePostHog('auth.social.error', { provider, where: 'client_signin_threw', intent: mode })
     }
   }
 
   if (!googleEnabled) return null
+
+  const labelKey = mode === 'register' ? 'register.social.google' : 'login.social.google'
+  const ariaKey = mode === 'register' ? 'register.social.googleAria' : 'login.social.googleAria'
+  const dividerKey = mode === 'register' ? 'register.social.divider' : 'login.social.divider'
 
   return (
     <div className="flex flex-col gap-2 mb-4">
@@ -64,13 +70,13 @@ export function SocialButtonsClient({ callbackUrl, googleEnabled }: Props) {
         type="button"
         onClick={() => onClick('google')}
         disabled={pending !== null}
-        aria-label={t('login.social.googleAria')}
+        aria-label={t(ariaKey)}
         aria-busy={pending === 'google'}
         data-testid="social-google-button"
         className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed dark:border-[#3c4043] dark:bg-[#131314] dark:text-white dark:hover:bg-[#1f2023] min-h-[44px]"
       >
         <GoogleLogo />
-        <span>{t('login.social.google')}</span>
+        <span>{t(labelKey)}</span>
       </button>
       <div className="relative my-1">
         <div className="absolute inset-0 flex items-center">
@@ -78,7 +84,7 @@ export function SocialButtonsClient({ callbackUrl, googleEnabled }: Props) {
         </div>
         <div className="relative flex justify-center">
           <span className="bg-[var(--surface)]/95 backdrop-blur-sm px-2 text-xs uppercase tracking-wide text-[var(--muted)]">
-            {t('login.social.divider')}
+            {t(dividerKey)}
           </span>
         </div>
       </div>
