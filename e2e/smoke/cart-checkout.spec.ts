@@ -82,31 +82,30 @@ test.describe('cart and checkout @smoke', () => {
       await expect(page).toHaveURL(/\/checkout(?:\/|$|\?)/, { timeout: 25_000 })
     }
 
-    // The address block in CheckoutPageClient renders one of three
-    // states:
-    //   (a) `aria-busy="true"` skeleton while /api/direcciones is in flight
-    //   (b) the saved-addresses list (DB returned at least one row)
-    //   (c) the new-address form (no saved addresses, or the user clicked
-    //       "Usar otra dirección")
+    // The address block in CheckoutPageClient renders one of two final
+    // states (after the optional `aria-busy` skeleton clears):
+    //   (a) the saved-addresses list — DB returned at least one row, or
+    //       the server preloaded an `initialAddresses` prop with rows
+    //   (b) the new-address form — no saved addresses, or
+    //       /api/direcciones errored and the catch fell back to the form
     //
-    // The earlier flake came from racing (a) → (b)/(c) on slow shards:
-    // the saved-address waitFor (15s) and the firstName waitFor (10s)
-    // could both expire before /api/direcciones returned. The fix is to
-    // wait for the skeleton's aria-busy to flip to "false" first — a
-    // single deterministic signal that the load completed — and only
-    // then decide which branch to take.
-    const addressLoadingSkeleton = page.locator('[aria-label*="direcciones" i][aria-busy="true"]').first()
-    await addressLoadingSkeleton
-      .waitFor({ state: 'detached', timeout: 30_000 })
-      .catch(() => undefined)
+    // Earlier flake attempts tried to detect the load-finished signal
+    // first and then fork. That's brittle: with the server-preload fast
+    // path the skeleton never mounts and `state:'detached'` resolves
+    // immediately — so the count/visibility check runs *before* the
+    // saved address has had a chance to render. Race the two terminal
+    // states instead and let whichever wins drive the rest of the flow.
+    const savedAddress = page.getByTestId('checkout-saved-address').first()
+    const firstName = page.getByRole('textbox', { name: /nombre/i }).first()
 
-    const savedCount = await page.getByTestId('checkout-saved-address').count()
+    const winner = await Promise.race([
+      savedAddress.waitFor({ state: 'visible', timeout: 30_000 }).then(() => 'saved' as const),
+      firstName.waitFor({ state: 'visible', timeout: 30_000 }).then(() => 'form' as const),
+    ])
 
-    if (savedCount > 0) {
-      await page.getByTestId('checkout-saved-address').first().click()
+    if (winner === 'saved') {
+      await savedAddress.click()
     } else {
-      const firstName = page.getByRole('textbox', { name: /nombre/i }).first()
-      await expect(firstName).toBeVisible({ timeout: 25_000 })
       await firstName.fill(FALLBACK_CHECKOUT_ADDRESS.firstName)
       await page.getByRole('textbox', { name: /apellidos/i }).fill(FALLBACK_CHECKOUT_ADDRESS.lastName)
       await page.getByRole('textbox', { name: /dirección/i }).fill(FALLBACK_CHECKOUT_ADDRESS.line1)
