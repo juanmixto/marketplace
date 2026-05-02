@@ -31,7 +31,12 @@
  * naming a non-test database `*_test`, which is on them).
  */
 
-export function assertSafeToTruncate(env: NodeJS.ProcessEnv = process.env): void {
+type EnvLike = {
+  NODE_ENV?: string | undefined
+  DATABASE_URL?: string | undefined
+}
+
+export function assertSafeToTruncate(env: EnvLike = process.env): void {
   if (env.NODE_ENV !== 'test') {
     throw new Error(
       `[resetIntegrationDatabase] refusing to TRUNCATE: NODE_ENV is "${env.NODE_ENV ?? '<unset>'}", expected "test". ` +
