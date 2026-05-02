@@ -6,6 +6,12 @@ import { SocialButtonsClient } from './SocialButtonsClient'
 
 interface Props {
   callbackUrl?: string
+  /**
+   * Switches button label, divider copy, and the `intent` field on
+   * `auth.social.start`. Defaults to 'login' so existing call sites
+   * keep their behavior.
+   */
+  mode?: 'login' | 'register'
 }
 
 /**
@@ -25,7 +31,7 @@ interface Props {
  * The login page reflows naturally without a "or continue with"
  * separator.
  */
-export async function SocialButtons({ callbackUrl }: Props) {
+export async function SocialButtons({ callbackUrl, mode = 'login' }: Props) {
   const safeCallback = sanitizeCallbackUrl(callbackUrl) ?? '/'
 
   const killEngaged = await isFeatureEnabled(AUTH_FLAG_KILL_SOCIAL)
@@ -36,5 +42,5 @@ export async function SocialButtons({ callbackUrl }: Props) {
 
   if (!googleEnabled) return null
 
-  return <SocialButtonsClient callbackUrl={safeCallback} googleEnabled={googleEnabled} />
+  return <SocialButtonsClient callbackUrl={safeCallback} googleEnabled={googleEnabled} mode={mode} />
 }
