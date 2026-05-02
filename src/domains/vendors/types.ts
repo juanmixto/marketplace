@@ -39,3 +39,29 @@ export interface VendorFulfillmentKpis {
   overdue: number // PENDING older than OVERDUE hours
   revenue30d: number
 }
+
+// DB audit P1.2-C (#963): cursor pagination size for the vendor
+// catalog dashboard. Same shape as the orders pagination above.
+export const VENDOR_PRODUCT_PAGE_SIZE = 25
+
+export type VendorProductFilter =
+  | 'all'
+  | 'active'
+  | 'draft'
+  | 'pendingReview'
+  | 'rejected'
+  | 'outOfStock'
+  | 'archived'
+
+export interface VendorProductFilters {
+  cursor?: string
+  filter?: VendorProductFilter
+  q?: string
+}
+
+export interface VendorProductAlerts {
+  lowStockCount: number
+  outOfStockCount: number
+  expiredCount: number
+  totalActiveCatalog: number
+}
