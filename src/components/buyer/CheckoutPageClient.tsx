@@ -545,7 +545,7 @@ export function CheckoutPageClient({
                       </label>
                       <select
                         autoComplete="address-level1"
-                        className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
+                        className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-base sm:text-sm text-[var(--foreground)] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
                         value={watchedProvince}
                         onChange={e =>
                           setValue('province', e.target.value, {
@@ -743,7 +743,7 @@ export function CheckoutPageClient({
                       value={promoCodeInput}
                       onChange={e => setPromoCodeInput(e.target.value.toUpperCase())}
                       placeholder={t('checkout.promo.placeholder')}
-                      className="h-9 flex-1 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 font-mono text-xs uppercase text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+                      className="h-9 flex-1 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 font-mono text-base sm:text-xs uppercase text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
                     />
                     <button
                       type="button"
