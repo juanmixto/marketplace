@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -55,6 +56,7 @@ interface Props {
 
 export function BuyerProfileForm({ user }: Props) {
   const t = useT()
+  const router = useRouter()
   const [profileSuccess, setProfileSuccess] = useState(false)
   const [passwordSuccess, setPasswordSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -129,6 +131,10 @@ export function BuyerProfileForm({ user }: Props) {
 
       setProfileSuccess(true)
       setTimeout(() => setProfileSuccess(false), 3000)
+      // Refresh so server-rendered surfaces that read the buyer name
+      // (/cuenta greeting, header avatar fallback) pick up the new
+      // first/last name on next nav without a hard reload.
+      router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : t('account.profileUpdateError'))
     }
