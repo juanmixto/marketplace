@@ -194,7 +194,7 @@ PR-blocking jobs (defined in `.github/workflows/ci.yml`):
 - **Build And Migrate** — `next build` + Prisma schema sync.
 - **E2E Smoke** — sharded Playwright, all `@smoke` specs.
 
-Integration tests run **after** merge to `main`, sharded 16-way.
+Integration tests run **after** merge to `main`, sharded 8-way.
 This is intentional: DB-backed specs are the slowest layer; gating
 them on PRs would punish docs-only / typo-only changes. The trade
 is that a regression in DB integration surfaces post-merge —
