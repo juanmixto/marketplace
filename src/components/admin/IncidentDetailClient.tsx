@@ -11,6 +11,7 @@ import { formatDate } from '@/lib/utils'
 import { useT } from '@/i18n'
 import type { TranslationKeys } from '@/i18n/locales'
 import { IncidentAttachmentList } from '@/components/incidents/IncidentAttachmentList'
+import { trackAnalyticsEvent } from '@/lib/analytics'
 
 // Mirror the Prisma IncidentResolution enum values
 const RESOLUTION_KEYS: Array<{ value: 'REFUND_FULL' | 'REFUND_PARTIAL' | 'REPLACEMENT' | 'STORE_CREDIT' | 'REJECTED'; key: TranslationKeys }> = [
@@ -95,10 +96,18 @@ export function IncidentDetailClient({ incidentId, status, messages: initial }: 
       if (!res.ok) throw new Error((await res.json()).message ?? t('admin.incidentDetail.errorResolve'))
       setResolved(true)
       setShowResolve(false)
+      trackAnalyticsEvent('incident_resolved', {
+        result: 'success',
+        resolution_type: data.resolution,
+      })
       // Refresh so /admin/incidencias (list) shows the new RESOLVED
       // status without a hard reload.
       router.refresh()
     } catch (e) {
+      trackAnalyticsEvent('incident_resolved', {
+        result: 'failure',
+        resolution_type: data.resolution,
+      })
       setError(e instanceof Error ? e.message : t('admin.incidentDetail.errorResolveIncident'))
     } finally {
       setBusy(false)

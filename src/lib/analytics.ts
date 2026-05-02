@@ -10,7 +10,16 @@ export type AnalyticsEventName =
   | 'purchase'
   | 'contact_submit'
   | 'sign_up'
+  // Buyer mutation events: every entry below MUST carry a `result:
+  // 'success' | 'failure'` property. The Buyer Mutations Health
+  // dashboard (docs/posthog-dashboards.md) reads `result` to compute
+  // failure rate per surface and alerts when it spikes — that is how
+  // the next "user reports a silent bug" gets caught before the user.
   | 'add_to_favorites'
+  | 'remove_from_favorites'
+  | 'address_changed'
+  | 'buyer_profile_updated'
+  | 'incident_resolved'
   | 'pwa_installable'
   | 'pwa_install_prompted'
   | 'pwa_install_accepted'
@@ -25,6 +34,28 @@ export type AnalyticsEventName =
   | 'seller_product_created'
   | 'seller_product_published'
   | 'seller_order_received'
+
+/**
+ * Subset of AnalyticsEventName that represents a buyer-side mutation
+ * whose payload MUST carry `result: 'success' | 'failure'`. Used by
+ * the contract test to validate every fire-site complies. Add new
+ * mutation events here, never use a bare `result` string outside this
+ * shape.
+ */
+export type BuyerMutationEvent =
+  | 'add_to_favorites'
+  | 'remove_from_favorites'
+  | 'address_changed'
+  | 'buyer_profile_updated'
+  | 'incident_resolved'
+
+export const BUYER_MUTATION_EVENTS: readonly BuyerMutationEvent[] = [
+  'add_to_favorites',
+  'remove_from_favorites',
+  'address_changed',
+  'buyer_profile_updated',
+  'incident_resolved',
+] as const
 
 export interface AnalyticsItemInput {
   id: string
