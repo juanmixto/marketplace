@@ -24,7 +24,13 @@
 import { test, expect } from '@playwright/test'
 import { TEST_USERS, loginAs } from '../helpers/auth'
 
+// We use the PDP (product detail page) instead of the catalog grid
+// because there's exactly one favorite button on it — which makes the
+// locator unambiguous. The catalog grid has N hearts, all with the
+// same aria-label, and scoping to a specific card via data-testid /
+// xpath ancestor is brittle (CI shard 3 timed out on this in #1095).
 const FAVORITE_PRODUCT_ID = 'prod-tomates'
+const FAVORITE_PRODUCT_SLUG = 'tomates-cherry-ecologicos'
 const FAVORITE_PRODUCT_NAME = /tomates cherry ecológicos/i
 
 test.describe('Router Cache invalidation @smoke', () => {
@@ -47,37 +53,24 @@ test.describe('Router Cache invalidation @smoke', () => {
     // Confirm the product is absent at this point.
     await expect(page.getByText(FAVORITE_PRODUCT_NAME).first()).toBeHidden()
 
-    // Navigate to the catalog via a real client-side link (the buyer
-    // nav). page.goto would also work but we want to keep the cache
-    // entry for /cuenta/favoritos warm.
-    await page.goto('/productos')
-    await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible({
-      timeout: 10_000,
-    })
+    // Open the PDP directly. There's exactly one heart button on the
+    // page (the FavoriteToggleButton on the product purchase panel),
+    // so we can target it by aria-label without disambiguation.
+    await page.goto(`/productos/${FAVORITE_PRODUCT_SLUG}`)
+    await expect(page.getByRole('heading', { name: FAVORITE_PRODUCT_NAME }).first())
+      .toBeVisible({ timeout: 10_000 })
 
-    // Click the heart on the target product card. Aria label is
-    // "Guardar" when not favorited (es.ts: favorites.save).
-    const card = page
-      .locator(`[data-testid="product-card-${FAVORITE_PRODUCT_ID}"]`)
-      .or(
-        // Fallback for cards without a data-testid: locate by product name.
-        page.getByText(FAVORITE_PRODUCT_NAME).first().locator('xpath=ancestor::*[self::a or self::div][1]')
-      )
-      .first()
-    const heart = card
-      .getByRole('button', { name: /guardar/i })
-      .first()
-    await heart.click()
+    // Click the heart. Aria label is "Guardar" when not favorited
+    // (es.ts → favorites.save). The button only appears once the
+    // PDP hydrates and resolves the user's favorited state.
+    await page.getByRole('button', { name: /^guardar$/i }).first().click()
 
-    // Now navigate back to /cuenta/favoritos via the buyer nav. This
-    // is the critical step: it MUST be a client-side navigation, not
-    // a page.goto, so the Router Cache is consulted.
-    //
-    // We use page.evaluate to programmatically click the buyer-nav
-    // link if present, otherwise we navigate via the next/link
-    // anchor. Either way, we avoid page.goto.
-    const navLink = page.getByRole('link', { name: /favoritos/i }).first()
-    await navLink.click()
+    // Now navigate to /cuenta/favoritos via a real client-side link.
+    // This is the critical step: it MUST be a Link click, not a
+    // page.goto, so the Router Cache is consulted exactly as a real
+    // user navigation does. page.goto is a hard reload and would
+    // silently mask the bug we are guarding against.
+    await page.getByRole('link', { name: /favoritos/i }).first().click()
 
     await expect(page).toHaveURL(/\/cuenta\/favoritos\/?$/, { timeout: 10_000 })
     // Without router.refresh() in FavoriteToggleButton, this assertion
