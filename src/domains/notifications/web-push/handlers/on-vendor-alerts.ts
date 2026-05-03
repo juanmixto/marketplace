@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import type {
   OrderDeliveredPayload,
   LabelFailedPayload,
@@ -20,7 +21,16 @@ import { resolveOrderPushView, resolveVendorFirstName, resolveVendorUserId } fro
 
 export async function onOrderDelivered(payload: OrderDeliveredPayload): Promise<void> {
   const userId = await resolveVendorUserId(payload.vendorId)
-  if (!userId) return
+  if (!userId) {
+    logger.warn('notifications.handler.skipped', {
+      event: 'order.delivered',
+      reason: 'no_vendor',
+      handler: 'web-push.on-order-delivered',
+      vendorId: payload.vendorId,
+      orderId: payload.orderId,
+    })
+    return
+  }
   const view = await resolveOrderPushView(payload.orderId, payload.vendorId)
   await sendWebPushToUser(userId, 'ORDER_DELIVERED', orderDeliveredPush(payload, view), {
     payloadRef: `order:${payload.orderId}`,
@@ -29,7 +39,16 @@ export async function onOrderDelivered(payload: OrderDeliveredPayload): Promise<
 
 export async function onLabelFailed(payload: LabelFailedPayload): Promise<void> {
   const userId = await resolveVendorUserId(payload.vendorId)
-  if (!userId) return
+  if (!userId) {
+    logger.warn('notifications.handler.skipped', {
+      event: 'label.failed',
+      reason: 'no_vendor',
+      handler: 'web-push.on-label-failed',
+      vendorId: payload.vendorId,
+      orderId: payload.orderId,
+    })
+    return
+  }
   const view = await resolveOrderPushView(payload.orderId, payload.vendorId)
   await sendWebPushToUser(userId, 'LABEL_FAILED', labelFailedPush(payload, view), {
     payloadRef: `order:${payload.orderId}`,
@@ -38,7 +57,17 @@ export async function onLabelFailed(payload: LabelFailedPayload): Promise<void> 
 
 export async function onIncidentOpened(payload: IncidentOpenedPayload): Promise<void> {
   const userId = await resolveVendorUserId(payload.vendorId)
-  if (!userId) return
+  if (!userId) {
+    logger.warn('notifications.handler.skipped', {
+      event: 'incident.opened',
+      reason: 'no_vendor',
+      handler: 'web-push.on-incident-opened',
+      vendorId: payload.vendorId,
+      orderId: payload.orderId,
+      incidentId: payload.incidentId,
+    })
+    return
+  }
   const [orderView, incident] = await Promise.all([
     resolveOrderPushView(payload.orderId, payload.vendorId),
     db.incident.findUnique({
@@ -57,7 +86,16 @@ export async function onIncidentOpened(payload: IncidentOpenedPayload): Promise<
 
 export async function onReviewReceived(payload: ReviewReceivedPayload): Promise<void> {
   const userId = await resolveVendorUserId(payload.vendorId)
-  if (!userId) return
+  if (!userId) {
+    logger.warn('notifications.handler.skipped', {
+      event: 'review.received',
+      reason: 'no_vendor',
+      handler: 'web-push.on-review-received',
+      vendorId: payload.vendorId,
+      reviewId: payload.reviewId,
+    })
+    return
+  }
   const [vendorFirstName, review] = await Promise.all([
     resolveVendorFirstName(payload.vendorId),
     db.review.findUnique({
@@ -82,7 +120,16 @@ export async function onReviewReceived(payload: ReviewReceivedPayload): Promise<
 
 export async function onPayoutPaid(payload: PayoutPaidPayload): Promise<void> {
   const userId = await resolveVendorUserId(payload.vendorId)
-  if (!userId) return
+  if (!userId) {
+    logger.warn('notifications.handler.skipped', {
+      event: 'payout.paid',
+      reason: 'no_vendor',
+      handler: 'web-push.on-payout-paid',
+      vendorId: payload.vendorId,
+      settlementId: payload.settlementId,
+    })
+    return
+  }
   const [vendorFirstName, settlement] = await Promise.all([
     resolveVendorFirstName(payload.vendorId),
     db.settlement.findUnique({
@@ -109,7 +156,16 @@ export async function onPayoutPaid(payload: PayoutPaidPayload): Promise<void> {
 
 export async function onStockLow(payload: StockLowPayload): Promise<void> {
   const userId = await resolveVendorUserId(payload.vendorId)
-  if (!userId) return
+  if (!userId) {
+    logger.warn('notifications.handler.skipped', {
+      event: 'stock.low',
+      reason: 'no_vendor',
+      handler: 'web-push.on-stock-low',
+      vendorId: payload.vendorId,
+      productId: payload.productId,
+    })
+    return
+  }
   const vendorFirstName = await resolveVendorFirstName(payload.vendorId)
   await sendWebPushToUser(
     userId,
