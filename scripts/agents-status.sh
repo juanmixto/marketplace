@@ -128,7 +128,49 @@ fi
 echo
 
 # ---------------------------------------------------------------------------
-# 5. Hint
+# 5. Unpushed commits in the SHARED main repo (the dangerous case)
+#
+# The git wrapper blocks checkout/reset/stash/etc. inside the shared repo,
+# but it does NOT block `git commit`. Another agent may have committed
+# straight to local `main` without pushing, leaving work that:
+#   - is invisible on origin/main
+#   - silently overrides what fresh worktrees see when they branch off origin
+#   - can be lost if anyone resets local main
+# Surface those commits so the next agent investigates before working.
+# ---------------------------------------------------------------------------
+bold "5. Unpushed commits in /home/whisper/marketplace (shared repo)"
+SHARED_REPO="/home/whisper/marketplace"
+if [ -d "$SHARED_REPO/.git" ] || [ -f "$SHARED_REPO/.git" ]; then
+  SHARED_BRANCH="$(git -C "$SHARED_REPO" branch --show-current 2>/dev/null || echo '')"
+  if [ -n "$SHARED_BRANCH" ]; then
+    UPSTREAM="$(git -C "$SHARED_REPO" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || echo '')"
+    if [ -z "$UPSTREAM" ]; then
+      warn "   ⚠ branch '$SHARED_BRANCH' has no upstream — cannot check ahead/behind."
+    else
+      AHEAD="$(git -C "$SHARED_REPO" log "$UPSTREAM..HEAD" --oneline 2>/dev/null || true)"
+      if [ -n "$AHEAD" ]; then
+        AHEAD_COUNT="$(echo "$AHEAD" | wc -l | tr -d ' ')"
+        err  "   ⚠ $AHEAD_COUNT commit(s) ahead of $UPSTREAM on '$SHARED_BRANCH':"
+        echo "$AHEAD" | while IFS= read -r line; do
+          err "     $line"
+        done
+        err  "   → another agent may have committed locally without pushing."
+        err  "     Investigate before working — fresh worktrees branch off origin and"
+        err  "     will NOT see these changes."
+      else
+        ok "   none — local '$SHARED_BRANCH' is in sync with $UPSTREAM."
+      fi
+    fi
+  else
+    dim "   shared repo is in detached HEAD; skipping ahead/behind check."
+  fi
+else
+  dim "   $SHARED_REPO not present; skipping."
+fi
+echo
+
+# ---------------------------------------------------------------------------
+# 6. Hint
 # ---------------------------------------------------------------------------
 dim "For deep cleanup signals (gone branches, merged worktrees, etc.) run:"
 dim "  scripts/git-hygiene.sh"
