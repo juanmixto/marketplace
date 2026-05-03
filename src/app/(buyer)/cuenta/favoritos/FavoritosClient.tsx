@@ -4,18 +4,19 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { HeartIcon } from '@heroicons/react/24/solid'
-import { ShoppingCartIcon } from '@heroicons/react/24/outline'
-import { useT } from '@/i18n'
-import { useCartStore } from '@/domains/cart/cart-store'
+import { useT, useLocale } from '@/i18n'
 import { useFavoritesStore } from '@/domains/catalog/favorites-store'
 import { OutOfStockOverlay } from '@/components/catalog/OutOfStockOverlay'
 import { FavoriteToggleButton } from '@/components/catalog/FavoriteToggleButton'
+import { AddToCartButton } from '@/components/catalog/AddToCartButton'
+import { getCatalogCopy } from '@/i18n/catalog-copy'
 import type { FavoriteProductItem } from '@/lib/favorites-serialization'
 import { formatPrice } from '@/lib/utils'
 
 export function FavoritosClient({ initialFavorites }: { initialFavorites: FavoriteProductItem[] }) {
   const t = useT()
-  const addItem = useCartStore(s => s.addItem)
+  const { locale } = useLocale()
+  const catalogCopy = getCatalogCopy(locale)
   const storeProductIds = useFavoritesStore(s => s.productIds)
   const [favorites, setFavorites] = useState<FavoriteProductItem[]>(initialFavorites)
 
@@ -28,19 +29,6 @@ export function FavoritosClient({ initialFavorites }: { initialFavorites: Favori
   useEffect(() => {
     setFavorites(prev => prev.filter(f => storeProductIds.has(f.product.id)))
   }, [storeProductIds])
-
-  const handleAddToCart = (fav: FavoriteProductItem) => {
-    addItem({
-      productId: fav.product.id,
-      name: fav.product.name,
-      slug: fav.product.slug,
-      image: fav.product.images?.[0],
-      price: fav.product.basePrice,
-      unit: 'ud',
-      vendorId: '',
-      vendorName: fav.product.vendor.displayName,
-    })
-  }
 
   if (favorites.length === 0) {
     return (
@@ -132,14 +120,18 @@ export function FavoritosClient({ initialFavorites }: { initialFavorites: Favori
                   )}
                 </div>
 
-                <button
-                  onClick={() => handleAddToCart(fav)}
-                  disabled={fav.product.stock <= 0}
-                  className="mt-auto flex items-center justify-center gap-2 rounded-lg bg-emerald-600 dark:bg-emerald-500 px-4 py-2 font-semibold text-white hover:bg-emerald-700 dark:hover:bg-emerald-600 disabled:bg-[var(--surface-raised)] disabled:text-[var(--muted)] disabled:cursor-not-allowed transition"
-                >
-                  <ShoppingCartIcon className="h-4 w-4" />
-                  {t('favorites.addToCart')}
-                </button>
+                <div className="mt-auto">
+                  <AddToCartButton
+                    productId={fav.product.id}
+                    productName={fav.product.name}
+                    disabled={fav.product.stock <= 0}
+                    disabledLabel={catalogCopy.actions.outOfStock}
+                    price={fav.product.basePrice}
+                    slug={fav.product.slug}
+                    image={fav.product.images?.[0]}
+                    vendorName={fav.product.vendor.displayName}
+                  />
+                </div>
               </div>
             </div>
           )
