@@ -25,8 +25,13 @@ test.describe('Auth Login - Dark Mode Visual', () => {
 
     await page.goto('/login')
     await page.waitForLoadState('networkidle')
-
-    // 1. The bootstrap script must add the .dark class to <html>
+    // Hide Next.js 16's dev-mode tools indicator (floating "N" pill,
+    // bottom-left) so this snapshot stays stable when the suite is run
+    // locally against `next dev`. It does not render under `next start`
+    // (CI), so this style is a no-op there.
+    await page.addStyleTag({
+      content: 'nextjs-portal { display: none !important; }',
+    })
     const htmlClass = await page.locator('html').getAttribute('class')
     expect(htmlClass).toContain('dark')
 
@@ -67,8 +72,16 @@ test.describe('Auth Login - Dark Mode Visual', () => {
     expect(htmlVars.surface).toBe('#161b22')
     expect(htmlVars.foreground).toBe('#e6edf3')
 
-    // 6. Visual snapshot for the human-eye check
-    await expect(page).toHaveScreenshot('login-dark-mode.png', { fullPage: true })
+    // 6. Visual snapshot for the human-eye check.
+    //    Mask the BuildBadge — its rendered content (commit SHA + Madrid-TZ
+    //    build timestamp) changes every CI run and would otherwise produce
+    //    a ~3% pixel diff on every nightly (#1117). The token assertions
+    //    above already validate the dark-mode contract; the screenshot is
+    //    just a regression catch for layout drift, which the mask preserves.
+    await expect(page).toHaveScreenshot('login-dark-mode.png', {
+      fullPage: true,
+      mask: [page.locator('[aria-label^="Versión"]')],
+    })
   })
 
   test('light mode: CSS variables resolve to LIGHT values', async ({
@@ -81,6 +94,10 @@ test.describe('Auth Login - Dark Mode Visual', () => {
 
     await page.goto('/login')
     await page.waitForLoadState('networkidle')
+    // Hide Next.js 16 dev-tools indicator — see dark-mode test above.
+    await page.addStyleTag({
+      content: 'nextjs-portal { display: none !important; }',
+    })
 
     const htmlClass = await page.locator('html').getAttribute('class')
     expect(htmlClass).not.toContain('dark')
@@ -95,7 +112,17 @@ test.describe('Auth Login - Dark Mode Visual', () => {
     )
     expect(emailBg).toBe(LIGHT_TOKENS.surface)
 
-    await expect(page).toHaveScreenshot('login-light-mode.png', { fullPage: true })
+    // Mask the BuildBadge — same rationale as the dark-mode test (#1117).
+    await expect(page).toHaveScreenshot('login-light-mode.png', {
+      fullPage: true,
+      mask: [page.locator('[aria-label^="Versión"]')],
+      // Hide Next.js 16 dev-mode tools indicator (the floating "N" in
+      // the bottom-left). It only renders under `next dev`, not in CI's
+      // `next start`, but if the suite is ever exercised locally it
+      // would otherwise drift the snapshot. The injected style is
+      // scoped to this assertion and disposed after the screenshot.
+      stylePath: undefined,
+    })
   })
 
   test('dark mode: Google sign-in button uses dark variant (not white)', async ({
