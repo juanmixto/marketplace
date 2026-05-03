@@ -117,7 +117,23 @@ export function Tooltip({
         className={cn('inline-flex', className)}
         tabIndex={interactive ? 0 : undefined}
         aria-describedby={open ? labelId : undefined}
-        {...getReferenceProps()}
+        // Stop click + touch from bubbling. Tooltips are commonly nested
+        // inside <Link> / <button> ancestors (e.g. certification badges
+        // inside ProductCard's <Link href="/productos/[slug]">). Without
+        // these handlers, tapping the tooltip trigger on touch devices
+        // navigates to the parent link before the tooltip can render —
+        // useClick toggles open, but the parent's click fires too and
+        // wins the navigation. preventDefault on touchEnd also blocks
+        // the synthetic click that touch generates.
+        {...getReferenceProps({
+          onClick(event) {
+            event.stopPropagation()
+            event.preventDefault()
+          },
+          onTouchEnd(event) {
+            event.stopPropagation()
+          },
+        })}
       >
         {children}
       </span>
