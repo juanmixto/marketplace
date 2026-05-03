@@ -23,6 +23,7 @@
     "typecheck:app": "tsc -p tsconfig.app.json --noEmit",
     "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
     "lint": "eslint . --max-warnings=0",
+    "audit:admin-roles": "node ./scripts/audit-admin-role-helpers.mjs",
     "lint:fix": "eslint . --max-warnings=0 --fix",
     "lint:prune-suppressions": "eslint . --max-warnings=0 --prune-suppressions",
     "audit:app-env": "node ./scripts/audit-app-env-coherence.mjs",
