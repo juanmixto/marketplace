@@ -101,3 +101,34 @@ For auth-touching changes, also verify:
 - `/login` with a non-2FA user still signs in.
 - `/login` with a 2FA admin shows the TOTP step before Auth.js callback.
 - `/admin/dashboard` redirects unauthenticated users to login.
+
+## Staging data policy
+
+Staging is a rehearsal environment: public enough to share demos, but separate
+from production. Keep its database useful for realistic flows without turning it
+into a shadow copy of production.
+
+Current policy:
+
+- Use demo products, demo producers, demo customers, Stripe test mode, and fake
+  orders for checkout/regression tests.
+- Never point staging at the production database.
+- Never copy raw production customer/order data into staging.
+- If staging needs production-like volume later, restore a scrubbed snapshot:
+  remove or anonymize personal data first, then add stable demo rows on top.
+- Once production has real curated producers, staging can intentionally mix:
+  real producer/catalog records plus dummy customers, dummy orders, and Stripe
+  test payments. That gives realistic catalog demos without leaking customer
+  data.
+
+Seed or refresh the demo dataset:
+
+```bash
+npm run db:seed:stg
+```
+
+Reset known demo rows and reseed them:
+
+```bash
+npm run db:seed:stg:reset
+```

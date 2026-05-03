@@ -36,6 +36,8 @@
     "prisma:generate": "prisma generate",
     "db:migrate": "node --env-file=.env --env-file-if-exists=.env.local ./node_modules/prisma/build/index.js migrate dev",
     "db:seed": "node --env-file=.env --env-file-if-exists=.env.local --import tsx prisma/seed.ts",
+    "db:seed:stg": "scripts/staging-seed.sh",
+    "db:seed:stg:reset": "scripts/staging-seed.sh --reset-demo",
     "prod:bootstrap": "node --import tsx scripts/prod-bootstrap.ts",
     "deploy:dev": "scripts/deploy-local-env.sh development",
     "deploy:stg": "scripts/deploy-local-env.sh staging",
