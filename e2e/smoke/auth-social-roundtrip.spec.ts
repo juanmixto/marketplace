@@ -67,9 +67,10 @@ test.describe('auth social round-trip @smoke', () => {
     })
 
     // First leg: signIn callback denies + redirects to /login/link.
+    // waitUntil: 'commit' — see helpers/mock-oauth.ts for rationale.
     await page.goto('/dev/oauth-trigger?callbackUrl=' + encodeURIComponent('/cuenta'))
     await Promise.all([
-      page.waitForURL(/\/login\/link\?token=/, { timeout: 30_000 }),
+      page.waitForURL(/\/login\/link\?token=/, { timeout: 30_000, waitUntil: 'commit' }),
       page.getByTestId('mock-oauth-trigger').click(),
     ])
 
@@ -80,7 +81,7 @@ test.describe('auth social round-trip @smoke', () => {
     // signIn callback (#873). User lands on /cuenta directly.
     await page.locator('input[name="password"]').fill(TEST_USERS.customer.password)
     await Promise.all([
-      page.waitForURL(/\/cuenta(?:[/?]|$)/, { timeout: 30_000 }),
+      page.waitForURL(/\/cuenta(?:[/?]|$)/, { timeout: 30_000, waitUntil: 'commit' }),
       page.getByRole('button', { name: /Confirmar y vincular/i }).click(),
     ])
 
@@ -103,8 +104,9 @@ test.describe('auth social round-trip @smoke', () => {
     await page.goto(
       '/dev/oauth-trigger?callbackUrl=' + encodeURIComponent('/admin/dashboard')
     )
+    // waitUntil: 'commit' — see helpers/mock-oauth.ts for rationale.
     await Promise.all([
-      page.waitForURL(/\/login\/link\?token=/, { timeout: 30_000 }),
+      page.waitForURL(/\/login\/link\?token=/, { timeout: 30_000, waitUntil: 'commit' }),
       page.getByTestId('mock-oauth-trigger').click(),
     ])
 
@@ -114,7 +116,7 @@ test.describe('auth social round-trip @smoke', () => {
     // /admin/security/enroll. The session is real (verified by
     // reaching enroll, which is a protected path).
     await Promise.all([
-      page.waitForURL(/\/admin\/security\/enroll(?:[/?]|$)/, { timeout: 30_000 }),
+      page.waitForURL(/\/admin\/security\/enroll(?:[/?]|$)/, { timeout: 30_000, waitUntil: 'commit' }),
       page.getByRole('button', { name: /Confirmar y vincular/i }).click(),
     ])
   })

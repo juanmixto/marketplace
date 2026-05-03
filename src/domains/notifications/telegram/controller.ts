@@ -10,7 +10,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void
     await handleCallbackQuery(update.callback_query)
     return
   }
-  console.info('telegram.webhook.unknown_update', { updateId: update.update_id })
+  logger.info('telegram.webhook.unknown_update', { updateId: update.update_id })
 }
 
 async function handleMessage(message: NonNullable<TelegramUpdate['message']>): Promise<void> {
@@ -43,7 +43,7 @@ async function handleMessage(message: NonNullable<TelegramUpdate['message']>): P
     return
   }
 
-  console.info('telegram.webhook.unhandled_message', { chatId: message.chat.id })
+  logger.info('telegram.webhook.unhandled_message', { chatId: message.chat.id })
 }
 
 async function handleCallbackQuery(

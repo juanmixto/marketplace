@@ -14,12 +14,9 @@ last_verified_against_main: 2026-04-25
 1. `git status` in any worktree you touch. If there are uncommitted changes that are not yours, **stop and ask** ([`AGENTS.md`](../AGENTS.md) §concurrent-agent safety).
 2. Read the three docs: [`AGENTS.md`](../AGENTS.md) → [`docs/conventions.md`](./conventions.md) → [`docs/ai-guidelines.md`](./ai-guidelines.md).
 3. Plan the smallest change that solves the task.
-4. Before opening a PR run:
-   - `npm run typecheck`
-   - `npm run lint`
-   - `npm run audit:contracts`
-   - the relevant slice of the test suite
-5. PR description lists any contract changes and whether they are breaking.
+4. Before opening a PR run **`npm run verify`** — one command, runs the same checks the CI "Verify" job runs in parallel (lint + 5 audits + 2 typechecks + fast tests). Takes ~30s on a warm cache vs ~3 min waiting on a CI runner. If anything fails, fix locally before pushing.
+5. For PRs that touch DB code or order/payment flow, also run the relevant slice of `npm run test:integration` (needs a test DB). For PRs touching buyer-facing pages, run `npm run test:e2e:smoke` against a local dev server.
+6. PR description lists any contract changes and whether they are breaking.
 
 ---
 

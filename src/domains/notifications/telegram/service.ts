@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import { callBotApi, TelegramApiError } from './client'
 import { checkRateLimit } from './rate-limit'
 import type { NotificationEventType } from '../types'
@@ -66,10 +67,10 @@ export async function sendToUser(
         where: { userId, isActive: true },
         data: { isActive: false },
       })
-      console.warn('telegram.outbound.user_blocked_bot', { userId })
+      logger.warn('telegram.outbound.user_blocked_bot', { userId })
     }
 
-    console.error('telegram.outbound.failed', { userId, eventType, error: errorDescription })
+    logger.error('telegram.outbound.failed', { userId, eventType, error: errorDescription })
     return { status: 'FAILED', error: errorDescription }
   }
 }
@@ -146,7 +147,7 @@ async function logDelivery(
       },
     })
   } catch (err) {
-    console.error('telegram.outbound.log_failed', {
+    logger.error('telegram.outbound.log_failed', {
       userId,
       error: err instanceof Error ? err.message : String(err),
     })

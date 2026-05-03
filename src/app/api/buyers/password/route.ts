@@ -1,5 +1,6 @@
 import { getActionSession } from '@/lib/action-session'
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
@@ -52,7 +53,7 @@ export async function PUT(request: Request) {
       message: 'Contraseña actualizada correctamente',
     })
   } catch (error) {
-    console.error('Password change error:', error)
+    logger.error('api.buyers.password.change_failed', { error })
     return apiInternalError('Error al cambiar contraseña')
   }
 }
