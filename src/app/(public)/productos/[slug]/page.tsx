@@ -373,6 +373,7 @@ export default async function ProductDetailPage({ params }: Props) {
             }
             estimatedShippingCost={estimatedShippingCost ?? null}
             shippingZone={shippingZone}
+            categorySlug={product.category?.slug ?? null}
           />
 
           <ProductPromotions promotions={informationalPromotions} locale={locale} />

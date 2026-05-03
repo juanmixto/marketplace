@@ -4,6 +4,7 @@ import { getProducts, getCategories } from '@/domains/catalog/queries'
 import { ProductCard } from '@/components/catalog/ProductCard'
 import { ProductFiltersPanel } from '@/components/catalog/ProductFiltersPanel'
 import { TrackEventOnView } from '@/components/analytics/TrackEventOnView'
+import { CatalogViewedTracker } from '@/components/analytics/CatalogViewedTracker'
 import { SortSelect } from '@/components/catalog/SortSelect'
 import { parseProductSort } from '@/domains/catalog/types'
 import Link from 'next/link'
@@ -83,6 +84,10 @@ export default async function BuscarPage({ searchParams }: Props) {
           results_count: products.length,
           has_results: products.length > 0,
         }}
+      />
+      <CatalogViewedTracker
+        surface={`search:${params.q.trim().toLowerCase()}`}
+        category={params.categoria ?? null}
       />
       <div className="flex gap-8">
         {/* Sidebar filters */}
