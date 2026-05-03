@@ -5,6 +5,7 @@ import { createElement } from 'react'
 import { Text } from '@react-email/components'
 import { checkRateLimit, getClientIP } from '@/lib/ratelimit'
 import { logger } from '@/lib/logger'
+import { normalizeAuthEmail } from '@/lib/auth-email'
 
 const contactSchema = z.object({
   nombre: z.string().min(2).max(100),
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
 
     // Per-identity throttle so a distributed source can't keep recycling the
     // same sender address either.
-    const normalizedEmail = validated.email.trim().toLowerCase()
+    const normalizedEmail = normalizeAuthEmail(validated.email)
     const emailLimit = await checkRateLimit(
       'contact-email',
       normalizedEmail,

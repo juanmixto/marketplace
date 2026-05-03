@@ -27,6 +27,7 @@ import { logger } from '@/lib/logger'
 import { checkRateLimit, getClientIP } from '@/lib/ratelimit'
 import { isTwoFactorEnabled } from '@/domains/auth/two-factor'
 import { verifyTrustedDeviceCookie } from '@/domains/auth/trusted-device'
+import { normalizeAuthEmail } from '@/lib/auth-email'
 
 const schema = z.object({
   email: z.string().email(),
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false }, { status: 200 })
     }
 
-    const normalizedEmail = parsed.data.email.trim().toLowerCase()
+    const normalizedEmail = normalizeAuthEmail(parsed.data.email)
 
     const identityLimit = await checkRateLimit(
       'login-precheck-identity',

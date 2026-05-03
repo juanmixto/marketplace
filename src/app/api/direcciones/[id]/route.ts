@@ -9,6 +9,7 @@ import {
   promoteOldestAsDefault,
 } from '@/domains/auth/address-defaults'
 import { buyerAddressSchema } from '@/domains/auth/buyer-address-schema'
+import { zCuid } from '@/lib/validation/primitives'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -21,7 +22,11 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const { id } = await params
+    const idCheck = zCuid.safeParse((await params).id)
+    if (!idCheck.success) {
+      return NextResponse.json({ error: 'Identificador inválido' }, { status: 400 })
+    }
+    const id = idCheck.data
     const body = await req.json()
     const validated = buyerAddressSchema.parse(body)
 
@@ -80,7 +85,11 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const { id } = await params
+    const idCheck = zCuid.safeParse((await params).id)
+    if (!idCheck.success) {
+      return NextResponse.json({ error: 'Identificador inválido' }, { status: 400 })
+    }
+    const id = idCheck.data
 
     const address = await db.address.findFirst({
       where: { id, userId: session.user.id },
