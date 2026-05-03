@@ -8,6 +8,8 @@ import type { Appearance } from '@stripe/stripe-js'
 import { loadStripe } from '@stripe/stripe-js'
 import { Button } from '@/components/ui/button'
 import { formatPrice } from '@/lib/utils'
+import { trackAnalyticsEvent } from '@/lib/analytics'
+import { getBuyerFunnelContext } from '@/lib/analytics-buyer-context'
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
@@ -90,6 +92,15 @@ function InnerStripeCheckoutForm({ orderNumber, grandTotal, returnUrl }: InnerFo
     }
 
     if (result.paymentIntent?.status === 'succeeded' || result.paymentIntent?.status === 'processing') {
+      // CF-1 funnel: payment step completed. Fires before the redirect
+      // so a slow router.push doesn't drop the event on unload.
+      const { device, referrer } = getBuyerFunnelContext()
+      trackAnalyticsEvent('checkout.step_completed', {
+        step: 'payment',
+        order_number: orderNumber,
+        device,
+        referrer,
+      })
       router.push(`/checkout/confirmacion?orderNumber=${encodeURIComponent(orderNumber)}`)
       router.refresh()
       return

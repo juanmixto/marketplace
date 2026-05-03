@@ -10,7 +10,16 @@ export type AnalyticsEventName =
   | 'purchase'
   | 'contact_submit'
   | 'sign_up'
+  // Buyer mutation events: every entry below MUST carry a `result:
+  // 'success' | 'failure'` property. The Buyer Mutations Health
+  // dashboard (docs/posthog-dashboards.md) reads `result` to compute
+  // failure rate per surface and alerts when it spikes — that is how
+  // the next "user reports a silent bug" gets caught before the user.
   | 'add_to_favorites'
+  | 'remove_from_favorites'
+  | 'address_changed'
+  | 'buyer_profile_updated'
+  | 'incident_resolved'
   | 'pwa_installable'
   | 'pwa_install_prompted'
   | 'pwa_install_accepted'
@@ -25,6 +34,65 @@ export type AnalyticsEventName =
   | 'seller_product_created'
   | 'seller_product_published'
   | 'seller_order_received'
+  // CF-1 buyer funnel events. Stable names — once shipped, do not
+  // rename: PostHog funnel insights pin event names by string and a
+  // rename silently breaks every dashboard built on top. See
+  // `docs/posthog-dashboards.md` § Dashboard 5 for the full funnel
+  // definition (catalog → product → cart → checkout.started →
+  // checkout.step_completed[payment] → order.placed).
+  | 'catalog.viewed'
+  | 'product.viewed'
+  | 'cart.opened'
+  | 'checkout.started'
+  | 'checkout.step_completed'
+  | 'order.placed'
+
+/**
+ * Subset of AnalyticsEventName that represents a buyer-side mutation
+ * whose payload MUST carry `result: 'success' | 'failure'`. Used by
+ * the contract test to validate every fire-site complies. Add new
+ * mutation events here, never use a bare `result` string outside this
+ * shape.
+ */
+export type BuyerMutationEvent =
+  | 'add_to_favorites'
+  | 'remove_from_favorites'
+  | 'address_changed'
+  | 'buyer_profile_updated'
+  | 'incident_resolved'
+
+export const BUYER_MUTATION_EVENTS: readonly BuyerMutationEvent[] = [
+  'add_to_favorites',
+  'remove_from_favorites',
+  'address_changed',
+  'buyer_profile_updated',
+  'incident_resolved',
+] as const
+
+/**
+ * Subset of AnalyticsEventName that represents the CF-1 buyer funnel
+ * (descubrimiento → compra). Every fire-site MUST attach the common
+ * properties produced by `getBuyerFunnelContext()` (`device`,
+ * `referrer`) so PostHog breakdowns by device/source remain reliable.
+ * The contract test pins this list so a renamed event with stale doc
+ * cannot silently break the funnel insight.
+ */
+export type BuyerFunnelEvent =
+  | 'catalog.viewed'
+  | 'product.viewed'
+  | 'cart.opened'
+  | 'checkout.started'
+  | 'checkout.step_completed'
+  | 'order.placed'
+
+export const BUYER_FUNNEL_EVENTS: readonly BuyerFunnelEvent[] = [
+  'catalog.viewed',
+  'product.viewed',
+  'cart.opened',
+  'checkout.started',
+  'checkout.step_completed',
+  'order.placed',
+] as const
 
 export interface AnalyticsItemInput {
   id: string

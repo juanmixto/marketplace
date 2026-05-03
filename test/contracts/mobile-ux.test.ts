@@ -361,34 +361,60 @@ test('PDP purchase panel renders a mobile-only sticky add-to-cart bar', () => {
   assert.match(source, /IntersectionObserver/, 'sticky CTA must toggle via IntersectionObserver on the inline CTA')
 })
 
-test('Tooltip primitive caps width to viewport, swaps left/right to bottom on <sm, and silences hover on touch', () => {
+test('Tooltip primitive uses Floating UI with viewport collision avoidance and a portal', () => {
+  // The previous CSS-only positioning (left-1/2 + translate-x-1/2 anchored to
+  // the trigger) clipped off-screen whenever the trigger sat near a viewport
+  // edge — even with a width cap. The robust fix is real collision detection
+  // via @floating-ui/react: flip + shift + size keep the tooltip inside the
+  // viewport regardless of where the trigger lives, and FloatingPortal escapes
+  // any overflow:clip / stacking-context ancestor.
   const source = read('src/components/ui/tooltip.tsx')
   assert.match(
     source,
-    /max-w-\[min\(14rem,calc\(100vw-2rem\)\)\]/,
-    'tooltip width must be capped to viewport minus a 1rem gutter so it never escapes on narrow screens',
+    /from '@floating-ui\/react'/,
+    'tooltip must be implemented on top of @floating-ui/react for collision-aware positioning',
   )
   assert.match(
     source,
-    /max-sm:left-1\/2[\s\S]*max-sm:top-full/,
-    'side="right" must collapse to bottom on <sm to avoid escaping the right edge',
+    /\bflip\(/,
+    'tooltip must use flip() so it swaps to the opposite side when the preferred side overflows',
   )
   assert.match(
     source,
-    /max-sm:left-1\/2[\s\S]*max-sm:top-full[\s\S]*max-sm:left-1\/2[\s\S]*max-sm:top-full/,
-    'side="left" must also collapse to bottom on <sm',
+    /\bshift\(/,
+    'tooltip must use shift() so it slides along the cross axis to stay in the viewport',
   )
   assert.match(
     source,
-    /pointer-coarse:group-hover\/tooltip:opacity-0/,
-    'on touch (hover: none) the hover-stuck state must be suppressed so tooltips do not linger after a tap',
+    /\bsize\(/,
+    'tooltip must use size() so it clamps its max-width to the available viewport width',
+  )
+  assert.match(
+    source,
+    /FloatingPortal/,
+    'tooltip must render through FloatingPortal so it escapes overflow:clip / stacking ancestors',
+  )
+  assert.match(
+    source,
+    /useDismiss\(/,
+    'tooltip must wire useDismiss so an outside tap or escape closes it on touch devices',
+  )
+  assert.match(
+    source,
+    /useFocus\(/,
+    'tooltip must wire useFocus so keyboard users (and the touch-tap focus fallback) can open it',
+  )
+  assert.match(
+    source,
+    /role="tooltip"|role: 'tooltip'/,
+    'the floating element must keep the ARIA tooltip role for screen-reader users',
   )
 
   const css = read('src/app/globals.css')
   assert.match(
     css,
     /@custom-variant pointer-coarse \(@media \(hover: none\)\)/,
-    'globals.css must declare the pointer-coarse custom variant the Tooltip relies on',
+    'globals.css must keep the pointer-coarse custom variant for other touch-aware components',
   )
 })
 
@@ -575,18 +601,24 @@ test('mobile header drawer is reorganised into Mi cuenta / Ajustes / Explorar (n
 
 test('service worker disables /_next/static SWR cache on dev hostnames', () => {
   // Stale chunks in the SW's static cache caused real "I fixed it on disk
-  // but the device serves yesterday's bundle" confusion on dev.feldescloud.com
+  // but the device serves yesterday's bundle" confusion on dev tunnel hosts
   // until the SWR revalidate happened to race a fresh navigation. On dev
   // hosts we now bypass the cache entirely; production keeps it.
+  // The list of dev hostnames is injected at build time by scripts/build-sw.mjs
+  // from DEV_TUNNEL_HOSTS, so the template carries a placeholder and the
+  // build script owns the default during the domain coexistence window.
   const sw = read('public/sw.template.js')
-  assert.match(sw, /const DEV_HOSTNAMES = new Set\(/, 'sw.template.js must declare DEV_HOSTNAMES')
-  assert.match(sw, /'dev\.feldescloud\.com'/, 'DEV_HOSTNAMES must include dev.feldescloud.com')
-  assert.match(sw, /'localhost'/, 'DEV_HOSTNAMES must include localhost')
+  assert.match(sw, /const DEV_HOSTNAMES = new Set\(__DEV_HOSTNAMES__\)/, 'sw.template.js must declare DEV_HOSTNAMES from the __DEV_HOSTNAMES__ placeholder')
   assert.match(
     sw,
     /DEV_HOSTNAMES\.has\(self\.location\.hostname\)\)\s*return false/,
     'isCacheableStatic must short-circuit to false on dev hostnames so chunks are passthrough',
   )
+  const builder = read('scripts/build-sw.mjs')
+  assert.match(builder, /__DEV_HOSTNAMES__/, 'build-sw.mjs must substitute the __DEV_HOSTNAMES__ placeholder')
+  assert.match(builder, /dev\.raizdirecta\.es/, 'build-sw.mjs default must include dev.raizdirecta.es')
+  assert.match(builder, /dev\.feldescloud\.com/, 'build-sw.mjs default must include dev.feldescloud.com during coexistence')
+  assert.match(builder, /localhost/, 'build-sw.mjs default must include localhost')
 })
 
 test('BuildBadge formats build time in Europe/Madrid, not UTC', () => {
@@ -606,11 +638,22 @@ test('BuildBadge formats build time in Europe/Madrid, not UTC', () => {
   )
 })
 
-test('Recharts tooltips opt the wrapper into pointer events so touch devices can interact', () => {
-  // Recharts defaults the tooltip wrapper to `pointer-events: none`, which on
-  // touch devices traps the tooltip in a "stuck after tap" state. Setting
-  // wrapperStyle={{ pointerEvents: 'auto' }} lets the user dismiss it by
-  // tapping elsewhere on the chart.
+test('Recharts tooltips stay in the viewport, are tappable on touch, and wrap long text', () => {
+  // Three invariants for every Recharts <Tooltip> in the codebase:
+  //
+  //   1. wrapperStyle.pointerEvents === 'auto' so a touch user can dismiss
+  //      the tooltip by tapping elsewhere (default is 'none', which traps
+  //      the tooltip in a "stuck after tap" state on iOS/Android).
+  //   2. wrapperStyle.maxWidth caps to the viewport (`min(280px, calc(100vw - 16px))`)
+  //      so wide labels (e.g. a long vendor name + currency) cannot push the
+  //      tooltip past the screen edge on a 360px phone.
+  //   3. allowEscapeViewBox={{ x: false, y: false }} so even with very small
+  //      chart containers the tooltip stays clipped to the chart, not free
+  //      to overflow the page.
+  //
+  // Tooltip styles may be inlined or extracted to a module-scope constant
+  // (AdminAnalyticsCharts.tsx does the latter), so these regexes match the
+  // literals anywhere in the file rather than only on the <Tooltip> node.
   const files = [
     'src/components/admin/analytics/charts/RankedBarChart.tsx',
     'src/components/admin/analytics/charts/CategoryPieChart.tsx',
@@ -621,8 +664,18 @@ test('Recharts tooltips opt the wrapper into pointer events so touch devices can
     const source = read(file)
     assert.match(
       source,
-      /wrapperStyle=\{\{\s*pointerEvents:\s*'auto'\s*\}\}/,
-      `${file} must opt the Recharts <Tooltip> wrapper into pointerEvents: auto`,
+      /pointerEvents:\s*'auto'/,
+      `${file} must keep pointerEvents: 'auto' on the Recharts wrapper so touch users can dismiss the tooltip`,
+    )
+    assert.match(
+      source,
+      /maxWidth:\s*'min\(280px,\s*calc\(100vw\s*-\s*16px\)\)'/,
+      `${file} must clamp the Recharts wrapper width to min(280px, calc(100vw - 16px)) so it cannot escape the viewport`,
+    )
+    assert.match(
+      source,
+      /allowEscapeViewBox=\{\{\s*x:\s*false,\s*y:\s*false\s*\}\}/,
+      `${file} must pass allowEscapeViewBox={{ x: false, y: false }} so the tooltip stays inside the chart container`,
     )
   }
 })

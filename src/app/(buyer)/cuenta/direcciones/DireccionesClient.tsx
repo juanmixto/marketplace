@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { TrashIcon, PencilIcon, CheckIcon } from '@heroicons/react/24/outline'
 import { useT } from '@/i18n'
+import { trackAnalyticsEvent } from '@/lib/analytics'
 import { buyerAddressSchema, type BuyerAddressInput } from '@/domains/auth/buyer-address-schema'
 import { SPAIN_PROVINCES, getPrefixForProvince } from '@/domains/shipping/spain-provinces'
 import { LocationAutocomplete } from '@/components/ui/LocationAutocomplete'
@@ -35,6 +37,7 @@ export function DireccionesClient({
   userLastName = '',
   initialAddresses,
 }: DireccionesClientProps = {}) {
+  const router = useRouter()
   const [addresses, setAddresses] = useState<Address[]>(initialAddresses ?? [])
   // If the page already passed server-rendered addresses we can paint
   // immediately; otherwise preserve the old behaviour of showing a
@@ -107,6 +110,7 @@ export function DireccionesClient({
   }, [initialAddresses])
 
   const onSubmit = async (data: AddressForm) => {
+    const action: 'updated' | 'created' = editingId ? 'updated' : 'created'
     try {
       setError(null)
       const url = editingId ? `/api/direcciones/${editingId}` : '/api/direcciones'
@@ -134,10 +138,18 @@ export function DireccionesClient({
         setAddresses([...base, savedAddress])
       }
 
+      trackAnalyticsEvent('address_changed', { action, result: 'success' })
+
+      // Invalidate the Next.js Router Cache so server-rendered pages
+      // that read addresses (/checkout, /cuenta/suscripciones/nueva,
+      // /cuenta with default-address summary) re-fetch on next nav.
+      router.refresh()
+
       reset()
       setShowForm(false)
       setEditingId(null)
     } catch {
+      trackAnalyticsEvent('address_changed', { action, result: 'failure' })
       setError('Error al guardar dirección')
     }
   }
@@ -163,7 +175,10 @@ export function DireccionesClient({
       })
       if (!res.ok) throw new Error('Error al eliminar')
       setAddresses(addresses.filter(a => a.id !== id))
+      trackAnalyticsEvent('address_changed', { action: 'deleted', result: 'success' })
+      router.refresh()
     } catch {
+      trackAnalyticsEvent('address_changed', { action: 'deleted', result: 'failure' })
       setError('Error al eliminar dirección')
     } finally {
       setDeleting(null)
@@ -214,7 +229,10 @@ export function DireccionesClient({
         ...a,
         isDefault: a.id === id,
       })))
+      trackAnalyticsEvent('address_changed', { action: 'set_default', result: 'success' })
+      router.refresh()
     } catch {
+      trackAnalyticsEvent('address_changed', { action: 'set_default', result: 'failure' })
       setError('Error al establecer dirección predeterminada')
     }
   }

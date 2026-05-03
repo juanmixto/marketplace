@@ -55,6 +55,16 @@ test('favorites-store uses optimistic updates with rollback on API failure', () 
   assert.match(source, /Rollback/)
 })
 
+test('FavoriteToggleButton calls router.refresh() so /cuenta/favoritos picks up new items', () => {
+  // Without router.refresh(), the Next Router Cache serves a stale RSC
+  // payload for /cuenta/favoritos and newly-favorited products only
+  // appear after a hard reload.
+  const source = readSource('../../src/components/catalog/FavoriteToggleButton.tsx')
+
+  assert.match(source, /useRouter/)
+  assert.match(source, /router\.refresh\(\)/)
+})
+
 test('ProductCard includes FavoriteToggleButton', () => {
   const source = readSource('../../src/components/catalog/ProductCard.tsx')
 

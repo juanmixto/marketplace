@@ -1,8 +1,20 @@
 'use client'
 
-import { useEffect, useId, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useId, useState } from 'react'
 import Link from 'next/link'
+import {
+  FloatingPortal,
+  autoUpdate,
+  flip,
+  offset,
+  shift,
+  size,
+  useClick,
+  useDismiss,
+  useFloating,
+  useInteractions,
+  useRole,
+} from '@floating-ui/react'
 import { submitForReview, deleteProduct, archiveProduct, restoreProduct } from '@/domains/vendors/actions'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
@@ -21,12 +33,36 @@ export function ProductActions({ product }: Props) {
   const isExpired = isProductExpired(product.expiresAt)
   const isArchived = !!product.archivedAt
   const instanceId = useId()
-  const buttonRef = useRef<HTMLButtonElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [coords, setCoords] = useState<{ top: number; right: number } | null>(null)
   const [deleteModal, setDeleteModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const { refs, floatingStyles, context } = useFloating({
+    open: menuOpen,
+    onOpenChange: open => {
+      setMenuOpen(open)
+      if (open) window.dispatchEvent(new CustomEvent(PRODUCT_ACTIONS_OPEN_EVENT, { detail: instanceId }))
+    },
+    placement: 'bottom-end',
+    whileElementsMounted: autoUpdate,
+    middleware: [
+      offset(4),
+      flip({ padding: 8, fallbackAxisSideDirection: 'start' }),
+      shift({ padding: 8 }),
+      size({
+        padding: 8,
+        apply({ availableWidth, elements }) {
+          elements.floating.style.maxWidth = `${Math.min(availableWidth, 320)}px`
+        },
+      }),
+    ],
+  })
+
+  const click = useClick(context)
+  const dismiss = useDismiss(context, { outsidePress: true, escapeKey: true })
+  const role = useRole(context, { role: 'menu' })
+  const { getReferenceProps, getFloatingProps } = useInteractions([click, dismiss, role])
 
   useEffect(() => {
     function onOtherOpen(e: Event) {
@@ -35,33 +71,6 @@ export function ProductActions({ product }: Props) {
     window.addEventListener(PRODUCT_ACTIONS_OPEN_EVENT, onOtherOpen)
     return () => window.removeEventListener(PRODUCT_ACTIONS_OPEN_EVENT, onOtherOpen)
   }, [instanceId])
-
-  useEffect(() => {
-    if (!menuOpen) return
-    function close() { setMenuOpen(false) }
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setMenuOpen(false) }
-    window.addEventListener('scroll', close, true)
-    window.addEventListener('resize', close)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('scroll', close, true)
-      window.removeEventListener('resize', close)
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [menuOpen])
-
-  function toggleMenu() {
-    if (menuOpen) {
-      setMenuOpen(false)
-      return
-    }
-    const rect = buttonRef.current?.getBoundingClientRect()
-    if (rect) {
-      setCoords({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
-    }
-    setMenuOpen(true)
-    window.dispatchEvent(new CustomEvent(PRODUCT_ACTIONS_OPEN_EVENT, { detail: instanceId }))
-  }
 
   async function handleSubmitReview() {
     setLoading(true)
@@ -117,23 +126,23 @@ export function ProductActions({ product }: Props) {
     <>
       <div className="shrink-0">
         <button
-          ref={buttonRef}
-          onClick={toggleMenu}
+          ref={refs.setReference}
           aria-label={t('vendor.productActions.menuLabel')}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           className="rounded-lg p-2 text-[var(--muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)]"
+          {...getReferenceProps()}
         >
           <EllipsisVerticalIcon className="h-5 w-5" />
         </button>
       </div>
-      {menuOpen && coords && typeof document !== 'undefined' && createPortal(
-        <>
-          <div className="fixed inset-0 z-[100]" onClick={() => setMenuOpen(false)} />
+      {menuOpen && (
+        <FloatingPortal>
           <div
-            role="menu"
-            style={{ top: coords.top, right: coords.right }}
-            className="fixed z-[101] w-44 rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
+            ref={refs.setFloating}
+            style={floatingStyles}
+            className="z-[101] w-44 rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
+            {...getFloatingProps()}
           >
             <Link
               href={`/vendor/productos/${product.id}`}
@@ -191,8 +200,7 @@ export function ProductActions({ product }: Props) {
               </button>
             </div>
           </div>
-        </>,
-        document.body
+        </FloatingPortal>
       )}
 
       <Modal

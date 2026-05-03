@@ -72,7 +72,7 @@ function generateNonce(): string {
 function getExpectedHosts(request: NextRequest): Set<string> {
   // Build the set of hosts a same-origin browser request can legitimately
   // arrive with. Behind TLS-terminating reverse proxies / tunnels (e.g.
-  // Cloudflare Tunnel → dev.feldescloud.com forwards plain http to
+  // Cloudflare Tunnel → dev.<host> forwards plain http to
   // localhost:3001), `request.url` resolves to `http://localhost:3001/...`
   // whose host won't match the browser-sent Origin. The forwarded
   // `Host` / `X-Forwarded-Host` headers preserve the public host, and
