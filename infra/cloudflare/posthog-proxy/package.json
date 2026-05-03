@@ -1,0 +1,15 @@
+{
+  "name": "raizdirecta-posthog-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudflare Worker that reverse-proxies PostHog ingestion through raizdirecta.es. See README.md.",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "wrangler": "^3.95.0"
+  }
+}
