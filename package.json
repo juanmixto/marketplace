@@ -23,6 +23,7 @@
     "typecheck:app": "tsc -p tsconfig.app.json --noEmit",
     "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
     "lint": "eslint . --max-warnings=0",
+    "audit:app-env": "node ./scripts/audit-app-env-coherence.mjs",
     "audit:contracts": "node ./scripts/audit-domain-contracts.mjs",
     "audit:flags-cleanup": "node ./scripts/audit-flag-cleanup-tickets.mjs",
     "audit:fk": "node ./scripts/audit-fk-onDelete.mjs",
