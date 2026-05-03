@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import {
   FAVORITES_UNAVAILABLE_MESSAGE,
   isFavoritesTableMissingError,
@@ -48,7 +49,7 @@ export async function GET(_req: NextRequest) {
 
     return NextResponse.json(favorites, unavailable ? { headers: { 'x-favorites-unavailable': 'true' } } : undefined)
   } catch (error) {
-    console.error('GET /api/favoritos error:', error)
+    logger.error('api.favoritos.get_failed', { error })
     return NextResponse.json(
       { error: 'Error al obtener favoritos' },
       { status: 500 }
@@ -113,7 +114,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    console.error('POST /api/favoritos error:', error)
+    logger.error('api.favoritos.post_failed', { error })
     return NextResponse.json(
       { error: 'Error al añadir favorito' },
       { status: 500 }

@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger'
+
 export const FAVORITES_UNAVAILABLE_MESSAGE =
   'La lista de favoritos no está disponible temporalmente. Aplica las migraciones pendientes e inténtalo de nuevo.'
 
@@ -30,7 +32,9 @@ export async function withFavoritesGuard<T>(
     }
   } catch (error) {
     if (isFavoritesTableMissingError(error)) {
-      console.warn('[favorites] Favorite table unavailable; returning fallback data until migrations are applied.')
+      logger.warn('catalog.favorites.table_unavailable', {
+        reason: 'returning_fallback_until_migrations_applied',
+      })
       return {
         value: fallbackValue,
         unavailable: true,

@@ -7,6 +7,7 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import { NextResponse } from 'next/server'
 import { checkRateLimit } from '@/lib/ratelimit'
 
@@ -174,7 +175,7 @@ export async function GET() {
       },
     })
   } catch (error) {
-    console.error('[GDPR Export] Error:', error)
+    logger.error('gdpr.export.failed', { error })
     return NextResponse.json(
       { error: 'Error al exportar datos' },
       { status: 500 }

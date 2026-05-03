@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createPasswordResetToken } from '@/domains/auth/email-verification'
 import { checkRateLimit, getClientIP } from '@/lib/ratelimit'
+import { logger } from '@/lib/logger'
 
 const schema = z.object({
   email: z.string().email('Email inválido'),
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       )
     }
-    console.error('[forgot-password]', err)
+    logger.error('auth.forgot_password.failed', { error: err })
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })
   }
 }

@@ -35,7 +35,7 @@ export async function sendEmail({
   const client = getResendClient()
 
   if (!client) {
-    console.warn('[Email] RESEND_API_KEY not configured, skipping email to:', to)
+    logger.warn('email.send.skipped', { reason: 'no_api_key' })
     return
   }
 
@@ -52,9 +52,9 @@ export async function sendEmail({
     }
 
     // info-level: a successful send is operationally interesting
-    // but not an error. console.info is consistent with the
-    // structured-log scope used elsewhere ([Email] prefix).
-    console.info(`[Email] Sent to ${to}: ${subject}`)
+    // but not an error. Routed through the structured logger so the
+    // scope is searchable alongside email.send.skipped / email.send_failed.
+    logger.info('email.send.ok', { subject })
     return result
   } catch (error) {
     logger.error('email.send_failed', { to, subject, error })

@@ -28,6 +28,7 @@ import { SPAIN_PROVINCE_BY_PREFIX } from '@/domains/shipping/spain-provinces'
 import { useT } from '@/i18n'
 import { createAnalyticsItem, trackAnalyticsEvent } from '@/lib/analytics'
 import { getBuyerFunnelContext, shouldFireOnce } from '@/lib/analytics-buyer-context'
+import { logger } from '@/lib/logger'
 import { CheckoutProgress } from '@/components/checkout/CheckoutProgress'
 
 function sanitizePhoneChar(input: string): string {
@@ -490,7 +491,7 @@ export function CheckoutPageClient({
     if (!showNewAddressForm && !selectedAddressId) {
       setShowNewAddressForm(true)
     }
-    console.warn('[checkout] form validation blocked submission', formErrors)
+    logger.warn('checkout.form.validation_blocked', { errors: formErrors })
     setServerError(t('checkout.reviewAddressError'))
   }
 
