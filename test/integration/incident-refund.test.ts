@@ -1,7 +1,10 @@
 import test, { afterEach, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { POST as POST_RESOLVE } from '@/app/api/admin/incidents/[id]/resolve/route'
-import { setTestRefundPaymentIntentOverride } from '@/domains/payments/provider'
+import {
+  setTestRefundPaymentIntentOverride,
+  type RefundPaymentIntentOptions,
+} from '@/domains/payments/provider'
 import { db } from '@/lib/db'
 import {
   buildSession,
@@ -183,7 +186,7 @@ test('resolveIncident requires fundedBy when refundAmount > 0', async () => {
 
 test('resolveIncident passes idempotencyKey + fundedBy to the provider (#1148 H-1, #1153 H-3)', async () => {
   const { admin, incident, payment } = await seedIncidentWithPaidOrder()
-  let capturedOptions: { fundedBy?: string; idempotencyKey?: string; metadata?: Record<string, string> } | null = null
+  let capturedOptions: RefundPaymentIntentOptions | null = null
   setTestRefundPaymentIntentOverride(async (_pi, _cents, options) => {
     capturedOptions = options
     return { id: 're_test_options' }
@@ -199,7 +202,7 @@ test('resolveIncident passes idempotencyKey + fundedBy to the provider (#1148 H-
     { params: Promise.resolve({ id: incident.id }) },
   )
   assert.equal(res.status, 200)
-  const refundOptions = capturedOptions ?? assert.fail('override must receive options object')
+  const refundOptions = capturedOptions as RefundPaymentIntentOptions
   assert.equal(refundOptions.fundedBy, 'PLATFORM')
   assert.equal(refundOptions.idempotencyKey, `refund_${incident.id}`)
   assert.equal(refundOptions.metadata?.incidentId, incident.id)
@@ -301,7 +304,7 @@ test('resolveIncident enforces refund cap against Σ refunds, not just Payment.a
 })
 
 test('resolveIncident with refundAmount=0 closes the incident without calling Stripe', async () => {
-  const { admin, incident, payment } = await seedIncidentWithPaidOrder()
+  const { admin, payment } = await seedIncidentWithPaidOrder()
   let stripeCalled = false
   setTestRefundPaymentIntentOverride(async () => {
     stripeCalled = true
