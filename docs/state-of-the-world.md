@@ -20,16 +20,16 @@ existen y cuál es el último incidente en curso.
 
 ## Infraestructura física
 
-- **Producción** corre en un **servidor 24/7 con Proxmox**, **un solo nodo** a día de hoy. No es alta disponibilidad: si el nodo cae, prod cae con él. Los runbooks de failover (`docs/runbooks/db-failover.md`) describen Phase 0 = restore desde backup, no failover automático — coherente con la realidad single-node.
-- **Dev** (`dev.raizdirecta.es`) corre en el **laptop del usuario**, no en el servidor. `next dev -p 3001` desde `/home/whisper/worktrees/main-preview` detrás de un Cloudflare Tunnel. Si el laptop se duerme, dev cae; prod NO se ve afectada.
-- **Sesiones de agentes** corren en el laptop (incluido este). Cuando un agente lance `npm run deploy:prod`, está empujando un build local al servidor — confirma con el usuario antes de tocar prod desde una sesión de agente.
+- **Todo corre en el mismo nodo Proxmox** (`whisper`), 24/7, **single-node**. Producción, dev preview, sesiones de agentes y bases de datos comparten host físico. No es alta disponibilidad: si el nodo cae, todo cae con él. Los runbooks de failover (`docs/runbooks/db-failover.md`) describen Phase 0 = restore desde backup, no failover automático — coherente con la realidad single-node.
+- **El usuario se conecta por SSH desde Windows** (host alias `whisper` → `192.168.1.76`). El laptop del usuario NO es el servidor; es solo el cliente desde donde abre sesiones.
+- **Las sesiones de agentes (Claude, Codex) corren EN el nodo de prod**, no en una máquina aparte. Cualquier comando destructivo (`docker compose down`, `rm -rf`, `git reset --hard` mal apuntado) puede tumbar prod en directo. Filtra siempre por compose project antes de operaciones destructivas.
 
 ## Hostnames vivos
 
-| Host                  | Sirve                                  | Dónde corre        | Tunnel              | Notas |
+| Host                  | Sirve                                  | Compose project    | Tunnel              | Notas |
 |-----------------------|----------------------------------------|--------------------|---------------------|-------|
-| `raizdirecta.es`      | **producción**                         | servidor Proxmox   | `marketplace-prod`  | levantada 2026-05-03 |
-| `dev.raizdirecta.es`  | dev preview (puerto 3001)              | laptop del usuario | `marketplace-dev`   | cutover desde `dev.feldescloud.com` el 2026-05-03 |
+| `raizdirecta.es`      | **producción**                         | `marketplaceprod`  | `marketplace-prod`  | levantada 2026-05-03 |
+| `dev.raizdirecta.es`  | dev preview (puerto 3001)              | (sin compose, `next dev` directo) | `marketplace-dev` | cutover desde `dev.feldescloud.com` el 2026-05-03 |
 | `*.feldescloud.com`   | coexistencia legacy 30 días post-cutover | (igual que dev)  | `marketplace-dev`   | borrar tras T+30; ver `docs/runbooks/domain-migration.md` |
 
 Si un hostname nuevo aparece, añádelo aquí **antes** de cerrar el PR que lo monta.
