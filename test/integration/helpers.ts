@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { db } from '@/lib/db'
-import { resetTestActionSession, setTestActionSession, type ActionSession } from '@/lib/action-session'
+import { setTestActionSession, type ActionSession } from '@/lib/action-session'
 import { waitForPendingNotifications } from '@/domains/notifications/dispatcher'
 import type { UserRole } from '@/generated/prisma/enums'
 import { assertSafeToTruncate } from './safety'
@@ -50,8 +50,13 @@ export function useTestSession(session: ActionSession | null) {
   setTestActionSession(session)
 }
 
+// Explicit "no session" — getActionSession returns null, NO call to
+// next-auth's auth() (which would call headers() outside a request
+// scope and throw). For full teardown between tests use
+// resetIntegrationDatabase / afterEach with resetTestActionSession,
+// not this.
 export function clearTestSession() {
-  resetTestActionSession()
+  setTestActionSession(null)
 }
 
 export function buildSession(userId: string, role: UserRole): ActionSession {
