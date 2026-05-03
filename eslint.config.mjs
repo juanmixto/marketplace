@@ -123,8 +123,29 @@ export default [
   {
     files: ['src/**/*.{ts,tsx}'],
     plugins: { '@typescript-eslint': tseslint.plugin },
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: {
+        // Type-aware lint rules below need TS program info.
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
+      // Anti-bug rules — Gap 2B of the bug-reduction plan.
+      // See `/home/whisper/.claude/plans/ahora-despu-s-de-esta-smooth-mango.md`.
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
+      '@typescript-eslint/strict-boolean-expressions': ['error', {
+        allowNullableObject: true,
+        allowNullableString: true,
+        allowNullableNumber: true,
+        allowNullableBoolean: true,
+        allowString: true,
+        allowNumber: true,
+      }],
+      '@typescript-eslint/no-non-null-assertion': 'error',
       // Contract enforcement — see docs/ai-guidelines.md §1.2 and §6.
       // Cross-domain reaches into private/internal subfolders are forbidden.
       // The audit script (scripts/audit-domain-contracts.mjs) covers
