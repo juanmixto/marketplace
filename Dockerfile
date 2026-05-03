@@ -10,7 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json prisma.config.ts ./
+COPY prisma ./prisma
 RUN npm ci
 
 FROM deps AS build
@@ -37,17 +38,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN useradd --uid 10001 --create-home appuser
 WORKDIR /app
 
-COPY --from=build /app/package.json ./package.json
-COPY --from=build /app/package-lock.json ./package-lock.json
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/.next ./.next
-COPY --from=build /app/public ./public
-COPY --from=build /app/prisma ./prisma
-COPY --from=build /app/src/generated ./src/generated
-COPY --from=build /app/next.config.ts ./next.config.ts
-COPY --from=build /app/proxy.ts ./proxy.ts
-COPY --from=build /app/scripts ./scripts
-COPY --from=build /app/package.json ./package.json
+COPY --chown=appuser:appuser --from=build /app/package.json ./package.json
+COPY --chown=appuser:appuser --from=build /app/package-lock.json ./package-lock.json
+COPY --chown=appuser:appuser --from=build /app/prisma.config.ts ./prisma.config.ts
+COPY --chown=appuser:appuser --from=build /app/node_modules ./node_modules
+COPY --chown=appuser:appuser --from=build /app/.next ./.next
+COPY --chown=appuser:appuser --from=build /app/public ./public
+COPY --chown=appuser:appuser --from=build /app/prisma ./prisma
+COPY --chown=appuser:appuser --from=build /app/src/generated ./src/generated
+COPY --chown=appuser:appuser --from=build /app/src/lib/security-headers.ts ./src/lib/security-headers.ts
+COPY --chown=appuser:appuser --from=build /app/tsconfig.json ./tsconfig.json
+COPY --chown=appuser:appuser --from=build /app/next.config.ts ./next.config.ts
+COPY --chown=appuser:appuser --from=build /app/proxy.ts ./proxy.ts
+COPY --chown=appuser:appuser --from=build /app/scripts ./scripts
+COPY --chown=appuser:appuser --from=build /app/package.json ./package.json
 
 ENV HOST=0.0.0.0
 ENV NODE_ENV=production
