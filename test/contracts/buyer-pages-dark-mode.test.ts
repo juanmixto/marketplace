@@ -140,8 +140,16 @@ describe('FavoritosClient — structure', () => {
     assert.ok(content.includes('favoritos') || content.includes('favorites'), 'should contain an empty-state message about favorites')
   })
 
-  test('uses useCartStore for add-to-cart functionality', () => {
-    assert.ok(content.includes('useCartStore'), 'should use useCartStore for cart integration')
+  test('wires add-to-cart via the shared AddToCartButton', () => {
+    // FavoritosClient delegates cart integration to the shared
+    // AddToCartButton component (which owns useCartStore + the
+    // post-click "Añadido" success state). Direct useCartStore usage
+    // here would re-introduce the inline-button regression where the
+    // favorites button never flipped to the success variant.
+    assert.ok(
+      content.includes('AddToCartButton'),
+      'should render the shared AddToCartButton for cart integration',
+    )
   })
 })
 
