@@ -58,6 +58,13 @@ async function getClient(): Promise<PostHog | null> {
   if (!key) return null
   if (clientPromise) return clientPromise
 
+  // Mirror of src/lib/posthog.ts:15. Production resolves to the
+  // Cloudflare Worker proxy at https://raizdirecta.es/ingest so the
+  // server-side flag-eval calls (this codepath) ride the same
+  // ad-blocker-evading route as the client SDK. Server-side calls
+  // don't go through ad-blockers, but routing them through the
+  // proxy too keeps the upstream-host source of truth in one
+  // env var instead of two divergent code paths.
   const host = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://eu.i.posthog.com'
   const { posthogPersonalApiKey } = getServerEnv()
 
