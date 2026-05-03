@@ -15,6 +15,15 @@ RUN npm ci
 
 FROM deps AS build
 
+# Build-time identity for BuildBadge + /api/version. Defaults keep local
+# `docker build` working without args; CI/deploy passes real values.
+ARG NEXT_PUBLIC_COMMIT_SHA=unknown
+ARG NEXT_PUBLIC_GIT_BRANCH=unknown
+ARG NEXT_PUBLIC_BUILD_TIME
+ENV NEXT_PUBLIC_COMMIT_SHA=$NEXT_PUBLIC_COMMIT_SHA
+ENV NEXT_PUBLIC_GIT_BRANCH=$NEXT_PUBLIC_GIT_BRANCH
+ENV NEXT_PUBLIC_BUILD_TIME=$NEXT_PUBLIC_BUILD_TIME
+
 COPY . .
 RUN npm run build
 
