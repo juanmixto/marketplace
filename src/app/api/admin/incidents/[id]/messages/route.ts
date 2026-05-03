@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { zCuid } from '@/lib/validation/primitives'
 
 const schema = z.object({
   body: z.string().min(1).max(5000),
@@ -31,7 +32,11 @@ export async function POST(request: Request, { params }: RouteParams) {
     return NextResponse.json({ message: 'No autorizado' }, { status: 403 })
   }
 
-  const { id } = await params
+  const idCheck = zCuid.safeParse((await params).id)
+  if (!idCheck.success) {
+    return NextResponse.json({ message: 'Identificador inválido' }, { status: 400 })
+  }
+  const id = idCheck.data
 
   try {
     const { body } = schema.parse(await request.json())

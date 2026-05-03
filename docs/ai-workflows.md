@@ -210,6 +210,7 @@ npm run audit:contracts -- --soft --json   # machine-readable, never fails
 npm run test                               # node tests
 npm run test:e2e:smoke                     # playwright smoke
 ./scripts/git-hygiene.sh                   # branch hygiene (periodically)
+./scripts/serial-merge-prs.sh 1114 1111    # serial-merge a list of PRs (BEHIND-aware, cleans up after)
 ```
 
 ---

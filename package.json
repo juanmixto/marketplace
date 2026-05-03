@@ -24,6 +24,8 @@
     "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
     "lint": "eslint . --max-warnings=0",
     "audit:admin-roles": "node ./scripts/audit-admin-role-helpers.mjs",
+    "lint:fix": "eslint . --max-warnings=0 --fix",
+    "lint:prune-suppressions": "eslint . --max-warnings=0 --prune-suppressions",
     "audit:app-env": "node ./scripts/audit-app-env-coherence.mjs",
     "audit:contracts": "node ./scripts/audit-domain-contracts.mjs",
     "audit:flags-cleanup": "node ./scripts/audit-flag-cleanup-tickets.mjs",

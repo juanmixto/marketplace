@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { getFeaturedProducts } from '@/domains/catalog/queries'
+
+const limitSchema = z.coerce.number().int().min(1).max(24).default(12).catch(12)
 
 /**
  * Lightweight JSON endpoint for the periodic background sync to prefetch
@@ -8,7 +11,7 @@ import { getFeaturedProducts } from '@/domains/catalog/queries'
  */
 export async function GET(request: Request) {
   const url = new URL(request.url)
-  const limit = Math.min(Number(url.searchParams.get('limit') ?? 12), 24)
+  const limit = limitSchema.parse(url.searchParams.get('limit'))
 
   const products = await getFeaturedProducts(limit)
 

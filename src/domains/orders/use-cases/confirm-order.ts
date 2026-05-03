@@ -21,6 +21,20 @@ import {
   recordPaymentMismatchSideEffects,
 } from '../side-effects'
 import { emit as emitNotification } from '@/domains/notifications'
+import { AlreadyProcessedError, withIdempotency } from '@/lib/idempotency'
+
+/**
+ * `shouldApplyPaymentSucceeded` already makes this function a no-op on
+ * the second call (terminal state guard), but on a flaky network we get
+ * fast double-submits where both reads see PENDING and both attempt the
+ * write. The IdempotencyKey table closes that window: the second caller
+ * fails the UNIQUE and we swallow `AlreadyProcessedError` so the UI sees
+ * the same `undefined` return as the legacy fast-path.
+ *
+ * Mock-only entry point today (the production path is the Stripe webhook,
+ * which has its own dedupe via `WebhookDelivery`). Wrapping anyway keeps
+ * the contract uniform and survives a future flip of `paymentProvider`.
+ */
 export async function confirmOrder(orderId: string, providerRef: string) {
   const env = getServerEnv()
   if (env.paymentProvider !== 'mock') {
@@ -30,13 +44,32 @@ export async function confirmOrder(orderId: string, providerRef: string) {
   const session = await getActionSession()
   if (!session) redirect('/login')
 
+  try {
+    return await withIdempotency(
+      'order.confirm',
+      `${orderId}:${providerRef}`,
+      session.user.id,
+      () => confirmOrderInner(orderId, providerRef, session.user.id),
+    )
+  } catch (err) {
+    if (err instanceof AlreadyProcessedError) return
+    throw err
+  }
+}
+
+async function confirmOrderInner(
+  orderId: string,
+  providerRef: string,
+  sessionUserId: string,
+) {
+
   const payment = await db.payment.findFirst({
     where: { orderId, providerRef },
     include: { order: true },
   })
 
   if (!payment) return
-  if (payment.order.customerId !== session.user.id) {
+  if (payment.order.customerId !== sessionUserId) {
     throw new OrderConfirmationForbiddenError()
   }
   assertProviderRefForPaymentStatus({

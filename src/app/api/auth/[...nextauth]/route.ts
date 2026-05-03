@@ -2,6 +2,7 @@ import { handlers as nextAuthHandlers } from '@/lib/auth'
 import { reqWithHostHeader } from '@/lib/auth-host'
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit, getClientIP } from '@/lib/ratelimit'
+import { normalizeAuthEmail } from '@/lib/auth-email'
 
 /**
  * NextAuth has built-in handlers for GET/POST to /api/auth/[...nextauth]
@@ -71,7 +72,7 @@ async function resolveLoginThrottleKey(req: NextRequest, clientIP: string, pathn
     return clientIP
   }
 
-  const normalizedEmail = email.trim().toLowerCase()
+  const normalizedEmail = normalizeAuthEmail(email)
   if (!normalizedEmail) {
     return clientIP
   }

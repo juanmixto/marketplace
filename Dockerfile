@@ -16,14 +16,23 @@ RUN npm ci
 
 FROM deps AS build
 
-# Build-time identity for BuildBadge + /api/version. Defaults keep local
-# `docker build` working without args; CI/deploy passes real values.
+# Build-time NEXT_PUBLIC_* vars. Next.js inlines these at `npm run build`,
+# so any client component that branches on them needs them set HERE, not
+# at runtime via .env.production (which only the Node server reads).
+#
+# Defaults keep local `docker build` working without args; the deploy
+# script (scripts/deploy-local-env.sh) passes real values from the env
+# file via docker-compose build.args.
 ARG NEXT_PUBLIC_COMMIT_SHA=unknown
 ARG NEXT_PUBLIC_GIT_BRANCH=unknown
 ARG NEXT_PUBLIC_BUILD_TIME
+ARG NEXT_PUBLIC_APP_ENV=development
+ARG NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_COMMIT_SHA=$NEXT_PUBLIC_COMMIT_SHA
 ENV NEXT_PUBLIC_GIT_BRANCH=$NEXT_PUBLIC_GIT_BRANCH
 ENV NEXT_PUBLIC_BUILD_TIME=$NEXT_PUBLIC_BUILD_TIME
+ENV NEXT_PUBLIC_APP_ENV=$NEXT_PUBLIC_APP_ENV
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 
 COPY . .
 RUN npm run build

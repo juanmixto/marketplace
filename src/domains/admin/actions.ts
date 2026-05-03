@@ -19,6 +19,7 @@ import {
 } from '@/lib/idempotency'
 
 export { AlreadyProcessedError }
+import { zSafeText } from '@/lib/validation/primitives'
 
 /**
  * Dynamic import to avoid closing a notifications → admin cycle at module
@@ -263,7 +264,7 @@ export async function suspendVendor(vendorId: string) {
 
 const reviewSchema = z.object({
   action: z.enum(['approve', 'reject']),
-  rejectionNote: z.string().max(500).optional(),
+  rejectionNote: zSafeText(500).optional(),
 })
 
 const marketplaceConfigSchema = z.object({
@@ -271,7 +272,10 @@ const marketplaceConfigSchema = z.object({
   FREE_SHIPPING_THRESHOLD: z.coerce.number().min(0).max(10000),
   FLAT_SHIPPING_COST: z.coerce.number().min(0).max(1000),
   MAINTENANCE_MODE: z.coerce.boolean().default(false),
-  HERO_BANNER_TEXT: z.string().max(160).trim(),
+  // Rendered as a text node on the public homepage today; zSafeText is
+  // defense-in-depth so a future PR that pipes this through markdown or
+  // dangerouslySetInnerHTML doesn't quietly turn it into stored XSS.
+  HERO_BANNER_TEXT: zSafeText(160),
 })
 
 const commissionRuleSchema = z.object({
@@ -803,6 +807,10 @@ export async function markSettlementPaid(settlementId: string) {
 // ─── Order management ─────────────────────────────────────────────────────────
 
 const CANCELLABLE_ORDER_STATUSES = ['PLACED', 'PAYMENT_CONFIRMED', 'PROCESSING', 'PARTIALLY_SHIPPED'] as const
+type CancellableOrderStatus = (typeof CANCELLABLE_ORDER_STATUSES)[number]
+function isCancellableOrderStatus(status: string): status is CancellableOrderStatus {
+  return (CANCELLABLE_ORDER_STATUSES as readonly string[]).includes(status)
+}
 
 /**
  * Cancels an order. Only admin-ops/superadmin can cancel.
@@ -841,7 +849,7 @@ export async function cancelOrder(
   })
 
   if (!order) throw new Error('Pedido no encontrado')
-  if (!(CANCELLABLE_ORDER_STATUSES as readonly string[]).includes(order.status)) {
+  if (!isCancellableOrderStatus(order.status)) {
     throw new Error(`No se puede cancelar un pedido en estado ${order.status}`)
   }
 
