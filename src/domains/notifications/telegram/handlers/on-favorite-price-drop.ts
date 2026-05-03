@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import type { FavoritePriceDropPayload } from '../../events'
 import { sendToUser } from '../service'
 import { favoritePriceDropTemplate } from '../templates'
@@ -28,7 +29,7 @@ export async function onFavoritePriceDrop(
     select: { id: true },
   })
   if (recent) {
-    console.info('favorite.price_drop.skipped_cooldown', {
+    logger.info('favorite.price_drop.skipped_cooldown', {
       productId: payload.productId,
     })
     return

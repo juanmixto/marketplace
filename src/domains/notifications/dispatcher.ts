@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import {
   notificationEventPayloadSchemas,
   type NotificationEventMap,
@@ -90,7 +91,7 @@ export function emit<E extends NotificationEventName>(
   const schema = notificationEventPayloadSchemas[event]
   const parsed = schema.safeParse(payload)
   if (!parsed.success) {
-    console.error('notifications.emit.invalid_payload', {
+    logger.error('notifications.emit.invalid_payload', {
       event,
       issues: parsed.error.issues,
     })
@@ -120,7 +121,7 @@ export function emit<E extends NotificationEventName>(
           Promise.resolve()
             .then(() => handler(parsed.data as NotificationEventMap[E]))
             .catch(err => {
-              console.error('notifications.handler.failed', {
+              logger.error('notifications.handler.failed', {
                 event,
                 error: err instanceof Error ? err.message : String(err),
               })
