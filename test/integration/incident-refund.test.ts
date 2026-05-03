@@ -202,7 +202,7 @@ test('resolveIncident passes idempotencyKey + fundedBy to the provider (#1148 H-
     { params: Promise.resolve({ id: incident.id }) },
   )
   assert.equal(res.status, 200)
-  const refundOptions = capturedOptions as RefundPaymentIntentOptions
+  const refundOptions = capturedOptions as unknown as RefundPaymentIntentOptions
   assert.equal(refundOptions.fundedBy, 'PLATFORM')
   assert.equal(refundOptions.idempotencyKey, `refund_${incident.id}`)
   assert.equal(refundOptions.metadata?.incidentId, incident.id)
@@ -258,7 +258,7 @@ test('resolveIncident transitions to PARTIALLY_REFUNDED on partial refund (#1149
 })
 
 test('resolveIncident enforces refund cap against Σ refunds, not just Payment.amount (#1163 H-7)', async () => {
-  const { admin, incident, payment, buyer, order } = await seedIncidentWithPaidOrder({ amount: 100 })
+  const { admin, payment, buyer, order } = await seedIncidentWithPaidOrder({ amount: 100 })
   // Pre-existing partial refund of 60€ on the same payment.
   await db.refund.create({
     data: {
@@ -304,7 +304,7 @@ test('resolveIncident enforces refund cap against Σ refunds, not just Payment.a
 })
 
 test('resolveIncident with refundAmount=0 closes the incident without calling Stripe', async () => {
-  const { admin, payment } = await seedIncidentWithPaidOrder()
+  const { admin, incident, payment } = await seedIncidentWithPaidOrder()
   let stripeCalled = false
   setTestRefundPaymentIntentOverride(async () => {
     stripeCalled = true
