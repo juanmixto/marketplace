@@ -199,10 +199,10 @@ test('resolveIncident passes idempotencyKey + fundedBy to the provider (#1148 H-
     { params: Promise.resolve({ id: incident.id }) },
   )
   assert.equal(res.status, 200)
-  assert.ok(capturedOptions, 'override must receive options object')
-  assert.equal(capturedOptions!.fundedBy, 'PLATFORM')
-  assert.equal(capturedOptions!.idempotencyKey, `refund_${incident.id}`)
-  assert.equal(capturedOptions!.metadata?.incidentId, incident.id)
+  const refundOptions = capturedOptions ?? assert.fail('override must receive options object')
+  assert.equal(refundOptions.fundedBy, 'PLATFORM')
+  assert.equal(refundOptions.idempotencyKey, `refund_${incident.id}`)
+  assert.equal(refundOptions.metadata?.incidentId, incident.id)
 })
 
 test('resolveIncident transitions Payment + Order to REFUNDED on full refund (#1149 H-2)', async () => {
