@@ -10,17 +10,22 @@ Console and wire the resulting credentials to the deployment.
    - User type: **External**.
    - App name: *Marketplace* (or environment-specific: *Marketplace (staging)*).
    - User support email + developer contact: ops alias.
-   - Authorized domains: `feldescloud.com` (prod) plus any explicit
-     dev / staging hosts. Don't list ephemeral preview deploys —
-     Google requires explicit verification per added domain.
+   - Authorized domains: `raizdirecta.es` (prod) plus any explicit
+     dev / staging hosts. During the 30-day coexistence window after
+     the domain migration, keep `feldescloud.com` listed too. Don't
+     list ephemeral preview deploys — Google requires explicit
+     verification per added domain.
    - Scopes: `openid`, `.../auth/userinfo.email`,
      `.../auth/userinfo.profile`. Do NOT request anything beyond.
 3. APIs & Services → Credentials → **Create Credentials → OAuth client ID**.
    - Application type: Web application.
    - Authorized redirect URIs (one entry per env):
-     - dev tunnel: `https://dev.feldescloud.com/api/auth/callback/google`
-     - staging:    `https://staging.feldescloud.com/api/auth/callback/google`
-     - production: `https://feldescloud.com/api/auth/callback/google`
+     - dev tunnel: `https://dev.raizdirecta.es/api/auth/callback/google`
+     - staging:    `https://staging.raizdirecta.es/api/auth/callback/google`
+     - production: `https://raizdirecta.es/api/auth/callback/google`
+   - During the 30-day coexistence window keep the old
+     `*.feldescloud.com` redirect URIs in the list as well — the
+     cleanup PR (T+60) removes them.
    - Authorized JavaScript origins: same hosts without the path.
 4. Save → copy the **Client ID** and **Client Secret**.
 
@@ -58,7 +63,7 @@ Behind Cloudflare Tunnel (dev) and the prod TLS terminator, Auth.js
 must write `__Secure-authjs.session-token`. Verify after deploy:
 
 ```bash
-curl -sI https://feldescloud.com/api/auth/callback/google?... \
+curl -sI https://raizdirecta.es/api/auth/callback/google?... \
   | grep -i set-cookie
 ```
 
