@@ -3,17 +3,30 @@
 import { useState } from 'react'
 
 /**
- * Floating pill in the bottom-right corner that shows the running build
+ * Floating pill in the bottom-left corner that shows the running build
  * identity (commit SHA + build time + branch). Click to expand for the
  * full timestamp and branch name. Click again to collapse.
  *
- * Visible to everyone — same surface area as /api/version, no secrets.
- * Hide with NEXT_PUBLIC_HIDE_BUILD_BADGE=true if you want it off in prod.
+ * Visibility rules:
+ *  - Hidden by default in production (it's noise for buyers who would
+ *    wonder what `56592652` means and erodes trust on the storefront).
+ *  - Visible in dev / staging / unset APP_ENV (useful for agents +
+ *    on-call to verify what's running).
+ *  - NEXT_PUBLIC_HIDE_BUILD_BADGE=true forces hide everywhere (e.g. for
+ *    a clean screenshot in dev).
+ *  - NEXT_PUBLIC_SHOW_BUILD_BADGE=true forces show in production (e.g.
+ *    to debug "what version is serving this request?" during an incident).
  */
 export function BuildBadge() {
   const [expanded, setExpanded] = useState(false)
 
   if (process.env.NEXT_PUBLIC_HIDE_BUILD_BADGE === 'true') return null
+  if (
+    process.env.NEXT_PUBLIC_APP_ENV === 'production' &&
+    process.env.NEXT_PUBLIC_SHOW_BUILD_BADGE !== 'true'
+  ) {
+    return null
+  }
 
   const sha = process.env.NEXT_PUBLIC_COMMIT_SHA ?? 'dev'
   const buildTime = process.env.NEXT_PUBLIC_BUILD_TIME ?? null
