@@ -22,6 +22,12 @@ services:
         NEXT_PUBLIC_COMMIT_SHA: ${NEXT_PUBLIC_COMMIT_SHA:-unknown}
         NEXT_PUBLIC_GIT_BRANCH: ${NEXT_PUBLIC_GIT_BRANCH:-unknown}
         NEXT_PUBLIC_BUILD_TIME: ${NEXT_PUBLIC_BUILD_TIME:-}
+        # Build-time mirror of the runtime env file. Next.js inlines
+        # NEXT_PUBLIC_* at build, so the env_file below comes too late
+        # for client components that branch on them. Forwarded by the
+        # deploy script which loads .env.<env> before `docker compose build`.
+        NEXT_PUBLIC_APP_ENV: ${NEXT_PUBLIC_APP_ENV:-development}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-}
     restart: unless-stopped
     env_file:
       - ${ENV_FILE:-.env.production}
