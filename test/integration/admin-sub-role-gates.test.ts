@@ -48,8 +48,10 @@ const ALL_ADMIN_SUB_ROLES: UserRole[] = [
 // strict ops-only subset.
 const FINANCE_ALLOWED: UserRole[] = ['ADMIN_FINANCE', 'ADMIN_OPS', 'SUPERADMIN']
 const OPS_ALLOWED: UserRole[] = ['ADMIN_OPS', 'SUPERADMIN']
+const CATALOG_ALLOWED: UserRole[] = ['ADMIN_CATALOG', 'SUPERADMIN']
 const FINANCE_DENIED = ALL_ADMIN_SUB_ROLES.filter(r => !FINANCE_ALLOWED.includes(r))
 const OPS_DENIED = ALL_ADMIN_SUB_ROLES.filter(r => !OPS_ALLOWED.includes(r))
+const CATALOG_DENIED = ALL_ADMIN_SUB_ROLES.filter(r => !CATALOG_ALLOWED.includes(r))
 
 beforeEach(async () => {
   await resetIntegrationDatabase()
@@ -186,13 +188,29 @@ test('cancelOrder: ADMIN_OPS can cancel', async () => {
   assert.equal(cancelled.status, 'CANCELLED')
 })
 
-// ─── approveVendor / reviewProduct: STILL allow any admin role ─────────────
-// These pin current behaviour. If a future PR tightens them, the tests
-// must be updated alongside the change — that is the canary.
+// ─── approveVendor: OPS-only (#1145) ────────────────────────────────────────
 
-test('approveVendor: still accepts any admin sub-role (current behaviour pinned)', async () => {
-  for (const role of ALL_ADMIN_SUB_ROLES) {
-    await resetIntegrationDatabase()
+for (const role of OPS_DENIED) {
+  test(`approveVendor: ${role} is REJECTED`, async () => {
+    const vendorUser = await createUser('VENDOR')
+    const vendor = await db.vendor.create({
+      data: {
+        userId: vendorUser.id,
+        slug: `applying-${randomUUID().slice(0, 8)}`,
+        displayName: 'Applying',
+        status: 'APPLYING',
+        stripeOnboarded: false,
+      },
+    })
+    await asAdminRole(role)
+    await assert.rejects(() => approveVendor(vendor.id), /NEXT_REDIRECT|redirect/i)
+    const stillApplying = await db.vendor.findUniqueOrThrow({ where: { id: vendor.id } })
+    assert.equal(stillApplying.status, 'APPLYING')
+  })
+}
+
+for (const role of OPS_ALLOWED) {
+  test(`approveVendor: ${role} can approve`, async () => {
     const vendorUser = await createUser('VENDOR')
     const vendor = await db.vendor.create({
       data: {
@@ -205,19 +223,32 @@ test('approveVendor: still accepts any admin sub-role (current behaviour pinned)
     })
     await asAdminRole(role)
     await approveVendor(vendor.id)
-    const after = await db.vendor.findUniqueOrThrow({ where: { id: vendor.id } })
-    assert.equal(after.status, 'ACTIVE', `${role} should currently be allowed`)
-  }
-})
+    const active = await db.vendor.findUniqueOrThrow({ where: { id: vendor.id } })
+    assert.equal(active.status, 'ACTIVE')
+  })
+}
 
-test('reviewProduct(reject): still accepts any admin sub-role (current behaviour pinned)', async () => {
-  for (const role of ALL_ADMIN_SUB_ROLES) {
-    await resetIntegrationDatabase()
+// ─── reviewProduct: CATALOG-only (#1145) ───────────────────────────────────
+
+for (const role of CATALOG_DENIED) {
+  test(`reviewProduct(reject): ${role} is REJECTED`, async () => {
     const { vendor } = await createVendorUser()
     const product = await createActiveProduct(vendor.id, { status: 'PENDING_REVIEW' })
     await asAdminRole(role)
-    await reviewProduct(product.id, 'reject', 'test reject')
-    const after = await db.product.findUniqueOrThrow({ where: { id: product.id } })
-    assert.equal(after.status, 'REJECTED', `${role} should currently be allowed to reject`)
-  }
+    await assert.rejects(
+      () => reviewProduct(product.id, 'reject', 'test reject'),
+      /NEXT_REDIRECT|redirect/i,
+    )
+    const stillPending = await db.product.findUniqueOrThrow({ where: { id: product.id } })
+    assert.equal(stillPending.status, 'PENDING_REVIEW')
+  })
+}
+
+test('reviewProduct(reject): ADMIN_CATALOG can reject', async () => {
+  const { vendor } = await createVendorUser()
+  const product = await createActiveProduct(vendor.id, { status: 'PENDING_REVIEW' })
+  await asAdminRole('ADMIN_CATALOG')
+  await reviewProduct(product.id, 'reject', 'test reject')
+  const rejected = await db.product.findUniqueOrThrow({ where: { id: product.id } })
+  assert.equal(rejected.status, 'REJECTED')
 })

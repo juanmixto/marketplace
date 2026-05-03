@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server'
 import { getActionSession } from '@/lib/action-session'
-import { isAdminRole } from '@/lib/roles'
+import { isFinanceAdminRole } from '@/lib/roles'
 import { logger } from '@/lib/logger'
 import { getAdminDailyRevenue } from '@/domains/admin-stats/queries'
 
 export async function GET(request: Request) {
+  // #1146: revenue is finance/ops-only. Catalog/support admins must
+  // NOT see the daily revenue series — separation of duties.
   const session = await getActionSession()
-  if (!session || !isAdminRole(session.user.role)) {
-    return NextResponse.json({ message: 'No autorizado' }, { status: 401 })
+  if (!session || !isFinanceAdminRole(session.user.role)) {
+    return NextResponse.json({ message: 'No autorizado' }, { status: 403 })
   }
 
   const { searchParams } = new URL(request.url)
