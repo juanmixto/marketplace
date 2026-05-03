@@ -21,20 +21,27 @@ test('FavoritosClient uses useT hook for i18n', () => {
   assert.match(source, /useT/)
   assert.match(source, /t\('favorites\.emptyTitle'\)/)
   assert.match(source, /t\('favorites\.explore'\)/)
-  assert.match(source, /t\('favorites\.addToCart'\)/)
+  // The "Añadir al carrito" / "Agotado" labels now come from the shared
+  // AddToCartButton (catalog copy module), so this file no longer
+  // references favorites.addToCart directly. The key still exists in
+  // locales for backwards-compatibility (verified below).
   // removeTitle is now applied inside the shared FavoriteToggleButton (overlay
   // variant uses favorites.save/saved labels). The key still exists in
   // locales for backwards-compatibility (verified below).
   assert.match(source, /t\('favorites\.outOfStock'\)/)
 })
 
-test('FavoritosClient uses useCartStore for add-to-cart instead of console.log stub', () => {
+test('FavoritosClient delegates add-to-cart to the shared AddToCartButton', () => {
   const source = readSource('../../src/app/(buyer)/cuenta/favoritos/FavoritosClient.tsx')
 
-  assert.match(source, /useCartStore/)
-  assert.match(source, /addItem/)
-  // Ensure the old console.log stub is gone
+  // Delegating to AddToCartButton gives the favorites grid the same
+  // post-click "Añadido" feedback + analytics tracking as the catalog
+  // grid, instead of an inline button that bypasses both.
+  assert.match(source, /import \{ AddToCartButton \}/)
+  assert.match(source, /<AddToCartButton/)
+  // Guard against the old inline-stub regressions returning here.
   assert.ok(!source.includes("console.log('Add to cart"), 'should not contain console.log add to cart stub')
+  assert.ok(!/useCartStore/.test(source), 'should delegate to AddToCartButton, not call useCartStore directly')
 })
 
 test('FavoritosClient syncs with favorites store on remove', () => {
