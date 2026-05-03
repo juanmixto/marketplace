@@ -7,6 +7,7 @@ import {
   flip,
   offset,
   shift,
+  useClick,
   useDismiss,
   useFloating,
   useFocus,
@@ -73,13 +74,28 @@ export function Tooltip({
     ],
   })
 
+  // Touch + mouse + keyboard, all via Floating UI interactions:
+  //   - useHover: opens on mouse over (desktop). Disabled on touch by
+  //     useHover's own `mouseOnly: true` default check (touch devices
+  //     don't emit hover events that match its threshold).
+  //   - useClick: opens on click / tap. This is what makes touch
+  //     devices work — without it, the trigger is invisible to
+  //     fingers, because hover never fires and focus only does on the
+  //     keyboard tab cycle.
+  //   - useFocus: opens on keyboard focus (a11y).
+  //   - useDismiss: closes on Escape and outside-press. We intentionally
+  //     do NOT pass `referencePress: true` — that would make a tap on
+  //     the trigger close the tooltip, which on touch is the same gesture
+  //     that just opened it (open-then-close in one tap = invisible).
   const hover = useHover(context, { move: false, restMs: 50 })
+  const click = useClick(context, { keyboardHandlers: false })
   const focus = useFocus(context)
-  const dismiss = useDismiss(context, { referencePress: true, outsidePress: true })
+  const dismiss = useDismiss(context, { outsidePress: true, escapeKey: true })
   const role = useRole(context, { role: 'tooltip' })
 
   const { getReferenceProps, getFloatingProps } = useInteractions([
     hover,
+    click,
     focus,
     dismiss,
     role,
