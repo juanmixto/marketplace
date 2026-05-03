@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import type { TelegramMessage } from '../update-schema'
 import { sendRawMessage } from '../service'
 
@@ -19,5 +20,5 @@ export async function handleDisconnectCommand(message: TelegramMessage): Promise
   await sendRawMessage(chatId, {
     text: '👋 Desvinculado. Ya no recibirás avisos aquí.',
   })
-  console.info('telegram.link.disconnected', { chatId })
+  logger.info('telegram.link.disconnected', { chatId })
 }

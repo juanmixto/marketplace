@@ -4,6 +4,7 @@ import { getTelegramConfig } from '@/domains/notifications/telegram/config'
 import { telegramUpdateSchema } from '@/domains/notifications/telegram/update-schema'
 import { handleTelegramUpdate } from '@/domains/notifications/telegram/controller'
 import { checkInboundRateLimit } from '@/domains/notifications/telegram/rate-limit'
+import { logger } from '@/lib/logger'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -35,7 +36,7 @@ export async function POST(req: Request): Promise<Response> {
 
   const ip = extractClientIp(req)
   if (!checkInboundRateLimit(ip)) {
-    console.warn('telegram.webhook.rate_limited', { ip })
+    logger.warn('telegram.webhook.rate_limited', { ip })
     return new NextResponse(null, { status: 200 })
   }
 
@@ -47,7 +48,7 @@ export async function POST(req: Request): Promise<Response> {
   const headerOk = secretsMatch(headerSecret, config.webhookSecret)
 
   if (!urlOk || !headerOk) {
-    console.warn('telegram.webhook.secret_mismatch', {
+    logger.warn('telegram.webhook.secret_mismatch', {
       urlOk,
       headerOk,
     })
@@ -58,20 +59,20 @@ export async function POST(req: Request): Promise<Response> {
   try {
     raw = await req.json()
   } catch {
-    console.warn('telegram.webhook.invalid_json')
+    logger.warn('telegram.webhook.invalid_json')
     return new NextResponse(null, { status: 200 })
   }
 
   const parsed = telegramUpdateSchema.safeParse(raw)
   if (!parsed.success) {
-    console.warn('telegram.webhook.invalid_update', { issues: parsed.error.issues })
+    logger.warn('telegram.webhook.invalid_update', { issues: parsed.error.issues })
     return new NextResponse(null, { status: 200 })
   }
 
   try {
     await handleTelegramUpdate(parsed.data)
   } catch (err) {
-    console.error('telegram.webhook.handler_failed', {
+    logger.error('telegram.webhook.handler_failed', {
       updateId: parsed.data.update_id,
       error: err instanceof Error ? err.message : String(err),
     })
