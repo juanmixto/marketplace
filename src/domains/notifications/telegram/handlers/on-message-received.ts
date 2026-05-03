@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import type { MessageReceivedPayload } from '../../events'
 import { sendToUser } from '../service'
 import { messageReceivedTemplate } from '../templates'
@@ -9,7 +10,16 @@ export async function onMessageReceived(payload: MessageReceivedPayload): Promis
     where: { id: payload.vendorId },
     select: { userId: true },
   })
-  if (!vendor) return
+  if (!vendor) {
+    logger.warn('notifications.handler.skipped', {
+      event: 'message.received',
+      reason: 'no_vendor',
+      handler: 'telegram.on-message-received',
+      vendorId: payload.vendorId,
+      conversationId: payload.conversationId,
+    })
+    return
+  }
 
   const vendorFirstName = await resolveVendorFirstName(payload.vendorId)
 

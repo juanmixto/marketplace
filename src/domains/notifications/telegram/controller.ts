@@ -15,7 +15,15 @@ export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void
 
 async function handleMessage(message: NonNullable<TelegramUpdate['message']>): Promise<void> {
   const text = message.text?.trim()
-  if (!text) return
+  if (!text) {
+    logger.warn('notifications.handler.skipped', {
+      event: 'telegram.message',
+      reason: 'no_text',
+      handler: 'telegram.controller.handle-message',
+      chatId: message.chat.id,
+    })
+    return
+  }
 
   if (text.startsWith('/start')) {
     const { handleStartCommand } = await import('./handlers/on-start-command')
