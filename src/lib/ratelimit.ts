@@ -19,6 +19,7 @@
 
 import { getServerEnv } from '@/lib/env'
 import { fetchWithTimeout, FetchTimeoutError } from '@/lib/fetch-with-timeout'
+import { logger } from '@/lib/logger'
 
 interface RateLimitEntry {
   count: number
@@ -58,16 +59,15 @@ export interface RateLimitOptions {
   failClosed?: boolean
 }
 
-const STRUCTURED_LOG_PREFIX = '[ratelimit]'
-
 function logEvent(event: string, payload: Record<string, unknown>): void {
-  // Structured single-line JSON so log shippers can parse without regex.
-  // Kept on console.* so it works in every runtime (Node, Edge, Vercel).
-  const line = JSON.stringify({ event, ...payload })
+  // Route through the structured logger so the same scope/context shape
+  // applies as everywhere else. Severity follows the existing convention:
+  // ":error" / ":fail-closed" suffixes are errors, the rest are warnings.
+  const scope = `ratelimit.${event.replace(/:/g, '.')}`
   if (event.endsWith(':error') || event.endsWith(':fail-closed')) {
-    console.error(`${STRUCTURED_LOG_PREFIX} ${line}`)
+    logger.error(scope, payload)
   } else {
-    console.warn(`${STRUCTURED_LOG_PREFIX} ${line}`)
+    logger.warn(scope, payload)
   }
 }
 
