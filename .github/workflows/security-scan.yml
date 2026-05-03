@@ -31,6 +31,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Opt every job into Node.js 24 for JavaScript actions ahead of GitHub's
+# 2026-06-02 forced cutover. We carry actions still pinned to Node 20
+# transitively (gitleaks-action@v2, codeql-action/upload-sarif@v3,
+# actions/cache@v4 inside setup-deps), and we want regressions to surface
+# now while we can fix them, not on the day of the switch. Reverse with
+# ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true if a specific action
+# breaks under Node 24 and a same-day rollback is needed.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   dep-audit:
     name: npm audit (runtime deps)

@@ -23,8 +23,18 @@ export function loadSentryConfig(): SentryRuntimeConfig | null {
   // flood the project with false events.
   if (process.env.NODE_ENV === 'test') return null
 
+  // Precedence:
+  //   1. SENTRY_ENVIRONMENT — explicit override, kept for back-compat.
+  //   2. APP_ENV / NEXT_PUBLIC_APP_ENV — separates staging from production
+  //      (both are NODE_ENV=production from Next's perspective).
+  //   3. NODE_ENV mapping — pre-APP_ENV behaviour.
+  // Read process.env directly (no getServerEnv import) because this module
+  // is shared with sentry.client.config.ts, which webpack bundles for the
+  // browser; only NEXT_PUBLIC_* vars survive that path.
   const environment =
     process.env.SENTRY_ENVIRONMENT ??
+    process.env.APP_ENV ??
+    process.env.NEXT_PUBLIC_APP_ENV ??
     (process.env.NODE_ENV === 'production' ? 'production' : 'development')
 
   const release =

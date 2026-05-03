@@ -154,6 +154,73 @@ Once-per-session dedupe (sessionStorage, namespaced `cf1.<event>.<key>`) applies
 **Ticket medio** — `purchase`, average of `value`, big number, 30 days
 **Compras por dia** — `purchase`, count, line chart, day interval, 30 days
 
+## Dashboard 7 — Notification Health
+
+**Why this exists.** The notification subsystems (`telegram`, `email`, `web-push`) are deliberately fail-open: a missing config var, a deleted vendor, an empty favourites list — every one of those returns silently so the rest of the request continues. That is the right behaviour for a side-channel, but it is also the Resend-class trap: the feature appears alive while never sending. This dashboard exists so the next "we forgot to set `TELEGRAM_BOT_TOKEN` in staging for three months" is caught from PostHog instead of from a producer complaining that the bot stopped working.
+
+The events were added in PR #1129 (Gap 1B of the post-2026-05-03 audit) precisely so this dashboard can exist; if you rename any scope listed below, this dashboard breaks silently — same contract rule as the `checkout.*` / `stripe.webhook.*` scopes called out in `docs/runbooks/payment-incidents.md`.
+
+### Surfaces tracked
+
+`telegram`, `email`, `web-push`. Each one has its own row in every breakdown below — never collapse them into a single "notifications" series, because a hard-zero on one surface (Telegram bot token expired) will be hidden by healthy traffic on the others.
+
+### Events tracked
+
+| Event scope | Source | Properties |
+|---|---|---|
+| `notifications.handler.skipped` | PR #1129 — `src/domains/notifications/telegram/handlers/*` (and `web-push/handlers/*` once parity ships) | `event` (e.g. `order.created`, `favorite.price_drop`), `reason` (`no_vendor` / `no_favorites` / `no_text` / `no_order`), `handler` (e.g. `telegram.on-order-created`), plus safe IDs (`vendorId`, `orderId`, `productId`, `chatId`) — never email/name/body |
+| `notifications.config.missing` | PR #1129 — `src/domains/notifications/telegram/config.ts` | `subsystem` (`telegram`), `missing` (array of env-var **names** only, e.g. `["TELEGRAM_BOT_TOKEN"]` — no values) |
+| `notifications.emit.invalid_payload` | Already exists — `src/domains/notifications/dispatcher.ts:93` | `event`, `issues` (Zod `error.issues`) |
+| `notifications.handler.failed` | Already exists — `src/domains/notifications/dispatcher.ts:123` | `event`, `error` (string) |
+| `email.send.skipped` | `src/lib/email.ts:38` — currently `console.warn`, **needs promotion to `logger.warn`** | `to_count` (planned shape) |
+| `email.send_failed` | `src/lib/email.ts:60` | `to`, `subject`, `error` |
+
+> NOTE: as of 2026-05-03, `email.send.skipped` fires as `console.warn('[Email] RESEND_API_KEY not configured, skipping email to:', to)` — a human-readable line that PostHog ingestion (logger sink) cannot pick up as a structured event. PR 3A is doc-only so we do not fix the gap here, but the dashboard is not actually wired for the email surface until that line is promoted to `logger.warn('email.send.skipped', { to_count: 1 })`. Tracked separately as a follow-up to PR 3A.
+
+> NOTE: `notifications.emit.invalid_payload` and `notifications.handler.failed` are also `console.error` in `src/domains/notifications/dispatcher.ts` rather than `logger.error`. Same caveat as above — they will land in PostHog only after the dispatcher is migrated to the structured logger. Tracked under the Gap 4 sweep (`console.* → logger.*`) in `/home/whisper/.claude/plans/ahora-despu-s-de-esta-smooth-mango.md`.
+
+### Tiles
+
+**1. Failure rate (Trends, big number per surface)**
+- One insight per surface (`telegram`, `email`, `web-push`).
+- Math: `count(scope ends in '.failed' OR '.skipped' OR result = 'failure') / count(emit attempts)`.
+  - For `telegram`: numerator = `notifications.handler.skipped` + `notifications.handler.failed` + `notifications.emit.invalid_payload` filtered to `properties.handler` matching `telegram.*`. Denominator = total `notifications.*` emits attributable to telegram (proxy via PostHog action over the same scope set).
+  - For `email`: numerator = `email.send.skipped` + `email.send_failed`. Denominator = `email.send.skipped` + `email.send_failed` + (count of successful sends — currently `console.info` in `src/lib/email.ts:57`, also pending logger promotion).
+  - For `web-push`: same pattern as telegram, filtered to `properties.handler` matching `web-push.*`.
+- Date range: last 7 days.
+- Threshold: investigate any surface above **5 % sustained over an hour**. Real failures (transient network, vendor deleted before notification flushed) settle below that in normal operation.
+
+**2. Volume sanity (Trends, line chart per surface)**
+- Total emits per surface, day interval, last 30 days.
+- Purpose: a hard-zero day on a previously-active surface means we shipped a regression that broke the wiring (e.g. the controller swallowed an exception, or a kill-switch defaulted to `true`). The volume series catches that even if the failure-rate series stays clean — **zero of zero is "0 %"**, the same Dashboard 4 trap.
+- This is the single most important tile in this dashboard. If you only have time to wire one, wire this one.
+
+**3. Breakdown: event × result (Trends, stacked bar per surface)**
+- Stacked bar, `properties.event` × outcome (success / `skipped` / `failed` / `invalid_payload`), last 7 days, one insight per surface.
+- Lets ops eyeball at a glance which event is wobbliest — if `favorite.price_drop` shows 80 % `skipped:no_favorites` while `order.created` shows 0 %, that is the expected baseline shape and the next dashboard reader knows which surface is "naturally noisy".
+
+**4. Skipped reasons (Trends, table)**
+- `notifications.handler.skipped` count by `properties.reason`, last 7 days, top 10.
+- Surface: table, sorted by count descending.
+- Why: lets ops separate **data drift** (`no_vendor` spiking = vendor deletion racing notification flush, look at `Vendor.deletedAt`) from **ops issue** (`config_missing` spiking = env not propagated to the cluster). Same scope but very different on-call response.
+
+**5. Config gaps (Trends, big number)**
+- `notifications.config.missing` events in the last 24 h, grouped by `properties.subsystem`.
+- **Healthy production must read 0.** Any non-zero value means a deploy went out without the required env vars and at least one notification path has been silently dropped since.
+- Threshold: any non-zero count = page on-call. There is no "acceptable" baseline for this metric.
+
+### Alerts (PostHog Alerts)
+
+- **Skipped rate alert.** Trigger: `notifications.handler.skipped` rate > 10 % over a 1-hour window with at least 20 events. Channel: same Telegram channel that gets payment incidents (see `docs/runbooks/payment-incidents.md`). Why this threshold: skipped is the noisiest scope (a vendor deleting their account legitimately produces `no_vendor` skips for in-flight events) — 10 %/1h/≥20 is the sustained-pain bar that distinguishes "user did a thing" from "subsystem is broken".
+- **Config-missing alert.** Trigger: `notifications.config.missing` count > 0 in any 1-hour window. Channel: same Telegram channel, marked **urgent**. Why this threshold: there is no scenario in which a non-zero count is acceptable in production — if the alert fires, an env var was deployed without the value and the subsystem has been down since the deploy.
+
+### Verification (after wiring in PostHog UI)
+
+- [ ] Force a `notifications.handler.skipped` in staging by emitting an order-created event for a deleted vendor; confirm it lands within 60 s.
+- [ ] Force a `notifications.config.missing` by unsetting `TELEGRAM_BOT_TOKEN` on a staging dyno and triggering any handler that calls `getTelegramConfig()`; confirm the tile flips off zero.
+- [ ] Toggle the kill switch `kill-notifications-telegram` (if/when it exists) and confirm the volume-sanity line drops to zero on the telegram surface — that is the "did we accidentally kill it" rehearsal.
+- [ ] Send the alert test from PostHog "Send test alert" button on both alerts; confirm the message lands in the same Telegram channel as payment incidents.
+
 ## Global filters (apply per dashboard)
 
 - `person.properties.role` (CUSTOMER, VENDOR, ADMIN_*)
@@ -180,3 +247,4 @@ Then attach each insight (funnel/trend config) to the dashboard.
 - [ ] Role filter does not drop counts
 - [ ] Each `BUYER_MUTATION_EVENTS` event shows both `success` and `failure` rows in Breakdown view (toggle a favorite while offline to confirm `failure` fires)
 - [ ] Buyer Mutations Health alert is wired to Telegram (test with the PostHog "Send test alert" button)
+- [ ] Notification Health dashboard shows non-zero volume on each wired surface; `notifications.config.missing` reads 0; skipped-rate and config-missing alerts both pass the PostHog "Send test alert" round-trip

@@ -30,6 +30,13 @@ const tooltipStyle = {
   borderRadius: '8px',
   fontSize: '12px',
   color: 'var(--foreground)',
+  maxWidth: '100%',
+  overflowWrap: 'anywhere' as const,
+}
+
+const tooltipWrapperStyle = {
+  pointerEvents: 'auto' as const,
+  maxWidth: 'min(280px, calc(100vw - 16px))',
 }
 
 function formatShortDate(iso: string, locale: string): string {
@@ -69,7 +76,8 @@ export function AdminAnalyticsCharts({ series }: Props) {
               <XAxis dataKey="label" stroke="var(--muted)" fontSize={11} />
               <YAxis stroke="var(--muted)" fontSize={11} tickFormatter={formatEur} />
               <Tooltip
-                wrapperStyle={{ pointerEvents: 'auto' }}
+                allowEscapeViewBox={{ x: false, y: false }}
+                wrapperStyle={tooltipWrapperStyle}
                 contentStyle={tooltipStyle}
                 formatter={(value) => [formatEur(Number(value)), t('admin.charts.tooltip.revenue')]}
                 labelFormatter={label => `${t('admin.charts.tooltip.dayPrefix')}: ${label}`}
@@ -98,7 +106,8 @@ export function AdminAnalyticsCharts({ series }: Props) {
               <XAxis dataKey="label" stroke="var(--muted)" fontSize={11} />
               <YAxis stroke="var(--muted)" fontSize={11} allowDecimals={false} />
               <Tooltip
-                wrapperStyle={{ pointerEvents: 'auto' }}
+                allowEscapeViewBox={{ x: false, y: false }}
+                wrapperStyle={tooltipWrapperStyle}
                 contentStyle={tooltipStyle}
                 formatter={(value) => [Number(value), t('admin.charts.tooltip.newUsers')]}
                 labelFormatter={label => `${t('admin.charts.tooltip.dayPrefix')}: ${label}`}
