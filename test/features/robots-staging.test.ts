@@ -61,7 +61,7 @@ test('robots: production keeps granular disallow list and sitemap link', () => {
   )
 })
 
-test('robots: development keeps granular disallow list', () => {
+test('robots: development also returns Disallow: / and no sitemap', () => {
   withEnv(
     {
       APP_ENV: 'development',
@@ -69,9 +69,8 @@ test('robots: development keeps granular disallow list', () => {
     },
     () => {
       const result = robots()
-      const rules = result.rules as { userAgent: string; allow: string; disallow: string[] }
-      assert.equal(rules.allow, '/')
-      assert.ok(rules.disallow.includes('/api'))
+      assert.deepEqual(result.rules, { userAgent: '*', disallow: '/' })
+      assert.equal(result.sitemap, undefined)
     }
   )
 })
