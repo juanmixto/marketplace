@@ -1,6 +1,7 @@
 import { getActionSession } from '@/lib/action-session'
 import { isAdminRole } from '@/lib/roles'
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -62,7 +63,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ message: 'Datos inválidos' }, { status: 400 })
     }
-    console.error('[POST /api/admin/incidents/[id]/messages]', err)
+    logger.error('admin.api.incidents.messages.create_failed', { error: err })
     return NextResponse.json({ message: 'Error interno' }, { status: 500 })
   }
 }

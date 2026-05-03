@@ -23,6 +23,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import { checkRateLimit, getClientIP } from '@/lib/ratelimit'
 import { isTwoFactorEnabled } from '@/domains/auth/two-factor'
 import { verifyTrustedDeviceCookie } from '@/domains/auth/trusted-device'
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest) {
       { status: 200 }
     )
   } catch (err) {
-    console.error('[login-precheck]', err)
+    logger.error('auth.login_precheck.failed', { error: err })
     return NextResponse.json({ ok: false }, { status: 500 })
   }
 }

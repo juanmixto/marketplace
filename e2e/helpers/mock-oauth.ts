@@ -60,9 +60,19 @@ export async function startMockOAuth(
   const onboardingPattern = /\/onboarding(?:[/?]|$)/
   const expectsOnboarding = onboardingPattern.test(expectedUrlPattern.source)
   await page.goto(`/dev/oauth-trigger?callbackUrl=${encodeURIComponent(callbackUrl)}`)
+  // waitUntil: 'commit' resolves as soon as the destination URL is
+  // committed in the browser, without waiting for the destination's
+  // full `load` event. The OAuth flow chain is all server-side 302
+  // redirects (signIn → /api/auth/signin/* → callback → final URL),
+  // so the URL is reliably committed even when a downstream RSC
+  // compile slows the `load` to >30s on cold GitHub-hosted runners
+  // (#985). The `expect(page).toHaveURL(...)` assertion in callers
+  // is the real session/route check; this `waitForURL` is just the
+  // navigation gate.
   await Promise.all([
     page.waitForURL(expectsOnboarding ? expectedUrlPattern : /\/(onboarding|cuenta|admin|vendor|carrito|checkout|productos|productores)/, {
       timeout: 30_000,
+      waitUntil: 'commit',
     }),
     page.getByTestId('mock-oauth-trigger').click(),
   ])
@@ -73,7 +83,7 @@ export async function startMockOAuth(
   if (url.pathname === '/onboarding') {
     await page.locator('input[name="consent"]').check()
     await Promise.all([
-      page.waitForURL(expectedUrlPattern, { timeout: 30_000 }),
+      page.waitForURL(expectedUrlPattern, { timeout: 30_000, waitUntil: 'commit' }),
       page.locator('button[type="submit"]').click(),
     ])
   }

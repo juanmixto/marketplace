@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import type { FavoriteBackInStockPayload } from '../../events'
 import { sendToUser } from '../service'
 import { favoriteBackInStockTemplate } from '../templates'
@@ -23,7 +24,15 @@ export async function onFavoriteBackInStock(
       select: { stock: true },
     }),
   ])
-  if (favourites.length === 0) return
+  if (favourites.length === 0) {
+    logger.warn('notifications.handler.skipped', {
+      event: 'favorite.back_in_stock',
+      reason: 'no_favorites',
+      handler: 'telegram.on-favorite-restock',
+      productId: payload.productId,
+    })
+    return
+  }
 
   const payloadRef = `product:${payload.productId}:restock`
 

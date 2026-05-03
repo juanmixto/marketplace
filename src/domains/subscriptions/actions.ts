@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { getActionSession } from '@/lib/action-session'
 import { isVendor } from '@/lib/roles'
+import { logger } from '@/lib/logger'
 import { safeRevalidatePath } from '@/lib/revalidate'
 import {
   advanceByCadence,
@@ -141,12 +142,12 @@ export async function createSubscriptionPlan(input: SubscriptionPlanInput) {
     await db.subscriptionPlan
       .delete({ where: { id: plan.id } })
       .catch(cleanupError => {
-        console.error(
-          '[subscriptions] failed to clean up orphan plan after Stripe provisioning error',
+        logger.error(
+          'subscriptions.plan.orphan_cleanup_failed',
           { planId: plan.id, cleanupError }
         )
       })
-    console.error('[subscriptions] Stripe Price provisioning failed', {
+    logger.error('subscriptions.stripe.price_provision_failed', {
       planId: plan.id,
       productId: product.id,
       error,
@@ -633,10 +634,11 @@ export async function pauseSubscriptionAsVendor(
   try {
     await pauseStripeSubscription(sub.stripeSubscriptionId)
   } catch (err) {
-    console.error('[subscriptions] Stripe vendor-pause failed — local row is paused, Stripe will need manual reconcile', {
+    logger.error('subscriptions.stripe.vendor_pause_failed', {
       subscriptionId,
       stripeSubscriptionId: sub.stripeSubscriptionId,
       error: err,
+      note: 'local row is paused, Stripe will need manual reconcile',
     })
   }
 
@@ -679,10 +681,11 @@ export async function resumeSubscriptionAsVendor(subscriptionId: string) {
   try {
     await resumeStripeSubscription(sub.stripeSubscriptionId)
   } catch (err) {
-    console.error('[subscriptions] Stripe vendor-resume failed — local row is active, Stripe will need manual reconcile', {
+    logger.error('subscriptions.stripe.vendor_resume_failed', {
       subscriptionId,
       stripeSubscriptionId: sub.stripeSubscriptionId,
       error: err,
+      note: 'local row is active, Stripe will need manual reconcile',
     })
   }
 

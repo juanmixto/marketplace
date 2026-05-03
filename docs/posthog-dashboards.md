@@ -5,6 +5,22 @@ Dashboards live inside PostHog UI — they cannot be checked into this repo.
 
 > Prerequisite: events flowing in PostHog Live events view.
 
+## Production setup — reverse proxy
+
+The five `BUYER_MUTATION_EVENTS` (`add_to_favorites`, `remove_from_favorites`, `address_changed`, `buyer_profile_updated`, `incident_resolved`) lose **10-25% of fires in production** if the SDK posts directly to `*.posthog.com`: Brave Shields (default-on), uBlock Origin, AdGuard, Pi-hole and NextDNS all recognize PostHog as a tracker and drop the request at the browser. Verified live on 2026-05-02 — every `POST eu.i.posthog.com/e/*` showed up as `(blocked:other)` 0 bytes in the Network panel of a stock Brave install.
+
+The Buyer Mutations Health dashboard (Dashboard 4 below) becomes unreliable when that share is invisible: failure rates appear lower than they are, alert thresholds (default 5 % / 1 h / ≥ 20 events) may never trip on a real incident.
+
+**Production therefore routes PostHog through a Cloudflare Worker** at `raizdirecta.es/ingest/*`. Same-origin path → ad-blockers can't filter it without breaking the site. Worker is stateless, no auth, no caching — it strips `/ingest` from the path and forwards to PostHog upstream. See [`infra/cloudflare/posthog-proxy/README.md`](../infra/cloudflare/posthog-proxy/README.md) for the deploy + operate guide.
+
+| Environment | `NEXT_PUBLIC_POSTHOG_HOST` | Effective upstream |
+|---|---|---|
+| Production (`raizdirecta.es`) | `https://raizdirecta.es/ingest` | Worker → `eu.i.posthog.com` |
+| Staging (`staging.raizdirecta.es`) | unset | Direct → `eu.i.posthog.com` |
+| Dev / local | unset | Direct → `eu.i.posthog.com` |
+
+Dev keeps the direct connection on purpose so debugging doesn't need a Worker deploy round-trip. Developers hitting dev/staging are not the ad-blocker-using buyers we care about.
+
 ## Event reference
 
 | Event | Key properties |

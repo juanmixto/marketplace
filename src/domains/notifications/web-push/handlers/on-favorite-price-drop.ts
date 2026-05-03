@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import type { FavoritePriceDropPayload } from '../../events'
 import { sendWebPushToUser } from '../service'
 import { favoritePriceDropPush } from '../templates'
@@ -23,7 +24,15 @@ export async function onFavoritePriceDrop(
       select: { stock: true },
     }),
   ])
-  if (favourites.length === 0) return
+  if (favourites.length === 0) {
+    logger.warn('notifications.handler.skipped', {
+      event: 'favorite.price_drop',
+      reason: 'no_favorites',
+      handler: 'web-push.on-favorite-price-drop',
+      productId: payload.productId,
+    })
+    return
+  }
 
   const payloadRef = `product:${payload.productId}:price_drop`
   for (const fav of favourites) {
