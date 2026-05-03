@@ -108,6 +108,50 @@ test('loadSentryConfig: honors explicit SENTRY_ENVIRONMENT', () => {
   )
 })
 
+test('loadSentryConfig: APP_ENV=staging surfaces as environment', () => {
+  withEnv(
+    {
+      SENTRY_DSN: 'https://a@b.ingest.sentry.io/1',
+      SENTRY_ENVIRONMENT: undefined,
+      APP_ENV: 'staging',
+      NEXT_PUBLIC_APP_ENV: undefined,
+      NODE_ENV: 'production',
+    },
+    () => {
+      assert.equal(loadSentryConfig()!.environment, 'staging')
+    }
+  )
+})
+
+test('loadSentryConfig: SENTRY_ENVIRONMENT wins over APP_ENV', () => {
+  withEnv(
+    {
+      SENTRY_DSN: 'https://a@b.ingest.sentry.io/1',
+      SENTRY_ENVIRONMENT: 'qa',
+      APP_ENV: 'staging',
+      NODE_ENV: 'production',
+    },
+    () => {
+      assert.equal(loadSentryConfig()!.environment, 'qa')
+    }
+  )
+})
+
+test('loadSentryConfig: NEXT_PUBLIC_APP_ENV is used when APP_ENV is unset (browser bundle path)', () => {
+  withEnv(
+    {
+      SENTRY_DSN: 'https://a@b.ingest.sentry.io/1',
+      SENTRY_ENVIRONMENT: undefined,
+      APP_ENV: undefined,
+      NEXT_PUBLIC_APP_ENV: 'staging',
+      NODE_ENV: 'production',
+    },
+    () => {
+      assert.equal(loadSentryConfig()!.environment, 'staging')
+    }
+  )
+})
+
 test('loadSentryConfig: reads release from NEXT_PUBLIC_COMMIT_SHA', () => {
   withEnv(
     {

@@ -7,7 +7,6 @@ import {
   flip,
   offset,
   shift,
-  size,
   useDismiss,
   useFloating,
   useFocus,
@@ -42,7 +41,6 @@ const PLACEMENT: Record<Side, Placement> = {
 }
 
 const VIEWPORT_PADDING = 8
-const MAX_WIDTH_PX = 224
 
 export function Tooltip({
   children,
@@ -63,12 +61,15 @@ export function Tooltip({
       offset(8),
       flip({ padding: VIEWPORT_PADDING, fallbackAxisSideDirection: 'start' }),
       shift({ padding: VIEWPORT_PADDING }),
-      size({
-        padding: VIEWPORT_PADDING,
-        apply({ availableWidth, elements }) {
-          elements.floating.style.maxWidth = `${Math.min(availableWidth, MAX_WIDTH_PX)}px`
-        },
-      }),
+      // No size() middleware: it was capping max-width to whatever
+      // availableWidth Floating UI reported, which on a narrow side
+      // panel (the filters) collapsed the tooltip to ~80px and
+      // produced visually truncated text. Width is now controlled by
+      // the className max-width cap below — `min(14rem, calc(100vw -
+      // 2rem))` is generous enough for normal copy and still hard
+      // bounded by the viewport. Wrapping is enabled via
+      // `whitespace-normal break-words`, so any overflow becomes a
+      // line break instead of a horizontal clip.
     ],
   })
 
@@ -106,16 +107,16 @@ export function Tooltip({
       </span>
       {isMounted && (
         <FloatingPortal>
-          <span
+          <div
             // eslint-disable-next-line react-hooks/refs
             ref={refs.setFloating}
             id={labelId}
             style={{ ...floatingStyles, ...transitionStyles }}
-            className="pointer-events-none z-50 w-max rounded-lg bg-slate-950 px-2.5 py-1.5 text-center text-[11px] font-medium text-white shadow-lg"
+            className="pointer-events-none z-50 w-max max-w-[min(14rem,calc(100vw-2rem))] whitespace-normal break-words rounded-lg bg-slate-950 px-2.5 py-1.5 text-center text-[11px] font-medium text-white shadow-lg"
             {...getFloatingProps()}
           >
             {content}
-          </span>
+          </div>
         </FloatingPortal>
       )}
     </>

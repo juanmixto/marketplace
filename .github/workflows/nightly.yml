@@ -18,6 +18,9 @@ env:
   AUTH_SECRET: ci-secret-please-change
   NEXT_PUBLIC_APP_URL: http://localhost:3000
   PAYMENT_PROVIDER: mock
+  # Opt JavaScript actions into Node.js 24 ahead of GitHub's 2026-06-02
+  # forced cutover. See security-scan.yml for rationale and rollback.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   full-e2e:
