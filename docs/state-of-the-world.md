@@ -44,6 +44,12 @@ Si un hostname nuevo aparece, añádelo aquí **antes** de cerrar el PR que lo m
   Runbooks: `docs/runbooks/db-backup.md`, `docs/runbooks/db-restore.md`, `docs/runbooks/db-failover.md`.
 - **Rollback rápido:** redeploy del último SHA estable (cambia branch local en el servidor + `npm run deploy:prod`) + `kill-*` flags en PostHog para apagar features problemáticas sin redeploy.
 
+## Integraciones externas (estado)
+
+- **Vercel — pausada 2026-05-03.** La GitHub integration está desconectada (`Settings → Git → Disconnect` en el proyecto Vercel). Producción NO se despliega en Vercel; corre en Proxmox vía `npm run deploy:prod`.
+  - **`Vercel: fail` en checks de PRs es ESPERADO** mientras quede algún check antiguo cacheado. NO bloquea merge — Vercel no está en branch protection.
+  - **`vercel.json` se mantiene en el repo** (config inerte) por si en el futuro se reactiva. El archivo declara un cron `cleanup-idempotency` (`0 3 * * *`) que **HOY NO SE EJECUTA** en producción — ningún cron de host lo está llamando. Deuda conocida: o se monta un `systemd-timer` que haga `curl https://raizdirecta.es/api/cron/cleanup-idempotency` con la auth correcta, o se acepta que `IdempotencyKey` crezca sin tope.
+
 ## Kill switches y feature flags activos
 
 (Solo los que estén en estado **no-default** o que importen para un incidente reciente. Para la lista completa
@@ -74,6 +80,7 @@ tiempo real (no lo dupliques aquí — solo lista trabajo "parado" o de larga du
   - **#1137** (mergeado): este fichero.
   - **#1138** (mergeado + desplegado): promueve a `origin/main` los scripts de deploy del agente Codex (`scripts/deploy-local-env.sh`, `scripts/prod-bootstrap.ts`, runbook `release-promotion.md`) que solo existían en su commit local sin pushear `596ec124`.
   - **#1139** (mergeado): Stop hook end-of-turn + plantilla de notas de sesión `.claude/sessions/`.
+- **2026-05-03 (noche)** — Vercel pausado a nivel GitHub integration (ver "Integraciones externas" arriba). Producción no estaba en Vercel, así que sin impacto runtime; el cambio elimina el ruido del check `Vercel: fail` en PRs.
 - **2026-05-03 (mañana)** — Cutover dev `dev.feldescloud.com` → `dev.raizdirecta.es`.
 
 Cuando algo aquí supera 30 días sin ser relevante, muévelo a su runbook o bórralo.

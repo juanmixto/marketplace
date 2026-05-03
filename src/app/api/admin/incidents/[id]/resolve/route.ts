@@ -6,11 +6,20 @@ import { z } from 'zod'
 import { IncidentResolution } from '@/generated/prisma/enums'
 import { refundPaymentIntent } from '@/domains/payments/provider'
 import { logger } from '@/lib/logger'
+import { zCuid } from '@/lib/validation/primitives'
 
+// `z.coerce.number()` happily coerces "abc" to NaN; the downstream guards
+// `refundAmount > 0` and `refundAmount > Number(payment.amount)` are then
+// both false (NaN compares false either way), but the trailing
+// `incident.update({ data: { refundAmount } })` would persist NaN. The
+// preprocess+`.finite()` pair is the only spelling that rejects it cleanly.
 const schema = z.object({
   resolution:   z.nativeEnum(IncidentResolution),
-  internalNote: z.string().max(2000).optional(),
-  refundAmount: z.coerce.number().min(0).max(1_000_000).optional(),
+  internalNote: z.string().trim().max(2000).optional(),
+  refundAmount: z.preprocess(
+    v => (typeof v === 'string' && v.trim() !== '' ? Number.parseFloat(v) : v),
+    z.number().finite().min(0).max(1_000_000),
+  ).optional(),
   fundedBy:     z.enum(['PLATFORM', 'VENDOR']).optional(),
 })
 
@@ -24,7 +33,11 @@ export async function POST(request: Request, { params }: RouteParams) {
     return NextResponse.json({ message: 'No autorizado' }, { status: 401 })
   }
 
-  const { id } = await params
+  const idCheck = zCuid.safeParse((await params).id)
+  if (!idCheck.success) {
+    return NextResponse.json({ message: 'Identificador inválido' }, { status: 400 })
+  }
+  const id = idCheck.data
 
   try {
     const { resolution, internalNote, refundAmount, fundedBy } = schema.parse(await request.json())

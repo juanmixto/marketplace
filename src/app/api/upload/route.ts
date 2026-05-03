@@ -36,6 +36,14 @@ const UPLOAD_WINDOW_SECONDS = 600
  *   - magic-bytes match the declared content-type
  *   - <= 5 MB
  *
+ * NOTE on decompression bombs: today there is no server-side image
+ * processing (no `sharp`), so a 5 MB PNG/WebP that expands to GB
+ * cannot reach a buffer that materializes pixels. The moment that
+ * changes — i.e. someone adds `sharp` for resizing/transcoding — the
+ * sharp pipeline MUST set `failOn: 'error'` and a `limitInputPixels`
+ * cap (≈ 24M pixels). Otherwise an attacker-crafted bomb at the byte
+ * cap turns into OOM. See HU8 in epic #1160.
+ *
  * Storage (see lib/blob-storage.ts): swapped via env. Local in dev, Vercel
  * Blob if BLOB_READ_WRITE_TOKEN is set, S3/R2 if/when we add a third
  * provider — callers don't need to know.

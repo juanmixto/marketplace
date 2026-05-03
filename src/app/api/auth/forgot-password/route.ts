@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createPasswordResetToken } from '@/domains/auth/email-verification'
 import { checkRateLimit, getClientIP } from '@/lib/ratelimit'
 import { logger } from '@/lib/logger'
+import { normalizeAuthEmail } from '@/lib/auth-email'
 
 const schema = z.object({
   email: z.string().email('Email inválido'),
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json()
     const data = schema.parse(body)
-    const normalizedEmail = data.email.trim().toLowerCase()
+    const normalizedEmail = normalizeAuthEmail(data.email)
 
     // Per-identity throttle (#173): a single attacker rotating IPs can blow
     // through the per-IP bucket trivially; this caps the number of reset
