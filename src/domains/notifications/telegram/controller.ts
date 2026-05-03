@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import type { TelegramUpdate } from './update-schema'
 
 export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void> {
@@ -9,12 +10,20 @@ export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void
     await handleCallbackQuery(update.callback_query)
     return
   }
-  console.info('telegram.webhook.unknown_update', { updateId: update.update_id })
+  logger.info('telegram.webhook.unknown_update', { updateId: update.update_id })
 }
 
 async function handleMessage(message: NonNullable<TelegramUpdate['message']>): Promise<void> {
   const text = message.text?.trim()
-  if (!text) return
+  if (!text) {
+    logger.warn('notifications.handler.skipped', {
+      event: 'telegram.message',
+      reason: 'no_text',
+      handler: 'telegram.controller.handle-message',
+      chatId: message.chat.id,
+    })
+    return
+  }
 
   if (text.startsWith('/start')) {
     const { handleStartCommand } = await import('./handlers/on-start-command')
@@ -34,7 +43,7 @@ async function handleMessage(message: NonNullable<TelegramUpdate['message']>): P
     return
   }
 
-  console.info('telegram.webhook.unhandled_message', { chatId: message.chat.id })
+  logger.info('telegram.webhook.unhandled_message', { chatId: message.chat.id })
 }
 
 async function handleCallbackQuery(

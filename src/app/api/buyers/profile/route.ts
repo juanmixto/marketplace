@@ -1,5 +1,6 @@
 import { getActionSession } from '@/lib/action-session'
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { apiError, apiInternalError, apiUnauthorized, apiValidationFromZod } from '@/lib/api-response'
@@ -57,7 +58,7 @@ export async function PUT(request: Request) {
       email: user.email,
     })
   } catch (error) {
-    console.error('Profile update error:', error)
+    logger.error('api.buyers.profile.update_failed', { error })
     return apiInternalError('Error al actualizar perfil')
   }
 }

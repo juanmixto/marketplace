@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { trackPwaEvent } from '@/lib/pwa/track'
+import { logger } from '@/lib/logger'
 
 /**
  * Registers the service worker, captures the `beforeinstallprompt` event
@@ -134,7 +135,7 @@ export default function PwaRegister() {
         .catch((err) => {
           // Swallow — SW registration failure must never break the app.
           // Lighthouse will still flag it, which is what we want.
-          console.warn('[pwa] service worker registration failed', err)
+          logger.warn('pwa.sw.register_failed', { error: err })
         })
     }
 

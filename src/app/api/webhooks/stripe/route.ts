@@ -32,6 +32,7 @@ import { sendSubscriptionPaymentFailedEmail } from '@/domains/subscriptions/emai
 import { logger } from '@/lib/logger'
 import { isFeatureEnabled } from '@/lib/flags'
 import { emit as emitNotification } from '@/domains/notifications'
+import { stripeWebhookEventSchema } from '@/domains/payments/webhook-schemas'
 import type Stripe from 'stripe'
 
 // DB audit P1.1 (#962): Prisma's interactive transaction defaults have
@@ -130,6 +131,28 @@ export async function POST(req: NextRequest) {
     } catch {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
     }
+  }
+
+  // Runtime envelope validation. Signature verification (above) proves
+  // the body originated from Stripe; this proves the JSON has the shape
+  // our dispatcher will read. A signature-valid event with a malformed
+  // envelope is genuinely anomalous — reject with 400 so Stripe retries
+  // (or so the operator notices in the dashboard) rather than silently
+  // dispatching against an undefined `event.type`.
+  const parsedEvent = stripeWebhookEventSchema.safeParse(event)
+  if (!parsedEvent.success) {
+    logger.error('stripe.webhook.invalid_payload', {
+      eventId:
+        typeof (event as { id?: unknown }).id === 'string'
+          ? (event as { id: string }).id
+          : null,
+      eventType:
+        typeof (event as { type?: unknown }).type === 'string'
+          ? (event as { type: string }).type
+          : null,
+      issues: parsedEvent.error.issues,
+    })
+    return NextResponse.json({ error: 'invalid payload shape' }, { status: 400 })
   }
 
   logger.info('stripe.webhook.received', {

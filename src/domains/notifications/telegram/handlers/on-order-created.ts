@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import type { OrderCreatedPayload } from '../../events'
 import { sendToUser } from '../service'
 import { orderCreatedTemplate } from '../templates'
@@ -9,7 +10,16 @@ export async function onOrderCreated(payload: OrderCreatedPayload): Promise<void
     where: { id: payload.vendorId },
     select: { userId: true },
   })
-  if (!vendor) return
+  if (!vendor) {
+    logger.warn('notifications.handler.skipped', {
+      event: 'order.created',
+      reason: 'no_vendor',
+      handler: 'telegram.on-order-created',
+      vendorId: payload.vendorId,
+      orderId: payload.orderId,
+    })
+    return
+  }
 
   const view = await resolveOrderView(payload.orderId, payload.vendorId)
   await sendToUser(vendor.userId, 'ORDER_CREATED', orderCreatedTemplate(payload, view), {

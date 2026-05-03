@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import { withFavoritesGuard } from '@/domains/catalog/favorites'
 
 export async function GET() {
@@ -21,7 +22,7 @@ export async function GET() {
 
     return NextResponse.json({ ids: favorites.map(f => f.productId) })
   } catch (error) {
-    console.error('GET /api/favoritos/ids error:', error)
+    logger.error('api.favoritos.ids.get_failed', { error })
     return NextResponse.json({ ids: [] })
   }
 }

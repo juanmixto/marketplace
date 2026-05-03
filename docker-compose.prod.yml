@@ -18,6 +18,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_COMMIT_SHA: ${NEXT_PUBLIC_COMMIT_SHA:-unknown}
+        NEXT_PUBLIC_GIT_BRANCH: ${NEXT_PUBLIC_GIT_BRANCH:-unknown}
+        NEXT_PUBLIC_BUILD_TIME: ${NEXT_PUBLIC_BUILD_TIME:-}
     restart: unless-stopped
     env_file:
       - .env.production

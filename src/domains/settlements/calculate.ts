@@ -6,6 +6,7 @@
  */
 
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 // eslint-disable-next-line no-restricted-imports -- finance/commission stays out of the barrel (dynamic db import)
 import { resolveEffectiveCommissionRate } from '@/domains/finance/commission'
 
@@ -139,7 +140,7 @@ export async function generateSettlementsForPeriod(periodFrom: Date, periodTo: D
         results.push({ vendorId: vendor.id, success: true, settlementId: settlement.id })
       }
     } catch (error) {
-      console.error(`[settlement] Error generating for vendor ${vendor.id}:`, error)
+      logger.error('settlements.generate.failed', { vendorId: vendor.id, error })
       results.push({ vendorId: vendor.id, success: false, error: String(error) })
     }
   }

@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import type { TelegramMessage } from '../update-schema'
 import { consumeLinkToken } from '../link-token'
 import { sendRawMessage } from '../service'
@@ -14,7 +15,7 @@ export async function handleStartCommand(message: TelegramMessage): Promise<void
       text:
         '👋 Bienvenido. Para vincular tu cuenta, genera un enlace desde Ajustes → Telegram en la plataforma.',
     })
-    console.info('telegram.link.start_without_token', { chatId })
+    logger.info('telegram.link.start_without_token', { chatId })
     return
   }
 
@@ -23,7 +24,7 @@ export async function handleStartCommand(message: TelegramMessage): Promise<void
     await sendRawMessage(chatId, {
       text: '❌ Token inválido o caducado. Genera uno nuevo en Ajustes → Telegram.',
     })
-    console.info('telegram.link.invalid_token', { chatId })
+    logger.info('telegram.link.invalid_token', { chatId })
     return
   }
 
@@ -53,5 +54,5 @@ export async function handleStartCommand(message: TelegramMessage): Promise<void
   await sendRawMessage(chatId, {
     text: '✅ Conectado. Recibirás avisos de pedidos aquí.',
   })
-  console.info('telegram.link.linked', { userId: consumed.userId, chatId })
+  logger.info('telegram.link.linked', { userId: consumed.userId, chatId })
 }
