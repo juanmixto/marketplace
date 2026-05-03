@@ -43,7 +43,7 @@ const POSTHOG_ASSET_HOST = 'https://eu-assets.i.posthog.com'
 const STRIP_REQUEST_HEADERS = ['cookie', 'host'] as const
 const STRIP_RESPONSE_HEADERS = ['set-cookie'] as const
 
-export default {
+const worker = {
   async fetch(request: Request): Promise<Response> {
     const incoming = new URL(request.url)
 
@@ -103,3 +103,5 @@ export default {
     })
   },
 }
+
+export default worker
