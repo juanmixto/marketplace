@@ -1,10 +1,19 @@
-import test from 'node:test'
+import { describe, test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   on,
   emit,
   clearHandlersForTest,
+  waitForPendingNotifications,
 } from '@/domains/notifications/dispatcher'
+
+// Serialize subtests: the dispatcher keeps handlers in `globalThis` (HMR
+// safety in dev) and `emit()` is async (dynamic import bootstrap). Without
+// serialisation a sibling test's `clearHandlersForTest()` can wipe handlers
+// while the previous test's emit is still in flight, and microtask waits
+// like `setImmediate` race the dynamic import. Serialising + draining via
+// `waitForPendingNotifications()` removes both races.
+describe('telegram dispatcher', { concurrency: false }, () => {
 
 test('dispatcher delivers typed payloads to handlers', async () => {
   clearHandlersForTest()
@@ -21,8 +30,7 @@ test('dispatcher delivers typed payloads to handlers', async () => {
     currency: 'EUR',
   })
 
-  await new Promise(r => setImmediate(r))
-  await new Promise(r => setImmediate(r))
+  await waitForPendingNotifications()
 
   assert.deepEqual(received, [{ orderId: 'ord_1' }])
 })
@@ -42,8 +50,7 @@ test('dispatcher silently drops invalid payloads', async () => {
     currency: 'XX',
   } as never)
 
-  await new Promise(r => setImmediate(r))
-  await new Promise(r => setImmediate(r))
+  await waitForPendingNotifications()
 
   assert.equal(called, false, 'invalid payload must not reach handlers')
 })
@@ -68,8 +75,7 @@ test('handler error does not propagate to emitter', async () => {
   }
   assert.equal(emitterThrew, false, 'emit() is fire-and-forget; handler throw must not surface')
 
-  await new Promise(r => setImmediate(r))
-  await new Promise(r => setImmediate(r))
+  await waitForPendingNotifications()
 })
 
 test('unsubscribe removes a handler', async () => {
@@ -86,8 +92,7 @@ test('unsubscribe removes a handler', async () => {
     totalCents: 200,
     currency: 'EUR',
   })
-  await new Promise(r => setImmediate(r))
-  await new Promise(r => setImmediate(r))
+  await waitForPendingNotifications()
   assert.equal(count, 1)
 
   unsub()
@@ -99,7 +104,8 @@ test('unsubscribe removes a handler', async () => {
     totalCents: 200,
     currency: 'EUR',
   })
-  await new Promise(r => setImmediate(r))
-  await new Promise(r => setImmediate(r))
+  await waitForPendingNotifications()
   assert.equal(count, 1, 'handler should not fire after unsubscribe')
+})
+
 })

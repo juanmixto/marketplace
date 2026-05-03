@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { getActionSession } from '@/lib/action-session'
 import { getServerEnv } from '@/lib/env'
+import { logger } from '@/lib/logger'
 import { safeRevalidatePath } from '@/lib/revalidate'
 import {
   advanceByCadence,
@@ -420,7 +421,7 @@ async function autoResumeExpiredPauses(buyerId: string) {
     try {
       await resumeStripeSubscription(sub.stripeSubscriptionId)
     } catch (err) {
-      console.error('[subscriptions] auto-resume Stripe failed', {
+      logger.error('subscriptions.stripe.auto_resume_failed', {
         subscriptionId: sub.id,
         error: err,
       })
@@ -527,10 +528,11 @@ export async function cancelSubscription(id: string) {
   try {
     await cancelStripeSubscription(sub.stripeSubscriptionId)
   } catch (err) {
-    console.error('[subscriptions] Stripe cancel failed — local row is canceled, Stripe will need manual reconcile', {
+    logger.error('subscriptions.stripe.cancel_failed', {
       subscriptionId: id,
       stripeSubscriptionId: sub.stripeSubscriptionId,
       error: err,
+      note: 'local row is canceled, Stripe will need manual reconcile',
     })
   }
 
@@ -560,10 +562,11 @@ export async function pauseSubscription(id: string, duration: PauseDuration = 'i
   try {
     await pauseStripeSubscription(sub.stripeSubscriptionId)
   } catch (err) {
-    console.error('[subscriptions] Stripe pause failed — local row is paused, Stripe will need manual reconcile', {
+    logger.error('subscriptions.stripe.pause_failed', {
       subscriptionId: id,
       stripeSubscriptionId: sub.stripeSubscriptionId,
       error: err,
+      note: 'local row is paused, Stripe will need manual reconcile',
     })
   }
 
@@ -599,10 +602,11 @@ export async function resumeSubscription(id: string) {
   try {
     await resumeStripeSubscription(sub.stripeSubscriptionId)
   } catch (err) {
-    console.error('[subscriptions] Stripe resume failed — local row is active, Stripe will need manual reconcile', {
+    logger.error('subscriptions.stripe.resume_failed', {
       subscriptionId: id,
       stripeSubscriptionId: sub.stripeSubscriptionId,
       error: err,
+      note: 'local row is active, Stripe will need manual reconcile',
     })
   }
 

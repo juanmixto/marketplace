@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getActionSession } from '@/lib/action-session'
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import { clearOtherDefaults, enforceSingleDefault } from '@/domains/auth/address-defaults'
 import { buyerAddressSchema } from '@/domains/auth/buyer-address-schema'
 
@@ -32,7 +33,7 @@ export async function GET(_req: NextRequest) {
 
     return NextResponse.json(addresses)
   } catch (error) {
-    console.error('GET /api/direcciones error:', error)
+    logger.error('api.direcciones.get_failed', { error })
     return NextResponse.json(
       { error: 'Error al obtener direcciones' },
       { status: 500 }
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    console.error('POST /api/direcciones error:', error)
+    logger.error('api.direcciones.post_failed', { error })
     return NextResponse.json(
       { error: 'Error al crear dirección' },
       { status: 500 }

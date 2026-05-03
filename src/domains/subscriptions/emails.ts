@@ -1,4 +1,5 @@
 import { sendEmail } from '@/lib/email'
+import { logger } from '@/lib/logger'
 import { SubscriptionRenewalChargedEmail } from '@/emails/SubscriptionRenewalCharged'
 import { SubscriptionPaymentFailedEmail } from '@/emails/SubscriptionPaymentFailed'
 
@@ -53,8 +54,7 @@ export async function sendSubscriptionRenewalChargedEmail(
       }),
     })
   } catch (error) {
-    console.error('[subscriptions][email] renewal-charged send failed', {
-      to: input.to,
+    logger.error('subscriptions.email.renewal_charged_failed', {
       error,
     })
   }
@@ -81,8 +81,7 @@ export async function sendSubscriptionPaymentFailedEmail(
       }),
     })
   } catch (error) {
-    console.error('[subscriptions][email] payment-failed send failed', {
-      to: input.to,
+    logger.error('subscriptions.email.payment_failed_failed', {
       error,
     })
   }

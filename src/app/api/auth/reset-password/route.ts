@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 import { completePasswordReset, validatePasswordResetToken } from '@/domains/auth/email-verification'
+import { logger } from '@/lib/logger'
 
 const schema = z.object({
   token: z.string().min(1, 'Token requerido'),
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       )
     }
-    console.error('[reset-password]', err)
+    logger.error('auth.reset_password.failed', { error: err })
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })
   }
 }

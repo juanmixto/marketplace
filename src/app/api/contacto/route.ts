@@ -4,6 +4,7 @@ import { sendEmail } from '@/lib/email'
 import { createElement } from 'react'
 import { Text } from '@react-email/components'
 import { checkRateLimit, getClientIP } from '@/lib/ratelimit'
+import { logger } from '@/lib/logger'
 
 const contactSchema = z.object({
   nombre: z.string().min(2).max(100),
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest) {
         ),
       })
     } else {
-      console.warn('[Contact] CONTACT_EMAIL not configured; storing submission as log only')
+      logger.warn('contact.submission.no_recipient', { reason: 'no_contact_email_configured' })
     }
 
     return NextResponse.json(
@@ -109,7 +110,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    console.error('Contact form error:', error)
+    logger.error('contact.submission.failed', { error })
     return NextResponse.json(
       { error: 'Error al procesar el formulario' },
       { status: 500 }
