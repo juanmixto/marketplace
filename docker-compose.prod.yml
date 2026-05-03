@@ -24,7 +24,7 @@ services:
         NEXT_PUBLIC_BUILD_TIME: ${NEXT_PUBLIC_BUILD_TIME:-}
     restart: unless-stopped
     env_file:
-      - .env.production
+      - ${ENV_FILE:-.env.production}
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -35,11 +35,11 @@ services:
         condition: service_healthy
     labels:
       - traefik.enable=true
-      - traefik.http.routers.marketplace.rule=Host(`${APP_HOST}`)
-      - traefik.http.routers.marketplace.entrypoints=websecure
-      - traefik.http.routers.marketplace.tls=true
-      - traefik.http.services.marketplace.loadbalancer.server.port=3000
-      - traefik.http.middlewares.marketplace-headers.headers.customrequestheaders.X-Forwarded-Proto=https
+      - traefik.http.routers.${TRAEFIK_ROUTER_NAME:-marketplace}.rule=Host(`${APP_HOST}`)
+      - traefik.http.routers.${TRAEFIK_ROUTER_NAME:-marketplace}.entrypoints=websecure
+      - traefik.http.routers.${TRAEFIK_ROUTER_NAME:-marketplace}.tls=true
+      - traefik.http.services.${TRAEFIK_SERVICE_NAME:-marketplace}.loadbalancer.server.port=3000
+      - traefik.http.middlewares.${TRAEFIK_HEADERS_NAME:-marketplace-headers}.headers.customrequestheaders.X-Forwarded-Proto=https
 
   traefik:
     image: traefik:v3.1
@@ -68,7 +68,7 @@ services:
     environment:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
-      - traefik
+      - app
 
 volumes:
   marketplace_prod_db:
