@@ -72,6 +72,49 @@ if [[ -d "$sessions_dir" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
+# 3. Open PRs by current gh user with auto-merge armed but stuck
+#
+# When you set --auto on multiple PRs in one session, the GitHub
+# auto-update-pr-branches workflow USUALLY rebases them as main moves,
+# but: (a) the workflow runs on a 30 min cron + on push, so a session
+# that ends right after a push may leave PRs BEHIND for 30 min;
+# (b) PRs whose rebase produces an empty diff (changed_files=0) sit
+# in BLOCKED forever — auto-merge cannot fire on a no-op merge.
+# (c) PRs whose required check failed silently (Verify, lint).
+#
+# The 2026-05-03 batch (10 PRs in serial) tripped on (b) once and
+# the user had to surface "no veo CI corriendo" before I noticed.
+# This check makes the failure mode loud at end-of-turn.
+#
+# Skipped if `gh` is not authenticated (offline / fresh laptop).
+# ---------------------------------------------------------------------------
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  gh_user="$(gh api user --jq .login 2>/dev/null || echo '')"
+  if [[ -n "$gh_user" ]]; then
+    # State + mergeState for every OPEN PR by this user with auto-merge enabled.
+    stuck_json="$(gh pr list \
+      --author "$gh_user" --state open --limit 50 \
+      --json number,title,mergeStateStatus,autoMergeRequest \
+      --jq '[.[] | select(.autoMergeRequest != null) | select(.mergeStateStatus != "CLEAN" and .mergeStateStatus != "UNSTABLE" and .mergeStateStatus != "HAS_HOOKS")]' \
+      2>/dev/null || echo '[]')"
+    stuck_count="$(echo "$stuck_json" | jq 'length' 2>/dev/null || echo 0)"
+    if [[ "${stuck_count:-0}" -gt 0 ]]; then
+      findings+=(
+        "⚠ ${stuck_count} of your PR(s) have auto-merge armed but are stuck:"
+      )
+      while IFS= read -r line; do
+        findings+=("    $line")
+      done < <(echo "$stuck_json" | jq -r '.[] | "  #\(.number) [\(.mergeStateStatus)] \(.title)"' 2>/dev/null)
+      findings+=(
+        "  → Likely BEHIND (auto-update-pr-branches will catch up within 30 min)"
+        "    or BLOCKED (changed_files=0 after rebase → close as obsolete)"
+        "    or required check failing (run \`gh pr checks <N>\` to see which)."
+      )
+    fi
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 # Output
 # ---------------------------------------------------------------------------
 if [[ "${#findings[@]}" -eq 0 ]]; then

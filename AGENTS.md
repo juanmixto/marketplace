@@ -90,6 +90,7 @@ A user-level Claude Code `Stop` hook runs `scripts/agent-stop-checks.sh` wheneve
 
 - **Unpushed commits** in `/home/whisper/marketplace`. The git wrapper blocks state mutations there but NOT `git commit`, so a session can leave commits that are invisible to fresh worktrees branched off `origin/main`. The 2026-05-03 BuildBadge incident was exactly this.
 - **Stale session notes** that haven't been touched in >4h on a day with active commits.
+- **Your OPEN PRs with auto-merge armed but stuck** (`BEHIND`, `BLOCKED`, `DIRTY`). The 2026-05-03 batch-merge incident: 10 PRs queued with `--auto`, one quietly stuck in `BLOCKED` because its post-rebase diff was empty (the fix had landed via a sibling PR). Caught by section 3 of the stop-checks script.
 
 If you see these warnings, push or discard before the next session starts. Hook source: `~/.claude/hooks/agent-stop-marketplace.sh` (laptop-local; reference copy of the script in `scripts/agent-stop-checks.sh`).
 
