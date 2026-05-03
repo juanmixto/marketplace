@@ -41,6 +41,9 @@ env:
   # Make sure PwaRegister actually registers the SW. Our client gates on
   # NODE_ENV === 'production' to avoid fighting HMR in `next dev`.
   NODE_ENV: production
+  # Opt JavaScript actions into Node.js 24 ahead of GitHub's 2026-06-02
+  # forced cutover. See security-scan.yml for rationale and rollback.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   lighthouse:

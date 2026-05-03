@@ -15,6 +15,15 @@ function getApiHost(): string {
   return process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com'
 }
 
+// Tag every captured event with the deploy environment so PostHog
+// dashboards can split staging traffic from production. Read at call
+// time (not module init) so tests overriding process.env still see the
+// override; webpack inlines NEXT_PUBLIC_* at build time so prod bundles
+// resolve this to a constant.
+function getAppEnv(): string {
+  return process.env.NEXT_PUBLIC_APP_ENV || 'development'
+}
+
 export function isPostHogEnabled(): boolean {
   return typeof window !== 'undefined' && getApiKey() !== null
 }
@@ -72,7 +81,7 @@ export function capturePostHog(
 ): void {
   if (!isPostHogEnabled()) return
   try {
-    posthog.capture(event, properties)
+    posthog.capture(event, { app_env: getAppEnv(), ...properties })
   } catch {
     // Silent
   }

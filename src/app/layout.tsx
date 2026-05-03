@@ -22,6 +22,7 @@ import OfflineIndicator from '@/components/pwa/OfflineIndicator'
 import { SwAnalyticsBridge } from '@/components/pwa/SwAnalyticsBridge'
 import { ConnectionStatus } from '@/components/pwa/ConnectionStatus'
 import { BuildBadge } from '@/components/system/BuildBadge'
+import { StagingBanner } from '@/components/system/StagingBanner'
 import { UpdateAvailableBanner } from '@/components/system/UpdateAvailableBanner'
 
 const geist = Geist({
@@ -152,6 +153,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <SwAnalyticsBridge />
               <ConnectionStatus />
               <CartHydrationProvider />
+              <StagingBanner />
               <UpdateAvailableBanner />
               {children}
               <BuildBadge />
