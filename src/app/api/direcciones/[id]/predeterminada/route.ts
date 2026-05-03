@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getActionSession } from '@/lib/action-session'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import { zCuid } from '@/lib/validation/primitives'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -14,7 +15,11 @@ export async function PUT(_req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const { id } = await params
+    const idCheck = zCuid.safeParse((await params).id)
+    if (!idCheck.success) {
+      return NextResponse.json({ error: 'Identificador inválido' }, { status: 400 })
+    }
+    const id = idCheck.data
 
     const address = await db.address.findFirst({
       where: { id, userId: session.user.id },

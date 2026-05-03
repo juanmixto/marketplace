@@ -122,6 +122,19 @@ placeholder.
 - `SOURCE_GONE` terminal; `AUTH_REQUIRED` rethrows for alert; retryable
   errors leave row `PENDING` and rethrow.
 
+**Magic-byte validation — explicitly NOT done.** The MIME type comes from
+the Telethon sidecar's `fetchMedia()` and the worker stores it without
+re-checking the byte stream against a magic-byte signature. This is a
+deliberate trade-off: the source is the official Telegram API via a
+provider we control, not user uploads, so the threat model that justifies
+the magic-byte gate on `/api/upload` does not apply.
+
+**If this pipeline is ever reused for user-supplied input** (e.g. a
+"submit your own product photo via Telegram bot" feature), the worker
+MUST add a magic-byte check (`detectFileTypeFromMagicBytes` from
+`src/lib/upload-validation.ts`) before persisting `mimeType` or
+serving the blob. See HU8 in epic #1160.
+
 **Runtime tunables** (env, conservative defaults):
 
 | Env var | Default | Max | Purpose |

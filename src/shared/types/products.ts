@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { isAllowedImageUrl } from '@/lib/image-validation'
+import { zMoneyEUR } from '@/lib/validation/primitives'
 
 /**
  * Shared product contract. Lifts the inline `productSchema` out of
@@ -49,8 +50,8 @@ export const productSchema = z.object({
   name: z.string().min(PRODUCT_NAME_LIMITS.min, 'Mínimo 3 caracteres').max(PRODUCT_NAME_LIMITS.max),
   description: z.string().max(PRODUCT_DESCRIPTION_MAX).optional(),
   categoryId: z.string().optional(),
-  basePrice: z.coerce.number().positive('Precio debe ser positivo'),
-  compareAtPrice: z.coerce.number().positive().optional().nullable(),
+  basePrice: zMoneyEUR.refine(n => n > 0, 'Precio debe ser positivo'),
+  compareAtPrice: zMoneyEUR.refine(n => n > 0, 'compareAtPrice debe ser positivo').optional().nullable(),
   taxRate: z.coerce.number().refine(v => (PRODUCT_TAX_RATES as readonly number[]).includes(v), 'IVA inválido'),
   unit: z.string().min(PRODUCT_UNIT_LIMITS.min).max(PRODUCT_UNIT_LIMITS.max),
   stock: z.coerce.number().int().min(0),
@@ -78,3 +79,24 @@ export const productSchema = z.object({
 })
 
 export type ProductInput = z.infer<typeof productSchema>
+
+/**
+ * compareAtPrice is the strikethrough "before" price. If it's less than
+ * basePrice the UI renders a misleading "discount" (a smaller number with
+ * a line through it). Equal is a no-op so we tolerate it.
+ *
+ * Lives as a free function so `productSchema.partial()` still works at
+ * call sites that send only a subset (`updateProduct`); we apply this
+ * check in callers when both fields are present in the parsed payload.
+ */
+export function assertCompareAtPriceConsistent(
+  data: { basePrice?: number; compareAtPrice?: number | null },
+): void {
+  if (
+    data.compareAtPrice != null &&
+    typeof data.basePrice === 'number' &&
+    data.compareAtPrice < data.basePrice
+  ) {
+    throw new Error('compareAtPrice debe ser mayor o igual a basePrice')
+  }
+}

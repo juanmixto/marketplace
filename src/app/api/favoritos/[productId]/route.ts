@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { FAVORITES_UNAVAILABLE_MESSAGE, isFavoritesTableMissingError } from '@/domains/catalog/favorites'
+import { zCuid } from '@/lib/validation/primitives'
 
 interface RouteParams {
   params: Promise<{ productId: string }>
@@ -15,7 +16,11 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const { productId } = await params
+    const idCheck = zCuid.safeParse((await params).productId)
+    if (!idCheck.success) {
+      return NextResponse.json({ error: 'Identificador inválido' }, { status: 400 })
+    }
+    const productId = idCheck.data
 
     // Verify ownership before deleting
     const favorite = await db.favorite.findUnique({

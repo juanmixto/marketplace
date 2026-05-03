@@ -6,6 +6,7 @@ import { getAuditRequestIp, mutateWithAudit } from '@/lib/audit'
 import { requireCatalogAdmin, requireSuperadmin } from '@/lib/auth-guard'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { parseExpirationDateInput } from '@/domains/catalog'
+import { zSlug } from '@/lib/validation/primitives'
 
 // ─── Snapshots ────────────────────────────────────────────────────────────────
 
@@ -226,7 +227,10 @@ const VENDOR_CATEGORIES = [
 
 const adminVendorSchema = z.object({
   displayName: z.string().trim().min(2).max(100),
-  slug: z.string().trim().min(2).max(100).regex(/^[a-z0-9-]+$/, 'slug inválido'),
+  // zSlug runs `slugify()` so an admin pasting "Café-Raíz" or "MIVENDOR"
+  // is normalized server-side instead of being rejected (regex) or
+  // silently persisted in the wrong shape (uppercase / diacritics).
+  slug: zSlug,
   description: z.string().trim().max(2000).optional().nullable(),
   location: z.string().trim().max(100).optional().nullable(),
   category: z.enum(VENDOR_CATEGORIES).optional().nullable(),

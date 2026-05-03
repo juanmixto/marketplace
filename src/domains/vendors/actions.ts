@@ -23,6 +23,7 @@ import { isAllowedImageUrl } from '@/lib/image-validation'
 import { deleteBlobs, diffRemovedUrls } from '@/lib/blob-storage'
 import { withIdempotency } from '@/lib/idempotency'
 import { PRODUCT_IMAGE_ALT_MAX } from '@/shared/types/products'
+import { zSafeText } from '@/lib/validation/primitives'
 // eslint-disable-next-line no-restricted-imports -- Telegram bootstrap is server-only and intentionally excluded from the notifications barrel
 import { ensureTelegramHandlersRegistered } from '@/domains/notifications/telegram/ensure-registered'
 // eslint-disable-next-line no-restricted-imports -- Web-push bootstrap mirrors the Telegram one; same reason
@@ -61,7 +62,11 @@ async function requireVendor() {
 
 // ─── Product schemas ──────────────────────────────────────────────────────────
 
-import { productSchema, type ProductInput } from '@/shared/types/products'
+import {
+  productSchema,
+  type ProductInput,
+  assertCompareAtPriceConsistent,
+} from '@/shared/types/products'
 
 /**
  * Pads / trims `alts` to `images.length` so the parallel-array
@@ -134,6 +139,7 @@ export async function createProduct(input: ProductInput, idempotencyToken?: stri
   const rawInputCreate = (input ?? {}) as Record<string, unknown>
   const altsProvidedCreate = 'imageAlts' in rawInputCreate
   const data = productSchema.parse(input)
+  assertCompareAtPriceConsistent(data)
   // Length-invariant: only enforce when the caller actually sent
   // `imageAlts`. When they didn't, we synthesize an empty alt per
   // image (the renderer falls back to product.name) so the column
@@ -191,6 +197,19 @@ export async function updateProduct(productId: string, input: Partial<ProductInp
   if (!product) throw new Error('Producto no encontrado')
 
   const data = productSchema.partial().parse(input)
+  // Cross-field check: if either price is included in the patch, fall
+  // back to the stored value for the other side so we still catch a
+  // compareAtPrice landing below the persisted basePrice (and vice
+  // versa).
+  assertCompareAtPriceConsistent({
+    basePrice: data.basePrice ?? Number(product.basePrice),
+    compareAtPrice:
+      'compareAtPrice' in data
+        ? data.compareAtPrice
+        : product.compareAtPrice == null
+          ? null
+          : Number(product.compareAtPrice),
+  })
   // #1049 — keep imageAlts aligned to images on partial updates. Two
   // resolution rules:
   //   - both arrays sent → must match length, store as-is.
@@ -1322,9 +1341,9 @@ const VENDOR_CATEGORY_VALUES = [
 ] as const
 
 const profileSchema = z.object({
-  displayName: z.string().min(3).max(80),
-  description: z.string().max(2000).optional(),
-  location: z.string().max(100).optional(),
+  displayName: zSafeText(80).refine(s => s.length >= 3, 'Mínimo 3 caracteres'),
+  description: zSafeText(2000).optional(),
+  location: zSafeText(100).optional(),
   category: z
     .union([z.enum(VENDOR_CATEGORY_VALUES), z.literal(''), z.null()])
     .optional()
