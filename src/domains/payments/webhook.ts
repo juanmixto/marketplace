@@ -115,6 +115,20 @@ export function shouldApplyPaymentSucceeded(snapshot: PaymentSnapshot) {
     return false
   }
 
+  // #1149 H-2: a partial refund leaves `orderStatus = PAYMENT_CONFIRMED` but
+  // `paymentStatus = PARTIALLY_REFUNDED`. A late `payment_intent.succeeded`
+  // (Stripe re-delivers events after webhook outages) must not overwrite
+  // that paymentStatus back to SUCCEEDED — that would hide the partial
+  // refund from buyer-facing order pages and from settlement
+  // reconciliation. Full refunds already flip `orderStatus → REFUNDED`
+  // above; this is the belt to that suspenders.
+  if (
+    snapshot.orderPaymentStatus === 'REFUNDED' ||
+    snapshot.orderPaymentStatus === 'PARTIALLY_REFUNDED'
+  ) {
+    return false
+  }
+
   return !(
     snapshot.paymentStatus === 'SUCCEEDED' &&
     snapshot.orderPaymentStatus === 'SUCCEEDED' &&

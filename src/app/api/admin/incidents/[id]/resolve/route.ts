@@ -82,15 +82,30 @@ export async function POST(request: Request, { params }: RouteParams) {
           { status: 400 },
         )
       }
-      if (refundAmount > Number(payment.amount)) {
-        return NextResponse.json(
-          { message: 'El importe del reembolso supera el pago original' },
-          { status: 400 },
-        )
-      }
       if (!payment.providerRef) {
         return NextResponse.json(
           { message: 'El pago no tiene providerRef — imposible reembolsar' },
+          { status: 400 },
+        )
+      }
+      // #1163 H-7: cap = `payment.amount − Σ already refunded`, not the
+      // gross. Two partial refunds across separate incidents would
+      // otherwise both pass the old `> payment.amount` check (e.g. 60€
+      // + 60€ on a 100€ pago); Stripe rejects the second with a generic
+      // 500. Aggregate read here for the user-facing 400; the
+      // authoritative re-check happens inside the tx below to close the
+      // TOCTOU window.
+      const refundedSoFar = await db.refund.aggregate({
+        where: { paymentId: payment.id },
+        _sum: { amount: true },
+      })
+      const alreadyRefunded = Number(refundedSoFar._sum.amount ?? 0)
+      const remaining = Number(payment.amount) - alreadyRefunded
+      if (refundAmount > remaining) {
+        return NextResponse.json(
+          {
+            message: `Solo quedan ${remaining.toFixed(2)}€ reembolsables en este pedido (ya se reembolsaron ${alreadyRefunded.toFixed(2)}€).`,
+          },
           { status: 400 },
         )
       }
@@ -100,16 +115,31 @@ export async function POST(request: Request, { params }: RouteParams) {
     // so a Stripe failure leaves the incident in its original state
     // and the admin sees a clear error. If this throws, the catch
     // below re-raises — no partial success.
+    //
+    // #1153 H-3: pass an idempotency key derived from the incident id so
+    // a retry after a network blip (admin re-clicks "Resolver" because
+    // the response was lost in transit) reuses the existing Stripe
+    // refund instead of issuing a second one. The key is stable per
+    // incident, so even concurrent double-submits collapse on Stripe's
+    // side regardless of our local race.
+    //
+    // #1148 H-1: `fundedBy` is propagated so destination charges issue
+    // a `reverse_transfer: true` refund and only refund the application
+    // fee when the platform owns the cost.
     let providerRefundRef: string | null = null
     if (payment && refundAmount && refundAmount > 0 && fundedBy) {
       const refundResult = await refundPaymentIntent(
         payment.providerRef!,
         Math.round(refundAmount * 100),
         {
-          incidentId: id,
-          orderId: incident.order.id,
-          orderNumber: incident.order.orderNumber,
           fundedBy,
+          idempotencyKey: `refund_${id}`,
+          metadata: {
+            incidentId: id,
+            orderId: incident.order.id,
+            orderNumber: incident.order.orderNumber,
+            fundedBy,
+          },
         },
       )
       providerRefundRef = refundResult.id
@@ -137,6 +167,18 @@ export async function POST(request: Request, { params }: RouteParams) {
       })
 
       if (payment && refundAmount && refundAmount > 0 && fundedBy) {
+        // Authoritative cap re-check inside the transaction — closes any
+        // TOCTOU window between the early validation and this commit.
+        const totalSoFar = await tx.refund.aggregate({
+          where: { paymentId: payment.id },
+          _sum: { amount: true },
+        })
+        const alreadyRefunded = Number(totalSoFar._sum.amount ?? 0)
+        const totalRefunded = alreadyRefunded + refundAmount
+        if (totalRefunded > Number(payment.amount)) {
+          throw new Error('refund cap exceeded inside transaction')
+        }
+
         await tx.refund.create({
           data: {
             paymentId: payment.id,
@@ -144,6 +186,40 @@ export async function POST(request: Request, { params }: RouteParams) {
             reason: `${incident.type} · ${resolution}`,
             fundedBy,
             providerRef: providerRefundRef,
+          },
+        })
+
+        // #1149 H-2: transition Payment + Order to (PARTIALLY_)REFUNDED
+        // in the SAME transaction as the Refund row. Without this, the
+        // webhook guard `shouldApplyPaymentSucceeded` (which checks
+        // `orderPaymentStatus IN (REFUNDED, PARTIALLY_REFUNDED)`) is
+        // unreachable, and a late `payment_intent.succeeded` would
+        // resurrect the just-refunded order.
+        const isFullyRefunded = totalRefunded >= Number(payment.amount)
+        await tx.payment.update({
+          where: { id: payment.id },
+          data: { status: isFullyRefunded ? 'REFUNDED' : 'PARTIALLY_REFUNDED' },
+        })
+        await tx.order.update({
+          where: { id: incident.order.id },
+          data: {
+            paymentStatus: isFullyRefunded ? 'REFUNDED' : 'PARTIALLY_REFUNDED',
+            ...(isFullyRefunded ? { status: 'REFUNDED' } : {}),
+          },
+        })
+        await tx.orderEvent.create({
+          data: {
+            orderId: incident.order.id,
+            type: 'REFUND_ISSUED',
+            payload: {
+              providerRef: payment.providerRef,
+              providerRefundRef,
+              amount: refundAmount,
+              fundedBy,
+              incidentId: id,
+              isFullRefund: isFullyRefunded,
+              recordedAt: new Date().toISOString(),
+            },
           },
         })
       }
