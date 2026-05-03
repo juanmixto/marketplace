@@ -384,10 +384,22 @@ test('Tooltip primitive uses Floating UI with viewport collision avoidance and a
     /\bshift\(/,
     'tooltip must use shift() so it slides along the cross axis to stay in the viewport',
   )
+  // Width is now controlled by a CSS max-width cap in className
+  // (`max-w-[min(14rem,calc(100vw-2rem))]`) plus `whitespace-normal
+  // break-words` for line wrapping. The previous size() middleware was
+  // collapsing the tooltip to ~80px when the trigger sat in a narrow
+  // side panel — the middleware reported availableWidth from the
+  // post-flip placement which was tiny, and `Math.min(availableWidth,
+  // 224)` produced visually-truncated text inside the tooltip.
   assert.match(
     source,
-    /\bsize\(/,
-    'tooltip must use size() so it clamps its max-width to the available viewport width',
+    /max-w-\[min\(14rem,calc\(100vw-2rem\)\)\]/,
+    'tooltip must cap max-width via className so a narrow surrounding container does not collapse the tooltip',
+  )
+  assert.match(
+    source,
+    /whitespace-normal[\s\S]*break-words/,
+    'tooltip must wrap long text instead of truncating it horizontally',
   )
   assert.match(
     source,
