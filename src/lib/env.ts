@@ -69,6 +69,14 @@ const baseEnvSchema = z.object({
   // Domain migration scaffolding (Fase 4 / PR 1 of docs/runbooks/domain-migration.md).
   // Defaults preserve pre-migration behaviour; staging/production override via env.
   APP_ENV: z.enum(['development', 'staging', 'production']).default('development'),
+  // Browser-visible mirror of APP_ENV so client code (Sentry init, PostHog
+  // capture) can tag events with the deploy environment without going
+  // through getServerEnv(). Webpack inlines NEXT_PUBLIC_* at build time;
+  // operators must set both APP_ENV (server) and NEXT_PUBLIC_APP_ENV
+  // (browser) to the same value in staging/production deploys.
+  NEXT_PUBLIC_APP_ENV: z
+    .enum(['development', 'staging', 'production'])
+    .default('development'),
   SUPPORT_EMAIL: z.string().email().default('soporte@feldescloud.com'),
   DEV_TUNNEL_HOSTS: z.string().default('*.raizdirecta.es,*.feldescloud.com'),
 })
