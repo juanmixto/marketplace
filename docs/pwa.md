@@ -229,7 +229,7 @@ skips every preference check and writes nothing to
 1. **Keys present?** `grep VAPID .env.local` — the two keys must be
    set. If missing, run the generator command above; the server logs
    `push.config.missing` otherwise.
-2. **Subscribe a device** — open `https://dev.feldescloud.com/cuenta/notificaciones`
+2. **Subscribe a device** — open `https://dev.raizdirecta.es/cuenta/notificaciones`
    on the target phone/browser, install the PWA if prompted, click
    *Activar notificaciones*. One row appears in `PushSubscription`.
 3. **Fire an event** — mark an order as SHIPPED from the vendor

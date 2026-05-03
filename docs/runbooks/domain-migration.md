@@ -1,8 +1,8 @@
 # Migración a `raizdirecta.es` y separación dev / staging / producción
 
-> **Estado:** plan aprobado, sin ejecutar todavía. Última revisión: 2026-04-30.
+> **Estado:** ejecución en curso. Fase 1 (DNS) y Fase 3.1 (Google OAuth) en progreso; Fase 4 PRs 1-3 abiertos / mergeándose. Cutover (Fase 6) sigue pendiente. Última revisión: 2026-05-02.
 >
-> **Tracking en GitHub:** ver épica del repo (etiqueta `epic` + `domain-migration`) y los 7 issues hijos enlazados desde ella.
+> **Tracking en GitHub:** ver épica del repo (etiqueta `epic` + `domain-migration`) y los 7 issues hijos enlazados desde ella. Progreso detallado al final de este documento.
 
 ## Contexto
 
@@ -326,3 +326,20 @@ Después del **cleanup T+60**: `grep -rn feldescloud src/ public/ docs/ test/` d
 - [.env.production.example](../../.env.production.example) — defaults
 - [src/lib/sentry/config.ts](../../src/lib/sentry/config.ts) — environment dedution
 - [docs/auth/google-setup.md](../auth/google-setup.md), [docs/runbooks/dev-tunnel.md](dev-tunnel.md) — runbooks que mencionan el dominio
+
+---
+
+## Progress log
+
+Snapshot del estado de ejecución. Mantener al día cuando se cierre cada issue.
+
+| Fase | Issue | Estado | Notas |
+|---|---|---|---|
+| Fase 1 — DNS y dominio | [#1062](https://github.com/juanmixto/marketplace/issues/1062) | en progreso | Cloudflare Registrar + zona + tunnels apuntando a `raizdirecta.es` y `dev.raizdirecta.es` (operación manual, sin código). |
+| Fase 3.1 — Google OAuth redirect URIs | [#1064](https://github.com/juanmixto/marketplace/issues/1064) | en progreso | Añadir las 3 redirect URIs `*.raizdirecta.es` sin borrar las viejas (misma client ID — evita re-consentimiento). |
+| Fase 4 — PR 1 (refactor hardcodes → env) | [#1065](https://github.com/juanmixto/marketplace/issues/1065) / [#1087](https://github.com/juanmixto/marketplace/pull/1087) | PR abierta | Introduce `APP_ENV`, `SUPPORT_EMAIL`, `DEV_TUNNEL_HOSTS` en `src/lib/env.ts`. Sin cambio de comportamiento (defaults = literales viejos durante coexistencia). |
+| Fase 4 — PR 3 (docs + env templates) | [#1067](https://github.com/juanmixto/marketplace/issues/1067) | PR abierta | Este PR. Renombra `dev.feldescloud.com` → `dev.raizdirecta.es` en runbooks y plantillas; documenta los nuevos env vars introducidos por #1087. |
+| Fase 4 — PR 2 (branding `mercadoproductor.es` → `raizdirecta.es`) | [#1071](https://github.com/juanmixto/marketplace/issues/1071) | abierta sin PR | Sustituir los 4 emails en `src/app/(public)/contacto/page.tsx`. |
+| Fase 4 — PR 4 (`APP_ENV` consumidores) | (pendiente) | abierta sin PR | Sentry/PostHog/robots.ts. Bloqueada por #1087. |
+| Fase 6 — Cutover | (pendiente) | abierta sin PR | Editar `.env.production` en el host + rebuild. Bloqueada por todo lo anterior. |
+
