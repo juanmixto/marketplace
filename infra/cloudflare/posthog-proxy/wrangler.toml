@@ -1,0 +1,36 @@
+# Cloudflare Worker that reverse-proxies PostHog ingestion through
+# raizdirecta.es so ad-blockers (Brave Shields, uBlock Origin, etc.)
+# don't drop ~10-25% of events.
+#
+# Why this lives in infra/, not at repo root:
+#   The Next.js app and the Worker are separate deploy units. Keeping
+#   wrangler.toml outside the app root prevents accidental coupling
+#   (e.g. wrangler picking up app env vars) and makes the relationship
+#   "one Worker, one Next app, one repo" explicit on disk.
+#
+# Deploy:
+#   cd infra/cloudflare/posthog-proxy
+#   npx wrangler deploy
+#
+# Rollback:
+#   Cloudflare Dashboard → Workers Routes → delete the route below.
+#   Then unset NEXT_PUBLIC_POSTHOG_HOST in production env so the SDK
+#   falls back to https://eu.i.posthog.com directly. See README.md
+#   for the full procedure.
+
+name = "raizdirecta-posthog-proxy"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+# We deploy ONLY to the apex hostname. dev.* and staging.* keep the
+# direct connection to PostHog so debugging doesn't require a Worker
+# deploy round-trip; users who hit dev/staging are developers, not
+# ad-blocker-using buyers.
+[[routes]]
+pattern = "raizdirecta.es/ingest/*"
+zone_name = "raizdirecta.es"
+
+# No KV, no Durable Objects, no R2 — this Worker is stateless by design.
+# Adding state would require thinking about consistency, GDPR ('what
+# does the Worker remember about the user?'), and cost. None apply
+# here: the Worker forwards bytes and forgets.
