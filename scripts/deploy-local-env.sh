@@ -145,10 +145,18 @@ export TRAEFIK_HEADERS_NAME="${project}-headers"
 
 compose=(docker-compose -p "$project" -f docker-compose.prod.yml)
 
+# Inject build-time identity for BuildBadge + /api/version. Without this,
+# Next.js inlines the NEXT_PUBLIC_* vars as undefined at build time and the
+# floating badge shows "unknown / unknown". See PR #1135.
+export NEXT_PUBLIC_COMMIT_SHA="$(git rev-parse --short HEAD)"
+export NEXT_PUBLIC_GIT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+export NEXT_PUBLIC_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
 echo "Deploying $env_name"
 echo "  project: $project"
 echo "  env:     $env_file"
 echo "  host:    $APP_HOST"
+echo "  build:   $NEXT_PUBLIC_COMMIT_SHA on $NEXT_PUBLIC_GIT_BRANCH ($NEXT_PUBLIC_BUILD_TIME)"
 
 "${compose[@]}" build app
 "${compose[@]}" up -d db
