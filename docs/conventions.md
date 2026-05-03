@@ -476,6 +476,36 @@ Two fixes:
 
 This is the leading hypothesis behind #1045 (multi-vendor-cart race); confirm before fixing.
 
+### Client mutations that hit `/api/*` MUST invalidate the Router Cache
+
+`fetch('/api/...', { method: 'POST' | 'DELETE' | 'PATCH' | 'PUT' })` from a client component does **not** invalidate the Next.js Router Cache, even if the route handler calls `revalidatePath()` server-side. The next client-side navigation (via `<Link>` / `router.push`) to a server component that reads the same data will serve a stale RSC payload until a hard reload (F5).
+
+Server actions invoked directly from React (form action, transition) DO propagate revalidation to the Router Cache. Route handlers reached via `fetch` do NOT. That asymmetry is the cause of #1091 (favorites didn't appear in `/cuenta/favoritos`) and the bundle that followed (direcciones, admin incidents, buyer profile).
+
+**Rule:** every client component that mutates server state via `fetch('/api/*', ...)` MUST either:
+
+1. Call `router.refresh()` after the success branch, or
+2. Navigate away with `router.push(...)` / `redirect(...)` / a full reload — the destination renders fresh anyway.
+
+```tsx
+// WRONG — mutation succeeds, but /cuenta/favoritos serves stale RSC
+async function handleToggle() {
+  const res = await fetch(`/api/favoritos/${id}`, { method: 'POST', /* ... */ })
+  if (res.ok) toggleLocalState()
+}
+
+// RIGHT — invalidate so SSR pages re-fetch on next navigation
+async function handleToggle() {
+  const res = await fetch(`/api/favoritos/${id}`, { method: 'POST', /* ... */ })
+  if (res.ok) {
+    toggleLocalState()
+    router.refresh()
+  }
+}
+```
+
+The contract is enforced statically by `test/contracts/router-cache-invalidation.test.ts`. If a new file legitimately should not invalidate (controlled uploaders that just emit a URL, full-reload signouts, pre-auth flows with no per-user SSR), add it to that file's `EXEMPT_FILES` map with a one-line reason.
+
 ---
 
 ## Imágenes (next/image)

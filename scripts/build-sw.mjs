@@ -29,8 +29,16 @@ const templatePath = resolve(root, 'public/sw.template.js')
 const outPath = resolve(root, 'public/sw.js')
 
 const buildId = resolveBuildId()
+const devHostnames = (
+  process.env.DEV_TUNNEL_HOSTS ?? 'localhost,127.0.0.1,dev.raizdirecta.es,dev.feldescloud.com'
+)
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean)
 const template = readFileSync(templatePath, 'utf8')
-const out = template.replace(/__BUILD_ID__/g, buildId)
+const out = template
+  .replace(/__BUILD_ID__/g, buildId)
+  .replace(/__DEV_HOSTNAMES__/g, JSON.stringify(devHostnames))
 writeFileSync(outPath, out)
 
 console.log(`[build-sw] public/sw.js generated with SW_VERSION=${buildId}`)

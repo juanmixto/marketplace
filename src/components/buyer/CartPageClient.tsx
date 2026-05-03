@@ -8,6 +8,8 @@ import { SafeImage } from '@/components/catalog/SafeImage'
 import { formatPrice } from '@/lib/utils'
 import { TrashIcon, MinusIcon, PlusIcon, ShoppingBagIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import { calculateShippingCost, type PublicMarketplaceSettings } from '@/lib/marketplace-settings'
+import { trackAnalyticsEvent } from '@/lib/analytics'
+import { getBuyerFunnelContext, shouldFireOnce } from '@/lib/analytics-buyer-context'
 import { useT } from '@/i18n'
 import {
   getCartStockAvailability,
@@ -107,6 +109,23 @@ export function CartPageClient({ shippingSettings }: Props) {
       cancelled = true
     }
   }, [stockSignature, items])
+
+  // CF-1 funnel: `cart.opened`. Fires once per session when the buyer
+  // lands on the cart page. No drawer in this app — the cart page IS
+  // the surface — so a single page-mount event is the truthful signal.
+  // Gated on `cartHydrated` so we don't fire before zustand
+  // hydration: pre-hydration `itemCount` reads as 0 and would skew
+  // any "opened with empty cart" downstream segmentation.
+  useEffect(() => {
+    if (!cartHydrated) return
+    if (!shouldFireOnce('cf1.cart.opened')) return
+    const { device, referrer } = getBuyerFunnelContext()
+    trackAnalyticsEvent('cart.opened', {
+      item_count: itemCount,
+      device,
+      referrer,
+    })
+  }, [cartHydrated, itemCount])
 
   // NOTE: every hook call has to happen before the empty-cart early
   // return below — otherwise toggling between 0 and 1 items changes the

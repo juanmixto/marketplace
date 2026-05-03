@@ -215,6 +215,9 @@ const es = {
   'register.submit': 'Crear cuenta',
   'register.haveAccount': '¿Ya tienes cuenta?',
   'register.signIn': 'Inicia sesión',
+  'register.social.google': 'Regístrate con Google',
+  'register.social.googleAria': 'Regístrate con Google',
+  'register.social.divider': 'o regístrate con email',
   signOut: 'Cerrar sesión',
 
   // Auth – password recovery

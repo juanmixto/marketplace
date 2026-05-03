@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { getProducts, getCategories } from '@/domains/catalog/queries'
 import { ProductCard } from '@/components/catalog/ProductCard'
+import { CatalogViewedTracker } from '@/components/analytics/CatalogViewedTracker'
 import { ProductFiltersPanel } from '@/components/catalog/ProductFiltersPanel'
 import { MobileFilters } from '@/components/catalog/MobileFilters'
 import { SortSelect } from '@/components/catalog/SortSelect'
@@ -88,6 +89,10 @@ export default async function ProductosPage({ searchParams }: Props) {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {itemListData && <JsonLd data={itemListData} />}
+      <CatalogViewedTracker
+        surface={params.categoria ? `category:${params.categoria}` : 'catalog'}
+        category={params.categoria ?? null}
+      />
       <div className="flex gap-8">
         {/* Sidebar filters */}
         <aside className="hidden w-56 shrink-0 lg:block">

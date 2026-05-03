@@ -92,6 +92,21 @@ export function CartHydrationProvider() {
           ...(line.variant?.name && { variantName: line.variant.name }),
         }))
 
+        // Don't clobber a non-empty local cart with an empty server
+        // response on the load path. AddToCartButton writes to the local
+        // Zustand store synchronously but does NOT sync to the server,
+        // so on a full page reload (Playwright `goto`, browser refresh)
+        // CartHydrationProvider re-runs and `loadServerCart()` returns
+        // an empty array — overwriting the items the user just added.
+        // The merge path is exempt because mergeLocalIntoServerCart
+        // returns the union of local + server, so an empty result there
+        // legitimately means "nothing in either place".
+        const isEmptyServerLoad = action === 'load' && hydrated.length === 0
+        const hasLocalItems = useCartStore.getState().items.length > 0
+        if (isEmptyServerLoad && hasLocalItems) {
+          return
+        }
+
         useCartStore.setState({ items: hydrated })
       } catch {
         // Network / server error — leave local cart as is. Next page

@@ -14,6 +14,7 @@ import {
 } from '@/domains/catalog/variants'
 import { formatPrice } from '@/lib/utils'
 import { createAnalyticsItem, trackAnalyticsEvent } from '@/lib/analytics'
+import { getBuyerFunnelContext, shouldFireOnce } from '@/lib/analytics-buyer-context'
 import { getCatalogCopy, translateProductLabel, translateProductUnit } from '@/i18n/catalog-copy'
 import type { ShippingZoneSlug } from '@/domains/shipping/zone-default'
 import { MinusIcon, PlusIcon } from '@heroicons/react/24/outline'
@@ -57,6 +58,12 @@ interface Props {
    * island ETAs depend on the producer and aren't a flat promise.
    */
   shippingZone?: ShippingZoneSlug
+  /**
+   * Category slug, used as the `category` property on the CF-1
+   * `product.viewed` event. Optional because legacy fixtures may
+   * surface a product without a category attached.
+   */
+  categorySlug?: string | null
 }
 
 export function ProductPurchasePanel({
@@ -76,6 +83,7 @@ export function ProductPurchasePanel({
   autoDiscount,
   estimatedShippingCost,
   shippingZone = 'peninsula',
+  categorySlug = null,
 }: Props) {
   const { locale } = useLocale()
   const copy = getCatalogCopy(locale)
@@ -174,6 +182,25 @@ export function ProductPurchasePanel({
       ],
     })
   }, [displayPrice, productId, productName, selectedVariant?.name, vendorName])
+
+  // CF-1 funnel: `product.viewed`. Once per product slug per session
+  // (sessionStorage-backed dedupe survives strict-mode double-mount).
+  // Distinct from `view_item` above: `product.viewed` belongs to the
+  // stable CF-1 buyer funnel and is keyed by slug, while `view_item`
+  // is the GA-style commerce event that fires on every variant
+  // re-selection. See `docs/posthog-dashboards.md` § Dashboard 5.
+  useEffect(() => {
+    if (!shouldFireOnce(`cf1.product.viewed.${productId}`)) return
+    const { device, referrer } = getBuyerFunnelContext()
+    trackAnalyticsEvent('product.viewed', {
+      product_id: productId,
+      product_slug: slug,
+      vendor_id: vendorId,
+      category: categorySlug,
+      device,
+      referrer,
+    })
+  }, [productId, slug, vendorId, categorySlug])
 
   return (
     <div className="mt-6 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">

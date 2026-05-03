@@ -52,14 +52,41 @@ export function FavoriteToggleButton({
       return
     }
 
+    // Capture the intent BEFORE awaiting toggle. `isFavorited` reflects
+    // pre-mutation state (this render's closure); after toggle, the
+    // store is the source of truth.
+    const intent: 'add' | 'remove' = isFavorited ? 'remove' : 'add'
+
     setToggling(true)
     await toggle(productId)
 
-    if (!isFavorited) {
+    // The store rolls back on API failure (see favorites-store.ts), so
+    // reading from getState() AFTER the await tells us the real outcome:
+    // if the post-toggle state matches our intent, we succeeded.
+    const isFavoritedAfter = useFavoritesStore.getState().productIds.has(productId)
+    const succeeded =
+      (intent === 'add' && isFavoritedAfter) ||
+      (intent === 'remove' && !isFavoritedAfter)
+    const result: 'success' | 'failure' = succeeded ? 'success' : 'failure'
+
+    if (intent === 'add') {
       trackAnalyticsEvent('add_to_favorites', {
+        result,
+        items: [createAnalyticsItem({ id: productId, name: productName })],
+      })
+    } else {
+      trackAnalyticsEvent('remove_from_favorites', {
+        result,
         items: [createAnalyticsItem({ id: productId, name: productName })],
       })
     }
+
+    // Invalidate the Next.js Router Cache so SSR pages that depend on
+    // the favorites list (notably /cuenta/favoritos) re-fetch on the
+    // next navigation. Without this, navigating to /cuenta/favoritos
+    // shows a stale RSC payload and newly-favorited items don't appear
+    // until a hard reload.
+    router.refresh()
 
     setToggling(false)
   }

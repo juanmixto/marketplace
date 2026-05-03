@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -8,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { useT } from '@/i18n'
 import type { TranslationKeys } from '@/i18n'
 import { PROFILE_FIELD_LIMITS, profileBaseSchema } from '@/shared/types/profile'
+import { trackAnalyticsEvent } from '@/lib/analytics'
 
 const profileSchemaShape = profileBaseSchema
 
@@ -55,6 +57,7 @@ interface Props {
 
 export function BuyerProfileForm({ user }: Props) {
   const t = useT()
+  const router = useRouter()
   const [profileSuccess, setProfileSuccess] = useState(false)
   const [passwordSuccess, setPasswordSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -105,6 +108,15 @@ export function BuyerProfileForm({ user }: Props) {
   }
 
   const onProfileSubmit = async (data: ProfileFormInput) => {
+    // Compute which fields actually changed so the analytics event
+    // separates "user opened the form and saved unchanged" from real
+    // edits. Don't capture the values themselves — names/emails are
+    // PII, the analytics scrubber would strip them anyway, and the
+    // dashboard only needs the *which* not the *what*.
+    const fieldsChanged = (['firstName', 'lastName', 'email'] as const).filter(
+      key => data[key] !== user[key]
+    )
+
     try {
       setError(null)
       setProfileSuccess(false)
@@ -124,12 +136,28 @@ export function BuyerProfileForm({ user }: Props) {
           t('account.profileUpdateError')
         )
         if (remaining) setError(remaining)
+        trackAnalyticsEvent('buyer_profile_updated', {
+          result: 'failure',
+          fields_changed: fieldsChanged,
+        })
         return
       }
 
       setProfileSuccess(true)
       setTimeout(() => setProfileSuccess(false), 3000)
+      trackAnalyticsEvent('buyer_profile_updated', {
+        result: 'success',
+        fields_changed: fieldsChanged,
+      })
+      // Refresh so server-rendered surfaces that read the buyer name
+      // (/cuenta greeting, header avatar fallback) pick up the new
+      // first/last name on next nav without a hard reload.
+      router.refresh()
     } catch (err) {
+      trackAnalyticsEvent('buyer_profile_updated', {
+        result: 'failure',
+        fields_changed: fieldsChanged,
+      })
       setError(err instanceof Error ? err.message : t('account.profileUpdateError'))
     }
   }

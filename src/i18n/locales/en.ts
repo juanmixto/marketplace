@@ -217,6 +217,9 @@ const en: Record<TranslationKeys, string> = {
   'register.submit': 'Create account',
   'register.haveAccount': 'Already have an account?',
   'register.signIn': 'Sign in',
+  'register.social.google': 'Sign up with Google',
+  'register.social.googleAria': 'Sign up with Google',
+  'register.social.divider': 'or sign up with email',
   signOut: 'Sign out',
 
   // Auth – password recovery

@@ -68,36 +68,59 @@ test.describe('cart and checkout @smoke', () => {
     // straight to `/checkout` keeps the smoke focused on the actual
     // purchase flow instead of the CTA rendering mode.
     await page.goto('/checkout')
-    await expect(page).toHaveURL(/\/checkout(?:\/|$|\?)/, { timeout: 25_000 })
+    // Settle on either /checkout or the empty-cart redirect to /carrito.
+    // CheckoutPageClient runs an empty-cart guard via router.replace(),
+    // so we must allow time for that async redirect to land before
+    // deciding whether to retry. waitForURL with the union pattern
+    // returns as soon as either URL matches.
+    await page.waitForURL(/\/(checkout(?:\/|$|\?)|carrito)/, { timeout: 25_000 })
 
     // --- CHECKOUT ---
-    // If we landed back on /carrito (cart store didn't rehydrate before the
-    // checkout client ran its empty-cart guard — happens on slow CI
-    // runners), re-add the product and retry the navigation once.
-    if (page.url().includes('/carrito')) {
+    // If we landed back on /carrito (cart store didn't rehydrate before
+    // the checkout client ran its empty-cart guard — happens on slow CI
+    // runners when the Zustand persist middleware writes to localStorage
+    // before /checkout reads it), re-add the product and retry the
+    // navigation once. After the retry, give the empty-cart guard
+    // another full settle window before bailing.
+    let retries = 0
+    while (page.url().includes('/carrito') && retries < 2) {
+      retries += 1
       await page.goto(`/productos/${SEEDED_PRODUCT_SLUG}`)
       await page.getByRole('button', { name: /añadir al carrito/i }).first().click()
       await expect(page.getByRole('button', { name: /añadido/i }).first()).toBeVisible({ timeout: 5_000 })
+      // Tiny delay so the Zustand persist middleware actually writes to
+      // localStorage before the next navigation reads it. Without this,
+      // the same race that put us on /carrito the first time can repeat.
+      await page.waitForTimeout(500)
       await page.goto('/checkout')
-      await expect(page).toHaveURL(/\/checkout(?:\/|$|\?)/, { timeout: 25_000 })
+      await page.waitForURL(/\/(checkout(?:\/|$|\?)|carrito)/, { timeout: 25_000 })
     }
+    expect(page.url(), 'cart kept emptying between /carrito and /checkout — Zustand persist race').toContain('/checkout')
 
-    // The checkout can render either saved addresses or the new-address
-    // form first, depending on how quickly the seeded profile arrives on
-    // the shard. Prefer the saved row when it appears, but fall back to a
-    // deterministic new address so the smoke never hangs on a timing race.
+    // The address block in CheckoutPageClient renders one of two final
+    // states (after the optional `aria-busy` skeleton clears):
+    //   (a) the saved-addresses list — DB returned at least one row, or
+    //       the server preloaded an `initialAddresses` prop with rows
+    //   (b) the new-address form — no saved addresses, or
+    //       /api/direcciones errored and the catch fell back to the form
+    //
+    // Earlier flake attempts tried to detect the load-finished signal
+    // first and then fork. That's brittle: with the server-preload fast
+    // path the skeleton never mounts and `state:'detached'` resolves
+    // immediately — so the count/visibility check runs *before* the
+    // saved address has had a chance to render. Race the two terminal
+    // states instead and let whichever wins drive the rest of the flow.
     const savedAddress = page.getByTestId('checkout-saved-address').first()
     const firstName = page.getByRole('textbox', { name: /nombre/i }).first()
 
-    const savedAddressReady = await savedAddress
-      .waitFor({ state: 'visible', timeout: 15_000 })
-      .then(() => true)
-      .catch(() => false)
+    const winner = await Promise.race([
+      savedAddress.waitFor({ state: 'visible', timeout: 30_000 }).then(() => 'saved' as const),
+      firstName.waitFor({ state: 'visible', timeout: 30_000 }).then(() => 'form' as const),
+    ])
 
-    if (savedAddressReady) {
+    if (winner === 'saved') {
       await savedAddress.click()
     } else {
-      await expect(firstName).toBeVisible({ timeout: 10_000 })
       await firstName.fill(FALLBACK_CHECKOUT_ADDRESS.firstName)
       await page.getByRole('textbox', { name: /apellidos/i }).fill(FALLBACK_CHECKOUT_ADDRESS.lastName)
       await page.getByRole('textbox', { name: /dirección/i }).fill(FALLBACK_CHECKOUT_ADDRESS.line1)
