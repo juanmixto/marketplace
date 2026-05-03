@@ -8,6 +8,7 @@ import { redirect } from 'next/navigation'
 import { safeRevalidatePath } from '@/lib/revalidate'
 // eslint-disable-next-line no-restricted-imports -- dispatcher is intentionally server-only, excluded from notifications barrel
 import { emit as emitNotification } from '@/domains/notifications/dispatcher'
+import { zSafeText } from '@/lib/validation/primitives'
 
 const createReviewSchema = z.object({
   orderId: z.string().min(1),
@@ -166,7 +167,7 @@ export async function createReview(
 
 const respondSchema = z.object({
   reviewId: z.string().min(1),
-  response: z.string().trim().min(1, 'La respuesta no puede estar vacía').max(1000),
+  response: zSafeText(1000).refine(s => s.length >= 1, 'La respuesta no puede estar vacía'),
 })
 
 export async function respondToReview(input: z.infer<typeof respondSchema>) {

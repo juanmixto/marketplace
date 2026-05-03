@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   productSchema,
+  assertCompareAtPriceConsistent,
   PRODUCT_NAME_LIMITS,
   PRODUCT_DESCRIPTION_MAX,
   PRODUCT_UNIT_LIMITS,
@@ -129,6 +130,34 @@ test('productSchema — rejects a vendor-submitted ACTIVE status', () => {
     status: 'ACTIVE',
   })
   assert.equal(result.success, false)
+})
+
+test('productSchema — rejects NaN basePrice (zMoneyEUR preprocess)', () => {
+  // The previous `z.coerce.number().positive()` happily coerced "abc" to NaN;
+  // the new zMoneyEUR rejects NaN explicitly via `.finite()`.
+  const result = productSchema.safeParse({
+    name: 'Aceite',
+    basePrice: 'abc',
+    taxRate: 0.10,
+    unit: 'L',
+    stock: 5,
+    trackStock: true,
+  })
+  assert.equal(result.success, false)
+})
+
+test('assertCompareAtPriceConsistent — accepts compareAtPrice >= basePrice', () => {
+  assertCompareAtPriceConsistent({ basePrice: 10, compareAtPrice: 12 })
+  assertCompareAtPriceConsistent({ basePrice: 10, compareAtPrice: 10 })
+  assertCompareAtPriceConsistent({ basePrice: 10, compareAtPrice: null })
+  assertCompareAtPriceConsistent({ basePrice: 10 }) // compareAtPrice undefined
+})
+
+test('assertCompareAtPriceConsistent — rejects compareAtPrice < basePrice', () => {
+  assert.throws(
+    () => assertCompareAtPriceConsistent({ basePrice: 10, compareAtPrice: 5 }),
+    /compareAtPrice/,
+  )
 })
 
 // ─── Subscription plan (vendor creates) ───────────────────────────────────────
