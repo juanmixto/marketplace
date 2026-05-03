@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getActionSession } from '@/lib/action-session'
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -41,7 +42,7 @@ export async function PUT(_req: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json(updatedAddress)
   } catch (error) {
-    console.error('PUT /api/direcciones/[id]/predeterminada error:', error)
+    logger.error('api.direcciones.set_default_failed', { error })
     return NextResponse.json(
       { error: 'Error al establecer dirección predeterminada' },
       { status: 500 }

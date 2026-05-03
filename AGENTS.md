@@ -82,6 +82,16 @@ This repo is shared by several Claude Code agents at the same time. Skip this ch
 3. **`git status` in your worktree** — must be clean. If it shows uncommitted changes you didn't make, **stop and tell the user**; another agent left WIP and you must not stomp on it. Never `git stash` somebody else's working tree to "make room".
 4. **`scripts/agents-status.sh`** — single command that surveys all active worktrees, dirty WIP, stashes (flagging anything >24h per workflow rules), unpushed commits in the shared main repo, and listening dev servers. Read it once at session start to know what other agents have open before forking work that will conflict at merge time.
 5. **[`docs/state-of-the-world.md`](docs/state-of-the-world.md)** — short, versioned, freshness-dated snapshot of *operational* state that is NOT in the code: live hostnames, what's in production right now, manually-toggled kill switches, recent incidents. Read it always (≤ 5 min). Update it in the same PR that changes operational reality (cutover, first deploy, kill switch flipped by hand). Memory and runbooks decay; this file is the shared source of truth across agents.
+6. **For non-trivial tasks (>1 commit or >1 PR), open a session note** at `.claude/sessions/<YYYY-MM-DD>-<slug>.md` from [`docs/agent-session-template.md`](docs/agent-session-template.md). The directory is gitignored — notes are private per machine. They survive token cutoffs, agent handoffs, and tab closes; chat memory does not. Update on phase changes; delete when the task is done.
+
+### End-of-turn safety net (Stop hook)
+
+A user-level Claude Code `Stop` hook runs `scripts/agent-stop-checks.sh` whenever a session ends inside this repo. It surfaces (does not block):
+
+- **Unpushed commits** in `/home/whisper/marketplace`. The git wrapper blocks state mutations there but NOT `git commit`, so a session can leave commits that are invisible to fresh worktrees branched off `origin/main`. The 2026-05-03 BuildBadge incident was exactly this.
+- **Stale session notes** that haven't been touched in >4h on a day with active commits.
+
+If you see these warnings, push or discard before the next session starts. Hook source: `~/.claude/hooks/agent-stop-marketplace.sh` (laptop-local; reference copy of the script in `scripts/agent-stop-checks.sh`).
 
 ### Structural enforcement (active 2026-04-26)
 

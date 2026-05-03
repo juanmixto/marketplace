@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import { FAVORITES_UNAVAILABLE_MESSAGE, isFavoritesTableMissingError } from '@/domains/catalog/favorites'
 
 interface RouteParams {
@@ -51,7 +52,7 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
       )
     }
 
-    console.error('DELETE /api/favoritos/[productId] error:', error)
+    logger.error('api.favoritos.delete_failed', { error })
     return NextResponse.json(
       { error: 'Error al eliminar favorito' },
       { status: 500 }

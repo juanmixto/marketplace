@@ -6,6 +6,7 @@ import { checkRateLimit, getClientIP } from '@/lib/ratelimit'
 import { createEmailVerificationToken } from '@/domains/auth/email-verification'
 import { sendEmail } from '@/lib/email'
 import { getServerEnv } from '@/lib/env'
+import { logger } from '@/lib/logger'
 import { EmailVerificationEmail } from '@/emails/EmailVerification'
 import { createElement } from 'react'
 import { registerSchema as schema } from '@/shared/types/auth'
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ message: 'Datos inválidos', issues: err.issues }, { status: 400 })
     }
-    console.error('[register]', err)
+    logger.error('auth.register.failed', { error: err })
     return NextResponse.json({ message: 'Error interno' }, { status: 500 })
   }
 }
