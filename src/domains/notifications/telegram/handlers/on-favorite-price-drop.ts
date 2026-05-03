@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import type { FavoritePriceDropPayload } from '../../events'
 import { sendToUser } from '../service'
 import { favoritePriceDropTemplate } from '../templates'
@@ -44,7 +45,15 @@ export async function onFavoritePriceDrop(
       select: { stock: true },
     }),
   ])
-  if (favourites.length === 0) return
+  if (favourites.length === 0) {
+    logger.warn('notifications.handler.skipped', {
+      event: 'favorite.price_drop',
+      reason: 'no_favorites',
+      handler: 'telegram.on-favorite-price-drop',
+      productId: payload.productId,
+    })
+    return
+  }
 
   for (const fav of favourites) {
     const message = favoritePriceDropTemplate(payload, {
