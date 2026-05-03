@@ -37,8 +37,8 @@ export default async function Contacto() {
                 <div>
                   <h3 className="font-semibold text-foreground">{copy.generalSupport}</h3>
                   <p className="mt-1 text-foreground-soft">
-                    <a href="mailto:hola@mercadoproductor.es" className="text-accent hover:underline">
-                      hola@mercadoproductor.es
+                    <a href="mailto:hola@raizdirecta.es" className="text-accent hover:underline">
+                      hola@raizdirecta.es
                     </a>
                   </p>
                 </div>
@@ -46,8 +46,8 @@ export default async function Contacto() {
                 <div>
                   <h3 className="font-semibold text-foreground">{copy.orderSupport}</h3>
                   <p className="mt-1 text-foreground-soft">
-                    <a href="mailto:soporte@mercadoproductor.es" className="text-accent hover:underline">
-                      soporte@mercadoproductor.es
+                    <a href="mailto:soporte@raizdirecta.es" className="text-accent hover:underline">
+                      soporte@raizdirecta.es
                     </a>
                   </p>
                 </div>
@@ -55,8 +55,8 @@ export default async function Contacto() {
                 <div>
                   <h3 className="font-semibold text-foreground">{copy.producers}</h3>
                   <p className="mt-1 text-foreground-soft">
-                    <a href="mailto:productores@mercadoproductor.es" className="text-accent hover:underline">
-                      productores@mercadoproductor.es
+                    <a href="mailto:productores@raizdirecta.es" className="text-accent hover:underline">
+                      productores@raizdirecta.es
                     </a>
                   </p>
                 </div>
@@ -64,8 +64,8 @@ export default async function Contacto() {
                 <div>
                   <h3 className="font-semibold text-foreground">{copy.legal}</h3>
                   <p className="mt-1 text-foreground-soft">
-                    <a href="mailto:legal@mercadoproductor.es" className="text-accent hover:underline">
-                      legal@mercadoproductor.es
+                    <a href="mailto:legal@raizdirecta.es" className="text-accent hover:underline">
+                      legal@raizdirecta.es
                     </a>
                   </p>
                 </div>
