@@ -9,6 +9,13 @@ test.describe('public browse @smoke', () => {
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible({
       timeout: 5_000,
     })
+    // Let any post-hydration navigation (auth bootstrap, theme cookie
+    // sync, service-worker handshake) settle before invoking axe.
+    // axe.analyze() injects a script via page.evaluate; if the page
+    // navigates mid-flight, the call rejects with "Execution context
+    // was destroyed" (#1118 nightly). `networkidle` is a stable proxy
+    // for "no more in-flight router.push or fetch from this page".
+    await page.waitForLoadState('networkidle', { timeout: 10_000 })
     // Scope:
     //   - wcag2a + wcag2aa tags only (`best-practice` is subjective).
     //   - impact=critical only. The site has ~300 pre-existing violations
@@ -17,7 +24,19 @@ test.describe('public browse @smoke', () => {
     //     project on its own, out of scope for a smoke gate.
     //     This assertion keeps the loudest regressions out while not
     //     blocking PRs on a baseline we already ship in production.
-    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
+    // axe.analyze() is normally robust, but a race on first paint can
+    // still destroy the execution context if a deferred `router.refresh()`
+    // (theme cookie, SW registration) lands between page.evaluate calls.
+    // Retry once after re-settling — that's been enough on every observed
+    // failure in #1118.
+    let results
+    try {
+      results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
+    } catch (err) {
+      if (!String(err).includes('Execution context was destroyed')) throw err
+      await page.waitForLoadState('networkidle', { timeout: 10_000 })
+      results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
+    }
     const critical = results.violations.filter(v => v.impact === 'critical')
     expect(
       critical,
