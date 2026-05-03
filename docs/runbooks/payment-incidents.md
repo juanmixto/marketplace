@@ -317,6 +317,8 @@ ORDER BY "createdAt" DESC;
 - [`docs/conventions.md`](../conventions.md) — server-action + logger patterns
 - [`src/lib/logger.ts`](../../src/lib/logger.ts) — structured logger API
 - [`src/lib/correlation.ts`](../../src/lib/correlation.ts) — correlation ID generator
+- [`docs/posthog-dashboards.md`](../posthog-dashboards.md) — Dashboard 7 ("Notification Health") covers the buyer/vendor-facing notification subsystems (telegram / email / web-push) that fire on payment events; if a buyer reports "I didn't get the receipt" or a vendor reports "I didn't get the new-order ping" alongside a payment issue, that dashboard is the next stop after the scenarios above.
+- [`docs/runbooks/sentry.md`](./sentry.md) — Sentry investigation playbook (for the unhandled-exception side of the same incidents)
 - [`docs/wiki/Operations Runbook.md`](../wiki/Operations%20Runbook.md) — broader ops runbook (if present)
 
 ## When adding a new log event
