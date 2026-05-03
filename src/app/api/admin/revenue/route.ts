@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getActionSession } from '@/lib/action-session'
 import { isAdminRole } from '@/lib/roles'
+import { logger } from '@/lib/logger'
 import { getAdminDailyRevenue } from '@/domains/admin-stats/queries'
 
 export async function GET(request: Request) {
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
     const series = await getAdminDailyRevenue(days)
     return NextResponse.json({ days, series })
   } catch (err) {
-    console.error('[GET /api/admin/revenue]', err)
+    logger.error('admin.api.revenue.get_failed', { error: err })
     return NextResponse.json({ message: 'Error interno' }, { status: 500 })
   }
 }

@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import { isPushEnabled } from '@/lib/pwa/push-config'
 import { sendPushToUser } from '@/lib/pwa/push-send'
 import type { NotificationEventType } from '../types'
@@ -71,7 +72,7 @@ export async function sendWebPushToUser(
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err)
     await logDelivery(userId, eventType, 'FAILED', errorMessage, options.payloadRef)
-    console.error('webpush.outbound.failed', { userId, eventType, error: errorMessage })
+    logger.error('webpush.outbound.failed', { userId, eventType, error: errorMessage })
     return { status: 'FAILED', error: errorMessage }
   }
 }
@@ -95,7 +96,7 @@ async function logDelivery(
       },
     })
   } catch (err) {
-    console.error('webpush.outbound.log_failed', {
+    logger.error('webpush.outbound.log_failed', {
       userId,
       error: err instanceof Error ? err.message : String(err),
     })

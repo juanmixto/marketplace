@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import { z } from 'zod'
 import type { TelegramCallbackQuery } from '../update-schema'
 import { answerCallbackQuery } from '../service'
@@ -45,7 +46,7 @@ export async function dispatchCallbackQuery(
 ): Promise<void> {
   const chatId = query.message?.chat.id
   if (!chatId) {
-    console.warn('telegram.action.missing_chat', { callbackQueryId: query.id })
+    logger.warn('telegram.action.missing_chat', { callbackQueryId: query.id })
     return
   }
   const chatIdStr = String(chatId)
@@ -90,7 +91,7 @@ export async function dispatchCallbackQuery(
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err)
     await logAction(link.userId, chatIdStr, name, { targetId }, false, error)
-    console.error('telegram.action.failed', { name, error })
+    logger.error('telegram.action.failed', { name, error })
     await answerCallbackQuery(query.id, 'No se pudo ejecutar la acción').catch(() => undefined)
   }
 }
@@ -110,7 +111,7 @@ async function logAction(
       data: { userId, chatId, action, payload, success, error },
     })
   } catch (err) {
-    console.error('telegram.action.log_failed', {
+    logger.error('telegram.action.log_failed', {
       error: err instanceof Error ? err.message : String(err),
     })
   }
