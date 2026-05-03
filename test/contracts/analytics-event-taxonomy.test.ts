@@ -68,7 +68,25 @@ function extractDocumentedEvents(doc: string): Set<string> {
   // CF-1 buyer-funnel naming contract (`catalog.viewed`,
   // `order.placed`, …) — it's a legal character in PostHog event
   // names and must be allowed here.
-  const rows = doc.split('\n').filter(line => line.trimStart().startsWith('|'))
+  //
+  // Dashboard 7 (Notification Health) is filtered out: its tables list
+  // structured-logger scopes (`notifications.handler.skipped`,
+  // `email.send.skipped`, …) that flow to Sentry, not PostHog. Those
+  // are not `trackAnalyticsEvent` / `capturePostHog` call-sites and
+  // do NOT belong in `AnalyticsEventName`. The dashboard's purpose is
+  // to monitor fail-open subsystems via logger output (eventually
+  // shipped to PostHog separately or read from Sentry); the contract
+  // for AnalyticsEventName is unrelated.
+  const dashboardSevenStart = doc.indexOf('## Dashboard 7')
+  const dashboardSevenEnd = dashboardSevenStart === -1
+    ? -1
+    : doc.indexOf('\n## ', dashboardSevenStart + 1)
+  const filteredDoc = dashboardSevenStart === -1
+    ? doc
+    : doc.slice(0, dashboardSevenStart) +
+      (dashboardSevenEnd === -1 ? '' : doc.slice(dashboardSevenEnd))
+
+  const rows = filteredDoc.split('\n').filter(line => line.trimStart().startsWith('|'))
   const events = new Set<string>()
   for (const row of rows) {
     const firstCell = row.split('|')[1]?.trim() ?? ''

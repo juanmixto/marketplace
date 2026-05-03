@@ -170,17 +170,28 @@ export function ProductFiltersPanel({ categories, onClose, embedded = false }: P
             const active = currentCerts.includes(cert)
             const swatch = CERT_SWATCH[CERT_COLORS[cert] ?? 'default']
             return (
-              <div key={cert} className="flex items-stretch gap-1.5">
+              // The row wraps both the toggle button AND the info icon
+              // in a shared border + active-state background, so when a
+              // certification is selected the info icon visually sits
+              // INSIDE the green pill instead of floating off to the
+              // right of it. The button keeps its own tap area for
+              // toggling; the info icon keeps its own for the tooltip.
+              // Padding moves from button to wrapper so the contents
+              // align identically.
+              <div
+                key={cert}
+                className={cn(
+                  'flex items-stretch gap-1 rounded-xl border transition-colors',
+                  active
+                    ? 'border-emerald-300 bg-emerald-50 shadow-sm dark:border-emerald-800/60 dark:bg-emerald-950/40'
+                    : 'border-transparent hover:border-[var(--border)] hover:bg-[var(--surface-raised)]'
+                )}
+              >
                 <button
                   type="button"
                   onClick={() => toggleCert(cert)}
                   aria-pressed={active}
-                  className={cn(
-                    'group flex flex-1 items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30',
-                    active
-                      ? 'border-emerald-300 bg-emerald-50 shadow-sm dark:border-emerald-800/60 dark:bg-emerald-950/40'
-                      : 'border-transparent hover:border-[var(--border)] hover:bg-[var(--surface-raised)]'
-                  )}
+                  className="group flex flex-1 items-center gap-2.5 rounded-l-xl px-2.5 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
                 >
                   <span
                     className={cn(
@@ -220,7 +231,12 @@ export function ProductFiltersPanel({ categories, onClose, embedded = false }: P
                     tabIndex={0}
                     role="button"
                     aria-label={`${certCopy.label}: ${certCopy.description || ''}`}
-                    className="flex h-full w-7 items-center justify-center rounded-lg text-[var(--muted)] transition-colors hover:bg-[var(--surface-raised)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30"
+                    className={cn(
+                      'flex h-full w-8 items-center justify-center rounded-r-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30',
+                      active
+                        ? 'text-emerald-700 dark:text-emerald-400'
+                        : 'text-[var(--muted)]'
+                    )}
                   >
                     <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor">
                       <path
