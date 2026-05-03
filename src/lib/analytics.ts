@@ -46,16 +46,6 @@ export type AnalyticsEventName =
   | 'checkout.started'
   | 'checkout.step_completed'
   | 'order.placed'
-  // Notification Health dashboard (docs/posthog-dashboards.md
-  // Dashboard 6 — Gap 3A). Fail-open dispatcher emits these from
-  // server-side notification + email transports so an outage shows
-  // up in PostHog as elevated rates instead of silent drops.
-  | 'notifications.handler.skipped'
-  | 'notifications.config.missing'
-  | 'notifications.emit.invalid_payload'
-  | 'notifications.handler.failed'
-  | 'email.send.skipped'
-  | 'email.send_failed'
 
 /**
  * Subset of AnalyticsEventName that represents a buyer-side mutation
