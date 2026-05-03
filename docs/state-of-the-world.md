@@ -14,31 +14,35 @@ existen y cuál es el último incidente en curso.
 > activado a mano, secret rotado) **actualiza este fichero en el mismo PR**. Si no cabe en 100 líneas es porque hay
 > cosas que ya no son "estado actual" — muévelas a `docs/runbooks/` o bórralas.
 
-Última actualización: **2026-05-03** — cuando edites, pon la fecha y firma con tu agente.
+Última actualización: **2026-05-03 (noche)** — cuando edites, pon la fecha y firma con tu agente.
 
 ---
 
+## Infraestructura física
+
+- **Producción** corre en un **servidor 24/7 con Proxmox**, **un solo nodo** a día de hoy. No es alta disponibilidad: si el nodo cae, prod cae con él. Los runbooks de failover (`docs/runbooks/db-failover.md`) describen Phase 0 = restore desde backup, no failover automático — coherente con la realidad single-node.
+- **Dev** (`dev.raizdirecta.es`) corre en el **laptop del usuario**, no en el servidor. `next dev -p 3001` desde `/home/whisper/worktrees/main-preview` detrás de un Cloudflare Tunnel. Si el laptop se duerme, dev cae; prod NO se ve afectada.
+- **Sesiones de agentes** corren en el laptop (incluido este). Cuando un agente lance `npm run deploy:prod`, está empujando un build local al servidor — confirma con el usuario antes de tocar prod desde una sesión de agente.
+
 ## Hostnames vivos
 
-| Host                  | Sirve                                  | Tunnel                | Notas |
-|-----------------------|----------------------------------------|-----------------------|-------|
-| `raizdirecta.es`      | **producción**                         | `marketplace-prod`    | levantada 2026-05-03 noche; primer deploy a mano por agente Codex |
-| `dev.raizdirecta.es`  | dev en el laptop (puerto 3001)          | `marketplace-dev`     | cutover desde `dev.feldescloud.com` el 2026-05-03 |
-| `*.feldescloud.com`   | coexistencia legacy 30 días post-cutover | `marketplace-dev`     | borrar tras T+30; ver `docs/runbooks/domain-migration.md` |
+| Host                  | Sirve                                  | Dónde corre        | Tunnel              | Notas |
+|-----------------------|----------------------------------------|--------------------|---------------------|-------|
+| `raizdirecta.es`      | **producción**                         | servidor Proxmox   | `marketplace-prod`  | levantada 2026-05-03 |
+| `dev.raizdirecta.es`  | dev preview (puerto 3001)              | laptop del usuario | `marketplace-dev`   | cutover desde `dev.feldescloud.com` el 2026-05-03 |
+| `*.feldescloud.com`   | coexistencia legacy 30 días post-cutover | (igual que dev)  | `marketplace-dev`   | borrar tras T+30; ver `docs/runbooks/domain-migration.md` |
 
 Si un hostname nuevo aparece, añádelo aquí **antes** de cerrar el PR que lo monta.
 
 ## Producción
 
 - **Existe desde:** 2026-05-03.
-- **Cómo se despliega hoy:** `docker compose -f docker-compose.prod.yml build app && up -d` a mano en el host (no hay
-  CI de deploy todavía). Las vars `NEXT_PUBLIC_COMMIT_SHA / GIT_BRANCH / BUILD_TIME` se inyectan vía
-  `scripts/build-prod.sh` (PR #1135) — sin ese wrapper el `BuildBadge` muestra "unknown".
-- **Bootstrap inicial (admin user, semillas):** lo hizo el agente Codex con un `scripts/prod-bootstrap.ts` local que
-  **no está en `origin/main`**. Si necesitas re-bootstrapear, pregunta al usuario antes de reescribirlo.
-- **Backups:** Phase 0 del epic #1002 (pgBackRest a B2 + dump lógico). Sin standby todavía. "Failover" = restore.
+- **Despliegue canónico:** `npm run deploy:prod` (= `scripts/deploy-local-env.sh production`). Ese script construye la imagen Docker con las vars `NEXT_PUBLIC_COMMIT_SHA / GIT_BRANCH / BUILD_TIME` inyectadas (sin ellas el `BuildBadge` mostraría "unknown" — fix en #1135 + #1138), corre `prisma migrate deploy`, recrea solo el contenedor `app` y verifica `https://raizdirecta.es/api/version`. Runbook completo: [`docs/runbooks/release-promotion.md`](runbooks/release-promotion.md).
+- **CI de deploy:** no hay todavía. El deploy lo lanza un humano (o un agente con confirmación del usuario) en el servidor.
+- **Bootstrap inicial (admin user, categorías, MarketplaceConfig):** `npm run prod:bootstrap` (idempotente, gated por `APP_ENV=production` y password ≥16 chars). Lo ejecutó el agente Codex la primera vez.
+- **Backups:** Phase 0 del epic #1002 (pgBackRest a B2 + dump lógico). Sin standby todavía. "Failover" = restore desde backup.
   Runbooks: `docs/runbooks/db-backup.md`, `docs/runbooks/db-restore.md`, `docs/runbooks/db-failover.md`.
-- **Rollback rápido:** redeploy del último tag estable + `kill-*` flags en PostHog.
+- **Rollback rápido:** redeploy del último SHA estable (cambia branch local en el servidor + `npm run deploy:prod`) + `kill-*` flags en PostHog para apagar features problemáticas sin redeploy.
 
 ## Kill switches y feature flags activos
 
@@ -64,12 +68,13 @@ tiempo real (no lo dupliques aquí — solo lista trabajo "parado" o de larga du
 
 ## Incidentes / decisiones recientes (≤ 30 días)
 
-- **2026-05-03** — Primer deploy de `raizdirecta.es`. Agente Codex commiteó `596ec124 chore: standardize local
-  environment deployments` a `main` local sin pushear (`scripts/deploy-local-env.sh` + `scripts/prod-bootstrap.ts`
-  no están en `origin/main`). PR #1136 añade detección al `agents-status.sh` para que no vuelva a pasar en silencio.
-- **2026-05-03** — `BuildBadge` mostraba "unknown" en prod por falta de inyección de vars en el build de Docker.
-  Fix en PR #1135.
-- **2026-05-03** — Cutover dev `dev.feldescloud.com` → `dev.raizdirecta.es`.
+- **2026-05-03 (noche)** — Sesión de coordinación inter-agentes. Cinco PRs:
+  - **#1135** (mergeado + desplegado): fix `BuildBadge` "unknown" en prod inyectando `NEXT_PUBLIC_*` vars en el build de Docker.
+  - **#1136** (auto-merge ON): `agents-status.sh` sección 5 detecta commits sin pushear en el repo compartido.
+  - **#1137** (mergeado): este fichero.
+  - **#1138** (mergeado + desplegado): promueve a `origin/main` los scripts de deploy del agente Codex (`scripts/deploy-local-env.sh`, `scripts/prod-bootstrap.ts`, runbook `release-promotion.md`) que solo existían en su commit local sin pushear `596ec124`.
+  - **#1139** (mergeado): Stop hook end-of-turn + plantilla de notas de sesión `.claude/sessions/`.
+- **2026-05-03 (mañana)** — Cutover dev `dev.feldescloud.com` → `dev.raizdirecta.es`.
 
 Cuando algo aquí supera 30 días sin ser relevante, muévelo a su runbook o bórralo.
 
