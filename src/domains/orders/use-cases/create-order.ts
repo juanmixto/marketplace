@@ -519,7 +519,21 @@ export async function createOrder(
   const taxAmount = roundCurrency2(pricing.taxAmount * taxRatio)
   const grandTotal = roundCurrency2(subtotal + shippingCost)
 
-  const connectDestination = buildConnectDestination({ products, vendorIds, grandTotal })
+  // #1154 H-4: a 100%-off promo + free shipping (or fixed-amount equal to
+  // subtotal) collapses grandTotal to 0. Stripe rejects PaymentIntents
+  // with `amount: 0` ("amount_too_small"), and the previous flow committed
+  // the Order with stock decremented + promotion claimed BEFORE the PI
+  // call — so the Stripe rejection left a zombie Order with stock leaked
+  // and a redemption burned. The bypass below short-circuits the PI call,
+  // commits the Order as already-confirmed inside the same transaction,
+  // and emits the buyer-confirmation notification that the webhook would
+  // otherwise have fired. The Connect destination is irrelevant on a
+  // free order (no funds to route).
+  const isFreeOrder = grandTotal === 0
+
+  const connectDestination = isFreeOrder
+    ? undefined
+    : buildConnectDestination({ products, vendorIds, grandTotal })
 
   const env = getServerEnv()
 
@@ -623,9 +637,11 @@ export async function createOrder(
 
       await claimPromotionRedemptions(tx, appliedByVendorId.values())
 
+      const orderNumber = generateOrderNumber()
+
       return tx.order.create({
         data: {
-          orderNumber: generateOrderNumber(),
+          orderNumber,
           customerId: sessionUserId,
           addressId: addressId ?? null,
           ...(checkoutAttemptId ? { checkoutAttemptId } : {}),
@@ -635,16 +651,19 @@ export async function createOrder(
           shippingCost,
           taxAmount,
           grandTotal,
-          status: 'PLACED',
-          paymentStatus: 'PENDING',
+          status: isFreeOrder ? 'PAYMENT_CONFIRMED' : 'PLACED',
+          paymentStatus: isFreeOrder ? 'SUCCEEDED' : 'PENDING',
           lines: { create: lines },
           payments: {
             create: {
               provider: env.paymentProvider === 'mock' ? 'mock' : 'stripe',
-              providerRef: null,
+              // Synthetic providerRef on free orders preserves the UNIQUE
+              // index without inventing a fake Stripe id; the `free_`
+              // prefix makes operator queries trivial.
+              providerRef: isFreeOrder ? `free_${orderNumber}` : null,
               amount: grandTotal,
               currency: 'EUR',
-              status: 'PENDING',
+              status: isFreeOrder ? 'SUCCEEDED' : 'PENDING',
             },
           },
           fulfillments: {
@@ -699,46 +718,60 @@ export async function createOrder(
     throw error
   }
 
-  let payment
-  try {
-    payment = await createPaymentIntent(
-      Math.round(grandTotal * 100),
-      { userId: sessionUserId, orderId: order.id, correlationId },
-      connectDestination ? { connect: connectDestination } : undefined
-    )
-  } catch (paymentError) {
-    const paymentFailureSideEffects = recordPaymentIntentFailureSideEffects(order.id, paymentError)
-
+  // #1154 H-4: free order — Order was committed inside the transaction with
+  // status PAYMENT_CONFIRMED + Payment SUCCEEDED + synthetic providerRef.
+  // No PI to create, no provider ref to link. Emit the buyer confirmation
+  // notification that webhook/confirm-order would otherwise have fired.
+  let payment: { id: string; clientSecret: string }
+  if (isFreeOrder) {
+    payment = { id: `free_${order.orderNumber}`, clientSecret: '' }
+    logger.info('checkout.free_order_committed', {
+      correlationId,
+      userId: sessionUserId,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+    })
+  } else {
     try {
-      await markOrderPaymentIntentCreationFailed(order.id, paymentError)
-      await dispatchSideEffects(paymentFailureSideEffects, 'events')
-    } catch (cleanupError) {
-      logger.error('checkout.payment_mark_failed', {
+      payment = await createPaymentIntent(
+        Math.round(grandTotal * 100),
+        { userId: sessionUserId, orderId: order.id, correlationId },
+        connectDestination ? { connect: connectDestination } : undefined
+      )
+    } catch (paymentError) {
+      const paymentFailureSideEffects = recordPaymentIntentFailureSideEffects(order.id, paymentError)
+
+      try {
+        await markOrderPaymentIntentCreationFailed(order.id, paymentError)
+        await dispatchSideEffects(paymentFailureSideEffects, 'events')
+      } catch (cleanupError) {
+        logger.error('checkout.payment_mark_failed', {
+          correlationId,
+          userId: sessionUserId,
+          orderId: order.id,
+          cleanupError,
+        })
+      }
+      logger.error('checkout.payment_intent_failed', {
         correlationId,
         userId: sessionUserId,
         orderId: order.id,
-        cleanupError,
+        grandTotalCents: Math.round(grandTotal * 100),
+        error: paymentError,
+      })
+      throw paymentError
+    }
+
+    const linkedCount = await linkOrderPaymentProviderRef(order.id, payment.id)
+    if (linkedCount !== 1) {
+      logger.error('checkout.payment_row_mismatch', {
+        correlationId,
+        userId: sessionUserId,
+        orderId: order.id,
+        count: linkedCount,
+        providerRef: payment.id,
       })
     }
-    logger.error('checkout.payment_intent_failed', {
-      correlationId,
-      userId: sessionUserId,
-      orderId: order.id,
-      grandTotalCents: Math.round(grandTotal * 100),
-      error: paymentError,
-    })
-    throw paymentError
-  }
-
-  const linkedCount = await linkOrderPaymentProviderRef(order.id, payment.id)
-  if (linkedCount !== 1) {
-    logger.error('checkout.payment_row_mismatch', {
-      correlationId,
-      userId: sessionUserId,
-      orderId: order.id,
-      count: linkedCount,
-      providerRef: payment.id,
-    })
   }
 
   const affectedProductSlugs = [...new Set(products.map(product => product.slug))]
@@ -758,12 +791,14 @@ export async function createOrder(
       session?.user.name?.trim() ||
       `${formData.address.firstName} ${formData.address.lastName}`.trim() ||
       'Cliente',
+    customerUserId: sessionUserId,
     vendorIds,
     fulfillmentByVendor,
     lines,
     productSlugs: affectedProductSlugs,
     vendorSlugs: affectedVendorSlugs,
     stockLowCandidates,
+    isFreeOrder,
   })
 
   await dispatchSideEffects(orderSideEffects, 'revalidations')
