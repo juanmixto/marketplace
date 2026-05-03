@@ -6,11 +6,10 @@ export default function robots(): MetadataRoute.Robots {
   const siteUrl = new URL(env.appUrl)
   const sitemapUrl = new URL('/sitemap.xml', siteUrl).toString()
 
-  // Staging deploys must never appear in search results — duplicate
-  // content with production would split SEO authority and leak unfinished
-  // copy. Block everything; the sitemap link is omitted so crawlers have
-  // nothing to follow.
-  if (env.appEnv === 'staging') {
+  // Non-production deploys are intentionally visitable for demos, but must
+  // never appear in search results. Block crawler discovery and omit the
+  // sitemap so dev/stg do not split SEO authority with production.
+  if (env.appEnv !== 'production') {
     return {
       rules: {
         userAgent: '*',
