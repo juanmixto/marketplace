@@ -25,10 +25,14 @@ export async function loginAs(page: Page, user: TestUser) {
   await expect(submit).toBeEnabled({ timeout: 10_000 })
   await page.locator('input[name="email"]').fill(user.email)
   await page.locator('input[name="password"]').fill(user.password)
+  // 30s mirrors the OAuth roundtrip helper. The previous 20s budget tripped
+  // intermittently on GitHub-hosted nightly runs where the post-submit
+  // redirect can stall behind a cold RSC compile + session DB write.
+  // We keep the default waitUntil ('load') because the login flow uses
+  // router.push under the hood, and `'commit'` would wait for a hard
+  // navigation that never fires.
   await Promise.all([
-    page.waitForURL(url => !url.pathname.startsWith('/login'), { timeout: 20_000 }),
+    page.waitForURL(url => !url.pathname.startsWith('/login'), { timeout: 30_000 }),
     submit.click(),
   ])
-  // Successful login bounces away from /login. 20s absorbs dev-mode
-  // compile spikes on GitHub-hosted runners (login + session setup).
 }
