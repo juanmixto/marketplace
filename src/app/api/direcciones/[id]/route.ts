@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getActionSession } from '@/lib/action-session'
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import {
   clearOtherDefaults,
   enforceSingleDefault,
@@ -64,7 +65,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
       )
     }
 
-    console.error('PUT /api/direcciones/[id] error:', error)
+    logger.error('api.direcciones.update_failed', { error })
     return NextResponse.json(
       { error: 'Error al actualizar dirección' },
       { status: 500 }
@@ -99,7 +100,7 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('DELETE /api/direcciones/[id] error:', error)
+    logger.error('api.direcciones.delete_failed', { error })
     return NextResponse.json(
       { error: 'Error al eliminar dirección' },
       { status: 500 }
