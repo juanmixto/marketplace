@@ -8,6 +8,7 @@
 import bcrypt from 'bcryptjs'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import { NextResponse, type NextRequest } from 'next/server'
 import { checkRateLimit } from '@/lib/ratelimit'
 
@@ -99,7 +100,7 @@ export async function DELETE(request: NextRequest) {
       message: 'Cuenta eliminada y anonimizada correctamente',
     })
   } catch (error) {
-    console.error('[GDPR Delete] Error:', error)
+    logger.error('gdpr.delete.failed', { error })
     return NextResponse.json(
       { error: 'Error al eliminar la cuenta' },
       { status: 500 }

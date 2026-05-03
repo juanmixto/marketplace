@@ -51,8 +51,16 @@ jobs:
           # already opted into auto-merging. We never touch a PR that
           # someone hasn't explicitly armed — that would be hostile to
           # in-progress work the author hasn't finished.
+          #
+          # --repo is required: without it, `gh pr list` falls back to
+          # `git remote -v` to discover the repo, and this job runs
+          # without `actions/checkout` so there is no .git. The fallback
+          # silently fails ("fatal: not a git repository") and gh returns
+          # an empty list, making the workflow report "no PRs to update"
+          # while every PR rots BEHIND for hours. Found 2026-05-03.
           mapfile -t prs < <(
             gh pr list \
+              --repo "${GITHUB_REPOSITORY}" \
               --state open \
               --limit 100 \
               --json number,mergeStateStatus,autoMergeRequest \

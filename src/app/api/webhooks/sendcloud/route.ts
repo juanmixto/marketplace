@@ -3,8 +3,8 @@ import { createHash } from 'node:crypto'
 import {
   handleSendcloudWebhook,
   verifySendcloudSignature,
-  type SendcloudWebhookPayload,
 } from '@/domains/shipping/webhooks/sendcloud'
+import { sendcloudWebhookPayloadSchema } from '@/domains/shipping/providers/sendcloud/webhook-schemas'
 import { ensureShippingProvidersRegistered } from '@/domains/shipping/providers'
 import { db } from '@/lib/db'
 import { getServerEnv } from '@/lib/env'
@@ -75,9 +75,9 @@ export async function POST(req: NextRequest) {
 
   const payloadHash = createHash('sha256').update(rawBody).digest('hex')
 
-  let payload: SendcloudWebhookPayload
+  let rawJson: unknown
   try {
-    payload = JSON.parse(rawBody) as SendcloudWebhookPayload
+    rawJson = JSON.parse(rawBody)
   } catch {
     await recordSendcloudDeadLetter('invalid_json', {
       eventType: 'sendcloud.webhook.invalid_json',
@@ -85,6 +85,19 @@ export async function POST(req: NextRequest) {
     })
     return NextResponse.json({ error: 'invalid_json' }, { status: 400 })
   }
+
+  const parsedPayload = sendcloudWebhookPayloadSchema.safeParse(rawJson)
+  if (!parsedPayload.success) {
+    logger.error('sendcloud.webhook.invalid_payload', {
+      issues: parsedPayload.error.issues,
+    })
+    await recordSendcloudDeadLetter('invalid_payload', {
+      eventType: 'sendcloud.webhook.invalid_payload',
+      payloadHash,
+    })
+    return NextResponse.json({ error: 'invalid_payload' }, { status: 400 })
+  }
+  const payload = parsedPayload.data
 
   const providerRef = payload.parcel ? String(payload.parcel.id) : null
   const eventType = `sendcloud.${payload.action ?? 'parcel_status_changed'}`

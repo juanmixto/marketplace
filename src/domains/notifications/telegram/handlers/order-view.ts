@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import { parseOrderAddressSnapshot } from '@/types/order'
 import type { OrderMessageView } from '../templates'
 
@@ -40,7 +41,16 @@ export async function resolveOrderView(
       select: { displayName: true, user: { select: { firstName: true } } },
     }),
   ])
-  if (!order) return undefined
+  if (!order) {
+    logger.warn('notifications.handler.skipped', {
+      event: 'order.view',
+      reason: 'no_order',
+      handler: 'telegram.resolve-order-view',
+      orderId,
+      vendorId,
+    })
+    return undefined
+  }
 
   const shippingAddress = parseOrderAddressSnapshot(order.shippingAddressSnapshot)
   const city = shippingAddress?.city ?? order.address?.city ?? undefined
