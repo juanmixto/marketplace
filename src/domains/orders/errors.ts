@@ -15,6 +15,7 @@ export type OrderErrorCode =
   | 'MANUAL_CONFIRMATION_NOT_ALLOWED'
   | 'GUEST_EMAIL_REQUIRED'
   | 'GUEST_EMAIL_BELONGS_TO_REAL_ACCOUNT'
+  | 'PAYMENT_ROW_DIVERGED'
 
 export abstract class OrderDomainError extends Error {
   readonly code: OrderErrorCode
@@ -133,6 +134,22 @@ export class GuestEmailBelongsToRealAccountError extends OrderDomainError {
     super(
       'GUEST_EMAIL_BELONGS_TO_REAL_ACCOUNT',
       'Ya existe una cuenta con este email. Inicia sesión para continuar con tu pedido.',
+    )
+  }
+}
+
+/**
+ * #1169 H-9: thrown when `linkOrderPaymentProviderRef` finds an existing
+ * Payment row whose `providerRef` differs from the freshly-created PI.
+ * Continuing would route the buyer's session at one PI while Stripe
+ * holds another — the next webhook would never match a local row.
+ * Caller surfaces a retry that generates a fresh `checkoutAttemptId`.
+ */
+export class PaymentRowDivergedError extends OrderDomainError {
+  constructor() {
+    super(
+      'PAYMENT_ROW_DIVERGED',
+      'No pudimos enlazar el cobro con tu pedido. Recarga el carrito e inténtalo de nuevo.',
     )
   }
 }
