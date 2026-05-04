@@ -200,7 +200,17 @@ scripts backed by `src/domains/payments/webhook-dlq-ops.ts`:
 - **total pending ≥ 10** → alert
 - **new in last 24h ≥ 3** → alert
 
-Wire the JSON output to your oncall channel (cron every 15 min):
+Since #1213 a recurring pg-boss job (`webhook.dlq.alert`, cron `*/15 * * * *`) runs the
+threshold check from the worker process and emits `dlq.alert.fired` at error level when it
+trips. That auto-mirrors to Sentry, where the existing "first seen on production with
+severity ≥ error" alert pages oncall once per window. When the queue is empty the same job
+emits `dlq.alert.skipped` at info level so an operator can confirm the cron is firing.
+
+The job source lives at [`src/workers/jobs/dlq-alert.ts`](../../src/workers/jobs/dlq-alert.ts);
+the cadence is pinned by `test/features/dlq-alert-job.test.ts` so changes require updating
+this section in the same PR.
+
+Manual JSON-to-Slack still works for environments where the worker doesn't run:
 
 ```bash
 DLQ_JSON=$(npm run -s dlq:list -- --json)
