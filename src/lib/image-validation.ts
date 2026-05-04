@@ -3,11 +3,17 @@
  * Ensures images come from trusted sources and are properly formatted
  */
 
-// Allowed image domains for Next.js Image optimization
+// Allowed image domains for Next.js Image optimization.
+//
+// HU8 (#1249): cloudinary.com + uploadthing.com removed after the audit
+// (scripts/audit-img-src-usage.ts) showed 0 stored URLs on either host
+// across User/Vendor/Category/Product. Keeping them as accepted upload
+// destinations would let a vendor paste a URL the form silently saves
+// but the CSP refuses to render — worse UX than rejecting up front.
+// Keep this list in lockstep with `img-src` in src/lib/security-headers.ts
+// and `remotePatterns` in next.config.ts.
 const ALLOWED_DOMAINS = [
   'images.unsplash.com',
-  'cloudinary.com',
-  'uploadthing.com',
   // Vercel Blob storage — used by the upload API when BLOB_READ_WRITE_TOKEN
   // is set (see src/lib/blob-storage.ts).
   'public.blob.vercel-storage.com',
@@ -127,7 +133,7 @@ export function getImageValidationError(url: string): string {
     }
 
     if (!isAllowedDomain(parsed.hostname)) {
-      return `Dominio no permitido: ${parsed.hostname}. Usa URLs de uploadthing.com, cloudinary.com o unsplash.com`
+      return `Dominio no permitido: ${parsed.hostname}. Sube la imagen o usa una URL de unsplash.com`
     }
   } catch {
     return 'URL inválida'

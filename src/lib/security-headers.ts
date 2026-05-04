@@ -103,10 +103,17 @@ export function buildContentSecurityPolicy(
     // explicit hosts. Keep this in lockstep with `remotePatterns` in
     // `next.config.ts` — a generic `https:` opens img-sink XSS vectors
     // (malicious SVG, cookieless beacon images) for no real benefit.
+    //
+    // HU8 (#1249): cloudinary.com + uploadthing.com removed after the audit
+    // (scripts/audit-img-src-usage.ts) showed 0 references in any of
+    // User.image / Vendor.{logo,coverImage} / Category.{icon,image} /
+    // Product.images on dev — and zero infrastructure (no API keys, no
+    // upload code paths) wired to either provider. *.public.blob.vercel-storage.com
+    // stays because src/lib/blob-storage.ts still treats Vercel Blob as a
+    // first-class backend when BLOB_READ_WRITE_TOKEN is set, and incident
+    // attachments are scoped to that hostname (src/shared/types/incidents.ts).
     "img-src 'self' data: blob:" +
       ' https://images.unsplash.com' +
-      ' https://*.cloudinary.com' +
-      ' https://*.uploadthing.com' +
       ' https://*.public.blob.vercel-storage.com',
     "font-src 'self' data:",
     // HU3 (#1244): Stripe Radar embeds an iframe from m.stripe.network for
