@@ -285,6 +285,24 @@ if [[ "$healthcheck_ok" != "true" ]]; then
   exit 1
 fi
 
+# Post-deploy smoke (production + staging only). Headless Chromium against
+# the live URL; asserts client hydration, PostHog SDK loaded, no CSP
+# script-src violations in console, no 5xx during page load. Catches the
+# class of regression the 2026-05-04 incident exposed (CSP nonce break,
+# SW stale-chunk cache, missing NEXT_PUBLIC_*) — /api/version returns 200
+# but the page is dead in the browser.
+#
+# Currently in --warn-only mode while the underlying RSC/hydration
+# regression on prod is being investigated. Strip the flag once
+# window.__NEXT_DATA__ is reliably present so future regressions block
+# the deploy as intended.
+if [[ "$env_name" == "production" || "$env_name" == "staging" ]]; then
+  echo "Running post-deploy smoke against https://$APP_HOST ..."
+  npx --no-install tsx \
+    "$(git rev-parse --show-toplevel)/scripts/smoke-deploy.ts" \
+    "https://$APP_HOST" --warn-only || true
+fi
+
 # Release tag (production + staging only). Marks the SHA that just passed
 # /api/version so rollback can target a known-good point. See issue #1251.
 # Tag is created and pushed only when the healthcheck succeeds — failed
