@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { verifyEmailToken } from '@/domains/auth/email-verification'
 
-export async function GET(req: NextRequest) {
-  const token = req.nextUrl.searchParams.get('token')
+const tokenSchema = z.string().min(20).max(255)
 
-  if (!token) {
+export async function GET(req: NextRequest) {
+  const parsed = tokenSchema.safeParse(req.nextUrl.searchParams.get('token'))
+  if (!parsed.success) {
     return NextResponse.json({ error: 'Token requerido' }, { status: 400 })
   }
 
-  const result = await verifyEmailToken(token)
+  const result = await verifyEmailToken(parsed.data)
 
   if (!result.success) {
     return NextResponse.json({ error: result.message }, { status: 400 })

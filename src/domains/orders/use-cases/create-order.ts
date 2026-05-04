@@ -23,6 +23,10 @@ import {
 } from '@/domains/catalog'
 // eslint-disable-next-line no-restricted-imports -- calculator stays out of the shipping barrel (dynamic db import)
 import { getShippingCost } from '@/domains/shipping/calculator'
+import {
+  loadCommissionResolverForVendor,
+  resolveCommissionRate,
+} from '@/domains/finance'
 import { getActionSession } from '@/lib/action-session'
 import { resolveGuestCustomer } from '../guest-customer'
 import { logger } from '@/lib/logger'
@@ -51,6 +55,7 @@ import {
   GuestEmailRequiredError,
   InsufficientStockError,
   InvalidPromotionCodeError,
+  PaymentRowDivergedError,
   SavedAddressUnavailableError,
   VariantSelectionRequiredError,
   VariantUnavailableError,
@@ -351,23 +356,56 @@ function ensureStockAvailability(products: Awaited<ReturnType<typeof loadProduct
   }
 }
 
-function buildConnectDestination({
+/**
+ * Resolve `application_fee_amount` for a single-vendor Connect order.
+ *
+ * #1162 H-6: previously this multiplied `grandTotal × Vendor.commissionRate`
+ * flat, ignoring `CommissionRule` overrides per category or per vendor.
+ * That made the platform fee in Stripe diverge from what settlement
+ * reports later expected — the productor would receive 95 % when the
+ * matched rule said 85 %, and we could not correct it after the fact.
+ *
+ * The new flow loads the rule set for `(vendorId, ∪ line.categoryId)`
+ * in one round-trip and resolves a per-line rate via `resolveCommissionRate`.
+ * Fee = Σ over lines of `round(lineGrossCents × resolvedRate)`. This
+ * preserves Stripe's rounding semantics (every fee is integer cents)
+ * and stays correct for multi-category carts inside a single vendor.
+ *
+ * Multi-vendor carts and vendors without Connect onboarding still
+ * return `undefined` — those keep funds on the platform and rely on
+ * the existing settlement system for payouts.
+ */
+async function buildConnectDestination({
   products,
   vendorIds,
-  grandTotal,
+  lines,
 }: {
   products: Awaited<ReturnType<typeof loadProductsAndLines>>['products']
   vendorIds: string[]
-  grandTotal: number
-}): { vendorAccountId: string; applicationFeeAmountCents: number } | undefined {
+  lines: Array<{ productId: string; vendorId: string; quantity: number; unitPrice: number }>
+}): Promise<{ vendorAccountId: string; applicationFeeAmountCents: number } | undefined> {
   if (vendorIds.length !== 1) return undefined
 
   const onlyVendor = products.find(p => p.vendor.id === vendorIds[0])?.vendor
   if (!onlyVendor?.stripeOnboarded || !onlyVendor.stripeAccountId) return undefined
 
-  const grandTotalCents = Math.round(grandTotal * 100)
-  const commissionRate = Number(onlyVendor.commissionRate)
-  const applicationFeeAmountCents = Math.round(grandTotalCents * commissionRate)
+  const productById = new Map(products.map(p => [p.id, p]))
+  const lineCategoryIds = lines.map(line => productById.get(line.productId)?.categoryId ?? null)
+
+  const resolver = await loadCommissionResolverForVendor(onlyVendor.id, lineCategoryIds)
+
+  let applicationFeeAmountCents = 0
+  for (const line of lines) {
+    const product = productById.get(line.productId)
+    const lineGrossCents = Math.round(Number(line.unitPrice) * line.quantity * 100)
+    const rate = resolveCommissionRate({
+      vendorId: onlyVendor.id,
+      categoryId: product?.categoryId ?? null,
+      vendorRate: resolver.vendorRate,
+      rules: resolver.rules,
+    })
+    applicationFeeAmountCents += Math.round(lineGrossCents * rate)
+  }
 
   return {
     vendorAccountId: onlyVendor.stripeAccountId,
@@ -519,7 +557,21 @@ export async function createOrder(
   const taxAmount = roundCurrency2(pricing.taxAmount * taxRatio)
   const grandTotal = roundCurrency2(subtotal + shippingCost)
 
-  const connectDestination = buildConnectDestination({ products, vendorIds, grandTotal })
+  // #1154 H-4: a 100%-off promo + free shipping (or fixed-amount equal to
+  // subtotal) collapses grandTotal to 0. Stripe rejects PaymentIntents
+  // with `amount: 0` ("amount_too_small"), and the previous flow committed
+  // the Order with stock decremented + promotion claimed BEFORE the PI
+  // call — so the Stripe rejection left a zombie Order with stock leaked
+  // and a redemption burned. The bypass below short-circuits the PI call,
+  // commits the Order as already-confirmed inside the same transaction,
+  // and emits the buyer-confirmation notification that the webhook would
+  // otherwise have fired. The Connect destination is irrelevant on a
+  // free order (no funds to route).
+  const isFreeOrder = grandTotal === 0
+
+  const connectDestination = isFreeOrder
+    ? undefined
+    : await buildConnectDestination({ products, vendorIds, lines })
 
   const env = getServerEnv()
 
@@ -623,9 +675,11 @@ export async function createOrder(
 
       await claimPromotionRedemptions(tx, appliedByVendorId.values())
 
+      const orderNumber = generateOrderNumber()
+
       return tx.order.create({
         data: {
-          orderNumber: generateOrderNumber(),
+          orderNumber,
           customerId: sessionUserId,
           addressId: addressId ?? null,
           ...(checkoutAttemptId ? { checkoutAttemptId } : {}),
@@ -635,16 +689,19 @@ export async function createOrder(
           shippingCost,
           taxAmount,
           grandTotal,
-          status: 'PLACED',
-          paymentStatus: 'PENDING',
+          status: isFreeOrder ? 'PAYMENT_CONFIRMED' : 'PLACED',
+          paymentStatus: isFreeOrder ? 'SUCCEEDED' : 'PENDING',
           lines: { create: lines },
           payments: {
             create: {
               provider: env.paymentProvider === 'mock' ? 'mock' : 'stripe',
-              providerRef: null,
+              // Synthetic providerRef on free orders preserves the UNIQUE
+              // index without inventing a fake Stripe id; the `free_`
+              // prefix makes operator queries trivial.
+              providerRef: isFreeOrder ? `free_${orderNumber}` : null,
               amount: grandTotal,
               currency: 'EUR',
-              status: 'PENDING',
+              status: isFreeOrder ? 'SUCCEEDED' : 'PENDING',
             },
           },
           fulfillments: {
@@ -699,46 +756,84 @@ export async function createOrder(
     throw error
   }
 
-  let payment
-  try {
-    payment = await createPaymentIntent(
-      Math.round(grandTotal * 100),
-      { userId: sessionUserId, orderId: order.id, correlationId },
-      connectDestination ? { connect: connectDestination } : undefined
-    )
-  } catch (paymentError) {
-    const paymentFailureSideEffects = recordPaymentIntentFailureSideEffects(order.id, paymentError)
-
+  // #1154 H-4: free order — Order was committed inside the transaction with
+  // status PAYMENT_CONFIRMED + Payment SUCCEEDED + synthetic providerRef.
+  // No PI to create, no provider ref to link. Emit the buyer confirmation
+  // notification that webhook/confirm-order would otherwise have fired.
+  let payment: { id: string; clientSecret: string }
+  if (isFreeOrder) {
+    payment = { id: `free_${order.orderNumber}`, clientSecret: '' }
+    logger.info('checkout.free_order_committed', {
+      correlationId,
+      userId: sessionUserId,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+    })
+  } else {
     try {
-      await markOrderPaymentIntentCreationFailed(order.id, paymentError)
-      await dispatchSideEffects(paymentFailureSideEffects, 'events')
-    } catch (cleanupError) {
-      logger.error('checkout.payment_mark_failed', {
+      payment = await createPaymentIntent(
+        Math.round(grandTotal * 100),
+        { userId: sessionUserId, orderId: order.id, correlationId },
+        connectDestination ? { connect: connectDestination } : undefined
+      )
+    } catch (paymentError) {
+      const paymentFailureSideEffects = recordPaymentIntentFailureSideEffects(order.id, paymentError)
+
+      try {
+        await markOrderPaymentIntentCreationFailed(order.id, paymentError)
+        await dispatchSideEffects(paymentFailureSideEffects, 'events')
+      } catch (cleanupError) {
+        logger.error('checkout.payment_mark_failed', {
+          correlationId,
+          userId: sessionUserId,
+          orderId: order.id,
+          cleanupError,
+        })
+      }
+      logger.error('checkout.payment_intent_failed', {
         correlationId,
         userId: sessionUserId,
         orderId: order.id,
-        cleanupError,
+        grandTotalCents: Math.round(grandTotal * 100),
+        error: paymentError,
+      })
+      throw paymentError
+    }
+
+    const linkResult = await linkOrderPaymentProviderRef(order.id, payment.id)
+    if (linkResult.kind === 'diverged') {
+      // #1169 H-9: a previous attempt linked a *different* Stripe PI to
+      // this Order. Continuing would hand the buyer's session a clientSecret
+      // for `payment.id` while the Order's Payment row points at the older
+      // ref — every subsequent webhook for the new PI lands in DLQ. Hard
+      // abort. The buyer's UI catches `PaymentRowDivergedError`, refreshes
+      // the form, and gets a fresh `checkoutAttemptId`.
+      logger.error('checkout.payment_row_diverged', {
+        correlationId,
+        userId: sessionUserId,
+        orderId: order.id,
+        existingProviderRef: linkResult.existingProviderRef,
+        attemptedProviderRef: payment.id,
+      })
+      throw new PaymentRowDivergedError()
+    }
+    if (linkResult.kind === 'missing') {
+      logger.error('checkout.payment_row_missing', {
+        correlationId,
+        userId: sessionUserId,
+        orderId: order.id,
+        providerRef: payment.id,
+      })
+      throw new PaymentRowDivergedError()
+    }
+    if (linkResult.kind === 'idempotent_match') {
+      logger.info('checkout.payment_row_idempotent_match', {
+        correlationId,
+        userId: sessionUserId,
+        orderId: order.id,
+        providerRef: payment.id,
       })
     }
-    logger.error('checkout.payment_intent_failed', {
-      correlationId,
-      userId: sessionUserId,
-      orderId: order.id,
-      grandTotalCents: Math.round(grandTotal * 100),
-      error: paymentError,
-    })
-    throw paymentError
-  }
-
-  const linkedCount = await linkOrderPaymentProviderRef(order.id, payment.id)
-  if (linkedCount !== 1) {
-    logger.error('checkout.payment_row_mismatch', {
-      correlationId,
-      userId: sessionUserId,
-      orderId: order.id,
-      count: linkedCount,
-      providerRef: payment.id,
-    })
   }
 
   const affectedProductSlugs = [...new Set(products.map(product => product.slug))]
@@ -758,12 +853,14 @@ export async function createOrder(
       session?.user.name?.trim() ||
       `${formData.address.firstName} ${formData.address.lastName}`.trim() ||
       'Cliente',
+    customerUserId: sessionUserId,
     vendorIds,
     fulfillmentByVendor,
     lines,
     productSlugs: affectedProductSlugs,
     vendorSlugs: affectedVendorSlugs,
     stockLowCandidates,
+    isFreeOrder,
   })
 
   await dispatchSideEffects(orderSideEffects, 'revalidations')

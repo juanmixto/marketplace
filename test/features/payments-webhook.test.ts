@@ -76,6 +76,37 @@ test('shouldApplyPaymentFailed returns false for an already failed payment', () 
   )
 })
 
+test('shouldApplyPaymentSucceeded refuses to resurrect a fully refunded order (#1149 H-2)', () => {
+  // A late `payment_intent.succeeded` arriving after a refund must not flip
+  // the order back to PAYMENT_CONFIRMED. We block on either side: orderStatus
+  // === REFUNDED (existing) OR orderPaymentStatus IN (REFUNDED, PARTIALLY_REFUNDED).
+  assert.equal(
+    shouldApplyPaymentSucceeded({
+      paymentStatus: 'REFUNDED',
+      orderPaymentStatus: 'REFUNDED',
+      orderStatus: 'REFUNDED',
+    }),
+    false,
+    'fully refunded order must not be resurrected'
+  )
+})
+
+test('shouldApplyPaymentSucceeded refuses partial-refunded order (#1149 H-2)', () => {
+  // Partial refunds keep `orderStatus = PAYMENT_CONFIRMED` (the order is
+  // still being fulfilled for the unrefunded portion) but flip
+  // `paymentStatus = PARTIALLY_REFUNDED`. A late succeeded webhook must not
+  // overwrite that paymentStatus back to SUCCEEDED.
+  assert.equal(
+    shouldApplyPaymentSucceeded({
+      paymentStatus: 'PARTIALLY_REFUNDED',
+      orderPaymentStatus: 'PARTIALLY_REFUNDED',
+      orderStatus: 'PAYMENT_CONFIRMED',
+    }),
+    false,
+    'partially refunded paymentStatus must be preserved'
+  )
+})
+
 test('assertProviderRefForPaymentStatus rejects successful transitions without providerRef', () => {
   assert.throws(
     () =>

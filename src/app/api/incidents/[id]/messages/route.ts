@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { addIncidentMessage } from '@/domains/incidents/actions'
 import { IncidentAuthError, IncidentValidationError } from '@/domains/incidents/errors'
 import { incidentMessageBodySchema as bodySchema } from '@/shared/types/incidents'
+import { zCuid } from '@/lib/validation/primitives'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -14,7 +15,11 @@ interface RouteParams {
  * the underlying domain action is the same and enforces the role check.
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
-  const { id } = await params
+  const idCheck = zCuid.safeParse((await params).id)
+  if (!idCheck.success) {
+    return NextResponse.json({ error: 'invalid-id' }, { status: 400 })
+  }
+  const id = idCheck.data
 
   let parsed
   try {

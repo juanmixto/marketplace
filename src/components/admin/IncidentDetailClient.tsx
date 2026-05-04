@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -61,6 +61,20 @@ export function IncidentDetailClient({ incidentId, status, messages: initial }: 
   const msgForm = useForm<MessageInput>({ resolver: zodResolver(messageSchema) })
   const resForm = useForm<ResolutionInput>({ resolver: zodResolver(resolutionSchema) })
 
+  // Idempotency key (#1141 / #1152). Generated once per mount so a
+  // double-tap on "Resolver" reuses the same key and the server-side
+  // dedupe (`withIdempotency`) collapses the second call into a 409
+  // instead of firing a second Stripe refund. Regenerated on next
+  // page mount so a deliberate re-resolve attempt against the same
+  // (now RESOLVED) incident still gets a fresh key — and bounces on
+  // the status guard rather than the idempotency guard.
+  const idempotencyKey = useMemo(() => {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+      return crypto.randomUUID()
+    }
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  }, [])
+
   async function onAddMessage(data: MessageInput) {
     try {
       setError(null)
@@ -90,9 +104,21 @@ export function IncidentDetailClient({ incidentId, status, messages: initial }: 
       setBusy(true)
       const res = await fetch(`/api/admin/incidents/${incidentId}/resolve`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': idempotencyKey,
+        },
         body: JSON.stringify(data),
       })
+      // 409 = idempotent replay (server saw this exact key already).
+      // Treat as success: the original call's effects are already in
+      // place. Hide the button and refresh so the UI catches up.
+      if (res.status === 409) {
+        setResolved(true)
+        setShowResolve(false)
+        router.refresh()
+        return
+      }
       if (!res.ok) throw new Error((await res.json()).message ?? t('admin.incidentDetail.errorResolve'))
       setResolved(true)
       setShowResolve(false)

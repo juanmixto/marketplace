@@ -12,6 +12,7 @@ export type OrderSideEffects = {
   notifications: Array<
     | { event: 'order.created'; payload: NotificationEventMap['order.created'] }
     | { event: 'stock.low'; payload: NotificationEventMap['stock.low'] }
+    | { event: 'order.buyer_confirmed'; payload: NotificationEventMap['order.buyer_confirmed'] }
   >
   events: Array<{
     orderId: string
@@ -24,6 +25,7 @@ type RecordCreatedOrderSideEffectsInput = {
   kind: 'order.created'
   orderId: string
   customerName: string
+  customerUserId?: string
   vendorIds: string[]
   fulfillmentByVendor: Map<string, string | undefined>
   lines: Array<{
@@ -34,6 +36,13 @@ type RecordCreatedOrderSideEffectsInput = {
   productSlugs: string[]
   vendorSlugs: string[]
   stockLowCandidates: StockLowCandidate[]
+  /**
+   * #1154 H-4: when the order's grandTotal is 0, no Stripe webhook will
+   * ever fire to deliver `order.buyer_confirmed`. The createOrder flow
+   * itself signals confirmation by routing it through the side-effects
+   * outbox alongside the per-vendor `order.created` notifications.
+   */
+  isFreeOrder?: boolean
 }
 
 type RecordOrderCreatedSideEffectsInput = Omit<RecordCreatedOrderSideEffectsInput, 'kind'>
@@ -86,6 +95,19 @@ export function recordOrderCreatedSideEffects(input: RecordOrderCreatedSideEffec
       },
     })),
   )
+
+  // #1154 H-4: free orders skip Stripe entirely — emit the buyer
+  // confirmation through the same outbox so the email handler runs
+  // exactly once. Real-paid orders get this from the Stripe webhook.
+  if (input.isFreeOrder && input.customerUserId) {
+    notifications.push({
+      event: 'order.buyer_confirmed',
+      payload: {
+        orderId: input.orderId,
+        customerUserId: input.customerUserId,
+      },
+    })
+  }
 
   return {
     shouldRevalidateCatalogExperience: true,

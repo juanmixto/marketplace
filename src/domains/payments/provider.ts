@@ -128,14 +128,45 @@ export async function confirmMockPayment(paymentIntentId: string): Promise<void>
   }
 }
 
+/**
+ * Options that callers must supply when refunding.
+ *
+ * - `fundedBy` ('PLATFORM' | 'VENDOR'): drives whether the application
+ *   fee is also refunded. PLATFORM-funded refunds return the platform's
+ *   commission to the buyer too; VENDOR-funded refunds leave the fee
+ *   on the platform balance (the vendor pays the fee on the refund as
+ *   well, standard policy).
+ * - `idempotencyKey`: forwarded to Stripe via the `Idempotency-Key`
+ *   header so a retry of a network-failed refund returns the same
+ *   `re_*` instead of issuing a second one. Caller is responsible for
+ *   keying it stably (e.g. `refund_${incidentId}`).
+ * - `metadata`: passed through to Stripe (kept as a map for grep-friendly
+ *   audit trails on the dashboard).
+ */
+export interface RefundPaymentIntentOptions {
+  fundedBy?: 'PLATFORM' | 'VENDOR'
+  idempotencyKey?: string
+  metadata?: Record<string, string>
+}
+
 declare global {
   var __testRefundPaymentIntentOverride:
-    | ((providerRef: string, amountCents: number) => Promise<{ id: string }>)
+    | ((
+      providerRef: string,
+      amountCents: number,
+      options: RefundPaymentIntentOptions,
+    ) => Promise<{ id: string }>)
     | undefined
 }
 
 export function setTestRefundPaymentIntentOverride(
-  fn: ((providerRef: string, amountCents: number) => Promise<{ id: string }>) | undefined,
+  fn:
+    | ((
+      providerRef: string,
+      amountCents: number,
+      options: RefundPaymentIntentOptions,
+    ) => Promise<{ id: string }>)
+    | undefined,
 ): void {
   globalThis.__testRefundPaymentIntentOverride = fn
 }
@@ -149,17 +180,30 @@ export function setTestRefundPaymentIntentOverride(
  * createPaymentIntent mock contract so admin flows work end-to-end in
  * dev + integration tests.
  *
- * Stripe mode: calls `stripe.refunds.create` with the integer cents
- * amount. The caller is responsible for rolling back the local
- * Incident / Refund rows if this throws.
+ * Stripe mode (#1148 H-1): for destination charges (created with
+ * `transfer_data.destination`) the default Stripe behavior is to refund
+ * the buyer from the platform balance only, leaving the vendor holding
+ * the funds. We always pass `reverse_transfer: true` so Stripe pulls
+ * the money back from the connected account; the
+ * `refund_application_fee` flag is then derived from `fundedBy`. For
+ * non-Connect (multi-vendor) payments these flags are no-ops, so it's
+ * safe to send them unconditionally.
+ *
+ * Stripe mode (#1153 H-3): the request always carries an
+ * `Idempotency-Key` header when the caller supplies one (we always do,
+ * keyed by incident id), so a retry after a network blip collapses to
+ * the same `re_*` instead of issuing a second refund.
+ *
+ * The caller is responsible for rolling back the local Incident /
+ * Refund rows if this throws.
  */
 export async function refundPaymentIntent(
   providerRef: string,
   amountCents: number,
-  metadata: Record<string, string> = {},
+  options: RefundPaymentIntentOptions = {},
 ): Promise<{ id: string }> {
   if (process.env.NODE_ENV === 'test' && globalThis.__testRefundPaymentIntentOverride) {
-    return globalThis.__testRefundPaymentIntentOverride(providerRef, amountCents)
+    return globalThis.__testRefundPaymentIntentOverride(providerRef, amountCents, options)
   }
 
   const env = getServerEnv()
@@ -181,10 +225,15 @@ export async function refundPaymentIntent(
 
   const Stripe = (await import('stripe')).default
   const stripe = new Stripe(env.stripeSecretKey!)
-  const refund = await stripe.refunds.create({
-    payment_intent: providerRef,
-    amount: amountCents,
-    metadata,
-  })
+  const refund = await stripe.refunds.create(
+    {
+      payment_intent: providerRef,
+      amount: amountCents,
+      metadata: options.metadata,
+      reverse_transfer: true,
+      refund_application_fee: options.fundedBy === 'PLATFORM',
+    },
+    options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : undefined,
+  )
   return { id: refund.id }
 }

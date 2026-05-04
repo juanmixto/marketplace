@@ -5,10 +5,21 @@ import { db } from '@/lib/db'
 import { z } from 'zod'
 import { setMarketplaceConfig } from '@/lib/config'
 import { createAuditLog, getAuditRequestIp, mutateWithAudit, type AuditValue } from '@/lib/audit'
-import { requireAdmin, requireFinanceAdmin, requireOpsAdmin } from '@/lib/auth-guard'
+import {
+  requireCatalogAdmin,
+  requireFinanceAdmin,
+  requireOpsAdmin,
+} from '@/lib/auth-guard'
 import { hasRole, ADMIN_ROLES as ADMIN_ROLE_LIST } from '@/lib/roles'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { assertVendorOnboarded } from '@/domains/vendors'
+import {
+  AlreadyProcessedError,
+  withIdempotency,
+} from '@/lib/idempotency'
+
+export { AlreadyProcessedError }
+import { zSafeText } from '@/lib/validation/primitives'
 
 /**
  * Dynamic import to avoid closing a notifications → admin cycle at module
@@ -113,7 +124,11 @@ async function notifyVendorApplicationDecision(
  * Activates a vendor account (APPLYING/PENDING_DOCS → ACTIVE).
  */
 export async function approveVendor(vendorId: string) {
-  const session = await requireAdmin()
+  // #1145: vendor lifecycle decisions are an ops/operations
+  // responsibility. Catalog/finance/support admins must NOT promote
+  // a CUSTOMER to VENDOR (this action does that — see
+  // userNeedsRoleBump below). Doc: docs/authz-audit.md.
+  const session = await requireOpsAdmin()
 
   const vendor = await db.vendor.findUnique({
     where: { id: vendorId },
@@ -172,7 +187,8 @@ export async function approveVendor(vendorId: string) {
  * Rejects a vendor application.
  */
 export async function rejectVendor(vendorId: string) {
-  const session = await requireAdmin()
+  // #1145: ops-only — see approveVendor.
+  const session = await requireOpsAdmin()
 
   const vendor = await db.vendor.findUnique({
     where: { id: vendorId },
@@ -212,7 +228,8 @@ export async function rejectVendor(vendorId: string) {
  * Suspends an active vendor (temporary).
  */
 export async function suspendVendor(vendorId: string) {
-  const session = await requireAdmin()
+  // #1145: ops-only — see approveVendor.
+  const session = await requireOpsAdmin()
 
   const vendor = await db.vendor.findUnique({ where: { id: vendorId } })
   if (!vendor) throw new Error('Productor no encontrado')
@@ -247,7 +264,7 @@ export async function suspendVendor(vendorId: string) {
 
 const reviewSchema = z.object({
   action: z.enum(['approve', 'reject']),
-  rejectionNote: z.string().max(500).optional(),
+  rejectionNote: zSafeText(500).optional(),
 })
 
 const marketplaceConfigSchema = z.object({
@@ -255,7 +272,10 @@ const marketplaceConfigSchema = z.object({
   FREE_SHIPPING_THRESHOLD: z.coerce.number().min(0).max(10000),
   FLAT_SHIPPING_COST: z.coerce.number().min(0).max(1000),
   MAINTENANCE_MODE: z.coerce.boolean().default(false),
-  HERO_BANNER_TEXT: z.string().max(160).trim(),
+  // Rendered as a text node on the public homepage today; zSafeText is
+  // defense-in-depth so a future PR that pipes this through markdown or
+  // dangerouslySetInnerHTML doesn't quietly turn it into stored XSS.
+  HERO_BANNER_TEXT: zSafeText(160),
 })
 
 const commissionRuleSchema = z.object({
@@ -279,10 +299,8 @@ const shippingRateSchema = z.object({
 })
 
 export async function updateMarketplaceConfigAction(formData: FormData) {
-  const session = await requireAdmin()
-  if (!hasRole(session.user.role, [UserRole.SUPERADMIN, UserRole.ADMIN_OPS])) {
-    throw new Error('No tienes permisos para actualizar la configuración del marketplace')
-  }
+  // #1147: helper-only gate (no requireAdmin + inline hasRole).
+  const session = await requireOpsAdmin()
 
   const previousConfig = await db.marketplaceConfig.findMany({
     where: {
@@ -345,10 +363,9 @@ export async function updateMarketplaceConfigAction(formData: FormData) {
 }
 
 export async function createCommissionRule(formData: FormData) {
-  const session = await requireAdmin()
-  if (!hasRole(session.user.role, [UserRole.SUPERADMIN, UserRole.ADMIN_FINANCE, UserRole.ADMIN_OPS])) {
-    throw new Error('No tienes permisos para gestionar reglas de comisión')
-  }
+  // #1147: requireFinanceAdmin already maps to [SUPERADMIN, ADMIN_OPS,
+  // ADMIN_FINANCE] — see src/lib/roles.ts FINANCE_ADMIN_ROLES.
+  const session = await requireFinanceAdmin()
 
   const parsed = commissionRuleSchema.parse({
     vendorId: formData.get('vendorId')?.toString() || undefined,
@@ -399,10 +416,8 @@ export async function createCommissionRule(formData: FormData) {
 }
 
 export async function toggleCommissionRule(ruleId: string) {
-  const session = await requireAdmin()
-  if (!hasRole(session.user.role, [UserRole.SUPERADMIN, UserRole.ADMIN_FINANCE, UserRole.ADMIN_OPS])) {
-    throw new Error('No tienes permisos para gestionar reglas de comisión')
-  }
+  // #1147: see createCommissionRule.
+  const session = await requireFinanceAdmin()
 
   const rule = await db.commissionRule.findUnique({ where: { id: ruleId } })
   if (!rule) throw new Error('Regla no encontrada')
@@ -444,10 +459,8 @@ export async function toggleCommissionRule(ruleId: string) {
 }
 
 export async function deleteCommissionRule(ruleId: string) {
-  const session = await requireAdmin()
-  if (!hasRole(session.user.role, [UserRole.SUPERADMIN, UserRole.ADMIN_FINANCE, UserRole.ADMIN_OPS])) {
-    throw new Error('No tienes permisos para gestionar reglas de comisión')
-  }
+  // #1147: see createCommissionRule.
+  const session = await requireFinanceAdmin()
 
   const rule = await db.commissionRule.findUnique({ where: { id: ruleId } })
   if (!rule) throw new Error('Regla no encontrada')
@@ -482,10 +495,8 @@ export async function deleteCommissionRule(ruleId: string) {
 }
 
 export async function createShippingZone(formData: FormData) {
-  const session = await requireAdmin()
-  if (!hasRole(session.user.role, [UserRole.SUPERADMIN, UserRole.ADMIN_OPS])) {
-    throw new Error('No tienes permisos para gestionar zonas de envío')
-  }
+  // #1147: ops-only — shipping is operations.
+  const session = await requireOpsAdmin()
 
   const parsed = shippingZoneSchema.parse({
     name: formData.get('name'),
@@ -526,10 +537,8 @@ export async function createShippingZone(formData: FormData) {
 }
 
 export async function addShippingRate(formData: FormData) {
-  const session = await requireAdmin()
-  if (!hasRole(session.user.role, [UserRole.SUPERADMIN, UserRole.ADMIN_OPS])) {
-    throw new Error('No tienes permisos para gestionar tarifas de envío')
-  }
+  // #1147: ops-only — see createShippingZone.
+  const session = await requireOpsAdmin()
 
   const parsed = shippingRateSchema.parse({
     zoneId: formData.get('zoneId'),
@@ -578,10 +587,8 @@ export async function addShippingRate(formData: FormData) {
 }
 
 export async function deleteShippingRate(rateId: string) {
-  const session = await requireAdmin()
-  if (!hasRole(session.user.role, [UserRole.SUPERADMIN, UserRole.ADMIN_OPS])) {
-    throw new Error('No tienes permisos para gestionar tarifas de envío')
-  }
+  // #1147: ops-only — see createShippingZone.
+  const session = await requireOpsAdmin()
 
   const rate = await db.shippingRate.findUnique({ where: { id: rateId } })
   if (!rate) throw new Error('Tarifa no encontrada')
@@ -625,7 +632,10 @@ export async function reviewProduct(
   action: 'approve' | 'reject',
   rejectionNote?: string
 ) {
-  const session = await requireAdmin()
+  // #1145: catalog moderation is the catalog admin's job. Finance,
+  // support, and ops should NOT approve/reject products (separation
+  // of duties). Doc: docs/authz-audit.md.
+  const session = await requireCatalogAdmin()
 
   const { action: validAction, rejectionNote: note } = reviewSchema.parse({ action, rejectionNote })
 
@@ -683,7 +693,8 @@ export async function reviewProduct(
  * Suspends an active product.
  */
 export async function suspendProduct(productId: string, reason: string) {
-  const session = await requireAdmin()
+  // #1145: catalog admin only — see reviewProduct.
+  const session = await requireCatalogAdmin()
 
   const product = await db.product.findUnique({ where: { id: productId } })
   if (!product) throw new Error('Producto no encontrado')
@@ -796,19 +807,37 @@ export async function markSettlementPaid(settlementId: string) {
 // ─── Order management ─────────────────────────────────────────────────────────
 
 const CANCELLABLE_ORDER_STATUSES = ['PLACED', 'PAYMENT_CONFIRMED', 'PROCESSING', 'PARTIALLY_SHIPPED'] as const
+type CancellableOrderStatus = (typeof CANCELLABLE_ORDER_STATUSES)[number]
+function isCancellableOrderStatus(status: string): status is CancellableOrderStatus {
+  return (CANCELLABLE_ORDER_STATUSES as readonly string[]).includes(status)
+}
 
 /**
- * Cancels an order. Only admin can cancel.
+ * Cancels an order. Only admin-ops/superadmin can cancel.
+ *
  * - Cascades cancellation to all non-terminal VendorFulfillments
  * - Restores stock for all tracked products in the order
  * - Orders with SHIPPED or DELIVERED fulfillments cannot be cancelled (those
  *   lines require manual intervention / refund flow).
+ *
+ * NOTE (#1158): cancelling an order does NOT issue a Stripe refund —
+ * the buyer must be reimbursed manually via the incident resolution
+ * flow. The previous JSDoc claim that this "may trigger refunds" was
+ * misleading. See `docs/runbooks/payment-incidents.md` for the manual
+ * step.
+ *
+ * `idempotencyToken` (#1152) prevents a double-tap on flaky network
+ * from running the stock-restore transaction twice. Optional for
+ * legacy callers; the admin UI now passes one.
  */
-export async function cancelOrder(orderId: string, reason: string) {
-  // Order cancellation rolls back stock + may trigger refunds via the
-  // payments domain. Restrict to OPS + SUPERADMIN. (#403)
+export async function cancelOrder(
+  orderId: string,
+  reason: string,
+  idempotencyToken?: string,
+) {
   const session = await requireOpsAdmin()
 
+  const doCancel = async () => {
   const order = await db.order.findUnique({
     where: { id: orderId },
     include: {
@@ -820,7 +849,7 @@ export async function cancelOrder(orderId: string, reason: string) {
   })
 
   if (!order) throw new Error('Pedido no encontrado')
-  if (!(CANCELLABLE_ORDER_STATUSES as readonly string[]).includes(order.status)) {
+  if (!isCancellableOrderStatus(order.status)) {
     throw new Error(`No se puede cancelar un pedido en estado ${order.status}`)
   }
 
@@ -877,4 +906,10 @@ export async function cancelOrder(orderId: string, reason: string) {
 
   safeRevalidatePath('/admin/pedidos')
   safeRevalidatePath(`/admin/pedidos/${orderId}`)
+  }
+
+  if (idempotencyToken) {
+    return withIdempotency('order.cancel', idempotencyToken, session.user.id, doCancel)
+  }
+  return doCancel()
 }

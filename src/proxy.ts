@@ -54,6 +54,8 @@ const CSP_NONCE_EXEMPT_PREFIXES = [
   '/sw.js',
 ] as const
 
+const NON_PRODUCTION_ROBOTS_HEADER = 'noindex, nofollow, noarchive'
+
 function shouldApplyNonceCsp(pathname: string): boolean {
   return !CSP_NONCE_EXEMPT_PREFIXES.some(prefix =>
     prefix.endsWith('/') ? pathname.startsWith(prefix) : pathname === prefix
@@ -179,6 +181,9 @@ export async function proxy(request: NextRequest) {
 
   const finalizeResponse = (response: NextResponse): NextResponse => {
     if (cspValue) response.headers.set('Content-Security-Policy', cspValue)
+    if (process.env.APP_ENV && process.env.APP_ENV !== 'production') {
+      response.headers.set('X-Robots-Tag', NON_PRODUCTION_ROBOTS_HEADER)
+    }
     return response
   }
 

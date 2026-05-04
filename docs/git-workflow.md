@@ -141,6 +141,8 @@ The script only **reports** by default — it never deletes anything without exp
 ./scripts/git-hygiene.sh
 ```
 
+For the merge side of the workflow, keep [`docs/runbooks/pr-landing-checklist.md`](runbooks/pr-landing-checklist.md) open while you land PRs. It is the short version of the same guardrails: right worktree, exact contract check, one sync before merge, no protection bypass for convenience.
+
 ### Closing the loop
 
 When a task is done, prefer this order:

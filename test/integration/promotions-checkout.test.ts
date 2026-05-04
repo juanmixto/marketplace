@@ -114,6 +114,48 @@ test('createOrder applies an auto vendor-wide percentage promo and persists disc
   )
 })
 
+test('createOrder bypasses Stripe and commits PAYMENT_CONFIRMED when grandTotal===0 (#1154 H-4)', async () => {
+  // Reproduce the free-order vector: a fixed-amount promo zeroes subtotal,
+  // and a shipping zone with price=0 zeroes the shipping cost. Before the
+  // bypass, this would commit the Order with stock decremented + promo
+  // claimed and THEN crash on `createPaymentIntent(0, ...)` because Stripe
+  // rejects a zero-amount PI. The fix short-circuits PI creation and
+  // marks the Order paid in the same transaction.
+  const { vendorUser, product } = await setupVendorAndProduct({ price: 4, stock: 5 })
+  const zone = await db.shippingZone.create({
+    data: { name: 'Madrid free', provinces: ['Madrid'], isActive: true },
+  })
+  await db.shippingRate.create({
+    data: { zoneId: zone.id, name: 'free madrid', price: 0, isActive: true },
+  })
+  await createPromoAs(vendorUser.id, { kind: 'FIXED_AMOUNT', value: 4 })
+  await createCustomerSession()
+
+  const created = await createOrder(
+    [{ productId: product.id, quantity: 1 }],
+    { address: ADDRESS, saveAddress: false }
+  )
+
+  const order = await db.order.findUnique({
+    where: { id: created.orderId },
+    include: { payments: true },
+  })
+  assert.ok(order)
+  assert.equal(Number(order!.grandTotal), 0, 'grandTotal must be 0 to exercise the bypass')
+  assert.equal(order!.status, 'PAYMENT_CONFIRMED', 'free order must skip PLACED state')
+  assert.equal(order!.paymentStatus, 'SUCCEEDED', 'paymentStatus must be SUCCEEDED, not PENDING')
+
+  const payment = order!.payments[0]
+  assert.ok(payment, 'Payment row must exist')
+  assert.equal(payment!.status, 'SUCCEEDED')
+  assert.match(payment!.providerRef ?? '', /^free_/, 'synthetic providerRef must start with free_')
+  assert.equal(Number(payment!.amount), 0)
+
+  // Stock must have been decremented (real consumption, not leak)
+  const refreshed = await db.product.findUnique({ where: { id: product.id }, select: { stock: true }})
+  assert.equal(refreshed?.stock, 4, 'stock decrement is the legitimate cost of a real free order')
+})
+
 test('createOrder applies a fixed-amount promo and clamps against subtotal', async () => {
   const { vendorUser, product } = await setupVendorAndProduct({ price: 4, stock: 2 })
   await createPromoAs(vendorUser.id, { kind: 'FIXED_AMOUNT', value: 50 })

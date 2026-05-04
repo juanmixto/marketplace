@@ -74,8 +74,13 @@ describe('Incident API routes — source contract', () => {
     assert.ok(messagesRoute.includes('authorRole'), 'must persist the author role alongside authorId')
   })
 
-  test('messages route guards with isAdminRole', () => {
-    assert.ok(messagesRoute.includes('isAdminRole'), 'should authorise with isAdminRole helper')
+  test('messages route guards with the incident role allow-list', () => {
+    assert.ok(messagesRoute.includes('INCIDENT_MESSAGE_ROLES'), 'should define a local incident message allow-list')
+    assert.ok(messagesRoute.includes('UserRole.ADMIN_SUPPORT'), 'support admins should be allowed to reply')
+    assert.ok(messagesRoute.includes('UserRole.ADMIN_OPS'), 'ops admins should be allowed to reply')
+    assert.ok(messagesRoute.includes('UserRole.ADMIN_FINANCE'), 'finance admins should be allowed to reply')
+    assert.ok(messagesRoute.includes('UserRole.SUPERADMIN'), 'superadmins should be allowed to reply')
+    assert.ok(!messagesRoute.includes('UserRole.ADMIN_CATALOG'), 'catalog admins should be excluded from the thread')
   })
 
   test('resolve route imports IncidentResolution enum', () => {
@@ -87,8 +92,11 @@ describe('Incident API routes — source contract', () => {
     assert.ok(resolveRoute.includes('nativeEnum'), 'Zod nativeEnum must be used to validate the resolution value')
   })
 
-  test('resolve route guards with isAdminRole', () => {
-    assert.ok(resolveRoute.includes('isAdminRole'), 'should authorise with isAdminRole helper')
+  test('resolve route guards with isFinanceAdminRole', () => {
+    assert.ok(
+      resolveRoute.includes('if (!session || !isFinanceAdminRole(session.user.role))'),
+      'should authorise with isFinanceAdminRole helper',
+    )
   })
 
   test('resolve route sets resolvedAt timestamp', () => {
