@@ -136,8 +136,14 @@ if [[ "$AUTH_URL" != "https://$APP_HOST" || "$NEXT_PUBLIC_APP_URL" != "https://$
   exit 1
 fi
 
-if [[ "$TRUST_PROXY_HEADERS" != "true" ]]; then
-  echo "TRUST_PROXY_HEADERS=true is required behind Cloudflare." >&2
+# #1185: `cloudflare` is the new recommended value (trusts ONLY
+# cf-connecting-ip, ignores spoofable XFF). `true` is the legacy
+# binary trust mode, kept for non-CF deployments. Anything else is
+# rejected — the env-validator in src/lib/env.ts:268 demands one of
+# the two in production, so the deploy fails-fast here instead of
+# letting the app boot and throw on first request.
+if [[ "$TRUST_PROXY_HEADERS" != "cloudflare" && "$TRUST_PROXY_HEADERS" != "true" ]]; then
+  echo "TRUST_PROXY_HEADERS must be 'cloudflare' (recommended for CF→Traefik) or 'true' (legacy)." >&2
   exit 1
 fi
 
@@ -149,6 +155,10 @@ case "$env_name" in
     fi
     if [[ "$APP_HOST" != "raizdirecta.es" ]]; then
       echo "Production deploy currently expects APP_HOST=raizdirecta.es." >&2
+      exit 1
+    fi
+    if [[ -z "${NEXT_PUBLIC_POSTHOG_KEY:-}" ]]; then
+      echo "Production deploy requires NEXT_PUBLIC_POSTHOG_KEY in $env_file (analytics is silently dead without it; src/lib/posthog.ts skips init when the key is empty)." >&2
       exit 1
     fi
     ;;
@@ -185,6 +195,16 @@ echo "  project: $project"
 echo "  env:     $env_file"
 echo "  host:    $APP_HOST"
 echo "  build:   $NEXT_PUBLIC_COMMIT_SHA on $NEXT_PUBLIC_GIT_BRANCH ($NEXT_PUBLIC_BUILD_TIME)"
+
+# Pre-flight env validation. Loads the same Zod schema (parseServerEnv)
+# the running server enforces at boot. Catches the 2026-05-04 class of
+# regression: a guard added to src/lib/env.ts (e.g. CRON_SECRET required
+# in APP_ENV=production) is mergeable to main without anyone exercising
+# it against the prod env file. Without this check, the first deploy
+# after such a guard lands sees a green build but a crash-loop on
+# container start. With this check, deploy aborts in <2 seconds.
+echo "Running pre-flight env validation..."
+npx --no-install tsx "$(git rev-parse --show-toplevel)/scripts/preflight-env.ts" "$env_name"
 
 "${compose[@]}" build app
 "${compose[@]}" up -d db

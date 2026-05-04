@@ -412,29 +412,84 @@ urgency.
 
 ### What's alerted today
 
-The Sentry side of alerting is configured **in the Sentry UI**, not in
-this repo. There is no committed `alerts.yml` or terraform definition
-for it — the project is small enough that the UI source-of-truth is
-fine for now.
+The Sentry side of alerting is configured **in the Sentry UI**. The
+machine-readable mirror lives in [`infra/sentry-alerts.yaml`](../../infra/sentry-alerts.yaml)
+— that file is the contract that pins which rules MUST exist; the
+quarterly canary procedure below proves they actually fire.
 
 To audit what's alerted today: Sentry → Alerts → Alerts list. Cross-
 reference with the on-call channel (Telegram in the same channel as
 payments — see [`payment-incidents.md`](payment-incidents.md)).
 
-### Recommended alerts to set up (Sentry UI)
+### P0 alert set (#1212)
 
-These complement the PostHog "Notification Health" dashboard (PR 3A) by
-catching errors that reach Sentry but never get logged structurally
-(e.g. uncaught exceptions, runtime crashes).
+These ten alerts are the minimum viable on-call surface for the
+launch. Two are external (Healthchecks.io for `/api/ready`, PostHog
+for the buyer-funnel insight) — listed here so the on-call surface
+stays auditable from a single file.
 
-| Alert | Condition | Action |
-|---|---|---|
-| **New issue in production** | First seen, `environment:production`, severity ≥ warning | Telegram on-call channel |
-| **Spike in checkout errors** | `domain.scope:checkout.*` AND `environment:production`, > 10 events / 5 min | Telegram on-call channel |
-| **Webhook handler errors** | `domain.scope:stripe.webhook.processing_failed`, > 3 events / 15 min | Telegram on-call channel |
-| **Payment mismatch (security)** | `domain.scope:stripe.webhook.payment_mismatch` OR `checkout.confirm_amount_mismatch`, ANY event | Security channel + on-call |
-| **Scrubber crash** | Message contains `[sentry-scrubber] crashed`, ANY event | Engineering channel — observability dead-zone |
-| **Release-regression** | First seen on `release:<latest>`, count ≥ 5 in 1 h | On-call (deploy was bad) |
+| # | Rule (`infra/sentry-alerts.yaml::name`) | Source | Condition | Channel |
+|---|---|---|---|---|
+| 1 | `5xx-rate-global` | Sentry | error rate > 1% / 5 min | oncall |
+| 2 | `5xx-stripe-webhook` | Sentry | any 5xx in `POST /api/webhooks/stripe` / 5 min | oncall |
+| 3 | `payment-mismatch-any` | Sentry | `domain.scope:stripe.webhook.payment_mismatch` ANY event | security + oncall |
+| 4 | `ready-probe-failed` | Healthchecks.io | `/api/ready` fails 3 consecutive probes | oncall |
+| 5 | `auth-signin-failed-burst` | Sentry | `domain.scope:auth.signin.failed` > 30 / min | oncall |
+| 6 | `oauth-callback-error-rate` | Sentry | OAuth callback error rate > 10% / 5 min | oncall |
+| 7 | `checkout-funnel-collapse` | PostHog | conversion drops < 50% of trailing-14d baseline / 30 min | oncall |
+| 8 | `dlq-pending-or-spike` | Sentry | `domain.scope:queue.dlq.entry` ≥ 3 / 24 h | oncall |
+| 9 | `db-connection-error-burst` | Sentry | Postgres connect-refused > 5 / min | oncall |
+| 10 | `ratelimit-degraded-fail-closed` | Sentry | `ratelimit.degraded` with `fail_mode:closed` ANY event | oncall |
+
+The previous "recommended alerts" set (looser thresholds — checkout
+error spike `> 10 / 5 min`, webhook errors `> 3 / 15 min`, etc.)
+lives in git history and is still useful as supplementary daytime
+alerts. Add them below the P0 set in the UI; they don't go on this
+table because they don't page on-call.
+
+### Alerts armed
+
+Cronological log of when each rule was confirmed live in the Sentry
+UI. Update in the same PR that arms or changes a rule.
+
+| Date       | Rule                              | Operator | Notes |
+|------------|-----------------------------------|----------|-------|
+| YYYY-MM-DD | `5xx-rate-global`                 | TODO     | Initial arm — fill after first canary |
+| YYYY-MM-DD | `5xx-stripe-webhook`              | TODO     | |
+| YYYY-MM-DD | `payment-mismatch-any`            | TODO     | |
+| YYYY-MM-DD | `ready-probe-failed`              | TODO     | Healthchecks.io check, NOT a Sentry rule |
+| YYYY-MM-DD | `auth-signin-failed-burst`        | TODO     | |
+| YYYY-MM-DD | `oauth-callback-error-rate`       | TODO     | |
+| YYYY-MM-DD | `checkout-funnel-collapse`        | TODO     | PostHog funnel insight, NOT a Sentry rule |
+| YYYY-MM-DD | `dlq-pending-or-spike`            | TODO     | |
+| YYYY-MM-DD | `db-connection-error-burst`       | TODO     | |
+| YYYY-MM-DD | `ratelimit-degraded-fail-closed`  | TODO     | |
+
+### Canary procedure (quarterly)
+
+[`scripts/sentry-canary.sh staging`](../../scripts/sentry-canary.sh)
+fires one synthetic event per rule listed in `infra/sentry-alerts.yaml`
+so the operator can confirm end-to-end delivery in the configured
+Telegram channels.
+
+Cadence: **first Monday of every quarter**, against staging.
+Production canaries are incident-style: post a "running canary in 5
+min" in the on-call channel first, then
+`I_KNOW_THIS_PAGES_ONCALL=yes bash scripts/sentry-canary.sh production`.
+The script refuses to run against production without that env var.
+
+After every canary:
+
+1. Tick the matching row in the **Alerts armed** table above with
+   today's date and your handle.
+2. Any rule that did NOT fire: open Sentry → Alerts → that rule and
+   compare the conditions to the canary event's tags. Update both
+   `infra/sentry-alerts.yaml` AND the UI in the same change.
+3. Drop a one-liner in [`docs/state-of-the-world.md`](../state-of-the-world.md)
+   § "Recent ops work" so other agents see the canary ran.
+
+The canary events carry `canary:1` and `canary.rule:<name>` tags;
+filter them out of any "first-seen" dashboards with `!canary:1`.
 
 ### Cross-reference with PostHog
 

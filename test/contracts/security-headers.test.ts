@@ -17,12 +17,14 @@ test('getSecurityHeaders exposes the core browser hardening headers', () => {
 
   // CSP intentionally omitted from static headers — it's emitted per-request
   // by src/proxy.ts so it can carry a fresh nonce (#537).
+  // HU4 (#1245): X-XSS-Protection removed (deprecated, can introduce XSS in
+  // legacy Safari). HU5 (#1246): Cross-Origin-Opener-Policy added.
   assert.deepEqual(keys, [
     'X-Content-Type-Options',
     'X-Frame-Options',
-    'X-XSS-Protection',
     'Referrer-Policy',
     'Permissions-Policy',
+    'Cross-Origin-Opener-Policy',
   ])
 
   process.env.NEXT_PUBLIC_APP_URL = previousAppUrl
@@ -71,7 +73,12 @@ test('buildContentSecurityPolicy with nonce enforces strict script-src (#537)', 
     /img-src[^;]* https:(?=\s|;|$)/,
     'img-src must not contain a bare `https:` wildcard'
   )
-  assert.match(csp, /connect-src 'self' https:\/\/api\.stripe\.com https:\/\/js\.stripe\.com https:\/\/\*\.posthog\.com/)
+  // HU3 (#1244): Stripe Radar fingerprint hosts must be present in connect-src.
+  assert.match(csp, /connect-src 'self' https:\/\/api\.stripe\.com https:\/\/js\.stripe\.com https:\/\/m\.stripe\.network https:\/\/m\.stripe\.com https:\/\/r\.stripe\.com https:\/\/\*\.posthog\.com/)
+  // HU3 (#1244): m.stripe.network embeds Radar fingerprint iframe.
+  assert.match(csp, /frame-src 'self' https:\/\/js\.stripe\.com https:\/\/m\.stripe\.network/)
+  // HU3 (#1244): hooks.stripe.com is webhook delivery, never embedded.
+  assert.doesNotMatch(csp, /frame-src[^;]*hooks\.stripe\.com/)
 
   process.env.NEXT_PUBLIC_APP_URL = previousAppUrl
 })
@@ -116,7 +123,7 @@ test('buildContentSecurityPolicy allows React development tooling requirements i
   assert.match(csp, /script-src [^;]*'unsafe-inline'/)
   assert.match(csp, /script-src [^;]*'unsafe-eval'/)
   assert.doesNotMatch(csp, /script-src [^;]*'strict-dynamic'/)
-  assert.match(csp, /connect-src 'self' ws: wss: https:\/\/api\.stripe\.com https:\/\/js\.stripe\.com https:\/\/\*\.posthog\.com/)
+  assert.match(csp, /connect-src 'self' ws: wss: https:\/\/api\.stripe\.com https:\/\/js\.stripe\.com https:\/\/m\.stripe\.network https:\/\/m\.stripe\.com https:\/\/r\.stripe\.com https:\/\/\*\.posthog\.com/)
 })
 
 test('buildContentSecurityPolicy keeps strict-dynamic and drops unsafe-inline in production', () => {
@@ -147,6 +154,46 @@ test('buildContentSecurityPolicy allows PostHog connections in connect-src (dev 
   // script-src must NOT list posthog — the SDK is bundled, not CDN-loaded.
   assert.doesNotMatch(dev, /script-src [^;]*posthog\.com/)
   assert.doesNotMatch(prod, /script-src [^;]*posthog\.com/)
+})
+
+test('Permissions-Policy allowlists Stripe for payment + encrypted-media (HU2 #1243)', () => {
+  // CRITICAL: payment=() with no allowlist breaks Stripe Elements at the
+  // confirmation step. The allowlist for Stripe MUST include js.stripe.com.
+  const headers = getSecurityHeaders()
+  const policy = headers.find(h => h.key === 'Permissions-Policy')?.value ?? ''
+
+  assert.match(policy, /payment=\(self "https:\/\/js\.stripe\.com"\)/)
+  assert.match(policy, /encrypted-media=\(self "https:\/\/js\.stripe\.com"\)/)
+  // Sensitive APIs are explicitly denied.
+  assert.match(policy, /camera=\(\)/)
+  assert.match(policy, /microphone=\(\)/)
+  assert.match(policy, /geolocation=\(\)/)
+  assert.match(policy, /usb=\(\)/)
+  assert.match(policy, /serial=\(\)/)
+  assert.match(policy, /hid=\(\)/)
+  // Privacy-sensitive proposed APIs are denied.
+  assert.match(policy, /interest-cohort=\(\)/)
+  assert.match(policy, /browsing-topics=\(\)/)
+  assert.match(policy, /attribution-reporting=\(\)/)
+})
+
+test('Cross-Origin-Opener-Policy allows OAuth popups (HU5 #1246)', () => {
+  // `same-origin` would null out window.opener for the Google OAuth popup
+  // and break the Telegram deeplink flow. `same-origin-allow-popups` is
+  // the value that keeps both flows working while still isolating
+  // top-level browsing context from cross-origin pages.
+  const headers = getSecurityHeaders()
+  const coop = headers.find(h => h.key === 'Cross-Origin-Opener-Policy')?.value
+  assert.equal(coop, 'same-origin-allow-popups')
+})
+
+test('X-XSS-Protection has been removed (HU4 #1245)', () => {
+  // Header is deprecated; modern browsers ignore it and legacy Safari can
+  // be tricked into reflective XSS via the filter. CSP is the canonical
+  // defense — the static header is now harmful, not protective.
+  const headers = getSecurityHeaders()
+  const keys = headers.map(h => h.key)
+  assert.ok(!keys.includes('X-XSS-Protection'), 'X-XSS-Protection must NOT be set')
 })
 
 test('buildHeaderRules forces /_next/static no-store during development', () => {

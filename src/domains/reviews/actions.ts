@@ -9,6 +9,19 @@ import { safeRevalidatePath } from '@/lib/revalidate'
 // eslint-disable-next-line no-restricted-imports -- dispatcher is intentionally server-only, excluded from notifications barrel
 import { emit as emitNotification } from '@/domains/notifications/dispatcher'
 import { zSafeText } from '@/lib/validation/primitives'
+import { checkRateLimit } from '@/lib/ratelimit'
+import { logger } from '@/lib/logger'
+
+// #1278: bound how fast a buyer can submit reviews. The DB unique
+// `(orderId, productId)` already stops dup writes, but a buyer with
+// many delivered orders could spam meaningfully-different rows in
+// seconds. 5/h covers any plausible legitimate burst (a buyer
+// catching up on a backlog still tops out around one review every
+// few minutes); 20/day stops the slow-drip variant.
+const REVIEW_LIMIT_PER_HOUR = 5
+const REVIEW_WINDOW_HOUR = 3600
+const REVIEW_LIMIT_PER_DAY = 20
+const REVIEW_WINDOW_DAY = 86400
 
 const createReviewSchema = z.object({
   orderId: z.string().min(1),
@@ -57,6 +70,29 @@ export async function createReview(
 ) {
   const session = await getActionSession()
   if (!session) throw new Error('Debes iniciar sesión para dejar una reseña')
+
+  // #1278: per-buyer rate limit before any DB read. Both windows must
+  // pass: 5/h covers the burst case, 20/day the slow-drip case.
+  const hourly = await checkRateLimit(
+    'review-submit-user-hour',
+    session.user.id,
+    REVIEW_LIMIT_PER_HOUR,
+    REVIEW_WINDOW_HOUR,
+  )
+  if (!hourly.success) {
+    logger.warn('review.ratelimit_blocked', { userId: session.user.id, scope: 'hour' })
+    throw new Error('Demasiadas reseñas en poco tiempo. Inténtalo más tarde.')
+  }
+  const daily = await checkRateLimit(
+    'review-submit-user-day',
+    session.user.id,
+    REVIEW_LIMIT_PER_DAY,
+    REVIEW_WINDOW_DAY,
+  )
+  if (!daily.success) {
+    logger.warn('review.ratelimit_blocked', { userId: session.user.id, scope: 'day' })
+    throw new Error('Has alcanzado el límite diario de reseñas. Inténtalo mañana.')
+  }
 
   const validated = createReviewSchema.parse({ orderId, productId, rating, body })
   const trimmedBody = validated.body?.trim()

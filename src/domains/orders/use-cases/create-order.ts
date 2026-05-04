@@ -37,6 +37,8 @@ import {
 } from '@/domains/promotions'
 // eslint-disable-next-line no-restricted-imports -- loader is Prisma-backed and stays out of the promotions barrel
 import { countBuyerRedemptions, loadEvaluablePromotions } from '@/domains/promotions/loader'
+// eslint-disable-next-line no-restricted-imports -- rate-limit helper sits next to loader and stays out of the barrel
+import { checkCouponAttemptRateLimit } from '@/domains/promotions/rate-limit'
 import { claimPromotionRedemptions } from '../promotion-claims'
 import {
   linkOrderPaymentProviderRef,
@@ -57,10 +59,20 @@ import {
   InvalidPromotionCodeError,
   PaymentRowDivergedError,
   SavedAddressUnavailableError,
+  TooManyPendingOrdersError,
   VariantSelectionRequiredError,
   VariantUnavailableError,
   ProductUnavailableError,
 } from '../errors'
+
+// #1270: cap on per-user PLACED-and-unpaid orders. Inline (not exported)
+// because this file is `'use server'` and Next strips non-async exports
+// from the action manifest, breaking the import graph downstream.
+// The ceiling sits well above any plausible legitimate usage (a buyer who
+// genuinely abandons 9 checkouts in flight is suspicious) but tight
+// enough to limit damage from a credential-stuffed account that hammers
+// checkout to grief vendors / vendor inventory snapshots.
+const MAX_PENDING_ORDERS_PER_USER = 10
 
 export type { CartItemInput } from '@/shared/types/cart'
 import type { CartItemInput } from '@/shared/types/cart'
@@ -480,6 +492,27 @@ export async function createOrder(
     }
   }
 
+  // #1270: hard cap on PLACED-and-unpaid orders per user. Counted AFTER
+  // replay so a legitimate retry of an existing checkoutAttemptId is not
+  // blocked by its own row. The check sits before any DB writes / Stripe
+  // call so a blocked user pays no infrastructure cost.
+  const pendingCount = await db.order.count({
+    where: {
+      customerId: sessionUserId,
+      status: 'PLACED',
+      paymentStatus: 'PENDING',
+    },
+  })
+  if (pendingCount >= MAX_PENDING_ORDERS_PER_USER) {
+    logger.warn('checkout.too_many_pending', {
+      correlationId,
+      userId: sessionUserId,
+      pendingCount,
+      cap: MAX_PENDING_ORDERS_PER_USER,
+    })
+    throw new TooManyPendingOrdersError()
+  }
+
   logger.info('checkout.start', {
     correlationId,
     userId: sessionUserId,
@@ -494,6 +527,22 @@ export async function createOrder(
   const validatedItems = orderItemsSchema.parse(items)
   const validated = await resolveCheckoutInput({ sessionUserId, formData, correlationId })
   const promotionCode = options.promotionCode?.trim().toUpperCase() || null
+
+  // #1269: rate-limit any checkout submission that includes a coupon
+  // code. A blocked attempt surfaces the same `InvalidPromotionCodeError`
+  // a genuinely-unknown code would, so the attacker can't distinguish
+  // "wrong code" from "we noticed you trying codes". The rate-limiter is
+  // fail-open: a degraded Redis must not break legitimate redemptions.
+  if (promotionCode) {
+    const rl = await checkCouponAttemptRateLimit({
+      code: promotionCode,
+      buyerId: sessionUserId,
+      surface: 'checkout',
+    })
+    if (!rl.allowed) {
+      throw new InvalidPromotionCodeError(promotionCode)
+    }
+  }
 
   const { products, lines } = await loadProductsAndLines({ validatedItems })
   ensureStockAvailability(products, validatedItems)

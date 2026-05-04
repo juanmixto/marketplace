@@ -27,6 +27,8 @@ export function RegisterForm({ topSlot }: Props) {
       lastName: data.get('lastName'),
       email: data.get('email'),
       password: data.get('password'),
+      // Honeypot (#1271): humans never fill this; bots usually do.
+      website: typeof data.get('website') === 'string' ? data.get('website') : '',
     }
 
     const res = await fetch('/api/auth/register', {
@@ -59,6 +61,14 @@ export function RegisterForm({ topSlot }: Props) {
       {topSlot ? <div className="mt-6">{topSlot}</div> : null}
 
       <form onSubmit={handleSubmit} className={`${topSlot ? 'mt-2' : 'mt-6'} space-y-4`}>
+        <input
+          type="text"
+          name="website"
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+          style={{ position: 'absolute', left: '-9999px', top: '-9999px', opacity: 0, height: 0, width: 0 }}
+        />
         <div className="grid grid-cols-2 gap-3">
           <Input name="firstName" autoComplete="given-name" label="Nombre" placeholder="María" required />
           <Input name="lastName" autoComplete="family-name" label="Apellidos" placeholder="García" required />

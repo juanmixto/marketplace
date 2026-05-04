@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { getActionSession } from '@/lib/action-session'
+import { isSecureAuthDeployment } from '@/lib/auth-env'
 import { logger } from '@/lib/logger'
 import { UserRole } from '@/generated/prisma/enums'
 import { hasRole } from '@/lib/roles'
@@ -85,7 +86,11 @@ export async function startImpersonation(input: unknown): Promise<void> {
   cookieStore.set(IMPERSONATION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    // HU6 (#1254): derive Secure from AUTH_URL so a non-production NODE_ENV
+    // running behind Cloudflare TLS still emits Secure-flagged cookies. This
+    // cookie carries an admin-side impersonation token — it MUST not travel
+    // in clear ever, even on the Cloudflare → origin leg.
+    secure: isSecureAuthDeployment(process.env),
     path: '/',
     maxAge: IMPERSONATION_TTL_SECONDS,
   })

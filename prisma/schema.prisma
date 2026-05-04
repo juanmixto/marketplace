@@ -196,6 +196,15 @@ model User {
   // intentional flows (vendor demotion, soft-suspend) want immediate
   // session kill without flipping the boolean.
   tokenVersion         Int       @default(0)
+  // #1276: per-account login lockout. Counter is bumped atomically
+  // on each failed credentials login and cleared on success. After
+  // CREDENTIAL_LOCKOUT_THRESHOLD consecutive failures we set
+  // `lockoutUntil` to a backoff-window in the future; logins inside
+  // that window fail without checking the password. Combines with the
+  // existing rate-limit (`login-identity` 10/15min) to bound a
+  // distributed brute-force that rotates IPs.
+  failedLoginAttempts  Int       @default(0)
+  lockoutUntil         DateTime?
   // Phase 4b-β: created lazily on the first subscription checkout so we
   // can attach the same Stripe Customer to every future Checkout Session
   // and every renewal invoice.
