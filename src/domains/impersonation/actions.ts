@@ -12,6 +12,7 @@ import { safeRevalidatePath } from '@/lib/revalidate'
 import {
   IMPERSONATION_COOKIE,
   IMPERSONATION_TTL_SECONDS,
+  assertImpersonationSafeToEnable,
   createImpersonationSessionId,
   isImpersonationEnabled,
   signImpersonationToken,
@@ -38,6 +39,12 @@ export async function startImpersonation(input: unknown): Promise<void> {
   if (!isImpersonationEnabled()) {
     throw new Error('[impersonation] Feature disabled')
   }
+  // #1155: refuse to issue an impersonation token when the read-only
+  // guard isn't actually wired into the vendor mutation surface. Sets
+  // a hard floor so a future operator who flips the flag in env can't
+  // accidentally bypass the read-only contract that the cookie's
+  // payload claims to enforce.
+  assertImpersonationSafeToEnable()
 
   const session = await getActionSession()
   if (!session || !hasRole(session.user.role, IMPERSONATION_STARTERS)) {
