@@ -151,6 +151,10 @@ case "$env_name" in
       echo "Production deploy currently expects APP_HOST=raizdirecta.es." >&2
       exit 1
     fi
+    if [[ -z "${NEXT_PUBLIC_POSTHOG_KEY:-}" ]]; then
+      echo "Production deploy requires NEXT_PUBLIC_POSTHOG_KEY in $env_file (analytics is silently dead without it; src/lib/posthog.ts skips init when the key is empty)." >&2
+      exit 1
+    fi
     ;;
   staging)
     if [[ "$APP_ENV" != "staging" || "$NEXT_PUBLIC_APP_ENV" != "staging" ]]; then
