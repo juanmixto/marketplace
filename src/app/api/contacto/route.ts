@@ -6,6 +6,7 @@ import { Text } from '@react-email/components'
 import { checkRateLimit, getClientIP } from '@/lib/ratelimit'
 import { logger } from '@/lib/logger'
 import { normalizeAuthEmail } from '@/lib/auth-email'
+import { HONEYPOT_FIELD_NAME, isHoneypotTripped } from '@/lib/honeypot'
 
 const contactSchema = z.object({
   nombre: z.string().min(2).max(100),
@@ -54,6 +55,19 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
+
+    // Honeypot (#1271): silent success. A non-empty `website` is a bot.
+    if (isHoneypotTripped(body?.[HONEYPOT_FIELD_NAME])) {
+      logger.warn('security.honeypot.tripped', { surface: 'contact', ip: clientIP })
+      return NextResponse.json(
+        {
+          success: true,
+          message: 'Mensaje recibido correctamente. Nos pondremos en contacto pronto.',
+        },
+        { status: 200 }
+      )
+    }
+
     const validated = contactSchema.parse(body)
 
     // Per-identity throttle so a distributed source can't keep recycling the

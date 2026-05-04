@@ -172,14 +172,28 @@ export function toCheckoutFormAddress(address: SavedCheckoutAddress) {
   }
 }
 
+// Hard caps to defend against inventory-griefing (#1270). A single line
+// quantity above MAX_ITEM_QUANTITY would otherwise be bounded only by
+// product stock, which a hostile user can use to reserve popular items
+// in the precheck/transaction race window. The cart-level cap stops a
+// user from spawning thousands of micro-orders to spam vendors / our
+// fulfillment pipeline.
+export const MAX_ITEM_QUANTITY = 50
+export const MAX_CART_LINES = 20
+
 export const orderItemSchema = z.object({
   productId: z.string().min(1, 'Producto inválido'),
   variantId: z.string().min(1).optional(),
-  quantity: z.number().int().positive('La cantidad debe ser un entero positivo'),
+  quantity: z
+    .number()
+    .int()
+    .positive('La cantidad debe ser un entero positivo')
+    .max(MAX_ITEM_QUANTITY, `La cantidad máxima por línea es ${MAX_ITEM_QUANTITY}`),
 })
 
 export const orderItemsSchema = z.array(orderItemSchema)
   .min(1, 'El carrito no puede estar vacío')
+  .max(MAX_CART_LINES, `El carrito no puede tener más de ${MAX_CART_LINES} productos distintos`)
   .superRefine((items, ctx) => {
     const seen = new Set<string>()
 
