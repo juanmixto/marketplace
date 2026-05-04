@@ -22,6 +22,7 @@ import {
 } from '../side-effects'
 import { emit as emitNotification } from '@/domains/notifications'
 import { AlreadyProcessedError, withIdempotency } from '@/lib/idempotency'
+import { trackServer } from '@/lib/analytics.server'
 
 /**
  * `shouldApplyPaymentSucceeded` already makes this function a no-op on
@@ -147,6 +148,26 @@ async function confirmOrderInner(
     orderId,
     customerUserId: payment.order.customerId,
   })
+
+  // #1215: server-side `order.placed` so we don't lose the conversion
+  // when the buyer closes the tab before /checkout/confirmacion hydrates.
+  // The client tracker (`PurchaseTracker.tsx`) still fires too as defense
+  // in depth — both calls share the dedupeKey shape `order.placed:<orderId>`
+  // which becomes PostHog's `$insert_id`, so the platform drops the
+  // duplicate inside its 24 h dedupe window.
+  trackServer(
+    'order.placed',
+    {
+      order_id: orderId,
+      order_number: payment.order.orderNumber,
+      value: Number(payment.order.grandTotal),
+      currency: payment.currency,
+    },
+    {
+      distinctId: payment.order.customerId,
+      dedupeKey: orderId,
+    },
+  )
 }
 
 export async function getMyOrders() {

@@ -12,12 +12,19 @@ import { logger } from '@/lib/logger'
  * feature is an explicit `false` from the PostHog UI (or from the
  * FEATURE_FLAGS_OVERRIDE escape hatch below).
  *
+ * Caveat for `kill-*` flags: under fail-open, a kill switch flipped
+ * to `false` to disable a feature stops taking effect during a
+ * PostHog outage. For incident-grade kills assume the flag does not
+ * respond and use the maintenance page instead. Full decision matrix
+ * in docs/runbooks/kill-switches.md.
+ *
  * Naming convention:
  *   - `kill-<area>`  — emergency off switch. Default `true` in UI.
  *   - `feat-<name>`  — work-in-progress feature gate. Default `false`
  *                      in UI, targeted by email/role for beta testers.
  *
- * See docs/conventions.md § Feature flags.
+ * See docs/conventions.md § Feature flags and
+ * docs/runbooks/kill-switches.md for the fail-open caveat.
  */
 
 export interface FlagContext {
