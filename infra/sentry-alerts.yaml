@@ -1,0 +1,238 @@
+# Sentry P0 alerts — reference config (#1212)
+#
+# This file is the canonical, version-controlled mirror of the alert
+# rules that live in the Sentry UI under
+#   Sentry → Alerts → Alerts list → Issue/Metric Alerts
+# for the `marketplace` project.
+#
+# Sentry's alert API does not yet support full declarative apply
+# (issue alert exports drop the action plumbing), so this file is a
+# READING guide for human operators, not a source of truth that
+# `sentry-cli` can re-apply. The contract is:
+#
+#   1. Every alert in the Sentry UI MUST have an entry here.
+#   2. Every entry here MUST be confirmed in the Sentry UI within
+#      24 h of merge (see armed_at + screenshot).
+#   3. When you change an alert in the UI, update this file in the
+#      same week — the quarterly canary procedure (see
+#      `scripts/sentry-canary.sh`) re-validates that everything still
+#      fires, but only against the names listed here.
+#
+# Channels referenced below are Telegram bots already configured under
+# Sentry → Settings → Integrations → Telegram. Two destinations:
+#   - oncall   → primary engineering on-call channel (also gets
+#                payment-incidents.md alerts).
+#   - security → security/abuse channel (gated to fewer humans).
+#
+# Severity legend:
+#   P0 = page on-call within 15 min
+#   P1 = post to channel; daytime triage
+#
+# When adding a new alert: also add the canary trigger to
+# `scripts/sentry-canary.sh` so the quarterly drill exercises it.
+
+project: marketplace
+environment: production
+last_armed_at: null  # FILL when the UI rules go live
+
+alerts:
+  - name: 5xx-rate-global
+    severity: P0
+    description: >
+      Server-rendered route error rate exceeds 1% over a rolling 5-min
+      window. Floor at 1% catches a real outage without paging on the
+      single-vendor 4xx-mislabelled-as-5xx noise.
+    type: metric
+    dataset: errors
+    aggregation: percent_of_total(errors, transactions)
+    threshold:
+      operator: ">"
+      value: 0.01
+      window_minutes: 5
+    filters:
+      - "level:error"
+      - "environment:production"
+    actions:
+      - channel: oncall
+        priority: P0
+
+  - name: 5xx-stripe-webhook
+    severity: P0
+    description: >
+      Any 5xx in `/api/webhooks/stripe` over 5 min. A failing webhook
+      handler means we miss real payments — every event matters.
+    type: metric
+    dataset: errors
+    threshold:
+      operator: ">"
+      value: 0
+      window_minutes: 5
+    filters:
+      - 'transaction:"POST /api/webhooks/stripe"'
+      - "level:error"
+      - "environment:production"
+    actions:
+      - channel: oncall
+        priority: P0
+
+  - name: payment-mismatch-any
+    severity: P0
+    description: >
+      Any single `stripe.webhook.payment_mismatch` event. This is a
+      tampering / amount-divergence signal — never expected in normal
+      operation. Routes to security, not on-call, because the payload
+      already gets the financial dispute path; security cares about
+      the abuse pattern.
+    type: issue
+    threshold:
+      operator: ">="
+      value: 1
+      window_minutes: 5
+    filters:
+      - "domain.scope:stripe.webhook.payment_mismatch"
+      - "environment:production"
+    actions:
+      - channel: security
+        priority: P0
+      - channel: oncall
+        priority: P0
+
+  - name: ready-probe-failed
+    severity: P0
+    description: >
+      `/api/ready` failed 3 consecutive deep-probe checks (DB, Redis,
+      Stripe, Postgres slot). The probe is wired in #1227. Sentry only
+      sees this if the route returns a structured error — the actual
+      paging trigger is the external Healthchecks.io ping (no Sentry
+      check needed for absence-of-event). Listed here as a reminder
+      that the alert path lives outside Sentry.
+    type: external
+    external_provider: healthchecks_io
+    note: >
+      Configure the Healthchecks.io check to call `/api/ready` every
+      60s and grace 180s. Failure → on-call. NOT a Sentry alert; this
+      file lists it for traceability with the audit checklist.
+    actions:
+      - channel: oncall
+        priority: P0
+
+  - name: auth-signin-failed-burst
+    severity: P0
+    description: >
+      `auth.signin.failed` exceeds 30 events/min. Symptom of credential
+      stuffing — paired with the rate-limit on `/api/auth/login-precheck`
+      from `src/lib/ratelimit.ts`, this catches the case where the
+      attacker rotates IPs faster than the per-IP bucket can deny.
+    type: metric
+    dataset: events
+    aggregation: count()
+    threshold:
+      operator: ">"
+      value: 30
+      window_minutes: 1
+    filters:
+      - "domain.scope:auth.signin.failed"
+      - "environment:production"
+    actions:
+      - channel: oncall
+        priority: P0
+
+  - name: oauth-callback-error-rate
+    severity: P0
+    description: >
+      OAuth callback error rate > 10% over 5 min. Either Google
+      revoked our client (rare), the env got rotated without a
+      redeploy (saw this on 2026-04-29), or the callback URL drifted
+      from the OAuth console.
+    type: metric
+    dataset: events
+    aggregation: percent_of(domain.scope:auth.oauth.callback_error,
+                            domain.scope:auth.oauth.callback_*)
+    threshold:
+      operator: ">"
+      value: 0.10
+      window_minutes: 5
+    filters:
+      - "environment:production"
+    actions:
+      - channel: oncall
+        priority: P0
+
+  - name: checkout-funnel-collapse
+    severity: P0
+    description: >
+      `checkout.started → order.placed` conversion drops below 50% of
+      the trailing-14-day baseline over a rolling 30-min window.
+      Lives in PostHog (alert from the funnel insight in
+      `docs/posthog-dashboards.md` § "Buyer funnel"), NOT Sentry —
+      Sentry doesn't see successful events to compute a ratio.
+      Listed here for traceability.
+    type: external
+    external_provider: posthog
+    note: >
+      PostHog → Insights → "Buyer funnel" → Add alert. Drop below
+      0.5× rolling 14d baseline → Telegram on-call.
+    actions:
+      - channel: oncall
+        priority: P0
+
+  - name: dlq-pending-or-spike
+    severity: P0
+    description: >
+      DLQ pending count ≥ 10 OR new entries ≥ 3 over 24 h. The DLQ
+      worker (issue #1213, shipped via #1229) tags every entry with
+      `domain.scope:queue.dlq.*` — the count alert reads PostHog,
+      the spike alert reads Sentry on the structured warn-level event.
+    type: metric
+    dataset: events
+    aggregation: count()
+    threshold:
+      operator: ">="
+      value: 3
+      window_hours: 24
+    filters:
+      - "domain.scope:queue.dlq.entry"
+      - "environment:production"
+    actions:
+      - channel: oncall
+        priority: P0
+
+  - name: db-connection-error-burst
+    severity: P0
+    description: >
+      Postgres connection errors > 5/min. Catches the
+      "Prisma can't reach the DB" pattern that precedes a full outage
+      by 30-90 s on the single-node Proxmox topology.
+    type: metric
+    dataset: errors
+    aggregation: count()
+    threshold:
+      operator: ">"
+      value: 5
+      window_minutes: 1
+    filters:
+      - "exception.type:PrismaClientInitializationError OR exception.type:PrismaClientRustPanicError OR message:/connect ECONNREFUSED.*5432/"
+      - "environment:production"
+    actions:
+      - channel: oncall
+        priority: P0
+
+  - name: ratelimit-degraded-fail-closed
+    severity: P0
+    description: >
+      `ratelimit.degraded:fail-closed` ANY event. Means Upstash is
+      down AND we elected to fail-closed for a critical surface
+      (checkout). Buyers can't complete orders until Upstash recovers
+      OR an operator flips the flag.
+    type: issue
+    threshold:
+      operator: ">="
+      value: 1
+      window_minutes: 5
+    filters:
+      - "domain.scope:ratelimit.degraded"
+      - "fail_mode:closed"
+      - "environment:production"
+    actions:
+      - channel: oncall
+        priority: P0
