@@ -20,7 +20,12 @@ export async function getActionSession(): Promise<ActionSession | null> {
   }
 
   const session = await auth()
-  if (!session) return null
+  // #1142: a JWT whose tokenVersion no longer matches the User row (or
+  // that points at an anonimized / suspended user) survives `auth()`
+  // structurally because we strip the identity claims rather than
+  // returning null from the callback. Treat empty id as "no session"
+  // so requireAuth / domain actions reject it.
+  if (!session?.user?.id) return null
 
   return {
     user: {

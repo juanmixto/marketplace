@@ -43,6 +43,10 @@ Si un hostname nuevo aparece, añádelo aquí **antes** de cerrar el PR que lo m
 - **Backups:** Phase 0 del epic #1002 (pgBackRest a B2 + dump lógico). Sin standby todavía. "Failover" = restore desde backup.
   Runbooks: `docs/runbooks/db-backup.md`, `docs/runbooks/db-restore.md`, `docs/runbooks/db-failover.md`.
 - **Rollback rápido:** redeploy del último SHA estable (cambia branch local en el servidor + `npm run deploy:prod`) + `kill-*` flags en PostHog para apagar features problemáticas sin redeploy.
+- **Probes operativos (post-#1211):**
+  - `/api/healthcheck` — **liveness**. Solo Postgres (queries por modelo). Lo que el contenedor expone para "sigo vivo".
+  - `/api/ready` — **readiness**. DB + Stripe (`balance.retrieve`) + Upstash (`PING`) + pg-boss (queue size). Lo que el LB / monitor externo debería pollear. 503 cuando cualquier dependencia crítica falla; cache 5s de respuestas OK para no martillear Stripe.
+  - `/api/version` — build SHA + branch + timestamp (BuildBadge / smoke deploy).
 
 ## Integraciones externas (estado)
 

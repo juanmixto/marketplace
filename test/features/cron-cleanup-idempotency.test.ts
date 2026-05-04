@@ -28,18 +28,31 @@ test('GET with wrong Bearer token returns 401', async () => {
   assert.equal(res.status, 401)
 })
 
-test('GET with x-vercel-cron header bypasses Bearer auth', async () => {
-  // We don't actually run cleanup here — that needs a DB. We just verify
-  // the auth path lets the request through (any non-401 status proves
-  // the gate let it past; the cleanup itself may fail with 500 due to
-  // the missing DB connection in this test env).
+test('GET with x-vercel-cron header but no Bearer is REJECTED (#1150)', async () => {
+  // The previous bypass let any caller fire cron jobs by setting the
+  // header, because Cloudflare Tunnel does not strip arbitrary client
+  // headers. Now Bearer CRON_SECRET is the only path; the header has
+  // no auth value.
   delete process.env.CRON_SECRET
   const res = await GET(
     new Request('http://localhost/api/cron/cleanup-idempotency', {
       headers: { 'x-vercel-cron': '1' },
     }),
   )
-  assert.notEqual(res.status, 401, 'vercel cron header must not be rejected')
+  assert.equal(res.status, 401, 'x-vercel-cron alone must not authorize the cron')
+})
+
+test('GET with x-vercel-cron AND wrong Bearer is REJECTED (#1150)', async () => {
+  process.env.CRON_SECRET = 'expected-secret'
+  const res = await GET(
+    new Request('http://localhost/api/cron/cleanup-idempotency', {
+      headers: {
+        'x-vercel-cron': '1',
+        authorization: 'Bearer wrong-token',
+      },
+    }),
+  )
+  assert.equal(res.status, 401, 'x-vercel-cron must not bypass a wrong Bearer')
 })
 
 // Restore env at the end so other test files in the same runner aren't affected.
