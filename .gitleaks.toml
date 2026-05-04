@@ -30,7 +30,14 @@ paths = [
 # tests. Intentionally committed so tests can derive a stable hash
 # without wiring env vars. The literal string is scoped to the token
 # pepper helpers in src/domains/auth/*.
+#
+# PostHog project API keys (phc_*) are PUBLIC by design — they are
+# write-only ingest tokens shipped to every browser via the
+# NEXT_PUBLIC_POSTHOG_KEY env var. PostHog's own docs say they are
+# safe to commit. Distinct from POSTHOG_PERSONAL_API_KEY (prefix
+# `phx_`), which IS secret and is NOT allowlisted here.
 regexes = [
   '''dev-only-fallback-do-not-use-in-prod''',
   '''ci-secret-please-change''',
+  '''phc_[A-Za-z0-9]{40,}''',
 ]

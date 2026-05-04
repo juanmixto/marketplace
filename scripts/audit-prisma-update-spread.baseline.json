@@ -1,0 +1,10 @@
+{
+  "note": "Pre-existing prisma update/upsert calls with `data: <ident>` or `data: { ...spread }`. CI tolerates these; new ones fail. Shrink as call sites name fields explicitly.",
+  "generatedAt": "2026-05-04T06:39:42.755Z",
+  "violations": [
+    "src/app/api/direcciones/[id]/route.ts|address|data: { ...validated,\n          label:…",
+    "src/domains/shipping/vendor-address-actions.ts|vendorAddress|data: { ...data, isDefault: true },\n  …",
+    "src/domains/vendors/actions.ts|product|data: { ...data,\n      ...altsPatch,\n …",
+    "src/lib/audit.ts|vendor|data: { ...} }…"
+  ]
+}

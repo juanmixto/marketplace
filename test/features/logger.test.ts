@@ -75,3 +75,65 @@ test('redact does not mutate the original object', () => {
   assert.equal(input.password, 'secret')
   assert.equal(result.password, '[REDACTED]')
 })
+
+// ─── P1-2 (#1189): deep redact + value-pattern scrubbing ────────────────
+
+test('redact walks nested objects (deep, not shallow)', () => {
+  const result = redact({
+    user: { password: 'hunter2', name: 'visible' },
+    request: { headers: { authorization: 'Bearer xxx', accept: 'json' } },
+  })
+  const user = result.user as { password: string; name: string }
+  const request = result.request as { headers: { authorization: string; accept: string } }
+  assert.equal(user.password, '[REDACTED]')
+  assert.equal(user.name, 'visible')
+  assert.equal(request.headers.authorization, '[REDACTED]')
+  assert.equal(request.headers.accept, 'json')
+})
+
+test('redact walks into arrays', () => {
+  const result = redact({
+    events: [
+      { type: 'login', token: 't1' },
+      { type: 'logout', token: 't2' },
+    ],
+  })
+  const events = result.events as Array<{ type: string; token: string }>
+  assert.equal(events[0].token, '[REDACTED]')
+  assert.equal(events[1].token, '[REDACTED]')
+  assert.equal(events[0].type, 'login')
+})
+
+test('redact strips emails embedded in string values', () => {
+  const result = redact({ message: 'failed for user@example.com', orderId: 'o-1' })
+  assert.equal(result.message, 'failed for [REDACTED]')
+  assert.equal(result.orderId, 'o-1')
+})
+
+test('redact strips Stripe-shaped tokens embedded in string values', () => {
+  const result = redact({ note: 'see pi_1ABCdef9876543210xyz for details' })
+  assert.equal(result.note, 'see [REDACTED] for details')
+})
+
+test('redact strips JWT-shaped bearer tokens embedded in strings', () => {
+  const result = redact({
+    log: 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c',
+  })
+  assert.match(result.log as string, /\[REDACTED\]/)
+  assert.ok(!(result.log as string).includes('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'))
+})
+
+test('redact does not stack-overflow on circular references', () => {
+  type Node = { name: string; child?: Node; password?: string }
+  const root: Node = { name: 'root', password: 'leak' }
+  root.child = root
+  const result = redact(root as unknown as Record<string, unknown>)
+  assert.equal(result.password, '[REDACTED]')
+  assert.equal(result.name, 'root')
+})
+
+test('redact preserves Error instances unchanged (handled by serializeContext)', () => {
+  const err = new Error('boom')
+  const result = redact({ cause: err })
+  assert.strictEqual(result.cause, err)
+})

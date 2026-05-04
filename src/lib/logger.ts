@@ -88,25 +88,35 @@ export function buildLogEntry(
 function writeEntry(entry: LogEntry) {
   if (LEVEL_RANK[entry.level] < LEVEL_RANK[envLogLevel()]) return
 
+  // P1-2 (#1189): auto-apply deep redaction before any sink (stdout in
+  // prod, console in dev). Until #1189 the redact() helper was shallow
+  // and opt-in, which meant call sites that passed nested objects
+  // (`logger.info('x', { user: { password } })`) leaked the value into
+  // Loki / Vercel logs. Sentry already had its own deep scrubber; this
+  // brings the structured-log path to parity.
+  const safeEntry: LogEntry = entry.context
+    ? { ...entry, context: scrubLogContext(entry.context) }
+    : entry
+
   if (isProduction()) {
-    process.stdout.write(JSON.stringify(entry) + '\n')
+    process.stdout.write(JSON.stringify(safeEntry) + '\n')
     return
   }
 
-  const tag = `[${entry.scope}]`
-  const payload = entry.context ?? {}
-  switch (entry.level) {
+  const tag = `[${safeEntry.scope}]`
+  const payload = safeEntry.context ?? {}
+  switch (safeEntry.level) {
     case 'error':
-      console.error(tag, entry.message ?? '', payload)
+      console.error(tag, safeEntry.message ?? '', payload)
       break
     case 'warn':
-      console.warn(tag, entry.message ?? '', payload)
+      console.warn(tag, safeEntry.message ?? '', payload)
       break
     case 'info':
-      console.info(tag, entry.message ?? '', payload)
+      console.info(tag, safeEntry.message ?? '', payload)
       break
     case 'debug':
-      console.debug(tag, entry.message ?? '', payload)
+      console.debug(tag, safeEntry.message ?? '', payload)
       break
   }
 }
@@ -120,43 +130,100 @@ export interface Logger {
 
 // ─── PII redaction ───────────────────────────────────────────────────────────
 
-const DEFAULT_REDACT_KEYS = new Set([
-  'password',
-  'token',
-  'cookie',
-  'authorization',
-  'cardnumber',
-  'cvv',
-  'secret',
-  'client_secret',
-  'clientsecret',
-  'stripe_secret',
-  'stripesecretkey',
-  'webhook_secret',
-])
+const REDACTED = '[REDACTED]'
+
+// Keys we redact by default. Match case-insensitively as a substring so
+// both `password` and `userPassword` collapse to the same rule.
+const DEFAULT_REDACT_KEY_PATTERN =
+  /(password|token|cookie|authorization|secret|apikey|api_key|client_secret|clientsecret|stripe_secret|stripesecretkey|webhook_secret|cardnumber|card_number|cvv|cvc|iban|bic|swift|session)/i
+
+// Patterns inside string VALUES — catches a user email pasted into an
+// otherwise-safe key (e.g. logger.info('boom', { error: 'failed for a@b.com' })).
+const EMAIL_PATTERN = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g
+// Stripe-style tokens. Live and test prefixes only (sk_/pk_/whsec_/pi_/cs_/...).
+const STRIPE_TOKEN_PATTERN = /\b(pi|ch|cs|sk|pk|evt|in|sub|cus|seti|pm|whsec)_[A-Za-z0-9_]{14,}\b/g
+// Long bearer-ish tokens (JWTs).
+const LONG_BEARER_PATTERN = /\b[A-Za-z0-9_-]{32,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+\b/g
+
+function scrubString(value: string): string {
+  return value
+    .replace(EMAIL_PATTERN, REDACTED)
+    .replace(LONG_BEARER_PATTERN, REDACTED)
+    .replace(STRIPE_TOKEN_PATTERN, REDACTED)
+}
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  if (v === null || typeof v !== 'object') return false
+  const proto = Object.getPrototypeOf(v)
+  return proto === Object.prototype || proto === null
+}
 
 /**
- * Shallow-redact sensitive keys from a context object. Keys are matched
- * case-insensitively against a built-in set (password, token, cookie,
- * authorization, card*, cvv, secret, etc.). Returns a new object — the
- * original is never mutated.
+ * Internal deep-redact used inside writeEntry. Walks the context
+ * recursively, replacing values under sensitive keys and scrubbing
+ * email/Stripe/JWT-shaped substrings inside any string value. Tracks
+ * visited objects via a WeakSet to handle circular refs (Prisma's
+ * structured errors can have them) without stack-overflowing.
  *
- * Usage:
- *   logger.info('scope', redact({ password: 'x', name: 'a' }))
- *   // → { password: '[REDACTED]', name: 'a' }
+ * Error instances are passed through unchanged — the higher-level
+ * serializeContext step handles them. Arrays are mapped element-wise.
+ * Class instances we don't recognise (Maps, Sets, Buffer, Stream) are
+ * passed through too — the {} they would serialize to is more useful
+ * than '[REDACTED]'.
+ */
+function scrubLogContext(
+  context: LogContext,
+  visited: WeakSet<object> = new WeakSet(),
+  extraKeys: ReadonlySet<string> | undefined = undefined,
+): LogContext {
+  return scrubValue(context, visited, extraKeys) as LogContext
+}
+
+function scrubValue(
+  value: unknown,
+  visited: WeakSet<object>,
+  extraKeys: ReadonlySet<string> | undefined,
+): unknown {
+  if (value == null) return value
+  if (typeof value === 'string') return scrubString(value)
+  if (typeof value !== 'object') return value
+  if (value instanceof Error) return value
+
+  if (visited.has(value)) return value
+  visited.add(value)
+
+  if (Array.isArray(value)) {
+    return value.map(v => scrubValue(v, visited, extraKeys))
+  }
+
+  if (!isPlainObject(value)) return value
+
+  const out: Record<string, unknown> = {}
+  for (const [key, v] of Object.entries(value)) {
+    const isSensitive =
+      DEFAULT_REDACT_KEY_PATTERN.test(key) ||
+      (extraKeys ? extraKeys.has(key.toLowerCase()) : false)
+    out[key] = isSensitive ? REDACTED : scrubValue(v, visited, extraKeys)
+  }
+  return out
+}
+
+/**
+ * Redact a single context object. Mostly kept for back-compat with
+ * call sites that prefer to pre-scrub before logging; writeEntry now
+ * applies the same scrub automatically so this is rarely needed.
+ *
+ * `extraKeys` adds project-specific keys to the sensitive set in
+ * addition to the built-in pattern.
  */
 export function redact(
   context: LogContext,
   extraKeys?: readonly string[]
 ): LogContext {
-  const sensitiveKeys = extraKeys
-    ? new Set([...DEFAULT_REDACT_KEYS, ...extraKeys.map(k => k.toLowerCase())])
-    : DEFAULT_REDACT_KEYS
-  const out: LogContext = {}
-  for (const [key, value] of Object.entries(context)) {
-    out[key] = sensitiveKeys.has(key.toLowerCase()) ? '[REDACTED]' : value
-  }
-  return out
+  const extras = extraKeys
+    ? new Set(extraKeys.map(k => k.toLowerCase()))
+    : undefined
+  return scrubLogContext(context, new WeakSet<object>(), extras)
 }
 
 /**
