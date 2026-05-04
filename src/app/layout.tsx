@@ -9,7 +9,8 @@ import { ThemeProvider } from '@/components/ThemeProvider'
 import { AnalyticsProvider } from '@/components/analytics/AnalyticsProvider'
 import { PostHogProvider } from '@/components/analytics/PostHogProvider'
 import { WebVitalsReporter } from '@/components/analytics/WebVitalsReporter'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
+import { CORRELATION_HEADER } from '@/lib/correlation-context'
 import { THEME_COLORS, THEME_COOKIE_NAME } from '@/lib/theme'
 import { ThemeCookieSync } from '@/components/ThemeCookieSync'
 import { SITE_METADATA_BASE } from '@/lib/seo'
@@ -93,6 +94,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const initialTheme: 'light' | 'dark' = themeCookie === 'light' ? 'light' : 'dark'
   const initialBg = THEME_COLORS[initialTheme]
   const initialClass = initialTheme === 'dark' ? 'dark' : ''
+  // #1210: surface the per-request correlation id to the client so the
+  // 500 page (error.tsx) can show it to the user — support pivots from
+  // the user-cited id straight to logs and Sentry.
+  const correlationId = (await headers()).get(CORRELATION_HEADER) ?? undefined
 
   return (
     <html
@@ -118,6 +123,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           search submit.
         */}
         <meta name="color-scheme" content="dark light" />
+        {correlationId && <meta name="x-correlation-id" content={correlationId} />}
         {/*
           Anti-FOUC theme bootstrap. Must run BEFORE the first paint, which
           means it lives in <head> ahead of any stylesheet — running it from

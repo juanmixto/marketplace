@@ -7,7 +7,20 @@ import { isRequestOnAdminHost, hostMatchesAdmin, ADMIN_HOST_ENV_VAR } from '@/li
 import { buildContentSecurityPolicy } from '@/lib/security-headers'
 import { isDevRoute } from '@/lib/dev-routes'
 import { isSecureAuthDeployment } from '@/lib/auth-env'
+import { generateCorrelationId } from '@/lib/correlation'
+import { CORRELATION_HEADER } from '@/lib/correlation-context'
 export { DEV_ROUTES_ALLOWLIST } from '@/lib/dev-routes'
+
+// #1210: validate any inbound `x-correlation-id` we honour. Any value
+// outside this shape is rejected and we generate a fresh id rather than
+// trust attacker-supplied input.
+const VALID_INBOUND_CORRELATION_ID = /^[A-Za-z0-9._-]{6,128}$/
+
+function resolveCorrelationId(request: NextRequest): string {
+  const inbound = request.headers.get(CORRELATION_HEADER)
+  if (inbound && VALID_INBOUND_CORRELATION_ID.test(inbound)) return inbound
+  return generateCorrelationId()
+}
 
 // Exported so test/integration/proxy-protected-prefixes.test.ts can
 // reflect the live list back against the actual src/app route tree
@@ -173,14 +186,22 @@ export async function proxy(request: NextRequest) {
   const nonce = applyCspNonce ? generateNonce() : undefined
   const cspValue = applyCspNonce ? buildContentSecurityPolicy({ nonce }) : undefined
 
-  const forwardHeaders = nonce ? new Headers(request.headers) : undefined
-  if (forwardHeaders && nonce) {
+  // #1210: per-request correlation id. Threaded into the rewritten
+  // request headers so server components and route handlers can read it
+  // via `headers()`, and echoed onto the response so browsers, support
+  // tools, and the 500 page can cite it back to us.
+  const correlationId = resolveCorrelationId(request)
+
+  const forwardHeaders = new Headers(request.headers)
+  forwardHeaders.set(CORRELATION_HEADER, correlationId)
+  if (nonce) {
     forwardHeaders.set('x-nonce', nonce)
     forwardHeaders.set('Content-Security-Policy', cspValue!)
   }
 
   const finalizeResponse = (response: NextResponse): NextResponse => {
     if (cspValue) response.headers.set('Content-Security-Policy', cspValue)
+    response.headers.set(CORRELATION_HEADER, correlationId)
     if (process.env.APP_ENV && process.env.APP_ENV !== 'production') {
       response.headers.set('X-Robots-Tag', NON_PRODUCTION_ROBOTS_HEADER)
     }
@@ -188,11 +209,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (!isProtectedPath(pathname)) {
-    return finalizeResponse(
-      forwardHeaders
-        ? NextResponse.next({ request: { headers: forwardHeaders } })
-        : NextResponse.next()
-    )
+    return finalizeResponse(NextResponse.next({ request: { headers: forwardHeaders } }))
   }
 
   // Issue #591: resolve the cookie prefix from the public AUTH_URL,
@@ -270,11 +287,7 @@ export async function proxy(request: NextRequest) {
     )
   }
 
-  return finalizeResponse(
-    forwardHeaders
-      ? NextResponse.next({ request: { headers: forwardHeaders } })
-      : NextResponse.next()
-  )
+  return finalizeResponse(NextResponse.next({ request: { headers: forwardHeaders } }))
 }
 
 // Re-export to keep the existing host-check tests (ticket #348) self-contained.
