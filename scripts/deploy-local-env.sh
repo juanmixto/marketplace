@@ -196,6 +196,16 @@ echo "  env:     $env_file"
 echo "  host:    $APP_HOST"
 echo "  build:   $NEXT_PUBLIC_COMMIT_SHA on $NEXT_PUBLIC_GIT_BRANCH ($NEXT_PUBLIC_BUILD_TIME)"
 
+# Pre-flight env validation. Loads the same Zod schema (parseServerEnv)
+# the running server enforces at boot. Catches the 2026-05-04 class of
+# regression: a guard added to src/lib/env.ts (e.g. CRON_SECRET required
+# in APP_ENV=production) is mergeable to main without anyone exercising
+# it against the prod env file. Without this check, the first deploy
+# after such a guard lands sees a green build but a crash-loop on
+# container start. With this check, deploy aborts in <2 seconds.
+echo "Running pre-flight env validation..."
+npx --no-install tsx "$(git rev-parse --show-toplevel)/scripts/preflight-env.ts" "$env_name"
+
 "${compose[@]}" build app
 "${compose[@]}" up -d db
 
