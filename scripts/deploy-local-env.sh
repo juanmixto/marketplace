@@ -136,8 +136,14 @@ if [[ "$AUTH_URL" != "https://$APP_HOST" || "$NEXT_PUBLIC_APP_URL" != "https://$
   exit 1
 fi
 
-if [[ "$TRUST_PROXY_HEADERS" != "true" ]]; then
-  echo "TRUST_PROXY_HEADERS=true is required behind Cloudflare." >&2
+# #1185: `cloudflare` is the new recommended value (trusts ONLY
+# cf-connecting-ip, ignores spoofable XFF). `true` is the legacy
+# binary trust mode, kept for non-CF deployments. Anything else is
+# rejected — the env-validator in src/lib/env.ts:268 demands one of
+# the two in production, so the deploy fails-fast here instead of
+# letting the app boot and throw on first request.
+if [[ "$TRUST_PROXY_HEADERS" != "cloudflare" && "$TRUST_PROXY_HEADERS" != "true" ]]; then
+  echo "TRUST_PROXY_HEADERS must be 'cloudflare' (recommended for CF→Traefik) or 'true' (legacy)." >&2
   exit 1
 fi
 
