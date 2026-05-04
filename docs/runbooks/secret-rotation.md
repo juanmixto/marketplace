@@ -85,3 +85,4 @@ Si hay sospecha activa de exfiltración:
 - Auditoría que motiva esta runbook: [#1192](https://github.com/juanmixto/marketplace/issues/1192)
 - Hijos de la épica relevantes: [#1178](https://github.com/juanmixto/marketplace/issues/1178) (rotación pre-launch) y [#1188](https://github.com/juanmixto/marketplace/issues/1188) (SOPS/age para reducir el blast radius futuro)
 - Operaciones complementarias: [`db-backup.md`](db-backup.md), [`under-attack.md`](under-attack.md), [`payment-incidents.md`](payment-incidents.md)
+- **Setup inicial automatizado** (no rotación, sí movida a `/etc/marketplace` + sidecar UNIX user): `sudo bash scripts/finish-secrets-hardening.sh` — cierra #1179 + #1186 idempotentemente. Hace backup en `/root/secrets-hardening-backup-<UTC>/` antes de mutar.
