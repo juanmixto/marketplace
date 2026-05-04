@@ -141,8 +141,21 @@ const baseEnvSchema = z.object({
   SENTRY_REPLAYS_SESSION_SAMPLE_RATE: z.coerce.number().min(0).max(1).optional(),
   SENTRY_REPLAYS_ONERROR_SAMPLE_RATE: z.coerce.number().min(0).max(1).optional(),
 
-  // ─── Trust proxy (already runtime-checked below; declared for inventory)
-  TRUST_PROXY_HEADERS: booleanString.optional(),
+  // ─── Trust proxy ────────────────────────────────────────────────────────
+  // #1185: three-state knob (was a plain boolean).
+  //
+  //   - `cloudflare` → trust ONLY `cf-connecting-ip`. `x-forwarded-for`
+  //     is IGNORED. Recommended for the Cloudflare → Traefik prod
+  //     topology because the origin's XFF chain can be spoofed if the
+  //     origin IP is reachable bypassing CF (which it is unless we
+  //     also lock the origin to CF egress IPs at the firewall).
+  //
+  //   - `true` → legacy: trust both `cf-connecting-ip` AND XFF. Use
+  //     only for non-Cloudflare deployments (Vercel, local nginx).
+  //
+  //   - `false` / unset → trust nothing. Rate limit buckets to the
+  //     `untrusted-client` sentinel; audit IP is recorded as `null`.
+  TRUST_PROXY_HEADERS: z.enum(['cloudflare', 'true', 'false']).optional(),
 
   // ─── Local dev convenience flags ────────────────────────────────────────
   // Both REJECTED in APP_ENV=production (refine below).
@@ -265,16 +278,19 @@ export function parseServerEnv(env: NodeJS.ProcessEnv) {
       throw new Error('DATABASE_URL is required at runtime')
     }
 
-    // #538: require an explicit trust decision for x-forwarded-for. When
-    // neither flag is set, getClientIP() buckets every request under the
-    // "untrusted-client" sentinel, which turns per-IP rate limits into a
-    // global lockout. Vercel is always trusted; on self-hosted (Traefik),
-    // operators must set TRUST_PROXY_HEADERS=true after verifying the
-    // proxy strips client-supplied forwarding headers.
+    // #538 + #1185: require an explicit trust decision for proxy headers.
+    // When neither flag is set, getClientIP() buckets every request under
+    // the "untrusted-client" sentinel, which turns per-IP rate limits into
+    // a global lockout. Vercel is always trusted; on self-hosted (Traefik
+    // behind Cloudflare), operators must set TRUST_PROXY_HEADERS to either
+    // `cloudflare` (recommended, ignores XFF) or `true` (legacy, accepts
+    // XFF as fallback).
     const onVercel = env.VERCEL === '1' || env.VERCEL === 'true'
-    if (!onVercel && env.TRUST_PROXY_HEADERS !== 'true') {
+    const trust = env.TRUST_PROXY_HEADERS
+    if (!onVercel && trust !== 'cloudflare' && trust !== 'true') {
       throw new Error(
-        'TRUST_PROXY_HEADERS=true is required in production (or deploy on Vercel). ' +
+        'TRUST_PROXY_HEADERS=cloudflare (recommended for CF→Traefik) or =true ' +
+        '(legacy) is required in production (or deploy on Vercel). ' +
         'Without it, rate limiting collapses to a single global bucket.'
       )
     }

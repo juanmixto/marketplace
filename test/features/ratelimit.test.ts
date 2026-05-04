@@ -150,6 +150,67 @@ test('getClientIP honors TRUST_PROXY_HEADERS=true env (#172)', () => {
   }
 })
 
+test('getClientIP in cloudflare-only mode trusts cf-connecting-ip (#1185)', () => {
+  const original = process.env.TRUST_PROXY_HEADERS
+  process.env.TRUST_PROXY_HEADERS = 'cloudflare'
+  try {
+    const req = new Request('http://localhost', {
+      headers: { 'cf-connecting-ip': '203.0.113.77' },
+    })
+    assert.equal(getClientIP(req), '203.0.113.77')
+  } finally {
+    if (original === undefined) delete process.env.TRUST_PROXY_HEADERS
+    else process.env.TRUST_PROXY_HEADERS = original
+  }
+})
+
+test('getClientIP in cloudflare-only mode IGNORES x-forwarded-for (#1185)', () => {
+  // The defining property of the mode: an attacker who reaches the
+  // origin IP directly (bypassing CF) cannot forge a per-IP rate-limit
+  // bucket via x-forwarded-for. Their request hashes to the
+  // `untrusted-client` sentinel just like in TRUST_PROXY_HEADERS=false.
+  const original = process.env.TRUST_PROXY_HEADERS
+  process.env.TRUST_PROXY_HEADERS = 'cloudflare'
+  // The helper logs a `cloudflare-only-bypass-attempt` event when this
+  // happens; silence it so the test output stays clean.
+  const originalConsoleWarn = console.warn
+  console.warn = () => {}
+  try {
+    const spoofA = new Request('http://localhost', {
+      headers: { 'x-forwarded-for': '1.1.1.1' },
+    })
+    const spoofB = new Request('http://localhost', {
+      headers: { 'x-forwarded-for': '2.2.2.2' },
+    })
+    const a = getClientIP(spoofA)
+    const b = getClientIP(spoofB)
+    assert.equal(a, b, 'both spoofs must land on the same untrusted-client bucket')
+    assert.notEqual(a, '1.1.1.1')
+    assert.notEqual(b, '2.2.2.2')
+  } finally {
+    console.warn = originalConsoleWarn
+    if (original === undefined) delete process.env.TRUST_PROXY_HEADERS
+    else process.env.TRUST_PROXY_HEADERS = original
+  }
+})
+
+test('getClientIP in cloudflare-only mode IGNORES x-real-ip (#1185)', () => {
+  const original = process.env.TRUST_PROXY_HEADERS
+  process.env.TRUST_PROXY_HEADERS = 'cloudflare'
+  const originalConsoleWarn = console.warn
+  console.warn = () => {}
+  try {
+    const req = new Request('http://localhost', {
+      headers: { 'x-real-ip': '9.9.9.9' },
+    })
+    assert.notEqual(getClientIP(req), '9.9.9.9')
+  } finally {
+    console.warn = originalConsoleWarn
+    if (original === undefined) delete process.env.TRUST_PROXY_HEADERS
+    else process.env.TRUST_PROXY_HEADERS = original
+  }
+})
+
 test('checkRateLimit strips port from keys so IPv6 bracket notation does not produce distinct entries', async () => {
   // IPv6-style keys like [::1]:3000 should be cleaned to an empty string for the host part
   const r1 = await checkRateLimit('rl-ipv6-1', '[::1]:3000', 5, 60)

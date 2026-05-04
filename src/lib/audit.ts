@@ -65,6 +65,13 @@ export function extractAuditIp(headerStore: Pick<Headers, 'get'>) {
   const cfConnectingIp = headerStore.get('cf-connecting-ip')
   if (cfConnectingIp) return cfConnectingIp.trim()
 
+  // #1185: in cloudflare-only mode, refuse to fall back to XFF / x-real-ip /
+  // x-vercel-forwarded-for. Recording a forged value into AuditLog would
+  // actively mislead a forensic investigation — null is honest.
+  if (process.env.TRUST_PROXY_HEADERS === 'cloudflare') {
+    return null
+  }
+
   const forwardedFor = headerStore.get('x-forwarded-for')
   if (forwardedFor) {
     const firstIp = forwardedFor.split(',')[0]?.trim()
@@ -98,6 +105,9 @@ export async function getAuditRequestIp() {
 }
 
 function isProxyTrustedFromEnv(): boolean {
+  // #1185: 'cloudflare' is also a trusted mode — extractAuditIp() above
+  // additionally refuses to fall back to XFF when set.
+  if (process.env.TRUST_PROXY_HEADERS === 'cloudflare') return true
   if (process.env.TRUST_PROXY_HEADERS === 'true') return true
   if (process.env.TRUST_PROXY_HEADERS === 'false') return false
   if (process.env.VERCEL === '1' || process.env.VERCEL === 'true') return true

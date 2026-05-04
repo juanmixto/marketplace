@@ -259,12 +259,23 @@ export interface ResolveClientIpOptions {
 const UNTRUSTED_CLIENT_KEY = 'untrusted-client'
 
 function isProxyTrustedFromEnv(): boolean {
+  // #1185: 'cloudflare' is also a trusted mode — it just additionally
+  // tells getClientIP() to ignore x-forwarded-for entirely.
+  if (process.env.TRUST_PROXY_HEADERS === 'cloudflare') return true
   if (process.env.TRUST_PROXY_HEADERS === 'true') return true
   if (process.env.TRUST_PROXY_HEADERS === 'false') return false
   // Vercel always sits in front of the function and strips client-supplied
   // x-forwarded-for, so its value can be trusted.
   if (process.env.VERCEL === '1' || process.env.VERCEL === 'true') return true
   return false
+}
+
+// #1185: when set, getClientIP() trusts ONLY cf-connecting-ip and ignores
+// x-forwarded-for / x-real-ip. Defends the CF→Traefik prod topology where
+// the origin's XFF chain can be spoofed by an attacker who reaches the
+// origin IP directly.
+function isCloudflareOnlyMode(): boolean {
+  return process.env.TRUST_PROXY_HEADERS === 'cloudflare'
 }
 
 /**
@@ -298,6 +309,21 @@ export function getClientIP(request: Request, options: ResolveClientIpOptions = 
   // non-Cloudflare deployments (Vercel, local Docker behind nginx).
   const cfConnectingIp = request.headers.get('cf-connecting-ip')
   if (cfConnectingIp) return cfConnectingIp.trim()
+
+  // #1185: in cloudflare-only mode the absence of cf-connecting-ip means
+  // the request did NOT traverse Cloudflare. Falling back to XFF here
+  // would let an attacker who reached the origin directly forge their IP
+  // and bypass per-IP rate limits. Bucket the request as untrusted —
+  // same as `TRUST_PROXY_HEADERS=false`.
+  if (isCloudflareOnlyMode()) {
+    if (request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip')) {
+      logEvent('cloudflare-only-bypass-attempt', {
+        forwarded: request.headers.get('x-forwarded-for') ?? null,
+        realIp: request.headers.get('x-real-ip') ?? null,
+      })
+    }
+    return UNTRUSTED_CLIENT_KEY
+  }
 
   const forwarded = request.headers.get('x-forwarded-for')
   if (forwarded) {
