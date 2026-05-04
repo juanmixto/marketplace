@@ -26,7 +26,7 @@ import { getShippingCost } from '@/domains/shipping/calculator'
 import {
   loadCommissionResolverForVendor,
   resolveCommissionRate,
-} from '@/domains/finance/commission'
+} from '@/domains/finance'
 import { getActionSession } from '@/lib/action-session'
 import { resolveGuestCustomer } from '../guest-customer'
 import { logger } from '@/lib/logger'
