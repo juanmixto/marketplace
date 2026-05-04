@@ -1,0 +1,33 @@
+# pre-commit hooks for the marketplace repo (#1183).
+#
+# Local-side mirror of the CI security scan in .github/workflows/security-scan.yml.
+# CI catches committed secrets after they reach the remote — by then a
+# leak is already public history. The pre-commit hook stops them at the
+# `git commit` boundary, before the local repo ever has a tainted commit.
+#
+# Setup (one-time per worktree):
+#   pip install pre-commit  # or: pipx install pre-commit / brew install pre-commit
+#   pre-commit install
+#
+# Verify (fake-shaped Stripe key, will not authenticate against the API):
+#   printf 'STRIPE_SECRET_KEY=sk_live_%s\n' "$(openssl rand -hex 12)" > /tmp/leak.env
+#   git add -f /tmp/leak.env
+#   git commit -m 'leak'   # hook should refuse the commit
+#
+# Skip in emergencies (do NOT make a habit):
+#   SKIP=gitleaks git commit -m '...'
+#
+# Hook config kept dependency-free (no Python venvs, no node_modules) —
+# pre-commit fetches each hook's binary on first run and caches it under
+# ~/.cache/pre-commit/.
+
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.4
+    hooks:
+      - id: gitleaks
+        # Mirror the CI flag set so local + remote behave identically.
+        # `--config` points to the repo's allowlist (test fixtures,
+        # documented placeholders) so we don't false-positive on
+        # .env.example shapes.
+        args: ['--config', '.gitleaks.toml', '--redact', '--verbose']

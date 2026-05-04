@@ -48,6 +48,15 @@ test('robots: production keeps granular disallow list and sitemap link', () => {
     {
       APP_ENV: 'production',
       NEXT_PUBLIC_APP_URL: 'https://raizdirecta.es',
+      // The env-validation guards in src/lib/env.ts enforce a real
+      // production-shaped config when APP_ENV=production (#1181, #1182).
+      // robots() only reads APP_ENV but the parser is shared, so we
+      // satisfy the contract here.
+      PAYMENT_PROVIDER: 'stripe',
+      STRIPE_SECRET_KEY: 'sk_live_test',
+      STRIPE_WEBHOOK_SECRET: 'whsec_test',
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'pk_live_test',
+      CRON_SECRET: 'rotated',
     },
     () => {
       const result = robots()
