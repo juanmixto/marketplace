@@ -10,6 +10,12 @@ import {
   issueTrustedDeviceCookie,
   verifyTrustedDeviceCookie,
 } from '@/domains/auth/trusted-device'
+import {
+  clearLoginFailures,
+  isLocked,
+  recordLoginFailure,
+} from '@/domains/auth/lockout'
+import { logger } from '@/lib/logger'
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -80,8 +86,43 @@ export async function authorizeCredentials(credentials: unknown): Promise<Authen
 
   if (!user || !user.passwordHash || !user.isActive || !user.emailVerified) return null
 
+  // #1276: per-account lockout. Bail before bcrypt so a locked account
+  // pays neither CPU nor leaks timing on whether the password is right.
+  // Logged at info level (not warn) so the noise stays bounded — the
+  // identity rate-limit and the per-account counter already log on the
+  // events that matter.
+  const lock = isLocked(user)
+  if (lock.locked) {
+    logger.info('auth.login.lockout_active', {
+      userId: user.id,
+      unlockAt: lock.unlockAt?.toISOString(),
+    })
+    return null
+  }
+
   const valid = await bcrypt.compare(parsed.data.password, user.passwordHash)
-  if (!valid) return null
+  if (!valid) {
+    const result = await recordLoginFailure(user.id)
+    if (result.lockedUntil) {
+      logger.warn('auth.login.lockout_engaged', {
+        userId: user.id,
+        attempt: result.count,
+        lockedUntil: result.lockedUntil.toISOString(),
+      })
+    }
+    return null
+  }
+
+  // Successful password verification: clear the counter & lockout
+  // window in one round-trip (skipped when both are already at their
+  // defaults). 2FA gate below still runs, but a TOTP failure does NOT
+  // re-bump the lockout counter — TOTP brute-force is bound by its
+  // own dedicated rate-limit inside `verifyLoginCode`.
+  await clearLoginFailures({
+    id: user.id,
+    failedLoginAttempts: user.failedLoginAttempts,
+    lockoutUntil: user.lockoutUntil,
+  })
 
   // Second factor gate. If the user has 2FA enabled (admin or future
   // buyer opt-in), the code is required at login — unless a valid
