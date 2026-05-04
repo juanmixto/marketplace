@@ -152,6 +152,13 @@ const baseEnvSchema = z.object({
 
   // ─── Logger ─────────────────────────────────────────────────────────────
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).optional(),
+
+  // #1216: structured-log threshold for slow Prisma queries.
+  // Anything ≥ DB_SLOW_QUERY_MS emits `db.query.slow` at warn level.
+  // Default 500ms — calibrated against the existing checkout
+  // hot-path traces. Lower in dev to surface latent N+1s; raise
+  // temporarily during a known-noisy job to mute alerts.
+  DB_SLOW_QUERY_MS: z.coerce.number().int().positive().optional(),
 })
 
 export function parseServerEnv(env: NodeJS.ProcessEnv) {
