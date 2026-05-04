@@ -97,7 +97,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // #1210: surface the per-request correlation id to the client so the
   // 500 page (error.tsx) can show it to the user — support pivots from
   // the user-cited id straight to logs and Sentry.
-  const correlationId = (await headers()).get(CORRELATION_HEADER) ?? undefined
+  const requestHeaders = await headers()
+  const correlationId = requestHeaders.get(CORRELATION_HEADER) ?? undefined
+  // Per-request CSP nonce set by src/proxy.ts (#537). Inline scripts in
+  // <head> — the anti-FOUC bootstrap below and the next-themes runtime
+  // injected by ThemeProvider — must carry it; without the nonce
+  // strict-dynamic rejects them and the entire client bundle never
+  // hydrates (no PostHog, no cart, no auth — full passive page).
+  const cspNonce = requestHeaders.get('x-nonce') ?? undefined
 
   return (
     <html
@@ -139,6 +146,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               parsed.
         */}
         <script
+          nonce={cspNonce}
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var s=localStorage.getItem('marketplace-theme');var m=window.matchMedia('(prefers-color-scheme: dark)').matches;var d=s==='dark'||((!s||s==='system')&&m);var h=document.documentElement;if(d){h.classList.add('dark');}else{h.classList.remove('dark');}h.style.colorScheme=d?'dark':'light';h.style.backgroundColor=d?'#0d1117':'#f5f2ec';}catch(e){}})();`,
           }}
@@ -146,7 +154,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className="flex min-h-full flex-col bg-[var(--background)] text-[var(--foreground)]">
         <SessionProvider>
-          <ThemeProvider>
+          <ThemeProvider nonce={cspNonce}>
             <ThemeCookieSync />
             <LanguageProvider initialLocale={locale}>
               <Suspense fallback={null}>

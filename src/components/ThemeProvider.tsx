@@ -2,7 +2,13 @@
 
 import { ThemeProvider as NextThemesProvider } from 'next-themes'
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+export function ThemeProvider({
+  children,
+  nonce,
+}: {
+  children: React.ReactNode
+  nonce?: string
+}) {
   return (
     <NextThemesProvider
       attribute="class"
@@ -12,6 +18,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       disableTransitionOnChange
       themes={['light', 'dark', 'system']}
       storageKey="marketplace-theme"
+      nonce={nonce}
     >
       {children}
     </NextThemesProvider>
