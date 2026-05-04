@@ -19,18 +19,23 @@ import { getServerEnv } from '@/lib/env'
 import { logger } from '@/lib/logger'
 import {
   makeStripeFetcher,
+  reconcileAbandonedOrders,
   reconcilePendingPayments,
 } from '@/domains/payments/reconcile'
 
 function parseArgs() {
   const args = process.argv.slice(2)
   let olderThanMinutes = 60
+  let orphanOlderThanMinutes = 30
   let dryRun = false
   let limit = 500
   for (let i = 0; i < args.length; i += 1) {
     const a = args[i]
     if (a === '--older-than') {
       olderThanMinutes = Number(args[i + 1])
+      i += 1
+    } else if (a === '--orphan-older-than') {
+      orphanOlderThanMinutes = Number(args[i + 1])
       i += 1
     } else if (a === '--dry-run') {
       dryRun = true
@@ -42,23 +47,29 @@ function parseArgs() {
   if (!Number.isFinite(olderThanMinutes) || olderThanMinutes < 1) {
     throw new Error('--older-than must be a positive number of minutes')
   }
-  return { olderThanMinutes, dryRun, limit }
+  if (!Number.isFinite(orphanOlderThanMinutes) || orphanOlderThanMinutes < 1) {
+    throw new Error('--orphan-older-than must be a positive number of minutes')
+  }
+  return { olderThanMinutes, orphanOlderThanMinutes, dryRun, limit }
 }
 
 async function main() {
-  const { olderThanMinutes, dryRun, limit } = parseArgs()
+  const { olderThanMinutes, orphanOlderThanMinutes, dryRun, limit } = parseArgs()
   const env = getServerEnv()
 
-  if (env.paymentProvider !== 'stripe') {
-    logger.info('payments.reconcile.skipped_mock', {
-      reason: 'PAYMENT_PROVIDER=mock — nothing to reconcile against Stripe',
+  // #1161 H-5: orphan sweep is local-DB-only (no Stripe queries) — run
+  // it even in mock mode. The Stripe-comparison sweep below is skipped
+  // for mock since there is nothing remote to compare against.
+  const isStripeMode = env.paymentProvider === 'stripe'
+  if (!isStripeMode) {
+    logger.info('payments.reconcile.skipped_stripe_mock', {
+      reason: 'PAYMENT_PROVIDER=mock — orphan sweep still runs',
     })
-    process.stdout.write('mock mode: nothing to reconcile. exit.\n')
-    return
+    process.stdout.write('mock mode: skipping Stripe sweep, running orphan sweep only.\n')
   }
 
-  const stripe = await makeStripeFetcher()
-  if (!stripe) {
+  const stripe = isStripeMode ? await makeStripeFetcher() : null
+  if (isStripeMode && !stripe) {
     process.stderr.write(
       'reconcile: expected stripe fetcher but got null — check STRIPE_SECRET_KEY.\n',
     )
@@ -82,16 +93,27 @@ async function main() {
     }) as never
   }
 
-  const report = await reconcilePendingPayments({
+  const stripeReport = stripe
+    ? await reconcilePendingPayments({
+      db,
+      stripe,
+      olderThanMinutes,
+      limit,
+    })
+    : null
+
+  // #1161 H-5: orphan sweep covers the providerRef=NULL case that the
+  // Stripe-comparison sweep above ignores by design (no PI to query).
+  // Independent cutoff (30m default) — exposed via `--orphan-older-than`.
+  const orphanReport = await reconcileAbandonedOrders({
     db,
-    stripe,
-    olderThanMinutes,
+    olderThanMinutes: orphanOlderThanMinutes,
     limit,
   })
 
-  process.stdout.write(JSON.stringify(report, null, 2) + '\n')
+  process.stdout.write(JSON.stringify({ stripeSweep: stripeReport, orphanSweep: orphanReport }, null, 2) + '\n')
 
-  if (report.errors > 0) process.exit(1)
+  if ((stripeReport?.errors ?? 0) > 0 || orphanReport.errors > 0) process.exit(1)
 }
 
 main().catch(err => {
