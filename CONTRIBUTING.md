@@ -42,6 +42,29 @@ For a manual smoke-matching boot, use `./dev.sh --smoke`.
 - `npm run test:db`: database-backed tests, applies Prisma migrations first
 - `npm run test:integration`: integration tests against the test database
 
+## Pre-commit hook (gitleaks)
+
+The repo ships a [pre-commit](https://pre-commit.com) config that runs
+`gitleaks` on every staged change. CI (`security-scan.yml`) catches
+committed secrets too, but only after they reach the remote — by then
+the leak is already public history. The local hook stops them before
+the commit lands.
+
+One-time install per worktree:
+
+```bash
+pip install pre-commit   # or: pipx install pre-commit / brew install pre-commit
+pre-commit install
+```
+
+Verify it works (uses a fake-shaped key that does not authenticate against
+Stripe — gitleaks matches the prefix shape, not the validity):
+
+```bash
+printf 'STRIPE_SECRET_KEY=sk_live_%s\n' "$(openssl rand -hex 12)" > /tmp/leak.env
+git add -f /tmp/leak.env && git commit -m 'leak'   # should refuse
+```
+
 ## Pull requests
 
 Before opening a PR:
