@@ -1,0 +1,33 @@
+[Unit]
+Description=raizdirecta.es — sweep expired IdempotencyKey rows
+Documentation=https://github.com/juanmixto/marketplace/blob/main/docs/runbooks/host-crons.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/raizdirecta/host-cron.env
+# Bearer CRON_SECRET is read from /etc/raizdirecta/host-cron.env (mode 600).
+# --fail flips non-2xx into a non-zero exit so systemd treats them as failure.
+# --max-time bounds runtime; the route is fast (single DELETE) but a stuck DB
+# connection could otherwise hang forever.
+ExecStart=/usr/bin/curl --silent --show-error --fail --max-time 60 \
+  -H "Authorization: Bearer ${CRON_SECRET}" \
+  "https://raizdirecta.es/api/cron/cleanup-idempotency"
+# Healthcheck ping (success). Optional — only fires when HC_PING_CLEANUP_IDEMPOTENCY
+# is set in host-cron.env. Failure pings are emitted by systemd via OnFailure=.
+ExecStartPost=/bin/sh -c '[ -n "${HC_PING_CLEANUP_IDEMPOTENCY:-}" ] && /usr/bin/curl --silent --max-time 10 "${HC_PING_CLEANUP_IDEMPOTENCY}" || true'
+# Run as the unprivileged `whisper` user (same that owns the worktrees).
+User=whisper
+Group=whisper
+# Hardening — this unit only needs network egress.
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+NoNewPrivileges=true
+RestrictAddressFamilies=AF_INET AF_INET6
+# Surface failures to the host's failure-reporting channel.
+OnFailure=raizdirecta-host-cron-failed@%n.service
+
+[Install]
+WantedBy=multi-user.target
