@@ -14,7 +14,7 @@ existen y cuál es el último incidente en curso.
 > activado a mano, secret rotado) **actualiza este fichero en el mismo PR**. Si no cabe en 100 líneas es porque hay
 > cosas que ya no son "estado actual" — muévelas a `docs/runbooks/` o bórralas.
 
-Última actualización: **2026-05-03 (noche)** — cuando edites, pon la fecha y firma con tu agente.
+Última actualización: **2026-05-04** — cuando edites, pon la fecha y firma con tu agente.
 
 ---
 
@@ -50,6 +50,7 @@ Si un hostname nuevo aparece, añádelo aquí **antes** de cerrar el PR que lo m
 
 ## Integraciones externas (estado)
 
+- **PostHog reverse-proxy Worker — código en main, NO desplegado.** PR #1100 (2026-05-03) añadió `infra/cloudflare/posthog-proxy/` para que `raizdirecta.es/ingest/*` proxie a `eu.i.posthog.com` y los adblockers (Brave Shields default-on, uBlock, AdGuard) no tiren el ~10-25% de eventos. Verificado 2026-05-04: `curl https://raizdirecta.es/ingest/decide` devuelve `404` con `x-powered-by: Next.js` — la ruta de Cloudflare nunca se registró. **Mientras esto siga así, NO poner `NEXT_PUBLIC_POSTHOG_HOST=https://raizdirecta.es/ingest` en prod** (POSTearía todos los eventos al void; la SDK no reintenta 4xx). Para activar: `cd infra/cloudflare/posthog-proxy && npx wrangler login && npx wrangler deploy`, luego `scripts/verify-posthog-proxy.sh` (debe salir 0), luego setear la env var y rebuild. Verificación post-deploy: `npm run verify:posthog-proxy` (script) o `RUN_LIVE_PROXY_CHECK=1 npx tsx --test test/contracts/posthog-proxy-live.test.ts` (test). Tracking: PR #1236.
 - **Vercel — pausada 2026-05-03.** La GitHub integration está desconectada (`Settings → Git → Disconnect` en el proyecto Vercel). Producción NO se despliega en Vercel; corre en Proxmox vía `npm run deploy:prod`.
   - **`Vercel: fail` en checks de PRs es ESPERADO** mientras quede algún check antiguo cacheado. NO bloquea merge — Vercel no está en branch protection.
   - **`vercel.json` se mantiene en el repo** (config inerte) por si en el futuro se reactiva. El archivo declara un cron `cleanup-idempotency` (`0 3 * * *`) que **HOY NO SE EJECUTA** en producción — ningún cron de host lo está llamando. Deuda conocida: o se monta un `systemd-timer` que haga `curl https://raizdirecta.es/api/cron/cleanup-idempotency` con la auth correcta, o se acepta que `IdempotencyKey` crezca sin tope.
@@ -78,6 +79,7 @@ tiempo real (no lo dupliques aquí — solo lista trabajo "parado" o de larga du
 
 ## Incidentes / decisiones recientes (≤ 30 días)
 
+- **2026-05-04** — Detectado que el Worker reverse-proxy de PostHog (#1100, mergeado 2026-05-03) nunca se desplegó: `raizdirecta.es/ingest/*` cae en Next.js. Sin impacto runtime hoy porque `NEXT_PUBLIC_POSTHOG_HOST` no apunta al proxy en prod. Añadido `scripts/verify-posthog-proxy.sh` + test live opt-in para que la siguiente vez se detecte en segundos (#1236).
 - **2026-05-03 (noche)** — Sesión de coordinación inter-agentes. Cinco PRs:
   - **#1135** (mergeado + desplegado): fix `BuildBadge` "unknown" en prod inyectando `NEXT_PUBLIC_*` vars en el build de Docker.
   - **#1136** (auto-merge ON): `agents-status.sh` sección 5 detecta commits sin pushear en el repo compartido.
