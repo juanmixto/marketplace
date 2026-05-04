@@ -8,6 +8,18 @@ read_when: before merging or revalidating a PR, especially when the branch edits
 
 Use this as a guardrail, not as ceremony. If any stop condition fires, pause and re-sync before continuing.
 
+## AGENTS quick copy
+
+- [ ] I am in a dedicated worktree and `git status --short --branch` is clean.
+- [ ] `scripts/agents-status.sh` shows no overlapping WIP or stale local work I would overwrite.
+- [ ] I read the task-specific docs before editing.
+- [ ] I am changing a real contract, not solving a hypothetical future scale problem.
+- [ ] If the change is role-sensitive or idempotency-sensitive, I use the narrowest correct helper or allow-list.
+- [ ] I validate from the edited worktree, with the smallest test that exercises the contract, not a stale copy from `main`.
+- [ ] If `main` moved, I sync once before merge and re-run the minimum checks on the updated head.
+- [ ] I do not merge while CI is red, checks are missing, or I need `--admin` for convenience.
+- [ ] After merge, `gh pr view` says `MERGED` and the temporary worktree / session note are cleaned up.
+
 ## 0. Start in the right place
 
 - [ ] I am in a dedicated worktree, not the shared `/home/whisper/marketplace` checkout.
