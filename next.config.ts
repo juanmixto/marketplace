@@ -106,6 +106,10 @@ export function buildHeaderRules(isDevelopment = process.env.NODE_ENV === 'devel
 }
 
 const nextConfig: NextConfig = {
+  // #1242 (HU1): drop `X-Powered-By: Next.js`. Trivial info disclosure
+  // that just lights up CVE-targeted scanners — Next.js publishes a
+  // first-class flag for it, so this is a one-line fix.
+  poweredByHeader: false,
   // Build identity baked into both server and client bundles. See the
   // helpers above for fallback behaviour outside git checkouts.
   env: {

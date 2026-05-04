@@ -17,17 +17,55 @@ test('getSecurityHeaders exposes the core browser hardening headers', () => {
 
   // CSP intentionally omitted from static headers — it's emitted per-request
   // by src/proxy.ts so it can carry a fresh nonce (#537).
+  // X-XSS-Protection removed in #1245 (deprecated + dangerous in legacy Safari).
+  // COOP / CORP added in #1246.
   assert.deepEqual(keys, [
     'X-Content-Type-Options',
     'X-Frame-Options',
-    'X-XSS-Protection',
     'Referrer-Policy',
     'Permissions-Policy',
+    'Cross-Origin-Opener-Policy',
+    'Cross-Origin-Resource-Policy',
   ])
 
   process.env.NEXT_PUBLIC_APP_URL = previousAppUrl
   process.env.AUTH_URL = previousAuthUrl
   process.env.NEXTAUTH_URL = previousNextAuthUrl
+})
+
+test('Permissions-Policy explicitly allows Stripe payment + denies sensors (#1243)', () => {
+  const policy = getSecurityHeaders().find(h => h.key === 'Permissions-Policy')
+  assert.ok(policy, 'Permissions-Policy must be present')
+
+  // Load-bearing: removing these breaks Stripe Elements silently.
+  assert.match(policy.value, /payment=\(self "https:\/\/js\.stripe\.com"\)/)
+  assert.match(policy.value, /encrypted-media=\(self "https:\/\/js\.stripe\.com"\)/)
+
+  // Privacy + sensor surface area must be explicitly denied.
+  for (const denied of ['camera', 'microphone', 'geolocation', 'usb', 'hid', 'serial', 'browsing-topics', 'attribution-reporting']) {
+    assert.match(
+      policy.value,
+      new RegExp(`(^|, )${denied}=\\(\\)`),
+      `${denied} must be explicitly denied`,
+    )
+  }
+})
+
+test('COOP keeps OAuth popups working (#1246)', () => {
+  const coop = getSecurityHeaders().find(h => h.key === 'Cross-Origin-Opener-Policy')
+  assert.ok(coop, 'COOP must be present')
+  // `same-origin` (no `-allow-popups`) breaks Google login + Telegram
+  // deeplink. The exact value is load-bearing; pin it here so a future
+  // "tighten the headers" PR doesn't silently regress.
+  assert.equal(coop.value, 'same-origin-allow-popups')
+})
+
+test('X-XSS-Protection is no longer set (#1245)', () => {
+  const headers = getSecurityHeaders()
+  assert.ok(
+    !headers.some(h => h.key === 'X-XSS-Protection'),
+    'X-XSS-Protection is deprecated; CSP is the modern defense',
+  )
 })
 
 test('getSecurityHeaders adds HSTS when the app is configured behind HTTPS', () => {
@@ -71,7 +109,20 @@ test('buildContentSecurityPolicy with nonce enforces strict script-src (#537)', 
     /img-src[^;]* https:(?=\s|;|$)/,
     'img-src must not contain a bare `https:` wildcard'
   )
-  assert.match(csp, /connect-src 'self' https:\/\/api\.stripe\.com https:\/\/js\.stripe\.com https:\/\/\*\.posthog\.com/)
+  // #1244: Stripe Radar fingerprint endpoints — without these the
+  // iframe + POSTs from Elements get blocked silently and Radar
+  // degrades fraud scoring (more false-positive declines).
+  assert.match(csp, /connect-src 'self' https:\/\/api\.stripe\.com https:\/\/js\.stripe\.com https:\/\/m\.stripe\.network https:\/\/m\.stripe\.com https:\/\/r\.stripe\.com https:\/\/\*\.posthog\.com/)
+  assert.match(csp, /frame-src 'self' https:\/\/js\.stripe\.com https:\/\/m\.stripe\.network/)
+  assert.doesNotMatch(
+    csp,
+    /frame-src[^;]*https:\/\/hooks\.stripe\.com/,
+    'hooks.stripe.com is webhook delivery, never embedded — must not be in frame-src',
+  )
+  // Google avatars (social login) — pinning so the entry doesn't get
+  // dropped in a future "tighten the CSP" PR (would silently break
+  // navbar avatars and emit per-page violations).
+  assert.match(csp, /img-src [^;]*https:\/\/lh3\.googleusercontent\.com/)
 
   process.env.NEXT_PUBLIC_APP_URL = previousAppUrl
 })
@@ -116,7 +167,8 @@ test('buildContentSecurityPolicy allows React development tooling requirements i
   assert.match(csp, /script-src [^;]*'unsafe-inline'/)
   assert.match(csp, /script-src [^;]*'unsafe-eval'/)
   assert.doesNotMatch(csp, /script-src [^;]*'strict-dynamic'/)
-  assert.match(csp, /connect-src 'self' ws: wss: https:\/\/api\.stripe\.com https:\/\/js\.stripe\.com https:\/\/\*\.posthog\.com/)
+  // Dev mirrors prod for the Stripe Radar entries (#1244).
+  assert.match(csp, /connect-src 'self' ws: wss: https:\/\/api\.stripe\.com https:\/\/js\.stripe\.com https:\/\/m\.stripe\.network https:\/\/m\.stripe\.com https:\/\/r\.stripe\.com https:\/\/\*\.posthog\.com/)
 })
 
 test('buildContentSecurityPolicy keeps strict-dynamic and drops unsafe-inline in production', () => {
