@@ -28,6 +28,8 @@ sustituyen a la memoria volátil del chat.
 4. Al cerrar la sesión: deja un último update en **Estado** con qué quedaba pendiente.
 5. Cuando la tarea acabe (PR mergeado, tarea archivada): borra la nota.
 
+Para cerrar PRs, abre también [`docs/runbooks/pr-landing-checklist.md`](runbooks/pr-landing-checklist.md) y copia su bloque `AGENTS quick copy` al empezar la fase de merge.
+
 ---
 
 ## Plantilla — copia desde aquí abajo
