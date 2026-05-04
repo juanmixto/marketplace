@@ -20,15 +20,62 @@ export async function markOrderPaymentIntentCreationFailed(
   })
 }
 
+/**
+ * #1169 H-9: outcome of `linkOrderPaymentProviderRef`.
+ *
+ * - `linked`: the canonical happy path — exactly one Payment row went
+ *   from `(providerRef=null, status=PENDING)` to the supplied `providerRef`.
+ * - `idempotent_match`: the row already had this providerRef. Caused
+ *   by Stripe returning the same PI for a retry that re-uses the
+ *   `idempotencyKey = orderId` pattern — safe to continue.
+ * - `diverged`: the row already has a *different* providerRef. The
+ *   buyer's session would now point at a PI that does not match the
+ *   one Stripe holds. Continuing would lose the next webhook to the
+ *   dead-letter queue. Caller MUST abort and surface a retry to the
+ *   buyer (which generates a fresh `checkoutAttemptId`).
+ * - `missing`: no Payment row matched the orderId at all. Indicates
+ *   schema drift or a deletion racing with checkout — also a hard
+ *   abort.
+ */
+export type LinkOrderPaymentProviderRefResult =
+  | { kind: 'linked' }
+  | { kind: 'idempotent_match'; existingProviderRef: string }
+  | { kind: 'diverged'; existingProviderRef: string }
+  | { kind: 'missing' }
+
 export async function linkOrderPaymentProviderRef(
   orderId: string,
   providerRef: string
-): Promise<number> {
+): Promise<LinkOrderPaymentProviderRefResult> {
   const linked = await db.payment.updateMany({
     where: { orderId, providerRef: null, status: 'PENDING' },
     data: { providerRef },
   })
-  return linked.count
+
+  if (linked.count === 1) {
+    return { kind: 'linked' }
+  }
+
+  // Either the row was already linked (idempotent retry) or somehow
+  // doesn't exist. Re-read to disambiguate so the caller can decide
+  // whether to continue or abort. We accept any status here because a
+  // linked row from a previous attempt may have already moved out of
+  // PENDING (e.g. the webhook fired between the retry attempts).
+  const existing = await db.payment.findFirst({
+    where: { orderId },
+    select: { providerRef: true },
+  })
+
+  if (!existing) {
+    return { kind: 'missing' }
+  }
+  if (existing.providerRef === providerRef) {
+    return { kind: 'idempotent_match', existingProviderRef: providerRef }
+  }
+  return {
+    kind: 'diverged',
+    existingProviderRef: existing.providerRef ?? '',
+  }
 }
 
 export async function recordManualPaymentConfirmation(

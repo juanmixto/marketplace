@@ -55,6 +55,7 @@ import {
   GuestEmailRequiredError,
   InsufficientStockError,
   InvalidPromotionCodeError,
+  PaymentRowDivergedError,
   SavedAddressUnavailableError,
   VariantSelectionRequiredError,
   VariantUnavailableError,
@@ -799,13 +800,37 @@ export async function createOrder(
       throw paymentError
     }
 
-    const linkedCount = await linkOrderPaymentProviderRef(order.id, payment.id)
-    if (linkedCount !== 1) {
-      logger.error('checkout.payment_row_mismatch', {
+    const linkResult = await linkOrderPaymentProviderRef(order.id, payment.id)
+    if (linkResult.kind === 'diverged') {
+      // #1169 H-9: a previous attempt linked a *different* Stripe PI to
+      // this Order. Continuing would hand the buyer's session a clientSecret
+      // for `payment.id` while the Order's Payment row points at the older
+      // ref — every subsequent webhook for the new PI lands in DLQ. Hard
+      // abort. The buyer's UI catches `PaymentRowDivergedError`, refreshes
+      // the form, and gets a fresh `checkoutAttemptId`.
+      logger.error('checkout.payment_row_diverged', {
         correlationId,
         userId: sessionUserId,
         orderId: order.id,
-        count: linkedCount,
+        existingProviderRef: linkResult.existingProviderRef,
+        attemptedProviderRef: payment.id,
+      })
+      throw new PaymentRowDivergedError()
+    }
+    if (linkResult.kind === 'missing') {
+      logger.error('checkout.payment_row_missing', {
+        correlationId,
+        userId: sessionUserId,
+        orderId: order.id,
+        providerRef: payment.id,
+      })
+      throw new PaymentRowDivergedError()
+    }
+    if (linkResult.kind === 'idempotent_match') {
+      logger.info('checkout.payment_row_idempotent_match', {
+        correlationId,
+        userId: sessionUserId,
+        orderId: order.id,
         providerRef: payment.id,
       })
     }

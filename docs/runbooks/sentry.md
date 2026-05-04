@@ -57,6 +57,52 @@ environment =
 - Production DSN + sample-rate values are managed alongside the rest of
   the deploy secrets (Bitwarden vault → marketplace deployment item).
 
+### Verifying release tagging post-deploy (#1214)
+
+The `release` tag is what powers "first seen on latest release" alerts
+and per-deploy regression hunts. If a deploy ships with `release:
+undefined`, those alerts go silent. Verify after every first-deploy of
+a new environment, and quarterly thereafter:
+
+1. **Check the running build identity:**
+
+   ```bash
+   curl -s https://raizdirecta.es/api/version | jq .
+   ```
+
+   Should return `{ commit: "<sha7>", branch: "...", buildTime: "..." }`.
+   If `commit` is `"unknown"`, the build args didn't reach the Dockerfile —
+   `scripts/deploy-local-env.sh` did NOT export `NEXT_PUBLIC_COMMIT_SHA`
+   before `compose build app`. The structural test
+   `test/contracts/sentry-release-wiring.test.ts` guards this in CI; if it's
+   green and `/api/version` still says `unknown`, suspect a manual `docker build`
+   that bypassed the deploy script.
+
+2. **Confirm the bundle has the SHA inlined:**
+
+   ```bash
+   docker exec marketplaceprod-app-1 \
+     sh -c "grep -roh '\"<sha7>\"' /app/.next/static | head -3"
+   ```
+
+   Replace `<sha7>` with the value from step 1. A non-empty grep result
+   means Next.js inlined `process.env.NEXT_PUBLIC_COMMIT_SHA` correctly.
+
+3. **Fire a canary error and verify the Sentry release tag:**
+
+   ```bash
+   curl -s -X POST https://raizdirecta.es/api/canary/error \
+     -H 'Authorization: Bearer $CANARY_TOKEN'
+   ```
+
+   (Endpoint TBD — until it exists, trigger any benign 500 on a stage
+   build and confirm the resulting Sentry issue tags
+   `release:<sha7>`.) The id must match `/api/version`.
+
+If any step fails, check the chain in
+`test/contracts/sentry-release-wiring.test.ts` against the actual
+deploy artefacts.
+
 ### Init files
 
 ```
