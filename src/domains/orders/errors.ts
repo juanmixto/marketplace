@@ -15,6 +15,7 @@ export type OrderErrorCode =
   | 'MANUAL_CONFIRMATION_NOT_ALLOWED'
   | 'GUEST_EMAIL_REQUIRED'
   | 'GUEST_EMAIL_BELONGS_TO_REAL_ACCOUNT'
+  | 'PAYMENT_ROW_DIVERGED'
 
 export abstract class OrderDomainError extends Error {
   readonly code: OrderErrorCode
