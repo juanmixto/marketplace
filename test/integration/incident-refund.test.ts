@@ -78,10 +78,22 @@ async function seedIncidentWithPaidOrder(opts: { amount?: number; providerRef?: 
   return { buyer, admin, order, payment, incident }
 }
 
-function jsonRequest(url: string, body: unknown) {
+// `/api/admin/incidents/[id]/resolve` requires an `Idempotency-Key`
+// header (8..80 chars) since #1196 (epic #1140 / issue #1152). Default
+// to a fresh `randomUUID()` per call so tests don't collide on replay
+// against the IdempotencyKey UNIQUE.
+function jsonRequest(
+  url: string,
+  body: unknown,
+  opts: { idempotencyKey?: string } = {},
+) {
+  const idempotencyKey = opts.idempotencyKey ?? crypto.randomUUID()
   return new Request(url, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      'idempotency-key': idempotencyKey,
+    },
     body: JSON.stringify(body),
   })
 }
