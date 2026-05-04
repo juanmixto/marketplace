@@ -66,6 +66,54 @@ case "$env_name" in
     ;;
 esac
 
+# Per-environment exclusive lock so two agents (or two humans, or an
+# agent and a human) cannot recreate the same compose project at the
+# same time.
+#
+# Why this exists: 2026-05-04 incident. Two Claude Code sessions both
+# ran `npm run deploy:prod` against `marketplaceprod` within minutes of
+# each other. The second `docker-compose up` recreated the app
+# container with a different set of Traefik labels, leaving the first
+# session's router config orphaned — prod served `502 Bad Gateway` for
+# ~30s on every request until the new container's labels were picked
+# up. Worse, builds from different branches racing through the same
+# project meant the running image was not necessarily the one the
+# deploying agent thought they had pushed.
+#
+# `flock -n` returns immediately if the lock is held; we do NOT block,
+# because waiting would mask the underlying coordination problem and
+# encourage stacking deploys. A held lock is a signal — investigate
+# `agents-status.sh` and the lock metadata before retrying.
+LOCK_DIR="${MP_DEPLOY_LOCK_DIR:-/tmp/marketplace-locks}"
+LOCK_FILE="$LOCK_DIR/deploy-${project}.lock"
+mkdir -p "$LOCK_DIR"
+exec 9>"$LOCK_FILE"
+if ! flock -n 9; then
+  echo "Refusing to deploy: another deploy of '$project' is in progress." >&2
+  echo "Lockfile: $LOCK_FILE" >&2
+  echo "" >&2
+  echo "Lock holder metadata:" >&2
+  cat "$LOCK_FILE" >&2 || true
+  echo "" >&2
+  echo "If you are sure no other deploy is running (e.g. the previous" >&2
+  echo "one crashed), delete the lock file and retry:" >&2
+  echo "  rm '$LOCK_FILE'" >&2
+  exit 75  # EX_TEMPFAIL — retry-after-coordination, not a code error
+fi
+
+# Write metadata into the locked file so agents-status.sh and humans
+# can see at a glance who is holding the lock. The lock is released
+# automatically when fd 9 closes on script exit.
+{
+  echo "pid: $$"
+  echo "started: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  echo "user: ${USER:-unknown}"
+  echo "host: ${HOSTNAME:-unknown}"
+  echo "cwd: $PWD"
+  echo "head: $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+  echo "branch: $(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
+} >&9
+
 cd "$(git rev-parse --show-toplevel)"
 
 if [[ ! -f "$env_file" ]]; then
