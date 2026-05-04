@@ -315,6 +315,37 @@ WHERE "paymentStatus" = 'PENDING'
 ORDER BY "createdAt" DESC;
 ```
 
+## Scenario: admin cancelled an order — does the buyer get a refund?
+
+**No, not automatically.** `cancelOrder` (`src/domains/admin/actions.ts`)
+restores stock and cascades fulfillments to `CANCELLED`, but it does NOT
+issue a Stripe refund. The previous JSDoc claim that it "may trigger
+refunds" was misleading — fixed in #1141 / #1158.
+
+If the buyer paid (`Order.paymentStatus = SUCCEEDED`) and admin-ops
+needs to cancel:
+
+1. **Cancel the order** via /admin/pedidos/[id] → "Cancelar".
+2. **Open an incident** on the same order from the buyer's perspective
+   (or have support open it on their behalf):
+   - Type: `OTHER` or whichever matches.
+   - Description: short note referencing the cancellation reason.
+3. **Resolve the incident with refund** at /admin/incidencias/[id]:
+   - `resolution = REFUND_FULL` (or `REFUND_PARTIAL`).
+   - `refundAmount = grandTotal - shippingCost` if shipping was already
+     dispatched on at least one fulfillment; otherwise full grandTotal.
+   - `fundedBy = PLATFORM` (we ate the cost) or `VENDOR` (deduct from
+     their next settlement) per finance's guidance.
+
+The refund path in `/api/admin/incidents/[id]/resolve` is gated to
+finance/ops/superadmin (#1141). Catalogue and support admins must
+escalate — they cannot fire the refund themselves.
+
+PSD2 / consumer-protection note: a cancelled order on a paid checkout
+that does NOT get refunded within ~14 days is a regulatory risk. If
+the buyer queue starts piling up, the next iteration is to wire the
+refund into `cancelOrder` itself behind a finance approval.
+
 ## Escalation ladder
 
 1. **You (support)** — gather logs, check DB, run this runbook.

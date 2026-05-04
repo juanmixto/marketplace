@@ -88,15 +88,21 @@ export function buildLogEntry(
 function writeEntry(entry: LogEntry) {
   if (LEVEL_RANK[entry.level] < LEVEL_RANK[envLogLevel()]) return
 
+  // #1210: auto-inject ambient correlationId from the AsyncLocalStorage
+  // so callers don't have to thread it through every layer. Explicit
+  // context.correlationId still wins (e.g. webhook handlers that have a
+  // stable per-event id different from the per-request id).
+  const enriched = withAmbientContext(entry)
+
   // P1-2 (#1189): auto-apply deep redaction before any sink (stdout in
   // prod, console in dev). Until #1189 the redact() helper was shallow
   // and opt-in, which meant call sites that passed nested objects
   // (`logger.info('x', { user: { password } })`) leaked the value into
   // Loki / Vercel logs. Sentry already had its own deep scrubber; this
   // brings the structured-log path to parity.
-  const safeEntry: LogEntry = entry.context
-    ? { ...entry, context: scrubLogContext(entry.context) }
-    : entry
+  const safeEntry: LogEntry = enriched.context
+    ? { ...enriched, context: scrubLogContext(enriched.context) }
+    : enriched
 
   if (isProduction()) {
     process.stdout.write(JSON.stringify(safeEntry) + '\n')
@@ -118,6 +124,26 @@ function writeEntry(entry: LogEntry) {
     case 'debug':
       console.debug(tag, safeEntry.message ?? '', payload)
       break
+  }
+}
+
+function withAmbientContext(entry: LogEntry): LogEntry {
+  // Lazy-load to avoid pulling node:async_hooks into the edge bundle
+  // when the logger is imported from middleware. The require itself is
+  // cheap — Node caches the module — so we accept it on every call.
+  let ambientCorrelationId: string | undefined
+  try {
+    const ctx = require('./correlation-context') as typeof import('./correlation-context')
+    ambientCorrelationId = ctx.getCorrelationId()
+  } catch {
+    ambientCorrelationId = undefined
+  }
+  if (!ambientCorrelationId) return entry
+  const existing = entry.context?.correlationId
+  if (typeof existing === 'string' && existing.length > 0) return entry
+  return {
+    ...entry,
+    context: { ...(entry.context ?? {}), correlationId: ambientCorrelationId },
   }
 }
 
@@ -246,7 +272,19 @@ function mirrorErrorToSentry(scope: string, context: LogContext | undefined) {
       Sentry.withScope((s) => {
         s.setLevel('error')
         s.setTag('domain.scope', scope)
-        const correlationId = context?.correlationId
+        // #1210: explicit context.correlationId wins; otherwise pull
+        // from the per-request ALS so the Sentry event matches the id
+        // the user can see in `x-correlation-id` and the structured
+        // logs of the same request.
+        let correlationId = context?.correlationId
+        if (typeof correlationId !== 'string') {
+          try {
+            const ctx = require('./correlation-context') as typeof import('./correlation-context')
+            correlationId = ctx.getCorrelationId()
+          } catch {
+            correlationId = undefined
+          }
+        }
         if (typeof correlationId === 'string') s.setTag('correlationId', correlationId)
         const userId = context?.userId
         if (typeof userId === 'string') s.setUser({ id: userId })

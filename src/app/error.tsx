@@ -11,6 +11,19 @@ interface ErrorProps {
 
 export default function Error({ error, reset }: ErrorProps) {
   const [sentryEventId, setSentryEventId] = useState<string | null>(null)
+  const [correlationId, setCorrelationId] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Read the correlation id the root layout injected as a meta tag so
+    // the user can cite it to support; this id matches the one in the
+    // request's `x-correlation-id` response header and in the structured
+    // logs for the same request (see #1210).
+    if (typeof document !== 'undefined') {
+      const meta = document.querySelector('meta[name="x-correlation-id"]')
+      const id = meta?.getAttribute('content')
+      if (id) setCorrelationId(id)
+    }
+  }, [])
 
   useEffect(() => {
     // Fire-and-forget: send to Sentry and capture the event id so we can
@@ -53,10 +66,11 @@ export default function Error({ error, reset }: ErrorProps) {
         {/* Error digest para debugging. Muestra el Sentry event id cuando
             Sentry está configurado — así el usuario puede citarlo a
             soporte y el equipo lo encuentra en un click. */}
-        {(error.digest || sentryEventId) && (
+        {(error.digest || sentryEventId || correlationId) && (
           <div className="mb-6 space-y-1 rounded-lg bg-gray-100 px-4 py-2 font-mono text-xs text-gray-700 dark:bg-[var(--surface-raised)] dark:text-[var(--foreground-soft)]">
             {error.digest && <p>Error ID: {error.digest}</p>}
             {sentryEventId && <p>Trace: {sentryEventId}</p>}
+            {correlationId && <p>Request ID: {correlationId}</p>}
           </div>
         )}
 

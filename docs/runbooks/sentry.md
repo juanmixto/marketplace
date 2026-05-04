@@ -57,6 +57,52 @@ environment =
 - Production DSN + sample-rate values are managed alongside the rest of
   the deploy secrets (Bitwarden vault → marketplace deployment item).
 
+### Verifying release tagging post-deploy (#1214)
+
+The `release` tag is what powers "first seen on latest release" alerts
+and per-deploy regression hunts. If a deploy ships with `release:
+undefined`, those alerts go silent. Verify after every first-deploy of
+a new environment, and quarterly thereafter:
+
+1. **Check the running build identity:**
+
+   ```bash
+   curl -s https://raizdirecta.es/api/version | jq .
+   ```
+
+   Should return `{ commit: "<sha7>", branch: "...", buildTime: "..." }`.
+   If `commit` is `"unknown"`, the build args didn't reach the Dockerfile —
+   `scripts/deploy-local-env.sh` did NOT export `NEXT_PUBLIC_COMMIT_SHA`
+   before `compose build app`. The structural test
+   `test/contracts/sentry-release-wiring.test.ts` guards this in CI; if it's
+   green and `/api/version` still says `unknown`, suspect a manual `docker build`
+   that bypassed the deploy script.
+
+2. **Confirm the bundle has the SHA inlined:**
+
+   ```bash
+   docker exec marketplaceprod-app-1 \
+     sh -c "grep -roh '\"<sha7>\"' /app/.next/static | head -3"
+   ```
+
+   Replace `<sha7>` with the value from step 1. A non-empty grep result
+   means Next.js inlined `process.env.NEXT_PUBLIC_COMMIT_SHA` correctly.
+
+3. **Fire a canary error and verify the Sentry release tag:**
+
+   ```bash
+   curl -s -X POST https://raizdirecta.es/api/canary/error \
+     -H 'Authorization: Bearer $CANARY_TOKEN'
+   ```
+
+   (Endpoint TBD — until it exists, trigger any benign 500 on a stage
+   build and confirm the resulting Sentry issue tags
+   `release:<sha7>`.) The id must match `/api/version`.
+
+If any step fails, check the chain in
+`test/contracts/sentry-release-wiring.test.ts` against the actual
+deploy artefacts.
+
 ### Init files
 
 ```
@@ -87,7 +133,7 @@ caller passes context:
 
 | Tag | Source | Filter syntax |
 |---|---|---|
-| `correlationId` | request scope ([`src/lib/correlation.ts`](../../src/lib/correlation.ts)) | `correlationId:<uuid>` |
+| `correlationId` | per-request ALS ([`src/lib/correlation-context.ts`](../../src/lib/correlation-context.ts), seeded by [`src/proxy.ts`](../../src/proxy.ts)) | `correlationId:<id>` |
 | `checkoutAttemptId` | checkout idempotency token | `checkoutAttemptId:<uuid>` |
 | `domain.scope` | log scope (`checkout.*`, `stripe.webhook.*`, etc.) | `domain.scope:checkout.*` |
 | `release` | git SHA injected at build | `release:<sha7>` |
@@ -106,6 +152,25 @@ one click away:
 - **Production webhook errors** — `environment:production domain.scope:stripe.webhook.*`
 - **Staging only** — `environment:staging` (catch issues before prod)
 - **This release** — `release:<current-SHA>` (regression hunt after a deploy)
+
+### How `correlationId` is wired (post-#1210)
+
+1. [`src/proxy.ts`](../../src/proxy.ts) (Next.js 16's renamed middleware)
+   generates (or accepts an inbound, validated) `x-correlation-id` per
+   request and writes it to both the rewritten request headers and the
+   response headers. Browsers and support tools see the same id in
+   `curl -i`.
+2. The root layout reads it via `headers()` and injects
+   `<meta name="x-correlation-id" content="...">` so client components
+   (notably [`error.tsx`](../../src/app/error.tsx)) can surface it as
+   `Request ID: <id>` on the 500 page.
+3. Server entry points that opt in via
+   [`runWithCorrelation()`](../../src/lib/correlation-context.ts) put the
+   id in an `AsyncLocalStorage`. From that point on, **`logger.*` and the
+   Sentry mirror auto-tag every event** with the ambient id — no need to
+   pass `correlationId` through every layer. Explicit
+   `context.correlationId` still wins (e.g. webhook handlers using a
+   per-event id distinct from the per-request id).
 
 ### Pivot from Sentry to logs
 
