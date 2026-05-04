@@ -230,7 +230,13 @@ export async function proxy(request: NextRequest) {
     secureCookie: isSecureAuthDeployment(process.env),
   })
 
-  if (!token) {
+  // #1142: a token whose `id` claim was stripped is a revoked session
+  // (tokenVersion mismatch detected on the last refresh tick of the
+  // jwt callback). The JWT is still cryptographically valid so
+  // getToken returns it, but downstream code must treat it as
+  // logged-out.
+  const tokenId = typeof token?.id === 'string' ? token.id : ''
+  if (!token || tokenId.length === 0) {
     return finalizeResponse(NextResponse.redirect(createLoginRedirectUrl(request)))
   }
 
