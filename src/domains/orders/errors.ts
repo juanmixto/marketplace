@@ -137,6 +137,22 @@ export class GuestEmailBelongsToRealAccountError extends OrderDomainError {
   }
 }
 
+/**
+ * #1169 H-9: thrown when `linkOrderPaymentProviderRef` finds an existing
+ * Payment row whose `providerRef` differs from the freshly-created PI.
+ * Continuing would route the buyer's session at one PI while Stripe
+ * holds another — the next webhook would never match a local row.
+ * Caller surfaces a retry that generates a fresh `checkoutAttemptId`.
+ */
+export class PaymentRowDivergedError extends OrderDomainError {
+  constructor() {
+    super(
+      'PAYMENT_ROW_DIVERGED',
+      'No pudimos enlazar el cobro con tu pedido. Recarga el carrito e inténtalo de nuevo.',
+    )
+  }
+}
+
 export function mapOrderErrorToUX(error: unknown): string {
   if (error instanceof ZodError) {
     return error.issues[0]?.message ?? 'Revisa los datos de la dirección y vuelve a intentarlo.'
