@@ -170,7 +170,62 @@ fi
 echo
 
 # ---------------------------------------------------------------------------
-# 6. Hint
+# 6. Active deploy locks (compose project being recreated by someone else)
+# ---------------------------------------------------------------------------
+# Surfaces the per-environment flock added in #1293. If another agent is
+# mid-deploy of `marketplaceprod`, this section lights up so the current
+# session knows NOT to start its own `npm run deploy:prod` — that would
+# race the `docker-compose up`, leave one agent's Traefik labels
+# orphaned, and serve 502s for ~30s. See the 2026-05-04 incident.
+bold "6. Active deploy locks"
+LOCK_DIR="${MP_DEPLOY_LOCK_DIR:-/tmp/marketplace-locks}"
+if [ ! -d "$LOCK_DIR" ]; then
+  ok "   none."
+else
+  any_lock=0
+  any_stale=0
+  for lock_file in "$LOCK_DIR"/deploy-*.lock; do
+    [ -e "$lock_file" ] || continue
+    project="${lock_file##*/deploy-}"
+    project="${project%.lock}"
+    # Held = another process has an exclusive flock on it. Subshell
+    # opens the file on fd 9 and tries an exclusive non-blocking lock;
+    # nonzero exit means the lock IS held by someone else.
+    if ( exec 9>"$lock_file"; flock -n -x 9 ) 2>/dev/null; then
+      any_stale=1
+      dim "   stale lockfile (not held): $lock_file"
+      dim "     remove with: rm '$lock_file'"
+    else
+      any_lock=1
+      # Map compose project name back to the convenient npm script name.
+      env_short="${project#marketplace}"
+      case "$env_short" in
+        prod) deploy_cmd="npm run deploy:prod" ;;
+        stg)  deploy_cmd="npm run deploy:staging" ;;
+        dev)  deploy_cmd="npm run deploy:dev" ;;
+        *)    deploy_cmd="npm run deploy:$env_short" ;;
+      esac
+      warn "   ⚠  $project deploy IN PROGRESS — do NOT '$deploy_cmd'"
+      # Echo metadata so the current session can see who/when/what.
+      # The `cat` runs OUTSIDE the (subshell flock test) so it doesn't
+      # try to acquire its own lock — it just reads the file content.
+      if [ -s "$lock_file" ]; then
+        while IFS= read -r line; do
+          echo "      $line"
+        done < "$lock_file"
+      else
+        dim "      (lock held but metadata file empty)"
+      fi
+    fi
+  done
+  if [ "$any_lock" = 0 ] && [ "$any_stale" = 0 ]; then
+    ok "   none."
+  fi
+fi
+echo
+
+# ---------------------------------------------------------------------------
+# 7. Hint
 # ---------------------------------------------------------------------------
 dim "For deep cleanup signals (gone branches, merged worktrees, etc.) run:"
 dim "  scripts/git-hygiene.sh"
