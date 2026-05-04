@@ -1,0 +1,5 @@
+{
+  "note": "Pre-existing Number()/parseFloat()/parseInt() of formData.get(...) — these bypass zod coercion and silently produce NaN. CI tolerates the listed ones; new ones fail. Replace with a zod schema that takes the string and applies zMoneyEUR / z.coerce.number().finite().",
+  "generatedAt": "2026-05-04T06:40:16.878Z",
+  "violations": []
+}
