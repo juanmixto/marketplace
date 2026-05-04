@@ -188,6 +188,47 @@ echo "  build:   $NEXT_PUBLIC_COMMIT_SHA on $NEXT_PUBLIC_GIT_BRANCH ($NEXT_PUBLI
 
 "${compose[@]}" build app
 "${compose[@]}" up -d db
+
+# Migration safety pre-flight (production + staging only). Aborts if any
+# pending migration contains a destructive statement (DROP TABLE/COLUMN,
+# TRUNCATE, ALTER COLUMN ... DROP) without explicit MIGRATION_DESTRUCTIVE_OK=1.
+# See issue #1255. Bypass is env-var, not a CLI flag, to make accidental
+# bypass harder.
+if [[ "$env_name" == "production" || "$env_name" == "staging" ]]; then
+  echo "Migration safety pre-flight..."
+  status_output="$("${compose[@]}" run --rm app npx prisma migrate status 2>&1 || true)"
+  pending_names="$(printf '%s\n' "$status_output" \
+    | awk '/have not yet been applied/{flag=1;next} /^$/{flag=0} flag {print $1}' \
+    | grep -E '^[0-9]{14}_' || true)"
+  if [[ -n "$pending_names" ]]; then
+    echo "  Pending migrations:"
+    printf '    - %s\n' $pending_names
+    destructive=""
+    while IFS= read -r name; do
+      [[ -z "$name" ]] && continue
+      sql_file="prisma/migrations/$name/migration.sql"
+      if [[ -f "$sql_file" ]]; then
+        if grep -iE 'DROP[[:space:]]+TABLE|DROP[[:space:]]+COLUMN|^[[:space:]]*TRUNCATE|ALTER[[:space:]]+COLUMN[[:space:]]+[^;]+[[:space:]]+DROP' "$sql_file" > /dev/null; then
+          destructive+="$name "
+        fi
+      fi
+    done <<< "$pending_names"
+    if [[ -n "$destructive" && "${MIGRATION_DESTRUCTIVE_OK:-}" != "1" ]]; then
+      echo ""
+      echo "Destructive migration(s) detected:" >&2
+      printf '  - %s\n' $destructive >&2
+      echo "" >&2
+      echo "Set MIGRATION_DESTRUCTIVE_OK=1 to override (and document why in the PR)." >&2
+      exit 1
+    fi
+    if [[ -n "$destructive" ]]; then
+      echo "  Destructive migrations approved via MIGRATION_DESTRUCTIVE_OK=1: $destructive"
+    fi
+  else
+    echo "  No pending migrations."
+  fi
+fi
+
 "${compose[@]}" run --rm app npx prisma migrate deploy
 
 # docker-compose v1 can fail with KeyError: ContainerConfig while recreating
@@ -207,15 +248,42 @@ fi
 "${compose[@]}" up -d --no-build app cloudflared
 
 echo "Waiting for https://$APP_HOST/api/version ..."
+healthcheck_ok="false"
 for _ in {1..30}; do
   status="$(curl -sS -o /dev/null -w '%{http_code}' "https://$APP_HOST/api/version" || true)"
   if [[ "$status" == "200" ]]; then
     echo "OK: $env_name is serving https://$APP_HOST"
-    exit 0
+    healthcheck_ok="true"
+    break
   fi
   sleep 2
 done
 
-echo "Deploy finished, but healthcheck did not return 200." >&2
-echo "Check: docker logs ${project}_app_1 and Cloudflare tunnel routes." >&2
-exit 1
+if [[ "$healthcheck_ok" != "true" ]]; then
+  echo "Deploy finished, but healthcheck did not return 200." >&2
+  echo "Check: docker logs ${project}_app_1 and Cloudflare tunnel routes." >&2
+  exit 1
+fi
+
+# Release tag (production + staging only). Marks the SHA that just passed
+# /api/version so rollback can target a known-good point. See issue #1251.
+# Tag is created and pushed only when the healthcheck succeeds — failed
+# deploys leave no tag.
+if [[ "$env_name" == "production" || "$env_name" == "staging" ]]; then
+  tag_prefix="prod"
+  [[ "$env_name" == "staging" ]] && tag_prefix="stg"
+  release_tag="${tag_prefix}-$(date -u +%Y%m%dT%H%M%SZ)-${NEXT_PUBLIC_COMMIT_SHA}"
+  if git tag "$release_tag" 2>/dev/null; then
+    echo "Tagged release: $release_tag"
+    if git push origin "$release_tag" 2>/dev/null; then
+      echo "Pushed tag to origin."
+    else
+      echo "WARN: tag created locally but push to origin failed (no network?)." >&2
+      echo "      Run 'git push origin $release_tag' when connectivity is back." >&2
+    fi
+  else
+    echo "WARN: failed to create tag $release_tag (already exists?)." >&2
+  fi
+fi
+
+exit 0

@@ -75,10 +75,67 @@ The deploy script:
 - validates host/app env consistency;
 - builds the same Docker image path;
 - brings up the environment-specific DB;
+- runs a **migration safety pre-flight** that aborts if any pending migration
+  contains `DROP TABLE / DROP COLUMN / TRUNCATE / ALTER COLUMN ... DROP`
+  without an explicit `MIGRATION_DESTRUCTIVE_OK=1` override (issue #1255);
 - runs `prisma migrate deploy`;
 - replaces only the app container, never the DB volume;
 - starts `app` + `cloudflared`;
-- checks `https://<APP_HOST>/api/version`.
+- checks `https://<APP_HOST>/api/version`;
+- on success, **tags the SHA** as `prod-YYYYMMDDTHHMMSSZ-<sha>` (or `stg-…`)
+  and pushes the tag to `origin` so rollback can target a known-good
+  point (issue #1251).
+
+## Destructive migration override
+
+If a contract-phase migration legitimately drops a column / table:
+
+```bash
+MIGRATION_DESTRUCTIVE_OK=1 npm run deploy:prod
+```
+
+The override is an env var, not a CLI flag, by design — harder to pass
+accidentally. Document the why in the PR that introduces the migration.
+
+Apply only when:
+
+- The expand phase has already shipped and been live for ≥ 24h.
+- The DB has a recent verified backup (`pgbackrest info` shows fresh
+  full + WAL flowing — see `db-backup.md`).
+- You have read `db-restore.md` and know how to PITR back if the
+  contract phase explodes.
+
+## Rollback to a previous release
+
+Every successful production deploy creates a tag. List recent ones:
+
+```bash
+git fetch --tags origin
+git tag -l 'prod-*' --sort=-creatordate | head
+```
+
+Roll back to the last known good:
+
+```bash
+cd /opt/marketplace
+git fetch origin --tags
+git checkout <prod-tag>
+npm run deploy:prod -- --allow-unpublished
+curl -fsSL https://raizdirecta.es/api/version
+```
+
+> **Caveat:** if the bad release shipped a forward migration, rolling
+> back the code does **not** roll back the DB. Older app code may not
+> talk to the new schema cleanly. In that case, choose:
+>
+> - **Forward fix** (preferred). Patch the bug in a new commit, deploy
+>   that. Faster than a DB restore.
+> - **PITR + code rollback.** Only when the migration itself is the
+>   bug. Follow `db-restore.md` § 2 with `--type=time --target=<just
+>   before the bad migrate>`. RTO ~30-60 min.
+>
+> If you don't know which path applies, activate maintenance mode first
+> (`docs/runbooks/maintenance-mode.md`), decide unhurried, then act.
 
 ## Emergency hotfix
 

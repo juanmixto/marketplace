@@ -404,6 +404,8 @@ Flags live in PostHog. There are two call-sites, one per runtime:
 
 Both evaluators return `true` if PostHog is unreachable, the SDK throws, or the flag is unknown. **A PostHog outage must never tumble checkout.** The only way to "turn off" a feature is an explicit `false` from the PostHog UI. If you need a fail-closed flag, you are probably looking at authorization, not a feature flag — use [`docs/authz-audit.md`](./authz-audit.md).
 
+> **Caveat for `kill-*` flags during a PostHog outage:** under fail-open, a kill switch you flipped to `false` to disable a feature stops taking effect when PostHog is unreachable — the feature comes back on. This is correct for `feat-*` (default off, unrelated infra failure shouldn't ship beta features) but it means your kill-switch is **not reliable as an incident response tool when PostHog itself is the dependency that's struggling**. For incident-grade kills use the maintenance page (`docs/runbooks/maintenance-mode.md`). Full decision matrix in [`docs/runbooks/kill-switches.md`](./runbooks/kill-switches.md).
+
 ### Override escape hatch
 
 `FEATURE_FLAGS_OVERRIDE='{"kill-checkout":false}'` is checked **before** PostHog. Two use cases:
