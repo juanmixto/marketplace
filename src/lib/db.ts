@@ -1,10 +1,17 @@
 import { PrismaClient } from '@/generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { getServerEnv } from '@/lib/env'
+import { slowQueryExtension } from '@/lib/db-slow-query'
 
 function createPrismaClient() {
   const adapter = new PrismaPg({ connectionString: getServerEnv().databaseUrl })
-  return new PrismaClient({ adapter })
+  const base = new PrismaClient({ adapter })
+  // #1216: every operation is timed and `db.query.slow` is logged for
+  // anything that crosses `DB_SLOW_QUERY_MS` (default 500ms).
+  // $extends returns a dynamic client whose surface is structurally
+  // identical to PrismaClient for the model query methods the rest of
+  // the codebase uses; the cast keeps consumers untouched.
+  return base.$extends(slowQueryExtension) as unknown as PrismaClient
 }
 
 declare global {
