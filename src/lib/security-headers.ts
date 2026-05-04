@@ -77,6 +77,16 @@ export function buildContentSecurityPolicy(
   // Tailwind emit them; nonce'ing every one is impractical. Keep
   // `'unsafe-inline'` here intentionally — the XSS-critical directive is
   // script-src, which is now strict.
+  //
+  // HU9 (#1250): we considered tightening with `style-src-attr 'none'`
+  // to block the `style="..."` attribute form (inline styles on
+  // individual elements, distinct from `<style>` tags). The audit at
+  // `docs/audits/style-src-attr-inventory.md` found 14 unavoidable
+  // runtime-dynamic uses — drag transforms, viewport-aware `env()`
+  // padding, FloatingUI output, anti-FOUC theme bootstrap, percentage
+  // bars from DB values — none of which migrate cleanly to Tailwind
+  // classes. Decision: keep `style-src-attr` un-restricted; revisit
+  // when those categories are gone.
   const styleSrc = ["'self'", "'unsafe-inline'"]
 
   const directives = [
