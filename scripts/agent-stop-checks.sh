@@ -115,6 +115,89 @@ if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
 fi
 
 # ---------------------------------------------------------------------------
+# 4. Issue hygiene — merged-but-not-closed and stale in-progress
+#
+# This repo is a USER repo (juanmixto/marketplace), not an org, so
+# GitHub native Issue Types are unavailable. We coordinate through
+# labels: `in-progress` is supposed to advertise WIP across concurrent
+# agents, and `Closes #N` in the PR body is supposed to auto-close the
+# issue at merge.
+#
+# Failure modes this catches:
+#   (a) PR merged but the linked issue is still OPEN — usually because
+#       the closing keyword was missing in the PR body. Auto-close also
+#       does NOT remove labels, so `in-progress` lingers either way.
+#   (b) Issues with `in-progress` that haven't been touched in >48h —
+#       likely abandoned or forgotten WIP, looks like active work to
+#       the next agent.
+#
+# User flagged this 2026-05-04: 0 issues had `in-progress` despite
+# active multi-agent work, and several recently-fixed issues were
+# still OPEN. See memory/feedback_issue_workflow.md.
+#
+# Skipped if `gh` is not authenticated.
+# ---------------------------------------------------------------------------
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  gh_user="${gh_user:-$(gh api user --jq .login 2>/dev/null || echo '')}"
+  if [[ -n "$gh_user" ]]; then
+    # 4a. PRs by current user merged in the last 24h — check each
+    # referenced issue (Closes/Fixes/Resolves #N) is CLOSED.
+    since_iso="$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo '')"
+    if [[ -n "$since_iso" ]]; then
+      recent_merged="$(gh pr list \
+        --author "$gh_user" --state merged --limit 20 \
+        --search "merged:>=${since_iso}" \
+        --json number,title,body,mergedAt 2>/dev/null || echo '[]')"
+      stuck_issues=()
+      while IFS=$'\t' read -r pr_num issue_num; do
+        [[ -z "$issue_num" ]] && continue
+        state="$(gh issue view "$issue_num" --json state --jq .state 2>/dev/null || echo '')"
+        if [[ "$state" == "OPEN" ]]; then
+          stuck_issues+=("    #${issue_num} (referenced by merged PR #${pr_num}) is still OPEN")
+        fi
+      done < <(echo "$recent_merged" | jq -r '
+        .[] | . as $pr |
+        ($pr.body // "") |
+        [ scan("(?i)\\b(?:closes|fixes|resolves)\\s+#([0-9]+)") ] |
+        .[] | "\($pr.number)\t\(.[0])"
+      ' 2>/dev/null)
+      if [[ "${#stuck_issues[@]}" -gt 0 ]]; then
+        findings+=(
+          "⚠ ${#stuck_issues[@]} issue(s) referenced by your recently-merged PRs are still OPEN:"
+        )
+        for line in "${stuck_issues[@]}"; do
+          findings+=("$line")
+        done
+        findings+=(
+          "  → Likely the PR body was missing 'Closes #N'. Close manually:"
+          "    gh issue close <N> --comment \"Resuelto en #<PR>\""
+        )
+      fi
+    fi
+
+    # 4b. Issues labelled `in-progress` with no activity in >48h.
+    stale_wip="$(gh issue list \
+      --label "in-progress" --state open --limit 30 \
+      --json number,title,updatedAt \
+      --jq "[.[] | select((.updatedAt | fromdateiso8601) < (now - 48*3600))]" \
+      2>/dev/null || echo '[]')"
+    stale_count="$(echo "$stale_wip" | jq 'length' 2>/dev/null || echo 0)"
+    if [[ "${stale_count:-0}" -gt 0 ]]; then
+      findings+=(
+        "ℹ ${stale_count} issue(s) labelled in-progress with no activity in >48h:"
+      )
+      while IFS= read -r line; do
+        findings+=("    $line")
+      done < <(echo "$stale_wip" | jq -r '.[] | "  #\(.number) \(.title)"' 2>/dev/null)
+      findings+=(
+        "  → If still WIP, comment with status. If abandoned, remove label:"
+        "    gh issue edit <N> --remove-label \"in-progress\""
+      )
+    fi
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 # Output
 # ---------------------------------------------------------------------------
 if [[ "${#findings[@]}" -eq 0 ]]; then
