@@ -42,6 +42,7 @@
     "deploy:dev": "scripts/deploy-local-env.sh development",
     "deploy:stg": "scripts/deploy-local-env.sh staging",
     "deploy:prod": "scripts/deploy-local-env.sh production",
+    "verify:public-envs": "scripts/verify-public-envs.sh",
     "db:clear-demo": "node --env-file=.env --env-file-if-exists=.env.local --import tsx scripts/clear-demo-data.ts",
     "db:studio": "node --env-file=.env --env-file-if-exists=.env.local ./node_modules/prisma/build/index.js studio",
     "db:reset": "node --env-file=.env --env-file-if-exists=.env.local ./node_modules/prisma/build/index.js migrate reset --force && npm run db:seed",

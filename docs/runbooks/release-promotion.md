@@ -40,7 +40,7 @@ development or staging.
 
 ## Routine promotion
 
-1. Commit the change.
+1. Merge the change to `main`.
 2. Deploy development preview:
 
 ```bash
@@ -61,9 +61,16 @@ npm run deploy:stg
 npm run deploy:prod
 ```
 
+7. Verify that all public environments serve the expected `origin/main` commit:
+
+```bash
+npm run verify:public-envs
+```
+
 The deploy script:
 
 - refuses tracked dirty changes by default;
+- refuses staging/production deploys unless `HEAD` equals `origin/main`;
 - loads the environment-specific `.env` file;
 - validates host/app env consistency;
 - builds the same Docker image path;
@@ -78,7 +85,7 @@ The deploy script:
 Only use this during an active outage:
 
 ```bash
-scripts/deploy-local-env.sh production --allow-dirty
+scripts/deploy-local-env.sh production --allow-dirty --allow-unpublished
 ```
 
 After the emergency:
