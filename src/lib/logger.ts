@@ -104,8 +104,28 @@ function writeEntry(entry: LogEntry) {
     ? { ...enriched, context: scrubLogContext(enriched.context) }
     : enriched
 
-  if (isProduction()) {
+  // Browser bundles inline `process.env.NODE_ENV` as "production" when
+  // Next.js builds the client, so isProduction() returns true here too.
+  // But `process.stdout` is undefined in the browser — calling .write on
+  // it threw "Cannot read properties of undefined (reading 'write')" and
+  // killed the entire client bundle (no useEffect runs, no PostHog, no
+  // cart, no checkout — full passive page). Detect the browser and fall
+  // back to console so a stray client-side import never tumbles
+  // hydration. See 2026-05-04 incident; PwaRegister.tsx is the canonical
+  // 'use client' caller that triggered the regression.
+  if (
+    isProduction() &&
+    typeof process !== 'undefined' &&
+    typeof process.stdout?.write === 'function'
+  ) {
     process.stdout.write(JSON.stringify(safeEntry) + '\n')
+    return
+  }
+  if (isProduction()) {
+    // Browser path: emit a structured console line so future log
+    // shippers can still pick it up if the client logger is wired
+    // to a sink.
+    console.log(JSON.stringify(safeEntry))
     return
   }
 
