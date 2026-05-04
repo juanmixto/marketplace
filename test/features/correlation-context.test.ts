@@ -63,18 +63,17 @@ test('nested runWithCorrelation shadows the outer id and restores on exit', () =
 test('logger auto-injects the ambient correlationId into structured output', async () => {
   // Late import after env tweak so the logger picks up production mode.
   const prevNodeEnv = process.env.NODE_ENV
-  process.env.NODE_ENV = 'production'
+  Reflect.set(process.env, 'NODE_ENV', 'production')
   try {
     const { logger } = await import('../../src/lib/logger')
     const id = generateCorrelationId()
 
     const captured: string[] = []
     const originalWrite = process.stdout.write.bind(process.stdout)
-    // @ts-expect-error narrow override is fine for test
-    process.stdout.write = (chunk: unknown) => {
+    process.stdout.write = ((chunk: unknown) => {
       if (typeof chunk === 'string') captured.push(chunk)
       return true
-    }
+    }) as typeof process.stdout.write
 
     try {
       runWithCorrelation(id, () => logger.info('test.scope', 'hello'))
@@ -94,13 +93,13 @@ test('logger auto-injects the ambient correlationId into structured output', asy
     const outsideCtx = outside.context as Record<string, unknown> | undefined
     assert.equal(outsideCtx?.correlationId, undefined)
   } finally {
-    process.env.NODE_ENV = prevNodeEnv
+    Reflect.set(process.env, 'NODE_ENV', prevNodeEnv)
   }
 })
 
 test('explicit context.correlationId wins over the ambient one', async () => {
   const prevNodeEnv = process.env.NODE_ENV
-  process.env.NODE_ENV = 'production'
+  Reflect.set(process.env, 'NODE_ENV', 'production')
   try {
     const { logger } = await import('../../src/lib/logger')
     const ambient = generateCorrelationId()
@@ -109,11 +108,10 @@ test('explicit context.correlationId wins over the ambient one', async () => {
 
     const captured: string[] = []
     const originalWrite = process.stdout.write.bind(process.stdout)
-    // @ts-expect-error narrow override is fine for test
-    process.stdout.write = (chunk: unknown) => {
+    process.stdout.write = ((chunk: unknown) => {
       if (typeof chunk === 'string') captured.push(chunk)
       return true
-    }
+    }) as typeof process.stdout.write
 
     try {
       runWithCorrelation(ambient, () =>
@@ -128,7 +126,7 @@ test('explicit context.correlationId wins over the ambient one', async () => {
     const ctx = entry?.context as { correlationId?: string } | undefined
     assert.equal(ctx?.correlationId, explicit)
   } finally {
-    process.env.NODE_ENV = prevNodeEnv
+    Reflect.set(process.env, 'NODE_ENV', prevNodeEnv)
   }
 })
 
