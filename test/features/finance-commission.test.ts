@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   calculateCommissionAmount,
+  resolveCommissionRate,
   resolveEffectiveCommissionRate,
 } from '@/domains/finance/commission'
 
@@ -78,6 +79,47 @@ test('resolveEffectiveCommissionRate vendor rule takes priority even when catego
   })
 
   assert.equal(rate, 0.18)
+})
+
+test('resolveCommissionRate (sync) — vendor rule wins over category for #1162 H-6 per-line callers', () => {
+  // The Connect-fee path in createOrder calls this sync helper inside the
+  // line loop after one shared `loadCommissionResolverForVendor` round-trip.
+  // Vendor rule must win even when iterating across categories.
+  const rate = resolveCommissionRate({
+    vendorId: 'v1',
+    categoryId: 'cat-A',
+    vendorRate: 0.1,
+    rules: [
+      { vendorId: 'v1', categoryId: null, type: 'PERCENTAGE', rate: 0.05, isActive: true },
+      { vendorId: null, categoryId: 'cat-A', type: 'PERCENTAGE', rate: 0.15, isActive: true },
+    ],
+  })
+  assert.equal(rate, 0.05)
+})
+
+test('resolveCommissionRate (sync) — category rule applies when there is no vendor rule', () => {
+  const rateA = resolveCommissionRate({
+    vendorId: 'v1',
+    categoryId: 'cat-A',
+    vendorRate: 0.1,
+    rules: [
+      { vendorId: null, categoryId: 'cat-A', type: 'PERCENTAGE', rate: 0.04, isActive: true },
+      { vendorId: null, categoryId: 'cat-B', type: 'PERCENTAGE', rate: 0.21, isActive: true },
+    ],
+  })
+  const rateB = resolveCommissionRate({
+    vendorId: 'v1',
+    categoryId: 'cat-B',
+    vendorRate: 0.1,
+    rules: [
+      { vendorId: null, categoryId: 'cat-A', type: 'PERCENTAGE', rate: 0.04, isActive: true },
+      { vendorId: null, categoryId: 'cat-B', type: 'PERCENTAGE', rate: 0.21, isActive: true },
+    ],
+  })
+  // Two lines in the same vendor with different categories must resolve to
+  // different rates — that's the bug H-6 fixes vs. flat `Vendor.commissionRate`.
+  assert.equal(rateA, 0.04)
+  assert.equal(rateB, 0.21)
 })
 
 test('calculateCommissionAmount rounds to 2 decimal places', () => {
