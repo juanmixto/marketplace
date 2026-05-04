@@ -124,14 +124,14 @@ interface PendingRow {
 
 function extractPayloadRef(row: PendingRow): string | null {
   const p = row.payload
-  if (!p || typeof p !== 'object') return null
+  if (typeof p !== 'object' || p === null) return null
   const ref = (p as { payloadRef?: unknown }).payloadRef
   return typeof ref === 'string' && ref.length > 0 ? ref : null
 }
 
 function extractEventName(row: PendingRow): SupportedOutboxEvent | null {
   const p = row.payload
-  if (!p || typeof p !== 'object') return null
+  if (typeof p !== 'object' || p === null) return null
   const e = (p as { event?: unknown }).event
   if (e === 'order.buyer_confirmed') return e
   return null
@@ -139,9 +139,9 @@ function extractEventName(row: PendingRow): SupportedOutboxEvent | null {
 
 function extractEventPayload(row: PendingRow): NotificationEventMap[SupportedOutboxEvent] | null {
   const p = row.payload
-  if (!p || typeof p !== 'object') return null
+  if (typeof p !== 'object' || p === null) return null
   const inner = (p as { payload?: unknown }).payload
-  if (!inner || typeof inner !== 'object') return null
+  if (typeof inner !== 'object' || inner === null) return null
   const candidate = inner as { orderId?: unknown; customerUserId?: unknown }
   if (typeof candidate.orderId !== 'string' || typeof candidate.customerUserId !== 'string') {
     return null
@@ -192,17 +192,25 @@ export async function dispatchPendingOutboxNotifications({
   const refs = pending
     .map(extractPayloadRef)
     .filter((r): r is string => r !== null)
+  // Filter at the DB level by JSON path so we only fetch DELIVERED rows
+  // whose payloadRef matches one of the pending refs (bounded by refs.length).
   const deliveredRows = refs.length === 0
     ? []
     : await db.orderEvent.findMany({
-      where: { type: NOTIFICATION_OUTBOX_DELIVERED },
+      where: {
+        type: NOTIFICATION_OUTBOX_DELIVERED,
+        OR: refs.map((ref) => ({
+          payload: { path: ['payloadRef'], equals: ref },
+        })),
+      },
+      take: refs.length,
       select: { payload: true },
     })
   const deliveredRefs = new Set(
     deliveredRows
-      .map(r => {
+      .map((r) => {
         const p = r.payload
-        if (!p || typeof p !== 'object') return null
+        if (typeof p !== 'object' || p === null) return null
         const ref = (p as { payloadRef?: unknown }).payloadRef
         return typeof ref === 'string' ? ref : null
       })
