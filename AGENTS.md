@@ -20,6 +20,8 @@ scripts/agent-context.sh <task-type>      # imprime la lista mínima de archivos
 scripts/agent-context.sh                  # lista de task types disponibles
 ```
 
+Para una versión de una sola pantalla que puedas pegar en una nota de sesión o checklist local, usa [`docs/runbooks/pr-landing-checklist.md`](docs/runbooks/pr-landing-checklist.md) y su sección `AGENTS quick copy`.
+
 Cada doc largo en `docs/business/`, `docs/product/` y `docs/runbooks/` empieza con frontmatter `summary:` / `audience:` / `read_when:`. Lee con `Read limit: 10` para ver el resumen sin cargar todo el archivo; abre completo solo si tu tarea encaja con `read_when:`.
 
 ## Estado actual del marketplace (resumen para agentes)
