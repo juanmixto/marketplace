@@ -72,6 +72,7 @@ jobs:
           npm run audit:webhook-cast > .ci-logs/audit-webhook-cast.log 2>&1 & PID_AUDIT_WH_CAST=$!
           npm run audit:prisma-update-spread > .ci-logs/audit-prisma-update-spread.log 2>&1 & PID_AUDIT_PRISMA_SPREAD=$!
           npm run audit:form-number-coerce > .ci-logs/audit-form-number-coerce.log 2>&1 & PID_AUDIT_FORM_NUM=$!
+          npm run audit:no-root-env > .ci-logs/audit-no-root-env.log 2>&1 & PID_AUDIT_NO_ROOT_ENV=$!
           npm run typecheck:app    > .ci-logs/typecheck-app.log    2>&1 & PID_TC_APP=$!
           npm run typecheck:test   > .ci-logs/typecheck-test.log   2>&1 & PID_TC_TEST=$!
           if [ "$GH_EVENT_NAME" = "push" ] && [ "$GH_REF" = "refs/heads/main" ]; then
@@ -93,6 +94,7 @@ jobs:
           wait $PID_AUDIT_WH_CAST || { echo "::group::audit:webhook-cast FAILED"; cat .ci-logs/audit-webhook-cast.log; echo "::endgroup::"; STATUS=1; }
           wait $PID_AUDIT_PRISMA_SPREAD || { echo "::group::audit:prisma-update-spread FAILED"; cat .ci-logs/audit-prisma-update-spread.log; echo "::endgroup::"; STATUS=1; }
           wait $PID_AUDIT_FORM_NUM || { echo "::group::audit:form-number-coerce FAILED"; cat .ci-logs/audit-form-number-coerce.log; echo "::endgroup::"; STATUS=1; }
+          wait $PID_AUDIT_NO_ROOT_ENV || { echo "::group::audit:no-root-env FAILED"; cat .ci-logs/audit-no-root-env.log; echo "::endgroup::"; STATUS=1; }
           wait $PID_TC_APP  || { echo "::group::typecheck:app FAILED";    cat .ci-logs/typecheck-app.log;    echo "::endgroup::"; STATUS=1; }
           wait $PID_TC_TEST || { echo "::group::typecheck:test FAILED";   cat .ci-logs/typecheck-test.log;   echo "::endgroup::"; STATUS=1; }
           wait $PID_TESTS   || { echo "::group::tests FAILED";            cat .ci-logs/tests.log;            echo "::endgroup::"; STATUS=1; }
@@ -110,6 +112,7 @@ jobs:
             echo "::group::audit:webhook-cast"; cat .ci-logs/audit-webhook-cast.log; echo "::endgroup::"
             echo "::group::audit:prisma-update-spread"; cat .ci-logs/audit-prisma-update-spread.log; echo "::endgroup::"
             echo "::group::audit:form-number-coerce"; cat .ci-logs/audit-form-number-coerce.log; echo "::endgroup::"
+            echo "::group::audit:no-root-env"; cat .ci-logs/audit-no-root-env.log; echo "::endgroup::"
             echo "::group::typecheck:app";   cat .ci-logs/typecheck-app.log;    echo "::endgroup::"
             echo "::group::typecheck:test";  cat .ci-logs/typecheck-test.log;   echo "::endgroup::"
             echo "::group::tests";           cat .ci-logs/tests.log;            echo "::endgroup::"
