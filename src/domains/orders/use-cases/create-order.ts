@@ -23,6 +23,10 @@ import {
 } from '@/domains/catalog'
 // eslint-disable-next-line no-restricted-imports -- calculator stays out of the shipping barrel (dynamic db import)
 import { getShippingCost } from '@/domains/shipping/calculator'
+import {
+  loadCommissionResolverForVendor,
+  resolveCommissionRate,
+} from '@/domains/finance'
 import { getActionSession } from '@/lib/action-session'
 import { resolveGuestCustomer } from '../guest-customer'
 import { logger } from '@/lib/logger'
@@ -352,23 +356,56 @@ function ensureStockAvailability(products: Awaited<ReturnType<typeof loadProduct
   }
 }
 
-function buildConnectDestination({
+/**
+ * Resolve `application_fee_amount` for a single-vendor Connect order.
+ *
+ * #1162 H-6: previously this multiplied `grandTotal × Vendor.commissionRate`
+ * flat, ignoring `CommissionRule` overrides per category or per vendor.
+ * That made the platform fee in Stripe diverge from what settlement
+ * reports later expected — the productor would receive 95 % when the
+ * matched rule said 85 %, and we could not correct it after the fact.
+ *
+ * The new flow loads the rule set for `(vendorId, ∪ line.categoryId)`
+ * in one round-trip and resolves a per-line rate via `resolveCommissionRate`.
+ * Fee = Σ over lines of `round(lineGrossCents × resolvedRate)`. This
+ * preserves Stripe's rounding semantics (every fee is integer cents)
+ * and stays correct for multi-category carts inside a single vendor.
+ *
+ * Multi-vendor carts and vendors without Connect onboarding still
+ * return `undefined` — those keep funds on the platform and rely on
+ * the existing settlement system for payouts.
+ */
+async function buildConnectDestination({
   products,
   vendorIds,
-  grandTotal,
+  lines,
 }: {
   products: Awaited<ReturnType<typeof loadProductsAndLines>>['products']
   vendorIds: string[]
-  grandTotal: number
-}): { vendorAccountId: string; applicationFeeAmountCents: number } | undefined {
+  lines: Array<{ productId: string; vendorId: string; quantity: number; unitPrice: number }>
+}): Promise<{ vendorAccountId: string; applicationFeeAmountCents: number } | undefined> {
   if (vendorIds.length !== 1) return undefined
 
   const onlyVendor = products.find(p => p.vendor.id === vendorIds[0])?.vendor
   if (!onlyVendor?.stripeOnboarded || !onlyVendor.stripeAccountId) return undefined
 
-  const grandTotalCents = Math.round(grandTotal * 100)
-  const commissionRate = Number(onlyVendor.commissionRate)
-  const applicationFeeAmountCents = Math.round(grandTotalCents * commissionRate)
+  const productById = new Map(products.map(p => [p.id, p]))
+  const lineCategoryIds = lines.map(line => productById.get(line.productId)?.categoryId ?? null)
+
+  const resolver = await loadCommissionResolverForVendor(onlyVendor.id, lineCategoryIds)
+
+  let applicationFeeAmountCents = 0
+  for (const line of lines) {
+    const product = productById.get(line.productId)
+    const lineGrossCents = Math.round(Number(line.unitPrice) * line.quantity * 100)
+    const rate = resolveCommissionRate({
+      vendorId: onlyVendor.id,
+      categoryId: product?.categoryId ?? null,
+      vendorRate: resolver.vendorRate,
+      rules: resolver.rules,
+    })
+    applicationFeeAmountCents += Math.round(lineGrossCents * rate)
+  }
 
   return {
     vendorAccountId: onlyVendor.stripeAccountId,
@@ -534,7 +571,7 @@ export async function createOrder(
 
   const connectDestination = isFreeOrder
     ? undefined
-    : buildConnectDestination({ products, vendorIds, grandTotal })
+    : await buildConnectDestination({ products, vendorIds, lines })
 
   const env = getServerEnv()
 
