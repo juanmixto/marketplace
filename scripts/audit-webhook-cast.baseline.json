@@ -1,0 +1,5 @@
+{
+  "note": "JSON.parse(...) as <Type> casts in webhook handlers. Should be empty on green main; the file exists so a regression can be ratcheted, never silently accepted.",
+  "generatedAt": "2026-05-04T06:39:01.093Z",
+  "violations": []
+}
