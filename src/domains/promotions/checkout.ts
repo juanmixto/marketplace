@@ -10,6 +10,7 @@ import {
   type EvaluableCartLine,
 } from '@/domains/promotions/evaluation'
 import { countBuyerRedemptions, loadEvaluablePromotions } from '@/domains/promotions/loader'
+import { checkCouponAttemptRateLimit } from '@/domains/promotions/rate-limit'
 
 const previewInputSchema = z.object({
   items: z
@@ -72,6 +73,23 @@ export async function previewPromotionsForCart(
   const buyerId = session?.user.id ?? null
 
   const { items, code, shippingCost } = previewInputSchema.parse(input)
+
+  // #1269: rate-limit any preview that carries a coupon code, regardless
+  // of whether the code resolves. When the budget is exhausted we return
+  // the same shape we'd return for an empty/unknown code so the client
+  // can't distinguish "blocked" from "code didn't match" — that ambiguity
+  // is the point.
+  const rl = await checkCouponAttemptRateLimit({ code, buyerId, surface: 'preview' })
+  if (!rl.allowed) {
+    return {
+      ok: false,
+      subtotalDiscount: 0,
+      shippingDiscount: 0,
+      appliedByVendor: [],
+      lineDiscounts: [],
+      unknownCodes: code ? [code.trim().toUpperCase()] : [],
+    }
+  }
 
   const productIds = [...new Set(items.map(i => i.productId))]
   const products = await db.product.findMany({
