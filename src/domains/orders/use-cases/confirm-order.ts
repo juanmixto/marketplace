@@ -63,12 +63,28 @@ async function confirmOrderInner(
   sessionUserId: string,
 ) {
 
-  const payment = await db.payment.findFirst({
-    where: { orderId, providerRef },
+  // #968: Payment.providerRef is `@unique` in the schema, so findUnique
+  // is the right primitive — findFirst silently allowed a full-table
+  // scan if the index were ever dropped. The orderId guard is preserved
+  // as an explicit assertion below; a Payment whose providerRef matches
+  // but whose orderId differs is a routing bug, not a "not found".
+  const payment = await db.payment.findUnique({
+    where: { providerRef },
     include: { order: true },
   })
 
   if (!payment) return
+  if (payment.orderId !== orderId) {
+    // Caller-visible behaviour matches "not found" (return undefined),
+    // but log distinctly so dashboards can separate the routing-bug
+    // case from a genuinely absent payment.
+    logger.warn('order.confirm.payment_order_mismatch', {
+      orderId,
+      paymentOrderId: payment.orderId,
+      providerRef,
+    })
+    return
+  }
   if (payment.order.customerId !== sessionUserId) {
     throw new OrderConfirmationForbiddenError()
   }
