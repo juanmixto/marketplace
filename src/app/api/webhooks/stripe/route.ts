@@ -32,6 +32,10 @@ import { sendSubscriptionPaymentFailedEmail } from '@/domains/subscriptions/emai
 import { logger } from '@/lib/logger'
 import { isFeatureEnabled } from '@/lib/flags'
 import { emit as emitNotification } from '@/domains/notifications'
+import {
+  markNotificationDelivered,
+  recordPendingNotification,
+} from '@/domains/notifications/outbox'
 import { stripeWebhookEventSchema } from '@/domains/payments/webhook-schemas'
 import type Stripe from 'stripe'
 
@@ -432,6 +436,21 @@ async function handlePaymentSucceeded(
               payload: createPaymentConfirmedEventPayload({ providerRef, amount, eventId }),
             },
           })
+
+          // #1171 H-10: record the buyer-confirmation notification intent
+          // INSIDE the same transaction. If the process dies before the
+          // post-commit emit below fires, the operator-triggered sweep
+          // (`npm run notify:dispatch-pending`) will pick up this PENDING
+          // row and re-emit. Idempotent on the consumer side via
+          // payloadRef = `order.buyer_confirmed:${orderId}`.
+          await recordPendingNotification(tx, {
+            orderId: payment.orderId,
+            event: 'order.buyer_confirmed',
+            payload: {
+              orderId: payment.orderId,
+              customerUserId: payment.order.customerId,
+            },
+          })
         }
       }, WEBHOOK_TX_OPTIONS),
     { operationName: 'confirm payment webhook' }
@@ -446,15 +465,30 @@ async function handlePaymentSucceeded(
     throw error
   })
 
-  // CF-1 step 8: buyer confirmation email. Sibling of the mock-provider
-  // path in src/domains/orders/use-cases/confirm-order.ts. Fires once
-  // per order regardless of vendor count; the email handler dedupes
-  // by orderId via the global handlersBootstrapped guard plus the
-  // emit-side `payloadRef` style we use in telegram.
-  emitNotification('order.buyer_confirmed', {
-    orderId: payment.orderId,
-    customerUserId: payment.order.customerId,
-  })
+  // CF-1 step 8 / #1171 H-10: buyer confirmation email — fast path.
+  // Sibling of the mock-provider path in confirm-order.ts. The intent
+  // row was written inside the transaction above; this best-effort
+  // dispatch fires immediately and marks the row delivered. A crash
+  // between commit and emit is recovered by the outbox sweep.
+  try {
+    emitNotification('order.buyer_confirmed', {
+      orderId: payment.orderId,
+      customerUserId: payment.order.customerId,
+    })
+    await markNotificationDelivered(db, {
+      orderId: payment.orderId,
+      event: 'order.buyer_confirmed',
+    })
+  } catch (emitError) {
+    logger.warn('stripe.webhook.buyer_confirmed_emit_failed', {
+      orderId: payment.orderId,
+      error: emitError,
+    })
+    // Intentionally not re-thrown: the OUTBOX intent row will trigger
+    // a retry via `npm run notify:dispatch-pending`. Failing the
+    // webhook here would make Stripe retry the entire event, which
+    // is far more expensive than a deferred email.
+  }
 }
 
 async function handlePaymentFailed(
