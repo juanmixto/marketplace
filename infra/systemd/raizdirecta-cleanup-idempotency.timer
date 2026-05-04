@@ -1,0 +1,20 @@
+[Unit]
+Description=raizdirecta.es — daily IdempotencyKey sweep
+Documentation=https://github.com/juanmixto/marketplace/blob/main/docs/runbooks/host-crons.md
+
+[Timer]
+# 03:00 UTC keeps the window away from peak EU traffic. Matches the legacy
+# vercel.json schedule (`0 3 * * *`) so behaviour is unchanged from when
+# Vercel still owned the cron, only the executor moved to whisper.
+OnCalendar=*-*-* 03:00:00 UTC
+# If whisper was off when the timer should have fired (laptop closed, host
+# rebooted), run the missed job on next boot. Persistent=true is essential
+# for a single-node deploy that may not stay up 24/7.
+Persistent=true
+# Spread across a 5-minute window so all host crons don't fire simultaneously
+# if more are added later.
+RandomizedDelaySec=300
+Unit=raizdirecta-cleanup-idempotency.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,18 @@
+[Unit]
+Description=raizdirecta.es — failure handler for %i
+Documentation=https://github.com/juanmixto/marketplace/blob/main/docs/runbooks/host-crons.md
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/raizdirecta/host-cron.env
+# Posts a failure ping to Healthchecks.io if HC_PING_FAILURE is set.
+# Body includes the failed unit name so you can tell which timer broke.
+# Always exits 0 — a failed alert must not in turn alert.
+ExecStart=/bin/sh -c '\
+  if [ -n "${HC_PING_FAILURE:-}" ]; then \
+    /usr/bin/curl --silent --max-time 10 \
+      --data "host-cron unit %i failed at $(date -u -Iseconds) on $(hostname)" \
+      "${HC_PING_FAILURE}/fail" || true; \
+  fi'
+User=whisper
+Group=whisper
