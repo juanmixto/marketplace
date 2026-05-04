@@ -30,11 +30,34 @@ function isProtectedPath(pathname: string) {
 // closes that gap without breaking first-party callers (browsers always
 // send Origin on fetch from the same origin).
 //
-// Exemptions:
-//   - webhooks (Stripe, Sendcloud, Telegram) have no browser Origin
-//   - /api/auth/* is handled by NextAuth which has its own CSRF token
+// #1151: the previous list exempted `/api/auth` wholesale, which
+// covered our custom /register, /forgot-password, /reset-password,
+// /login-precheck, /verify-email handlers — none of which have the
+// NextAuth CSRF token. The exempt set now lists ONLY the NextAuth
+// catch-all sub-paths that genuinely roll their own protection.
+// Webhooks stay exempt (no browser Origin); healthcheck stays exempt
+// (intentionally callable by external monitors).
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
-const CSRF_EXEMPT_PREFIXES = ['/api/auth', '/api/webhooks', '/api/healthcheck'] as const
+const CSRF_EXEMPT_PREFIXES = [
+  // NextAuth's own callback / CSRF / signin / signout / session / providers
+  // routes — these are issued by Auth.js itself and validate via the
+  // first-party CSRF cookie. The custom routes under /api/auth/* (register,
+  // forgot-password, reset-password, login-precheck, verify-email) are NOT
+  // exempt and must satisfy isOriginAllowed() like every other mutating
+  // /api/* endpoint.
+  '/api/auth/callback',
+  '/api/auth/csrf',
+  '/api/auth/signin',
+  '/api/auth/signout',
+  '/api/auth/session',
+  '/api/auth/providers',
+  // External integrations — Stripe / Sendcloud / Telegram POST without an
+  // Origin header. Authn lives in their own signature checks.
+  '/api/webhooks',
+  '/api/telegram/webhook',
+  // Public probe — no state changes, intentionally callable from anywhere.
+  '/api/healthcheck',
+] as const
 
 function requiresOriginCheck(pathname: string, method: string): boolean {
   if (!pathname.startsWith('/api/')) return false
