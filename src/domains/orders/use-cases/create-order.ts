@@ -65,12 +65,14 @@ import {
   ProductUnavailableError,
 } from '../errors'
 
-// #1270: cap on per-user PLACED-and-unpaid orders. The ceiling sits well
-// above any plausible legitimate usage (a buyer who genuinely abandons 9
-// checkouts in flight is suspicious) but tight enough to limit damage
-// from a credential-stuffed account that hammers checkout to grief
-// vendors / vendor inventory snapshots.
-export const MAX_PENDING_ORDERS_PER_USER = 10
+// #1270: cap on per-user PLACED-and-unpaid orders. Inline (not exported)
+// because this file is `'use server'` and Next strips non-async exports
+// from the action manifest, breaking the import graph downstream.
+// The ceiling sits well above any plausible legitimate usage (a buyer who
+// genuinely abandons 9 checkouts in flight is suspicious) but tight
+// enough to limit damage from a credential-stuffed account that hammers
+// checkout to grief vendors / vendor inventory snapshots.
+const MAX_PENDING_ORDERS_PER_USER = 10
 
 export type { CartItemInput } from '@/shared/types/cart'
 import type { CartItemInput } from '@/shared/types/cart'
