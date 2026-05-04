@@ -4,7 +4,7 @@ set -Eeuo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/deploy-local-env.sh <development|staging|production> [--allow-dirty]
+  scripts/deploy-local-env.sh <development|staging|production> [--allow-dirty] [--allow-unpublished]
 
 Deploys one local Docker environment using the same compose file and the
 environment-specific .env file:
@@ -14,11 +14,16 @@ environment-specific .env file:
 
 By default the script refuses to deploy with uncommitted tracked changes.
 Use --allow-dirty only for an explicit emergency hotfix.
+
+Staging and production also require HEAD to match origin/main. Use
+--allow-unpublished only during an explicit emergency hotfix, then open a PR for
+the exact deployed diff immediately after the incident.
 EOF
 }
 
 env_name="${1:-}"
 allow_dirty="false"
+allow_unpublished="false"
 
 if [[ -z "$env_name" || "$env_name" == "-h" || "$env_name" == "--help" ]]; then
   usage
@@ -29,6 +34,7 @@ shift || true
 for arg in "$@"; do
   case "$arg" in
     --allow-dirty) allow_dirty="true" ;;
+    --allow-unpublished) allow_unpublished="true" ;;
     *)
       echo "Unknown argument: $arg" >&2
       usage >&2
@@ -72,6 +78,28 @@ if [[ "$allow_dirty" != "true" ]]; then
     echo "Refusing to deploy tracked dirty changes." >&2
     echo "Commit first, or rerun with --allow-dirty for an explicit emergency hotfix." >&2
     git status --short --untracked-files=no >&2
+    exit 1
+  fi
+fi
+
+if [[ "$env_name" != "development" && "$allow_unpublished" != "true" ]]; then
+  if ! git remote get-url origin >/dev/null 2>&1; then
+    echo "Refusing to deploy $env_name: git remote 'origin' is required." >&2
+    exit 1
+  fi
+
+  git fetch --quiet origin main
+
+  head_sha="$(git rev-parse HEAD)"
+  origin_main_sha="$(git rev-parse origin/main)"
+
+  if [[ "$head_sha" != "$origin_main_sha" ]]; then
+    echo "Refusing to deploy $env_name from unpublished or non-current code." >&2
+    echo "  HEAD:        $(git rev-parse --short HEAD)" >&2
+    echo "  origin/main: $(git rev-parse --short origin/main)" >&2
+    echo "" >&2
+    echo "Merge the change into main first, then deploy from origin/main." >&2
+    echo "Emergency only: rerun with --allow-unpublished and commit/PR the exact diff afterwards." >&2
     exit 1
   fi
 fi
