@@ -169,7 +169,10 @@ describe('Email Verification and Password Reset (#77)', () => {
           }) as never
         )
 
-        expect(response.status).toBe(201)
+        // #1283: register no longer differentiates 201 (fresh) vs 409
+        // (duplicate). Both branches return 200 with the same neutral
+        // body so an enumeration script can't probe the user table.
+        expect(response.status).toBe(200)
 
         const createdUser = await db.user.findUnique({
           where: { email },
