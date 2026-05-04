@@ -22,7 +22,9 @@ export async function requireAuth(): Promise<Session> {
     return testSession as unknown as Session
   }
   const session = await auth()
-  if (!session?.user) redirect('/login')
+  // #1142: empty id = revoked JWT (tokenVersion mismatch / suspended /
+  // anonimized). Treat it identical to "no session".
+  if (!session?.user?.id) redirect('/login')
   return session
 }
 

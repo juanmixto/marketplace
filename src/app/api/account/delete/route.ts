@@ -71,7 +71,12 @@ export async function DELETE(request: NextRequest) {
 
   try {
     await db.$transaction([
-      // Anonimize user (preserve foreign key integrity)
+      // Anonimize user (preserve foreign key integrity).
+      // #1142: bump tokenVersion in the same statement as the
+      // anonimization. The JWT callback will detect the mismatch on
+      // the next refresh tick (≤60s) and strip identity claims, so
+      // a session cookie that survived the deleteMany below cannot
+      // continue to act as the (now anonimized) user.
       db.user.update({
         where: { id: userId },
         data: {
@@ -82,6 +87,7 @@ export async function DELETE(request: NextRequest) {
           firstName: 'Usuario',
           lastName: 'Eliminado',
           image: null,
+          tokenVersion: { increment: 1 },
         },
       }),
       // Delete addresses (not needed for tax compliance)

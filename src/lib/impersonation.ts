@@ -25,7 +25,7 @@
  * without changing the public interface of this module.
  */
 
-import { createHmac, timingSafeEqual } from 'node:crypto'
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 
 export const IMPERSONATION_COOKIE = 'mp_impersonation'
 export const IMPERSONATION_TTL_SECONDS = 15 * 60 // 15 minutes
@@ -53,6 +53,42 @@ export interface ImpersonationContext extends ImpersonationPayload {
 
 export function isImpersonationEnabled(): boolean {
   return process.env[IMPERSONATION_ENABLED_ENV_VAR] === 'true'
+}
+
+/**
+ * #1155: marker tracking whether the read-only impersonation guard
+ * has been cabled into vendor mutations. Today the cookie + token
+ * are written, but `assertNotReadOnlyImpersonation` is not invoked
+ * by any caller, so flipping `IMPERSONATION_ENABLED=true` in
+ * production would let admin-support mutate vendor data without
+ * the read-only flag taking effect.
+ *
+ * Flip this to `true` ONLY when:
+ *   1. `requireVendor()` resolves the impersonation context from
+ *      the cookie and threads it down to mutation actions.
+ *   2. Every mutation in `src/domains/vendors/actions.ts` calls
+ *      `assertNotReadOnlyImpersonation(impersonation)` before
+ *      writing.
+ *   3. There is a test in `test/integration/` that exercises a
+ *      read-only impersonation against at least one mutation and
+ *      asserts the throw.
+ *
+ * Until then, `startImpersonation` refuses to issue tokens — even
+ * if the env var is set — preventing a cookie from being created
+ * that downstream code would not respect.
+ */
+export const IMPERSONATION_GUARDS_WIRED = false
+
+export function assertImpersonationSafeToEnable(): void {
+  if (!isImpersonationEnabled()) return
+  if (!IMPERSONATION_GUARDS_WIRED) {
+    throw new Error(
+      '[impersonation] IMPERSONATION_ENABLED=true but the read-only ' +
+        'guards are not wired into vendor mutations yet. See ticket #1155 / ' +
+        'src/lib/impersonation.ts for the checklist before flipping ' +
+        'IMPERSONATION_GUARDS_WIRED to true.',
+    )
+  }
 }
 
 function getSecret(): string {
@@ -127,11 +163,11 @@ export function verifyImpersonationToken(token: string | null | undefined): Impe
 }
 
 export function createImpersonationSessionId(): string {
-  // 12 bytes = 16 base64url chars. Enough entropy to uniquely identify a
-  // session in audit logs without being guessable.
-  return toBase64Url(
-    Buffer.from(Array.from({ length: 12 }, () => Math.floor(Math.random() * 256)))
-  )
+  // 12 bytes = 16 base64url chars. #1156: must come from
+  // crypto.randomBytes — Math.random() is non-cryptographic and would
+  // let an attacker with partial log visibility predict / collide
+  // future SIDs and pollute the audit trail.
+  return toBase64Url(randomBytes(12))
 }
 
 /**

@@ -187,6 +187,15 @@ model User {
   consentAcceptedAt    DateTime?
   passwordResetToken   String?   @unique
   passwordResetExpires DateTime?
+  // #1142: bump on any event that must invalidate every active JWT for
+  // this user — anonimization (GDPR Article 17), administrative
+  // suspension, hard role change. The JWT callback in src/lib/auth.ts
+  // stamps this onto the token at login and re-checks it on each
+  // refresh tick; a stale token is rejected (no role / no id) so the
+  // proxy redirects to /login. Distinct from `isActive` because some
+  // intentional flows (vendor demotion, soft-suspend) want immediate
+  // session kill without flipping the boolean.
+  tokenVersion         Int       @default(0)
   // Phase 4b-β: created lazily on the first subscription checkout so we
   // can attach the same Stripe Customer to every future Checkout Session
   // and every renewal invoice.

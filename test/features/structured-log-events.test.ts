@@ -72,11 +72,87 @@ const REQUIRED_PAYMENT_PROVIDER_EVENTS: EventAssertion = {
   events: ['checkout.stripe_intent_create_failed'],
 }
 
+// #1218: pin the `auth.*` taxonomy. These names back the credential-
+// stuffing alert ("auth.signin.failed > 30/min"), the OAuth callback
+// alert ("auth.oauth.callback_error rate > 10%/5min"), and the support
+// playbook for "I can't log in" tickets. Renaming any of them silently
+// breaks the alert.
+//
+// NOTE: there is intentionally no `order.*` taxonomy. The order
+// lifecycle is captured under `checkout.*` (above) and
+// `stripe.webhook.*` (already pinned) by convention — order events
+// without a checkout/webhook origin would be UI events, which belong
+// in the PostHog analytics taxonomy, not the structured logs.
+const REQUIRED_AUTH_EVENTS: EventAssertion = {
+  files: [
+    'src/lib/auth.ts',
+    'src/components/auth/SocialButtonsClient.tsx',
+    'src/app/api/auth/register/route.ts',
+    'src/app/api/auth/forgot-password/route.ts',
+    'src/app/api/auth/reset-password/route.ts',
+    'src/app/api/auth/login-precheck/route.ts',
+    'src/app/(auth)/login/page.tsx',
+    'src/app/(auth)/login/link/actions.ts',
+    'src/app/(auth)/login/link/page.tsx',
+    'src/app/(auth)/onboarding/actions.ts',
+  ],
+  events: [
+    // Sign-in callback policy decisions and OAuth error paths.
+    'auth.callback.rejected',
+    'auth.social.allow',
+    'auth.social.deny',
+    'auth.social.error',
+    'auth.social.no_email',
+    'auth.social.success',
+    'auth.social.missing_secret',
+    // Registration / recovery.
+    'auth.register.failed',
+    'auth.forgot_password.failed',
+    'auth.reset_password.failed',
+    'auth.login_precheck.failed',
+    // Account link flow (multi-provider).
+    'auth.link.completed',
+    'auth.link.required',
+    'auth.link.token_expired',
+    'auth.link.token_invalid',
+    'auth.link.password_failed',
+    'auth.link.missing_secret',
+    'auth.link.page_invalid_token',
+    'auth.link.page_missing_secret',
+    'auth.account.linked',
+    'auth.account_linked_email.sent',
+    'auth.account_linked_email.failed',
+    // OAuth user provisioning.
+    'auth.user.created_via_oauth',
+    // Onboarding gate (post-OAuth).
+    'auth.onboarding.completed',
+    'auth.onboarding.update_failed',
+    // Catch-all for unknown error codes surfaced from NextAuth.
+    'auth.error.unknown_code',
+  ],
+}
+
+const REQUIRED_INFRA_EVENTS: EventAssertion = {
+  files: ['src/app/api/healthcheck/route.ts', 'src/lib/queue.ts'],
+  events: [
+    // Liveness probe failure (LB pivots, oncall investigates).
+    'healthcheck.probe_failed',
+    // Queue lifecycle — diagnoses "jobs aren't running" without DB sleuthing.
+    'queue.started',
+    'queue.stopped',
+    'queue.enqueued',
+    'queue.handler_registered',
+    'queue.pgboss_error',
+  ],
+}
+
 for (const { files, events } of [
   REQUIRED_CHECKOUT_EVENTS,
   REQUIRED_STRIPE_WEBHOOK_EVENTS,
   REQUIRED_WEBHOOK_RETRY_EVENTS,
   REQUIRED_PAYMENT_PROVIDER_EVENTS,
+  REQUIRED_AUTH_EVENTS,
+  REQUIRED_INFRA_EVENTS,
 ]) {
   test(`${files.join(', ')}: all required event names still present`, () => {
     const content = files
@@ -93,6 +169,30 @@ for (const { files, events } of [
     )
   })
 }
+
+test('ratelimit logEvent input names are pinned (resulting scopes are computed)', () => {
+  // src/lib/ratelimit.ts builds the structured-log scope dynamically
+  // via `ratelimit.${event.replace(/:/g, '.')}`, so the literal scope
+  // string never appears in the source. Pin the INPUT event names
+  // instead — those are what end up at the alerting layer (after the
+  // `:`-to-`.` transform). Renaming or removing one silently breaks
+  // the rate-limit dashboard or, worse, the `degraded:fail-closed`
+  // P0 alert that fires when Upstash collapses checkout.
+  const content = readFileSync(join(process.cwd(), 'src/lib/ratelimit.ts'), 'utf-8')
+  const required = [
+    'degraded:fail-closed',
+    'degraded:fallback-memory',
+    'upstash:error',
+    'upstash:malformed',
+    'untrusted-header-ignored',
+  ]
+  const missing = required.filter((e) => !content.includes(`'${e}'`))
+  assert.equal(
+    missing.length,
+    0,
+    `Missing ratelimit logEvent input names: ${missing.join(', ')}. Renaming requires updating the rate-limit alert in Sentry/PostHog.`,
+  )
+})
 
 test('orders use-cases no longer use console.* for logging', () => {
   const files = [
