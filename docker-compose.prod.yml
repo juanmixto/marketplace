@@ -76,5 +76,29 @@ services:
     depends_on:
       - app
 
+  # Infra-level kill switch. Lives behind a compose profile so it never
+  # comes up by accident. When activated it claims the same Host() rule
+  # as `app` with priority=200, so traefik routes traffic to it instead.
+  # See docs/runbooks/maintenance-mode.md and issue #1253.
+  maintenance:
+    image: nginx:alpine
+    profiles: ["maintenance"]
+    restart: unless-stopped
+    volumes:
+      - ./infra/maintenance:/usr/share/nginx/html:ro
+      - ./infra/maintenance/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.${TRAEFIK_ROUTER_NAME:-marketplace}-maintenance.rule=Host(`${APP_HOST}`)
+      - traefik.http.routers.${TRAEFIK_ROUTER_NAME:-marketplace}-maintenance.entrypoints=websecure
+      - traefik.http.routers.${TRAEFIK_ROUTER_NAME:-marketplace}-maintenance.tls=true
+      - traefik.http.routers.${TRAEFIK_ROUTER_NAME:-marketplace}-maintenance.priority=200
+      - traefik.http.services.${TRAEFIK_SERVICE_NAME:-marketplace}-maintenance.loadbalancer.server.port=80
+
 volumes:
   marketplace_prod_db:
