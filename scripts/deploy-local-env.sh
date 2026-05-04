@@ -292,15 +292,15 @@ fi
 # SW stale-chunk cache, missing NEXT_PUBLIC_*) — /api/version returns 200
 # but the page is dead in the browser.
 #
-# Currently in --warn-only mode while the underlying RSC/hydration
-# regression on prod is being investigated. Strip the flag once
-# window.__NEXT_DATA__ is reliably present so future regressions block
-# the deploy as intended.
+# Smoke now uses correct PostHog readiness signals (window.__PosthogExtensions__
+# instead of window.posthog?.__loaded — the latter is always undefined when
+# posthog-js v1.x is imported as ES module). 2026-05-04: lifted --warn-only
+# after verifying all 6 assertions pass against current prod.
 if [[ "$env_name" == "production" || "$env_name" == "staging" ]]; then
   echo "Running post-deploy smoke against https://$APP_HOST ..."
   npx --no-install tsx \
     "$(git rev-parse --show-toplevel)/scripts/smoke-deploy.ts" \
-    "https://$APP_HOST" --warn-only || true
+    "https://$APP_HOST"
 fi
 
 # Release tag (production + staging only). Marks the SHA that just passed

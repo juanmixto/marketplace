@@ -101,18 +101,34 @@ async function main() {
 
     const probe = await page.evaluate(() => ({
       hasBody: !!document.body && document.body.children.length > 0,
-      posthogType: typeof (window as any).posthog,
-      posthogLoaded: (window as any).posthog?.__loaded === true,
-      posthogHost: (window as any).posthog?.config?.api_host ?? null,
-      nextDataPresent: !!(window as any).__NEXT_DATA__,
+      // posthog-js v1.x imported as ES module does NOT set window.posthog —
+      // the SDK lives entirely in the imported reference. Real signals that
+      // it loaded and configured itself: window.__PosthogExtensions__ (set
+      // by the SDK during init) and window._POSTHOG_REMOTE_CONFIG (set
+      // when /array/<key>/config.js downloads). 2026-05-04: lost ~4h to
+      // checking window.posthog?.__loaded — the real fix was realizing
+      // that check was always going to be undefined here.
+      posthogReady: typeof (window as any).__PosthogExtensions__ !== 'undefined',
+      posthogRemoteConfig: typeof (window as any)._POSTHOG_REMOTE_CONFIG !== 'undefined',
+      // Hydration sentinel: button onclick handlers attached after React
+      // hydrates. Replaces __NEXT_DATA__ which App Router doesn't emit.
+      buttonsHydrated:
+        document.querySelectorAll('button').length > 0 &&
+        Array.from(document.querySelectorAll('button')).every(
+          (b: any) => b.onclick !== null || b.getAttribute('type') === 'submit',
+        ),
     }))
 
     assert('document body has children', probe.hasBody)
-    assert('window.__NEXT_DATA__ present', probe.nextDataPresent)
     assert(
-      'window.posthog is loaded',
-      probe.posthogLoaded,
-      `typeof=${probe.posthogType}, __loaded=${String(probe.posthogLoaded)}, api_host=${probe.posthogHost ?? '<null>'}`,
+      'React hydrated (button handlers attached)',
+      probe.buttonsHydrated,
+      'no buttons or some without onclick',
+    )
+    assert(
+      'PostHog SDK initialized',
+      probe.posthogReady && probe.posthogRemoteConfig,
+      `__PosthogExtensions__=${probe.posthogReady}, _POSTHOG_REMOTE_CONFIG=${probe.posthogRemoteConfig}`,
     )
 
     const cspViolations = consoleErrors.filter(line =>
