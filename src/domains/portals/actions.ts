@@ -10,6 +10,7 @@ import {
   type LoginPortalMode,
 } from '@/lib/portals'
 import { getActionSession } from '@/lib/action-session'
+import { isSecureAuthDeployment } from '@/lib/auth-env'
 
 /**
  * Switch the active portal. Sets the `mp_last_portal` cookie and redirects
@@ -44,7 +45,10 @@ export async function switchPortal(formData: FormData): Promise<void> {
   cookieStore.set(LAST_PORTAL_COOKIE, target, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    // HU6 (#1254): derive Secure from AUTH_URL so a non-production NODE_ENV
+    // running behind Cloudflare TLS still emits Secure-flagged cookies. The
+    // pattern is shared with src/domains/auth/trusted-device.ts.
+    secure: isSecureAuthDeployment(process.env),
     path: '/',
     maxAge: LAST_PORTAL_MAX_AGE_SECONDS,
   })
