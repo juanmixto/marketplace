@@ -58,33 +58,64 @@ jobs:
           # silently fails ("fatal: not a git repository") and gh returns
           # an empty list, making the workflow report "no PRs to update"
           # while every PR rots BEHIND for hours. Found 2026-05-03.
-          mapfile -t prs < <(
-            gh pr list \
-              --repo "${GITHUB_REPOSITORY}" \
-              --state open \
-              --limit 100 \
-              --json number,mergeStateStatus,autoMergeRequest \
-              --jq '.[] | select(.autoMergeRequest != null and .mergeStateStatus == "BEHIND") | .number'
-          )
+          #
+          # 2026-05-04 race fix: the push trigger fires within seconds
+          # of a merge, but GitHub takes 30-60s to recompute every other
+          # PR's mergeStateStatus from `UNKNOWN` → `BEHIND`. The first
+          # pass after a merge therefore sees an empty list — every PR
+          # is still UNKNOWN. Two mitigations:
+          #   1. Include `UNKNOWN` in the filter. update-branch on an
+          #      UNKNOWN PR is safe: if it's actually up-to-date, the
+          #      API returns 422 which we already log + ignore.
+          #   2. Run TWO passes with a 45s gap. The second catches the
+          #      stragglers that hadn't recomputed yet during pass 1.
+          # Without this, BEHIND PRs would silently rot until the 30-min
+          # cron — exactly the symptom the user hit on 2026-05-04 #1237.
 
-          if [ ${#prs[@]} -eq 0 ]; then
-            echo "No BEHIND auto-merge PRs to update."
-            exit 0
-          fi
+          do_pass() {
+            local label="$1"
+            mapfile -t prs < <(
+              gh pr list \
+                --repo "${GITHUB_REPOSITORY}" \
+                --state open \
+                --limit 100 \
+                --json number,mergeStateStatus,autoMergeRequest \
+                --jq '.[]
+                       | select(.autoMergeRequest != null
+                                and (.mergeStateStatus == "BEHIND"
+                                     or .mergeStateStatus == "UNKNOWN"))
+                       | .number'
+            )
 
-          echo "Found ${#prs[@]} BEHIND auto-merge PR(s): ${prs[*]}"
-
-          for n in "${prs[@]}"; do
-            echo "::group::PR #$n"
-            # update-branch returns 202 + a message body when accepted,
-            # 422 when the PR cannot be updated (merge conflict, draft
-            # against a branch with no fast-forward path, etc.). We log
-            # the failure but keep going — one PR's conflict shouldn't
-            # block the rest of the queue.
-            if gh api -X PUT "/repos/${GITHUB_REPOSITORY}/pulls/$n/update-branch" 2>&1; then
-              echo "PR #$n: update-branch dispatched"
-            else
-              echo "PR #$n: update-branch failed (likely a merge conflict — needs human)"
+            if [ ${#prs[@]} -eq 0 ]; then
+              echo "[$label] No BEHIND/UNKNOWN auto-merge PRs to update."
+              return 0
             fi
-            echo "::endgroup::"
-          done
+
+            echo "[$label] Found ${#prs[@]} candidate PR(s): ${prs[*]}"
+
+            for n in "${prs[@]}"; do
+              echo "::group::[$label] PR #$n"
+              # update-branch returns 202 + a message body when accepted,
+              # 422 when the PR cannot be updated (merge conflict, no
+              # diff, draft against a branch with no fast-forward path,
+              # etc.). We log and keep going — one PR's conflict shouldn't
+              # block the rest of the queue, and a 422 on UNKNOWN simply
+              # means "already up-to-date, nothing to do".
+              if gh api -X PUT "/repos/${GITHUB_REPOSITORY}/pulls/$n/update-branch" 2>&1; then
+                echo "PR #$n: update-branch dispatched"
+              else
+                echo "PR #$n: update-branch returned non-200 (already up-to-date or merge conflict)"
+              fi
+              echo "::endgroup::"
+            done
+          }
+
+          do_pass "pass-1"
+          # Sleep just past the typical mergeStateStatus-recompute window
+          # so pass-2 sees the post-merge BEHIND state instead of UNKNOWN.
+          # 45s + workflow overhead lands ~75s after the trigger — well
+          # under the 5-min job timeout and under the prompt-cache TTL
+          # for any humans watching.
+          sleep 45
+          do_pass "pass-2"
