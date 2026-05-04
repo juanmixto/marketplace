@@ -113,7 +113,11 @@ function writeEntry(entry: LogEntry) {
   // back to console so a stray client-side import never tumbles
   // hydration. See 2026-05-04 incident; PwaRegister.tsx is the canonical
   // 'use client' caller that triggered the regression.
-  if (isProduction() && typeof process !== 'undefined' && process.stdout) {
+  if (
+    isProduction() &&
+    typeof process !== 'undefined' &&
+    typeof process.stdout?.write === 'function'
+  ) {
     process.stdout.write(JSON.stringify(safeEntry) + '\n')
     return
   }
