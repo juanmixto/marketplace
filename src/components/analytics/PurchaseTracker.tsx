@@ -83,6 +83,11 @@ export function PurchaseTracker({
     // carts surface as multiple `vendor_id` values in the items
     // array; the funnel insight cares about the order-level event,
     // not per-vendor.
+    // #1215: $insert_id matches the server-side fire from
+    // `confirmOrderInner` so PostHog dedupes the pair inside its 24 h
+    // window. The server is the conversion-of-record (fires before the
+    // user can close the tab); the client fire stays as a UX-context
+    // backstop (carries `device` / `referrer` from the buyer session).
     const { device, referrer } = getBuyerFunnelContext()
     trackAnalyticsEvent('order.placed', {
       order_id: orderId,
@@ -92,6 +97,7 @@ export function PurchaseTracker({
       item_count: items.reduce((sum, item) => sum + item.quantity, 0),
       device,
       referrer,
+      $insert_id: `order.placed:${orderId}`,
     })
   }, [orderId, orderNumber, currency, revenue, tax, shipping, items])
 

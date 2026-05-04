@@ -425,6 +425,37 @@ Set `POSTHOG_PERSONAL_API_KEY` in prod to enable in-process evaluation — avoid
 
 ---
 
+## Analytics events (client vs server)
+
+Two wrappers, two runtimes — pick by where the event is emitted from, not by where the user effectively is.
+
+- **Client** — `trackAnalyticsEvent(event, payload)` from [`src/lib/analytics.ts`](../src/lib/analytics.ts). Emits via `posthog-js`. Use for UX events that fire in response to a user gesture in the browser (`product.viewed`, `cart.opened`, `add_to_favorites`).
+- **Server** — `trackServer(event, properties, { distinctId, dedupeKey? })` from [`src/lib/analytics.server.ts`](../src/lib/analytics.server.ts). Emits via `posthog-node`. Use for funnel-critical events that must survive a tab-close: order confirmation, webhook-driven state transitions, worker side-effects.
+
+### When to fire from the server
+
+- The event is the **conversion of record** (`order.placed`, refund settled, vendor approved). The buyer might close the tab between `confirmOrder` returning and the redirect-target page hydrating; client-side fire would silently drop those.
+- The event happens on a code path that has **no browser** (Stripe webhook, scheduled worker, admin server action).
+- The event is what oncall would alert on if it stopped flowing.
+
+### Dedupe
+
+Server-side emits include `$insert_id = \`<event>:<dedupeKey>\`` so PostHog drops duplicates within its 24 h dedupe window. When the same conversion fires from both client and server (defense in depth — see `PurchaseTracker.tsx` for `order.placed`), use the SAME dedupeKey shape on both sides so the platform sees one event, not two.
+
+### Auto-tagged properties
+
+The server wrapper attaches:
+
+- `app_env` — mirrors the client wrapper so staging/prod splits stay consistent.
+- `correlationId` — pulled from the per-request AsyncLocalStorage (#1210). Lets oncall pivot from a PostHog event straight to the matching log/Sentry record.
+- `$insert_id` — when `dedupeKey` is provided.
+
+### Lifecycle
+
+The client is a process singleton, lazy-init on the first `trackServer` call. `process.on('beforeExit', flushServerAnalytics)` drains pending batches in long-running workers; serverless or hard-killed processes rely on `$insert_id` instead. **Analytics is fail-quiet** — every error is logged and swallowed under `analytics.server.*` scopes; checkout never tumbles because PostHog is down.
+
+---
+
 ## Next.js 16 gotchas (run-time pitfalls)
 
 `AGENTS.md` already warns "this is NOT the Next.js you know". The list below records gotchas that surfaced in production code and cost real debugging time. Add to it as new ones land.
