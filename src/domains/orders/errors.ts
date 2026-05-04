@@ -16,6 +16,7 @@ export type OrderErrorCode =
   | 'GUEST_EMAIL_REQUIRED'
   | 'GUEST_EMAIL_BELONGS_TO_REAL_ACCOUNT'
   | 'PAYMENT_ROW_DIVERGED'
+  | 'TOO_MANY_PENDING_ORDERS'
 
 export abstract class OrderDomainError extends Error {
   readonly code: OrderErrorCode
@@ -145,6 +146,21 @@ export class GuestEmailBelongsToRealAccountError extends OrderDomainError {
  * holds another — the next webhook would never match a local row.
  * Caller surfaces a retry that generates a fresh `checkoutAttemptId`.
  */
+/**
+ * #1270: cap on per-user pending orders. A user with too many PLACED
+ * orders awaiting payment is either testing or trying to grief vendors
+ * by forcing manual cancellations. New checkouts are refused until the
+ * pending count drops.
+ */
+export class TooManyPendingOrdersError extends OrderDomainError {
+  constructor() {
+    super(
+      'TOO_MANY_PENDING_ORDERS',
+      'Tienes demasiados pedidos pendientes de pago. Termina o cancela alguno antes de crear uno nuevo.',
+    )
+  }
+}
+
 export class PaymentRowDivergedError extends OrderDomainError {
   constructor() {
     super(
@@ -166,7 +182,7 @@ export function mapOrderErrorToUX(error: unknown): string {
   if (error instanceof Error) {
     const message = error.message.trim()
 
-    if (/stock insuficiente|carrito vac[íi]o|no disponible|ya no esta disponible|ya no está disponible|debes seleccionar una variante|c[óo]digo postal|requerid|promoci[óo]n|c[óo]digo "/i.test(message)) {
+    if (/stock insuficiente|carrito vac[íi]o|no disponible|ya no esta disponible|ya no está disponible|debes seleccionar una variante|c[óo]digo postal|requerid|promoci[óo]n|c[óo]digo "|cantidad m[áa]xima|carrito no puede tener|pedidos pendientes/i.test(message)) {
       return message
     }
 
