@@ -34,15 +34,17 @@ npx wrangler deploy
 
 Wrangler will create the Worker, register the route `raizdirecta.es/ingest/*`, and tell you the deploy URL. The route is the source of truth — the Worker is **not** active until that route is registered.
 
-Verify upstream connectivity (replace `phc_...` with the project key):
+Verify the deploy with the smoke script — it discriminates between "Worker active", "Worker missing (request fell through to Next.js)", "Worker up but cannot reach upstream", and "PostHog itself is down":
 
 ```sh
-curl -i 'https://raizdirecta.es/ingest/decide?v=3' \
-  -H 'Content-Type: application/json' \
-  -d '{"api_key":"phc_BZE6p5XrToHwHVMXBZP2kxMRY7xgSxbgnknjEgYioKSi","distinct_id":"smoke-test"}'
+scripts/verify-posthog-proxy.sh
 ```
 
-Expected: HTTP 200 with a JSON body containing `featureFlags`. If it 502s, the Worker isn't reaching PostHog (check the upstream hosts in [`src/index.ts`](src/index.ts)).
+Exit 0 = green. Exit 1 = something is broken; the script prints exactly which check failed and the next step. Run it again any time you suspect the Worker has been silently un-deployed (e.g. someone deletes the route in the Cloudflare dashboard).
+
+The same checks are encoded as an opt-in test at [`test/contracts/posthog-proxy-live.test.ts`](../../../test/contracts/posthog-proxy-live.test.ts) — run with `RUN_LIVE_PROXY_CHECK=1 npx tsx --test test/contracts/posthog-proxy-live.test.ts`. Use the script for ops, the test if you want to wire the same check into a scheduled CI job.
+
+If you'd rather curl by hand, expected response from the Worker is HTTP 200 (or 401 if you use a fake key) with a JSON body. If it returns HTML with `x-powered-by: Next.js`, the Worker route is not registered. If it 502s, the Worker is up but cannot reach PostHog (check the upstream hosts in [`src/index.ts`](src/index.ts)).
 
 Then set the env var in production hosting (Vercel / Cloudflare Tunnel host secrets / wherever the production Next.js process gets its env):
 
