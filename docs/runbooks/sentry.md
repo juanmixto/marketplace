@@ -133,7 +133,7 @@ caller passes context:
 
 | Tag | Source | Filter syntax |
 |---|---|---|
-| `correlationId` | request scope ([`src/lib/correlation.ts`](../../src/lib/correlation.ts)) | `correlationId:<uuid>` |
+| `correlationId` | per-request ALS ([`src/lib/correlation-context.ts`](../../src/lib/correlation-context.ts), seeded by [`src/proxy.ts`](../../src/proxy.ts)) | `correlationId:<id>` |
 | `checkoutAttemptId` | checkout idempotency token | `checkoutAttemptId:<uuid>` |
 | `domain.scope` | log scope (`checkout.*`, `stripe.webhook.*`, etc.) | `domain.scope:checkout.*` |
 | `release` | git SHA injected at build | `release:<sha7>` |
@@ -152,6 +152,25 @@ one click away:
 - **Production webhook errors** — `environment:production domain.scope:stripe.webhook.*`
 - **Staging only** — `environment:staging` (catch issues before prod)
 - **This release** — `release:<current-SHA>` (regression hunt after a deploy)
+
+### How `correlationId` is wired (post-#1210)
+
+1. [`src/proxy.ts`](../../src/proxy.ts) (Next.js 16's renamed middleware)
+   generates (or accepts an inbound, validated) `x-correlation-id` per
+   request and writes it to both the rewritten request headers and the
+   response headers. Browsers and support tools see the same id in
+   `curl -i`.
+2. The root layout reads it via `headers()` and injects
+   `<meta name="x-correlation-id" content="...">` so client components
+   (notably [`error.tsx`](../../src/app/error.tsx)) can surface it as
+   `Request ID: <id>` on the 500 page.
+3. Server entry points that opt in via
+   [`runWithCorrelation()`](../../src/lib/correlation-context.ts) put the
+   id in an `AsyncLocalStorage`. From that point on, **`logger.*` and the
+   Sentry mirror auto-tag every event** with the ambient id — no need to
+   pass `correlationId` through every layer. Explicit
+   `context.correlationId` still wins (e.g. webhook handlers using a
+   per-event id distinct from the per-request id).
 
 ### Pivot from Sentry to logs
 
