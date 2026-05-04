@@ -200,7 +200,17 @@ scripts backed by `src/domains/payments/webhook-dlq-ops.ts`:
 - **total pending ≥ 10** → alert
 - **new in last 24h ≥ 3** → alert
 
-Wire the JSON output to your oncall channel (cron every 15 min):
+Since #1213 a recurring pg-boss job (`webhook.dlq.alert`, cron `*/15 * * * *`) runs the
+threshold check from the worker process and emits `dlq.alert.fired` at error level when it
+trips. That auto-mirrors to Sentry, where the existing "first seen on production with
+severity ≥ error" alert pages oncall once per window. When the queue is empty the same job
+emits `dlq.alert.skipped` at info level so an operator can confirm the cron is firing.
+
+The job source lives at [`src/workers/jobs/dlq-alert.ts`](../../src/workers/jobs/dlq-alert.ts);
+the cadence is pinned by `test/features/dlq-alert-job.test.ts` so changes require updating
+this section in the same PR.
+
+Manual JSON-to-Slack still works for environments where the worker doesn't run:
 
 ```bash
 DLQ_JSON=$(npm run -s dlq:list -- --json)
@@ -304,6 +314,37 @@ WHERE "paymentStatus" = 'PENDING'
   AND "createdAt" < NOW() - interval '15 minutes'
 ORDER BY "createdAt" DESC;
 ```
+
+## Scenario: admin cancelled an order — does the buyer get a refund?
+
+**No, not automatically.** `cancelOrder` (`src/domains/admin/actions.ts`)
+restores stock and cascades fulfillments to `CANCELLED`, but it does NOT
+issue a Stripe refund. The previous JSDoc claim that it "may trigger
+refunds" was misleading — fixed in #1141 / #1158.
+
+If the buyer paid (`Order.paymentStatus = SUCCEEDED`) and admin-ops
+needs to cancel:
+
+1. **Cancel the order** via /admin/pedidos/[id] → "Cancelar".
+2. **Open an incident** on the same order from the buyer's perspective
+   (or have support open it on their behalf):
+   - Type: `OTHER` or whichever matches.
+   - Description: short note referencing the cancellation reason.
+3. **Resolve the incident with refund** at /admin/incidencias/[id]:
+   - `resolution = REFUND_FULL` (or `REFUND_PARTIAL`).
+   - `refundAmount = grandTotal - shippingCost` if shipping was already
+     dispatched on at least one fulfillment; otherwise full grandTotal.
+   - `fundedBy = PLATFORM` (we ate the cost) or `VENDOR` (deduct from
+     their next settlement) per finance's guidance.
+
+The refund path in `/api/admin/incidents/[id]/resolve` is gated to
+finance/ops/superadmin (#1141). Catalogue and support admins must
+escalate — they cannot fire the refund themselves.
+
+PSD2 / consumer-protection note: a cancelled order on a paid checkout
+that does NOT get refunded within ~14 days is a regulatory risk. If
+the buyer queue starts piling up, the next iteration is to wire the
+refund into `cancelOrder` itself behind a finance approval.
 
 ## Escalation ladder
 

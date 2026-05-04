@@ -155,6 +155,45 @@ export async function registerHandler<TData = Record<string, unknown>>(
   })
 }
 
+export interface ScheduleRecurringOptions {
+  /**
+   * Standard cron expression in the queue's local timezone (the worker
+   * process's TZ). pg-boss v10 supports the same syntax as `cronstrue`.
+   */
+  cron: string
+  /**
+   * Static payload sent to the handler on every fire. Most recurring
+   * ops jobs don't need any input — leave undefined.
+   */
+  data?: Record<string, unknown>
+  /**
+   * Per-fire singleton key. Defaults to the queue name so two parallel
+   * workers can't both fire the same scheduled tick.
+   */
+  singletonKey?: string
+}
+
+/**
+ * Idempotently registers (or updates) a recurring schedule for a
+ * queue. The handler must already be registered via `registerHandler()`
+ * — `schedule()` only enqueues; the actual work happens when the
+ * registered handler picks the job up.
+ *
+ * Re-running with the same `name` updates the cron expression in place
+ * (pg-boss treats the schedule by name).
+ */
+export async function scheduleRecurring(
+  name: string,
+  options: ScheduleRecurringOptions,
+): Promise<void> {
+  const boss = await getQueue()
+  await ensureQueue(boss, name)
+  const sendOpts: PgBoss.SendOptions = {}
+  if (options.singletonKey) sendOpts.singletonKey = options.singletonKey
+  await boss.schedule(name, options.cron, options.data ?? {}, sendOpts)
+  logger.info('queue.scheduled', { name, cron: options.cron })
+}
+
 /**
  * Graceful shutdown. Called by the worker on SIGTERM so in-flight
  * jobs finish before the process exits.

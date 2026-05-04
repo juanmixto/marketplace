@@ -18,7 +18,7 @@
  * a Phase 6 review.
  */
 
-import { getQueue, registerHandler, stopQueue } from '@/lib/queue'
+import { getQueue, registerHandler, scheduleRecurring, stopQueue } from '@/lib/queue'
 import { logger } from '@/lib/logger'
 import {
   INGESTION_JOB_KINDS,
@@ -43,6 +43,7 @@ import {
   runPrewarmImageVariantsJob,
   type PrewarmImageVariantsJobData,
 } from './jobs/prewarm-image-variants'
+import { DLQ_ALERT_CRON, DLQ_ALERT_JOB, runDlqAlertJob } from './jobs/dlq-alert'
 
 async function main() {
   logger.info('worker.starting', {
@@ -120,6 +121,16 @@ async function main() {
     { batchSize: 4 },
   )
 
+  // #1213: webhook DLQ alerting tick — every 15 minutes, no payload.
+  // Handler registration must come BEFORE the schedule so the first
+  // tick lands on a registered handler instead of a queue with no
+  // worker (which would silently no-op and leave operators thinking
+  // the cron is broken).
+  await registerHandler(DLQ_ALERT_JOB, async () => {
+    await runDlqAlertJob()
+  })
+  await scheduleRecurring(DLQ_ALERT_JOB, { cron: DLQ_ALERT_CRON })
+
   logger.info('worker.ready', {
     handlers: [
       INGESTION_JOB_KINDS.telegramSync,
@@ -128,6 +139,7 @@ async function main() {
       PROCESSING_JOB_KINDS.dedupeDrafts,
       PROCESSING_JOB_KINDS.unextractableDedupe,
       PREWARM_IMAGE_VARIANTS_JOB,
+      DLQ_ALERT_JOB,
     ],
     config,
   })

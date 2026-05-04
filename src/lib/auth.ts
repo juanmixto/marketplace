@@ -86,7 +86,12 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   ...authConfig,
   adapter: buildAdapter(),
   trustHost: true,
-  session: { strategy: 'jwt' },
+  // #1142: 72h is the longest a stolen JWT can outlive a suspension /
+  // anonimization that fails to bump tokenVersion in time. The
+  // tokenVersion check on the 60s refresh tick is the primary
+  // invalidation signal; this is the worst-case fallback. Auth.js
+  // default of 30 days is unsafe for an admin surface.
+  session: { strategy: 'jwt', maxAge: 72 * 60 * 60 },
   callbacks: {
     ...authConfig.callbacks,
     /**
@@ -250,10 +255,17 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
             isTwoFactorEnabled(id),
             db.user.findUnique({
               where: { id },
-              select: { passwordHash: true, consentAcceptedAt: true },
+              select: {
+                passwordHash: true,
+                consentAcceptedAt: true,
+                tokenVersion: true,
+              },
             }),
           ])
           next.has2fa = has2fa
+          // #1142: stamp tokenVersion at issue time. Refresh tick
+          // below compares against this; mismatch ⇒ revoked.
+          next.tokenVersion = fresh?.tokenVersion ?? 0
           // OAuth-only user with no consent yet → onboard. Linked
           // accounts (passwordHash present) skip — they consented at
           // /register.
@@ -264,14 +276,22 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         return next
       }
 
-      if (user) return next
+      if (user) {
+        // Credentials login: stamp tokenVersion from the user row that
+        // authorizeCredentials returned (it includes the column once the
+        // schema migration lands). For freshly registered accounts this
+        // is just 0 — same as the schema default.
+        const fromUser = (user as { tokenVersion?: number }).tokenVersion
+        next.tokenVersion = typeof fromUser === 'number' ? fromUser : 0
+        return next
+      }
 
       // Refresh the role from the DB at most once per interval so an admin
       // promotion (CUSTOMER → VENDOR via approveVendor) lands in the JWT on
       // the next poll instead of requiring a sign-out. Sessions with no id
       // (anonymous) are skipped. This is the only place in the stack where
       // a role can change mid-session without a credentials flow.
-      const id = typeof next.id === 'string' ? next.id : null
+      const id = typeof next.id === 'string' && next.id.length > 0 ? next.id : null
       if (!id) return next
 
       const lastCheck = typeof next.roleCheckedAt === 'number' ? next.roleCheckedAt : 0
@@ -285,11 +305,41 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         select: {
           role: true,
           isActive: true,
+          deletedAt: true,
+          tokenVersion: true,
           passwordHash: true,
           consentAcceptedAt: true,
         },
       })
-      if (!fresh || !fresh.isActive) return next
+
+      // #1142: hard invalidation. Any of these means the JWT must die
+      // RIGHT NOW, not in 30 days when it expires:
+      //   - user row gone (impossible under our anonimization contract,
+      //     but defensive)
+      //   - isActive=false (admin suspended a user)
+      //   - deletedAt set (GDPR Article 17 ran)
+      //   - tokenVersion bumped past the value stamped at login
+      //
+      // We strip the identity claims rather than throw — getActionSession
+      // and requireAuth both check for empty/missing id and treat that as
+      // an unauthenticated request, so the proxy will redirect to /login
+      // on the next protected hit.
+      const stampedVersion = typeof next.tokenVersion === 'number' ? next.tokenVersion : 0
+      const revoked =
+        !fresh ||
+        !fresh.isActive ||
+        fresh.deletedAt !== null ||
+        fresh.tokenVersion !== stampedVersion
+      if (revoked) {
+        next.id = ''
+        next.role = coerceUserRole(undefined)
+        next.has2fa = false
+        next.needsOnboarding = false
+        next.revoked = true
+        next.roleCheckedAt = now
+        return next
+      }
+
       next.role = coerceUserRole(fresh.role)
       next.roleCheckedAt = now
       // Refresh onboarding flag too — the /onboarding action calls
