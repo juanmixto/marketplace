@@ -23,6 +23,46 @@ The following checks **must pass** before a PR can be merged. They correspond to
 - **Restrict deletions on `main`**: yes.
 - **Require signed commits**: not required; the team uses GitHub-verified co-author trailers (see `AGENTS.md`).
 
+## Merge queue (recommended — manual one-time toggle)
+
+`auto-update-pr-branches.yml` rebases every BEHIND PR after each push to `main`, but rebase is not the same as a queue. When N PRs are armed with `gh pr merge --auto` and one of them lands, the other N-1 all rebase in parallel, all run CI in parallel, and the next push leaves N-2 BEHIND again. Net effect on a busy day: the same PR can rebase 3-5 times before its turn comes, each rebase eating ~5 minutes of CI.
+
+**GitHub's merge queue fixes this structurally**: PRs marked ready enter a FIFO queue, GitHub rebases + runs CI **once per PR in serial**, merges the head of the queue when it passes, and automatically rebases the next entry. No manual `git rebase origin/main && git push --force-with-lease` cycle. Authors stop typing the same commands every 5 minutes.
+
+The 2026-05-04 evening session is the canonical example: PR #1300 (root-cause fix for the night's hydration regression) had to be rebased manually three times against an active queue of sibling hardening PRs, costing ~15 minutes of wall-clock time and one repeated CI run per rebase.
+
+### One-time enablement
+
+The merge queue must be toggled in the GitHub UI — the REST/GraphQL surface for it is not stable enough to script reliably as of 2026-05-04. ~30 seconds:
+
+1. Open <https://github.com/juanmixto/marketplace/settings/branches>
+2. Edit the rule for `main`.
+3. Tick **Require merge queue**.
+4. Configure:
+   - **Merge method**: `Squash and merge` (matches our `--squash --delete-branch` convention from #840).
+   - **Build concurrency**: `5`.
+   - **Minimum entries to merge**: `1` (don't wait to batch — process as they arrive).
+   - **Maximum entries to merge**: `5`.
+   - **Wait time before merging**: `0 minutes`.
+   - **Required status checks**: keep the existing three (`Build And Migrate`, `E2E Smoke`, `Verify`).
+5. Save.
+
+### After enabling
+
+- `gh pr merge <N> --auto --squash --delete-branch` still works; GitHub now puts the PR in the queue instead of fighting for the head of `main` directly.
+- `auto-update-pr-branches.yml` is no longer load-bearing for keeping queued PRs current — the merge queue does it. Leave the workflow in place as a safety net for PRs not yet in the queue (drafts that get marked ready, etc.).
+- A queued PR that fails CI is removed from the queue and the next one proceeds, not blocking the queue head.
+
+### Verifying
+
+After enabling, on any open PR:
+
+```
+gh pr view <N> --json autoMergeRequest,mergeQueueEntry
+```
+
+Should show a `mergeQueueEntry` field once added. The PR view in the web UI shows "Add to merge queue" instead of "Enable auto-merge" once a PR has all required checks passing.
+
 ## Aggregator gate pattern (matrix shards → single required context)
 
 Required checks like `E2E Smoke` are aggregator jobs that fan out into a matrix (`E2E Smoke (shard 1)` … `(shard 8)`). The aggregator must explicitly fail when any shard fails, otherwise GitHub treats the SKIPPED-on-needs-failure result as **neutral** and lets the PR merge.
