@@ -27,7 +27,14 @@
 // literal below is only used if the template is served directly (dev).
 const SW_VERSION = '__BUILD_ID__'
 const OFFLINE_CACHE = 'mp-offline-v1'
-const STATIC_CACHE = 'mp-static-v1'
+// v2: bump invalidates v1 wholesale on `activate`. The v1 SW served
+// stale `/_next/static/chunks/*` via stale-while-revalidate after deploys,
+// so a returning visitor could keep getting OLD JS chunks for an unbounded
+// window (until the SWR background revalidate completed AND the next
+// navigation picked up the refreshed cache entry). Symptom: PostHog SDK
+// silently undefined for returning visitors after every deploy. v2 also
+// stops caching JS chunks entirely (see isCacheableStatic below).
+const STATIC_CACHE = 'mp-static-v2'
 const IMAGE_CACHE = 'mp-images-v1'
 const PREFETCH_CACHE = 'mp-prefetch-v1'
 const OFFLINE_URL = '/offline'
@@ -67,6 +74,11 @@ function isCacheableStatic(url) {
   if (isProtected(url)) return false
   if (DEV_HOSTNAMES.has(self.location.hostname)) return false
   const path = url.pathname
+  // Never cache JS chunks. Filenames are content-hashed and the HTTP
+  // Cache-Control on /_next/static/chunks/* is `immutable`, so the
+  // browser's HTTP cache handles them perfectly — and serves the right
+  // version after a deploy without an SWR window where stale bytes win.
+  if (path.startsWith('/_next/static/chunks/')) return false
   if (path.startsWith('/_next/static/')) return true
   if (path.startsWith('/icons/icon-') && path.endsWith('.png')) return true
   if (ALLOWED_EXACT.has(path)) return true
