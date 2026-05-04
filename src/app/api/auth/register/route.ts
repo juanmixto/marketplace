@@ -15,6 +15,7 @@ import { isDisposableEmail } from '@/lib/disposable-emails'
 import { normalizeAuthEmail } from '@/lib/auth-email'
 
 import { isUniqueConstraintViolation } from '@/lib/prisma-errors'
+import { HONEYPOT_FIELD_NAME, isHoneypotTripped } from '@/lib/honeypot'
 
 // #1283: response body shared by every non-error branch — fresh user,
 // existing-account, disposable-email — so the response itself never
@@ -51,6 +52,19 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
+
+    // Honeypot (#1271): silent success. A non-empty `website` is a bot.
+    if (isHoneypotTripped(body?.[HONEYPOT_FIELD_NAME])) {
+      logger.warn('security.honeypot.tripped', { surface: 'register', ip: clientIP })
+      return NextResponse.json(
+        {
+          success: true,
+          message: 'Te hemos enviado un email de verificación. Revisa tu bandeja antes de iniciar sesión.',
+        },
+        { status: 201 }
+      )
+    }
+
     const data = schema.parse(body)
 
     // #1280: refuse disposable inboxes. We respond with the same neutral

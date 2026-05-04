@@ -22,6 +22,8 @@ function buildContactSchema(formCopy: ContactFormCopy) {
     ),
     mensaje: z.string().min(20, formCopy.errors.messageTooShort).max(1000, formCopy.errors.messageTooLong),
     privacidad: z.literal(true, { error: () => formCopy.errors.privacyRequired }),
+    // Honeypot (#1271): humans never fill this; bots usually do.
+    website: z.string().max(255).optional(),
   })
 }
 
@@ -77,6 +79,14 @@ export function ContactForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <input
+        {...register('website')}
+        type="text"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        style={{ position: 'absolute', left: '-9999px', top: '-9999px', opacity: 0, height: 0, width: 0 }}
+      />
       {success && <div className="rounded-lg bg-accent-soft p-4 text-foreground">{formCopy.success}</div>}
 
       {error && <div className="rounded-lg bg-red-50 p-4 text-red-800 dark:bg-red-950/40 dark:text-red-300">✗ {error}</div>}
