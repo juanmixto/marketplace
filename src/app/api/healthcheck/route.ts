@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import { checkRateLimit, getClientIP } from '@/lib/ratelimit'
 
 /**
  * Synthetic health probe.
@@ -40,7 +41,35 @@ async function probe(label: string, fn: () => Promise<unknown>): Promise<[string
   }
 }
 
-export async function GET() {
+// #1159: 60 req/min/IP is ~6× what any reasonable monitor needs and
+// caps a flood at ~7 queries × 60 = 420 Postgres pings per minute per
+// attacker IP. Fail-OPEN by design — a Redis outage must NOT take down
+// the endpoint operators use to detect THE Redis outage.
+const HEALTHCHECK_LIMIT = 60
+const HEALTHCHECK_WINDOW_SECONDS = 60
+
+export async function GET(req: NextRequest) {
+  const limit = await checkRateLimit(
+    'healthcheck',
+    getClientIP(req),
+    HEALTHCHECK_LIMIT,
+    HEALTHCHECK_WINDOW_SECONDS,
+  )
+  if (!limit.success) {
+    return NextResponse.json(
+      { ok: false, error: 'rate-limited' },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': Math.max(1, Math.ceil((limit.resetAt - Date.now()) / 1000)).toString(),
+          'X-RateLimit-Limit': String(HEALTHCHECK_LIMIT),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': limit.resetAt.toString(),
+          'Cache-Control': 'no-store',
+        },
+      },
+    )
+  }
   // Each probe exercises a column set that has broken in the past OR is
   // central to the buy/sell flow. Queries are deliberately minimal so
   // the route stays fast enough to poll every 30s.
