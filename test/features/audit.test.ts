@@ -62,6 +62,46 @@ test('extractAuditIp falls back to x-vercel-forwarded-for as last resort', () =>
   assert.equal(ip, '198.51.100.99')
 })
 
+test('extractAuditIp in cloudflare-only mode refuses XFF fallback (#1185)', () => {
+  // Recording a forged IP into AuditLog actively misleads forensics.
+  // In cloudflare-only mode the helper returns null when cf-connecting-ip
+  // is missing, even if the request carries x-forwarded-for / x-real-ip.
+  const original = process.env.TRUST_PROXY_HEADERS
+  process.env.TRUST_PROXY_HEADERS = 'cloudflare'
+  try {
+    const ip = extractAuditIp({
+      get(name: string) {
+        if (name === 'x-forwarded-for') return '6.6.6.6'
+        if (name === 'x-real-ip') return '7.7.7.7'
+        if (name === 'x-vercel-forwarded-for') return '8.8.8.8'
+        return null
+      },
+    })
+    assert.equal(ip, null)
+  } finally {
+    if (original === undefined) delete process.env.TRUST_PROXY_HEADERS
+    else process.env.TRUST_PROXY_HEADERS = original
+  }
+})
+
+test('extractAuditIp in cloudflare-only mode still trusts cf-connecting-ip (#1185)', () => {
+  const original = process.env.TRUST_PROXY_HEADERS
+  process.env.TRUST_PROXY_HEADERS = 'cloudflare'
+  try {
+    const ip = extractAuditIp({
+      get(name: string) {
+        if (name === 'cf-connecting-ip') return '203.0.113.42'
+        if (name === 'x-forwarded-for') return '1.1.1.1' // ignored
+        return null
+      },
+    })
+    assert.equal(ip, '203.0.113.42')
+  } finally {
+    if (original === undefined) delete process.env.TRUST_PROXY_HEADERS
+    else process.env.TRUST_PROXY_HEADERS = original
+  }
+})
+
 test('extractAuditIp returns null when no IP headers are present', () => {
   const ip = extractAuditIp({ get: () => null })
 
