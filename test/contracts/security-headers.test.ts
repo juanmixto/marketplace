@@ -25,6 +25,8 @@ test('getSecurityHeaders exposes the core browser hardening headers', () => {
     'Referrer-Policy',
     'Permissions-Policy',
     'Cross-Origin-Opener-Policy',
+    // HU7 (#1248): Report-To group descriptor for the Reporting-API.
+    'Report-To',
   ])
 
   process.env.NEXT_PUBLIC_APP_URL = previousAppUrl
@@ -79,8 +81,27 @@ test('buildContentSecurityPolicy with nonce enforces strict script-src (#537)', 
   assert.match(csp, /frame-src 'self' https:\/\/js\.stripe\.com https:\/\/m\.stripe\.network/)
   // HU3 (#1244): hooks.stripe.com is webhook delivery, never embedded.
   assert.doesNotMatch(csp, /frame-src[^;]*hooks\.stripe\.com/)
+  // HU7 (#1248): browsers must be told where to POST violation reports.
+  // Both directives needed: report-uri (legacy — Chrome/Edge still
+  // honour it); report-to (modern Reporting-API, paired with the
+  // Report-To header).
+  assert.match(csp, /report-uri \/api\/csp-report/)
+  assert.match(csp, /report-to csp-endpoint/)
 
   process.env.NEXT_PUBLIC_APP_URL = previousAppUrl
+})
+
+test('Report-To header advertises csp-endpoint group at /api/csp-report (#1248)', () => {
+  const reportTo = getSecurityHeaders().find((h) => h.key === 'Report-To')
+  assert.ok(reportTo, 'Report-To must be present so browsers honour the report-to CSP directive')
+  const parsed = JSON.parse(reportTo.value) as {
+    group?: string
+    max_age?: number
+    endpoints?: Array<{ url?: string }>
+  }
+  assert.equal(parsed.group, 'csp-endpoint')
+  assert.equal(parsed.endpoints?.[0]?.url, '/api/csp-report')
+  assert.ok(typeof parsed.max_age === 'number' && parsed.max_age > 0)
 })
 
 test('buildContentSecurityPolicy without nonce falls back to permissive script-src (test/legacy path)', () => {
