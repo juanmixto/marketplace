@@ -289,6 +289,190 @@ export async function reconcilePendingPayments({
 }
 
 /**
+ * #1161 H-5 — recovery sweep for Orders that committed but never got a
+ * PaymentIntent.
+ *
+ * `createOrder` runs the Order/Payment commit and the `createPaymentIntent`
+ * call as separate steps (the PI call is intentionally OUTSIDE the
+ * transaction because it talks to Stripe). If the Node process dies
+ * between commit and PI creation — OOM, deploy rolling, kill -9 — we
+ * end up with an Order at `paymentStatus=PENDING` whose Payment row has
+ * `providerRef=null`. The original sweeper above doesn't see those (it
+ * filters `providerRef: { not: null }`), and `markOrderPaymentIntentCreationFailed`
+ * never ran (the process was dead), so stock and `Promotion.redemptionCount`
+ * stay decremented forever.
+ *
+ * This sweeper restores those:
+ *   1. Restock every line (Product.stock or ProductVariant.stock) the
+ *      original transaction had decremented. Mirrors the trackStock /
+ *      null-stock conditions of `reserveTrackedOrderLineStock`.
+ *   2. Decrement every `Promotion.redemptionCount` that the create-order
+ *      transaction had bumped (one per VendorFulfillment with a
+ *      `promotionId`).
+ *   3. Mark Order CANCELLED + paymentStatus=FAILED, free the
+ *      `checkoutAttemptId` UNIQUE so the buyer can start a fresh
+ *      attempt without colliding on the dedupe constraint.
+ *   4. Mark Payment FAILED.
+ *   5. Audit-log via OrderEvent `ORDER_ABANDONED_PRE_PI`.
+ *
+ * Idempotency: the sweep claims each candidate via a single
+ * `updateMany({ where: { ... status: PENDING, providerRef: null }})`
+ * before doing any work. `count === 0` means another sweeper or
+ * concurrent process beat us to it; we exit cleanly.
+ *
+ * Cutoff: 30 minutes by default. Shorter than the 60m for the
+ * succeeded/failed sweep because there is no remote service we are
+ * waiting for — a PI was never created — so anything older than the
+ * checkout-page timeout is safe to revert.
+ */
+export interface ReconcileAbandonedReport {
+  reviewed: number
+  reverted: number
+  skipped: number
+  errors: number
+}
+
+export async function reconcileAbandonedOrders({
+  db,
+  olderThanMinutes = 30,
+  now = new Date(),
+  limit = 200,
+}: {
+  db: PrismaClient
+  olderThanMinutes?: number
+  now?: Date
+  limit?: number
+}): Promise<ReconcileAbandonedReport> {
+  const cutoff = new Date(now.getTime() - olderThanMinutes * 60 * 1000)
+
+  const orphans = await db.payment.findMany({
+    where: {
+      status: 'PENDING',
+      providerRef: null,
+      createdAt: { lt: cutoff },
+    },
+    orderBy: { createdAt: 'asc' },
+    take: limit,
+    select: { id: true, orderId: true, createdAt: true },
+  })
+
+  const report: ReconcileAbandonedReport = {
+    reviewed: orphans.length,
+    reverted: 0,
+    skipped: 0,
+    errors: 0,
+  }
+
+  for (const orphan of orphans) {
+    try {
+      const reverted = await db.$transaction(async tx => {
+        // Atomic claim — if another sweeper already grabbed it, count===0 and we no-op.
+        const claim = await tx.payment.updateMany({
+          where: { id: orphan.id, status: 'PENDING', providerRef: null },
+          data: { status: 'FAILED' },
+        })
+        if (claim.count === 0) return false
+
+        // Restock. Mirrors create-order's reserveTrackedOrderLineStock:
+        // only products with `trackStock=true` were decremented, and
+        // variants with `stock=null` were skipped.
+        const lines = await tx.orderLine.findMany({
+          where: { orderId: orphan.orderId },
+          select: { productId: true, variantId: true, quantity: true },
+        })
+        const productIds = [...new Set(lines.map(l => l.productId))]
+        const products = productIds.length === 0
+          ? []
+          : await tx.product.findMany({
+            where: { id: { in: productIds } },
+            select: { id: true, trackStock: true },
+          })
+        const trackByProductId = new Map(products.map(p => [p.id, p.trackStock]))
+
+        for (const line of lines) {
+          if (!trackByProductId.get(line.productId)) continue
+          if (line.variantId) {
+            const variant = await tx.productVariant.findUnique({
+              where: { id: line.variantId },
+              select: { stock: true },
+            })
+            if (variant?.stock != null) {
+              await tx.productVariant.update({
+                where: { id: line.variantId },
+                data: { stock: { increment: line.quantity } },
+              })
+            }
+          } else {
+            await tx.product.update({
+              where: { id: line.productId },
+              data: { stock: { increment: line.quantity } },
+            })
+          }
+        }
+
+        // Promotion redemption restitution. Each VendorFulfillment row
+        // with a non-null promotionId mapped to one redemptionCount
+        // bump in claimPromotionRedemptions during checkout.
+        const fulfillments = await tx.vendorFulfillment.findMany({
+          where: { orderId: orphan.orderId, promotionId: { not: null } },
+          select: { promotionId: true },
+        })
+        for (const f of fulfillments) {
+          if (!f.promotionId) continue
+          await tx.promotion.update({
+            where: { id: f.promotionId },
+            data: { redemptionCount: { decrement: 1 } },
+          })
+        }
+
+        await tx.order.update({
+          where: { id: orphan.orderId },
+          data: {
+            status: 'CANCELLED',
+            paymentStatus: 'FAILED',
+            checkoutAttemptId: null,
+          },
+        })
+
+        await tx.orderEvent.create({
+          data: {
+            orderId: orphan.orderId,
+            type: 'ORDER_ABANDONED_PRE_PI',
+            payload: {
+              recordedAt: now.toISOString(),
+              source: 'reconcile-script',
+              reason: 'Order committed but createPaymentIntent never linked a providerRef',
+              ageMinutes: Math.round((now.getTime() - orphan.createdAt.getTime()) / 60_000),
+            },
+          },
+        })
+        return true
+      })
+
+      if (reverted) {
+        report.reverted += 1
+        logger.info('payments.reconcile.orphan_reverted', {
+          paymentId: orphan.id,
+          orderId: orphan.orderId,
+          ageMinutes: Math.round((now.getTime() - orphan.createdAt.getTime()) / 60_000),
+        })
+      } else {
+        report.skipped += 1
+      }
+    } catch (err) {
+      report.errors += 1
+      logger.error('payments.reconcile.orphan_error', {
+        paymentId: orphan.id,
+        orderId: orphan.orderId,
+        error: err,
+      })
+    }
+  }
+
+  return report
+}
+
+/**
  * Build a fetcher backed by the real Stripe SDK. Separate factory so
  * tests can skip the SDK import entirely.
  */
