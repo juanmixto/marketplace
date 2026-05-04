@@ -99,16 +99,23 @@ export function buildContentSecurityPolicy(
       ' https://*.uploadthing.com' +
       ' https://*.public.blob.vercel-storage.com',
     "font-src 'self' data:",
-    "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
+    // HU3 (#1244): Stripe Radar embeds an iframe from m.stripe.network for
+    // device fingerprint. hooks.stripe.com is the webhook *delivery* URL —
+    // never embedded in the browser, so it does not belong in frame-src.
+    "frame-src 'self' https://js.stripe.com https://m.stripe.network",
     // connect-src allowlist:
-    //   - Stripe: required for payment intents and JS SDK telemetry.
+    //   - Stripe: api.stripe.com + js.stripe.com for payment intents and SDK
+    //     telemetry. r.stripe.com / m.stripe.com / m.stripe.network are
+    //     Radar fingerprint + risk-scoring beacons (HU3 #1244): without them
+    //     Stripe Elements posts get blocked silently and Radar loses signal,
+    //     raising false-positive fraud rates on legitimate payments.
     //   - PostHog EU: NEXT_PUBLIC_POSTHOG_HOST defaults to https://eu.i.posthog.com
     //     (src/lib/posthog.ts:15). The wildcard `https://*.posthog.com` covers
     //     EU + US + the asset CDN PostHog occasionally rotates to. The SDK is
     //     bundled (npm dep), so script-src does NOT need a posthog entry.
     //     If posthog hosting moves to a non-posthog.com domain in the future,
     //     update both this entry and src/lib/posthog.ts:15 in lockstep.
-    `connect-src 'self'${isDevelopment ? ' ws: wss:' : ''} https://api.stripe.com https://js.stripe.com https://*.posthog.com`,
+    `connect-src 'self'${isDevelopment ? ' ws: wss:' : ''} https://api.stripe.com https://js.stripe.com https://m.stripe.network https://m.stripe.com https://r.stripe.com https://*.posthog.com`,
     "object-src 'none'",
     "media-src 'self' blob:",
     "worker-src 'self' blob:",
@@ -121,6 +128,48 @@ export function buildContentSecurityPolicy(
   return directives.join('; ')
 }
 
+// HU2 (#1243): explicit allow/deny for every Permissions-Policy directive
+// the browser knows about. Default-deny keeps third-party iframes (Stripe
+// in particular) from silently activating sensors or ambient APIs.
+//
+// CRITICAL: `payment` and `encrypted-media` MUST allowlist `https://js.stripe.com`,
+// otherwise Stripe Elements cannot trigger payment confirmation.
+// `publickey-credentials-get=(self)` keeps WebAuthn doors open for the
+// future TOTP-replacement work without enabling it cross-origin.
+const PERMISSIONS_POLICY = [
+  'accelerometer=()',
+  'ambient-light-sensor=()',
+  'autoplay=(self)',
+  'battery=()',
+  'camera=()',
+  'display-capture=()',
+  'document-domain=()',
+  'encrypted-media=(self "https://js.stripe.com")',
+  'fullscreen=(self)',
+  'gamepad=()',
+  'geolocation=()',
+  'gyroscope=()',
+  'hid=()',
+  'idle-detection=()',
+  'interest-cohort=()',
+  'keyboard-map=()',
+  'magnetometer=()',
+  'microphone=()',
+  'midi=()',
+  'navigation-override=()',
+  'payment=(self "https://js.stripe.com")',
+  'picture-in-picture=()',
+  'publickey-credentials-get=(self)',
+  'screen-wake-lock=()',
+  'serial=()',
+  'sync-xhr=(self)',
+  'usb=()',
+  'web-share=(self)',
+  'xr-spatial-tracking=()',
+  'browsing-topics=()',
+  'attribution-reporting=()',
+].join(', ')
+
 /**
  * Security headers that are safe to set statically (do not need a
  * per-request value). CSP lives in `src/proxy.ts` so it can carry a
@@ -129,10 +178,24 @@ export function buildContentSecurityPolicy(
 export function getSecurityHeaders(): SecurityHeader[] {
   const headers: SecurityHeader[] = [
     { key: 'X-Content-Type-Options', value: 'nosniff' },
+    // X-Frame-Options is redundant with `frame-ancestors 'none'` in the CSP
+    // for modern browsers, but kept as defense in depth for older clients.
     { key: 'X-Frame-Options', value: 'DENY' },
-    { key: 'X-XSS-Protection', value: '1; mode=block' },
+    // HU4 (#1245): X-XSS-Protection removed. Header is deprecated; modern
+    // browsers ignore it and legacy Safari can be tricked into reflective
+    // XSS via the filter (CSP is the canonical defense now).
     { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-    { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+    { key: 'Permissions-Policy', value: PERMISSIONS_POLICY },
+    // HU5 (#1246): COOP must be `same-origin-allow-popups` (NOT `same-origin`)
+    // so the Google OAuth popup and Telegram deeplinks survive — `same-origin`
+    // would null out window.opener for any cross-origin navigation we trigger.
+    //
+    // Cross-Origin-Resource-Policy intentionally NOT set here: a global
+    // `same-origin` value would break Open Graph previews (Twitter / Facebook /
+    // WhatsApp fetch /_next/image cross-origin when a producer / product link
+    // gets shared). Per-path CORP (e.g. `same-origin` on /api/*, default on
+    // public images) belongs in its own HU.
+    { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
   ]
 
   if (shouldEnforceHttpsHeaders()) {

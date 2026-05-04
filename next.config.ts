@@ -106,6 +106,10 @@ export function buildHeaderRules(isDevelopment = process.env.NODE_ENV === 'devel
 }
 
 const nextConfig: NextConfig = {
+  // HU1 (#1242): drop the `X-Powered-By: Next.js` response header.
+  // Pure information disclosure that lets framework-targeted scanners
+  // fingerprint the stack at zero cost to attackers.
+  poweredByHeader: false,
   // Build identity baked into both server and client bundles. See the
   // helpers above for fallback behaviour outside git checkouts.
   env: {
