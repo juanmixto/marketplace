@@ -8,10 +8,22 @@ import { sendEmail } from '@/lib/email'
 import { getServerEnv } from '@/lib/env'
 import { logger } from '@/lib/logger'
 import { EmailVerificationEmail } from '@/emails/EmailVerification'
+import { RegisterAttemptOnExistingAccountEmail } from '@/emails/RegisterAttemptOnExistingAccount'
 import { createElement } from 'react'
 import { registerSchema as schema } from '@/shared/types/auth'
+import { isDisposableEmail } from '@/lib/disposable-emails'
+import { normalizeAuthEmail } from '@/lib/auth-email'
 
 import { isUniqueConstraintViolation } from '@/lib/prisma-errors'
+
+// #1283: response body shared by every non-error branch — fresh user,
+// existing-account, disposable-email — so the response itself never
+// reveals which path was taken. The differentiation lives in the
+// mailbox (welcome+verify vs "ya tienes cuenta" vs nothing).
+const NEUTRAL_REGISTER_RESPONSE = {
+  success: true,
+  message: 'Te hemos enviado un email de verificación. Revisa tu bandeja antes de iniciar sesión.',
+} as const
 
 export async function POST(req: NextRequest) {
   let createdUser: { id: string; firstName: string; email: string } | null = null
@@ -41,6 +53,53 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const data = schema.parse(body)
 
+    // #1280: refuse disposable inboxes. We respond with the same neutral
+    // shape as the success branch so an enumeration script can't tell
+    // which list the address landed on. Status is 200 (not 400) for the
+    // same reason — a 4xx is a tell. The legitimate user with a temp
+    // mail simply never receives the verification email and contacts
+    // support; an attacker burning through 10minutemail variants gets
+    // nothing actionable.
+    if (isDisposableEmail(data.email)) {
+      logger.warn('auth.register.disposable_blocked', { ip: clientIP })
+      return NextResponse.json(NEUTRAL_REGISTER_RESPONSE, { status: 200 })
+    }
+
+    // #1283: enumeration-safe duplicate handling. Pre-flight check
+    // against the unique index. If the email is already on file we send
+    // a "ya tienes cuenta" email (so a legit user who forgot they
+    // signed up has a path forward) and respond with the same shape as
+    // a fresh registration. The previous 409 on collision was a clean
+    // boolean leak — a script could enumerate registered addresses
+    // without ever opening an inbox.
+    const normalizedEmail = normalizeAuthEmail(data.email)
+    const existing = await db.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true, firstName: true },
+    })
+
+    if (existing) {
+      logger.info('auth.register.duplicate_email', { ip: clientIP, userId: existing.id })
+      const env = getServerEnv()
+      const loginUrl = new URL('/login', env.appUrl).toString()
+      const forgotPasswordUrl = new URL('/forgot-password', env.appUrl).toString()
+      // Best-effort: a transient email failure must NOT change the
+      // response (otherwise a slow vs fast 200 leaks the duplicate just
+      // as much as the old 409 did).
+      await sendEmail({
+        to: data.email,
+        subject: 'Ya tienes una cuenta en Marketplace',
+        react: createElement(RegisterAttemptOnExistingAccountEmail, {
+          userName: existing.firstName,
+          loginUrl,
+          forgotPasswordUrl,
+        }),
+      }).catch(err => {
+        logger.error('auth.register.duplicate_email_send_failed', { error: err })
+      })
+      return NextResponse.json(NEUTRAL_REGISTER_RESPONSE, { status: 200 })
+    }
+
     const passwordHash = await bcrypt.hash(data.password, 12)
 
     try {
@@ -56,8 +115,12 @@ export async function POST(req: NextRequest) {
         select: { id: true, firstName: true, email: true },
       })
     } catch (createErr) {
+      // Race: another caller created this email between our pre-flight
+      // check and the create. Mirror the existing-account branch so the
+      // response shape is still indistinguishable from a fresh signup.
       if (isUniqueConstraintViolation(createErr)) {
-        return NextResponse.json({ message: 'Este email ya está registrado' }, { status: 409 })
+        logger.info('auth.register.duplicate_email_race', { ip: clientIP })
+        return NextResponse.json(NEUTRAL_REGISTER_RESPONSE, { status: 200 })
       }
       throw createErr
     }
@@ -75,13 +138,7 @@ export async function POST(req: NextRequest) {
       }),
     })
 
-    return NextResponse.json(
-      {
-        success: true,
-        message: 'Te hemos enviado un email de verificación. Revisa tu bandeja antes de iniciar sesión.',
-      },
-      { status: 201 }
-    )
+    return NextResponse.json(NEUTRAL_REGISTER_RESPONSE, { status: 200 })
   } catch (err) {
     if (createdUser) {
       await db.emailVerificationToken.deleteMany({ where: { userId: createdUser.id } }).catch(() => {})
