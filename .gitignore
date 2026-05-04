@@ -37,6 +37,9 @@ yarn-error.log*
 .env.development
 .env.staging
 .env.production
+# env backups — rotate via scripts/env-backup.sh into ~/.config/raizdirecta/env-backups/, never the repo root
+.env*.bak
+.env*.bak.*
 
 # vercel
 .vercel
