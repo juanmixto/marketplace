@@ -152,7 +152,32 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           }}
         />
       </head>
-      <body className="flex min-h-full flex-col bg-[var(--background)] text-[var(--foreground)]">
+      {/*
+        `js-no-email-decode` opts the entire app out of Cloudflare's
+        Email Address Obfuscation feature. Without this CF rewrites
+        any plain email or `mailto:` link in the response body to a
+        `<a class="__cf_email__" data-cfemail="...">` and injects
+        /cdn-cgi/scripts/.../email-decode.min.js to decode it
+        client-side. Two failures cascade from that:
+          1. The injected script carries no nonce → blocked by our
+             strict-dynamic CSP. The obfuscated emails never decode
+             (visitors see "[email protected]").
+          2. The body HTML the browser parses no longer matches what
+             the server emitted. React hydration fails with #418
+             ("text content does not match server-rendered HTML")
+             AND IN PRODUCTION REACT TEARS DOWN THE ENTIRE CLIENT
+             TREE on a #418 — no useEffect runs, no PostHog, no
+             cart, no login, no checkout. Pages render but every
+             interactive element is dead.
+        Per Cloudflare docs, any element carrying this class (or any
+        ancestor) is exempted from the rewrite. Setting it on <body>
+        covers everything we render. Belt-and-braces: should also
+        toggle off Email Obfuscation in the Cloudflare dashboard for
+        raizdirecta.es ("Scrape Shield" → off), but a code-level
+        guard survives any future config sweep.
+        See 2026-05-04 incident.
+      */}
+      <body className="js-no-email-decode flex min-h-full flex-col bg-[var(--background)] text-[var(--foreground)]">
         <SessionProvider>
           <ThemeProvider nonce={cspNonce}>
             <ThemeCookieSync />
