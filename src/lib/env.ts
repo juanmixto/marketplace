@@ -134,8 +134,14 @@ const baseEnvSchema = z.object({
   // ─── Sentry ─────────────────────────────────────────────────────────────
   // Both DSNs are semi-public by design (the SDK accepts events from any
   // origin), but we still validate the URL shape to catch typos.
-  SENTRY_DSN: z.string().url().optional(),
-  NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
+  // `NEXT_PUBLIC_SENTRY_DSN` is a docker build-arg that defaults to "" via
+  // `${NEXT_PUBLIC_SENTRY_DSN:-}` in docker-compose; preprocess "" → undefined
+  // so unset DSNs in dev/staging do not crash `next build`.
+  SENTRY_DSN: z.preprocess(v => (v === '' ? undefined : v), z.string().url().optional()),
+  NEXT_PUBLIC_SENTRY_DSN: z.preprocess(
+    v => (v === '' ? undefined : v),
+    z.string().url().optional(),
+  ),
   SENTRY_ENVIRONMENT: z.string().min(1).optional(),
   SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).optional(),
   SENTRY_REPLAYS_SESSION_SAMPLE_RATE: z.coerce.number().min(0).max(1).optional(),
