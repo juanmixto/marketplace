@@ -19,6 +19,10 @@ import { parseExpirationDateInput } from '@/domains/catalog'
 import { getActionSession } from '@/lib/action-session'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { isVendor } from '@/lib/roles'
+import {
+  canVendorOperateFulfillments,
+  VENDOR_SUSPENDED_MESSAGE,
+} from '@/domains/vendors/lifecycle-guard'
 import { isAllowedImageUrl } from '@/lib/image-validation'
 import { deleteBlobs, diffRemovedUrls } from '@/lib/blob-storage'
 import { withIdempotency } from '@/lib/idempotency'
@@ -59,6 +63,19 @@ async function requireVendor() {
   if (!vendor) redirect('/login')
   return { session, vendor }
 }
+
+/**
+ * #1334: throws if the vendor cannot progress fulfillments. Apply this
+ * inline at fulfillment-mutating call sites (advanceFulfillment,
+ * confirmFulfillmentByUserId, etc.). Product/profile edits intentionally
+ * skip this so a suspended vendor can still fix the underlying issue.
+ */
+function assertVendorCanOperate(status: VendorStatusForCheck): void {
+  if (!canVendorOperateFulfillments(status)) {
+    throw new Error(VENDOR_SUSPENDED_MESSAGE)
+  }
+}
+type VendorStatusForCheck = Parameters<typeof canVendorOperateFulfillments>[0]
 
 // ─── Product schemas ──────────────────────────────────────────────────────────
 
@@ -729,6 +746,7 @@ export async function advanceFulfillment(
   idempotencyToken?: string,
 ) {
   const { vendor, session } = await requireVendor()
+  assertVendorCanOperate(vendor.status)
 
   const fulfillment = await db.vendorFulfillment.findFirst({
     where: { id: fulfillmentId, vendorId: vendor.id },
@@ -841,14 +859,25 @@ export async function confirmFulfillmentByUserId(
   fulfillmentId: string,
 ): Promise<
   | { ok: true; fulfillmentId: string }
-  | { ok: false; code: 'NOT_FOUND' | 'INVALID_STATE'; message: string }
+  | { ok: false; code: 'NOT_FOUND' | 'INVALID_STATE' | 'VENDOR_SUSPENDED'; message: string }
 > {
   const fulfillment = await db.vendorFulfillment.findFirst({
     where: { id: fulfillmentId, vendor: { userId } },
-    select: { id: true, status: true, orderId: true, vendorId: true },
+    select: {
+      id: true,
+      status: true,
+      orderId: true,
+      vendorId: true,
+      vendor: { select: { status: true } },
+    },
   })
   if (!fulfillment) {
     return { ok: false, code: 'NOT_FOUND', message: 'Fulfillment no encontrado' }
+  }
+  // #1334: out-of-band entrypoint (Telegram). Stale callbacks must not
+  // let a suspended vendor advance fulfillments.
+  if (!canVendorOperateFulfillments(fulfillment.vendor.status)) {
+    return { ok: false, code: 'VENDOR_SUSPENDED', message: VENDOR_SUSPENDED_MESSAGE }
   }
   if (fulfillment.status !== 'PENDING') {
     return {
@@ -889,14 +918,24 @@ export async function markShippedByUserId(
   fulfillmentId: string,
 ): Promise<
   | { ok: true; fulfillmentId: string }
-  | { ok: false; code: 'NOT_FOUND' | 'INVALID_STATE'; message: string }
+  | { ok: false; code: 'NOT_FOUND' | 'INVALID_STATE' | 'VENDOR_SUSPENDED'; message: string }
 > {
   const fulfillment = await db.vendorFulfillment.findFirst({
     where: { id: fulfillmentId, vendor: { userId } },
-    select: { id: true, status: true, orderId: true, vendorId: true },
+    select: {
+      id: true,
+      status: true,
+      orderId: true,
+      vendorId: true,
+      vendor: { select: { status: true } },
+    },
   })
   if (!fulfillment) {
     return { ok: false, code: 'NOT_FOUND', message: 'Fulfillment no encontrado' }
+  }
+  // #1334: same Telegram-callback hardening as confirmFulfillmentByUserId.
+  if (!canVendorOperateFulfillments(fulfillment.vendor.status)) {
+    return { ok: false, code: 'VENDOR_SUSPENDED', message: VENDOR_SUSPENDED_MESSAGE }
   }
   if (fulfillment.status !== 'READY') {
     return {
