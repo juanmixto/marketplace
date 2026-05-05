@@ -3,6 +3,19 @@
 - What changed?
 - Why was this needed?
 
+## Linked issues
+
+<!--
+List every GitHub issue this PR resolves so it auto-closes on merge.
+Use one keyword per line:
+  Closes #123
+  Fixes #456
+  Resolves #789
+If the PR doesn't resolve any issue, write "None" or delete this section.
+-->
+
+Closes #
+
 ## Validation
 
 - [ ] `npm run typecheck:app`
