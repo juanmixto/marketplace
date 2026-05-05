@@ -86,6 +86,7 @@ Stop if:
 - [ ] If the PR fixed a flaky regression, I want a fresh green run on the updated head before merging.
 - [ ] If GitHub reports `BEHIND`, I sync and push before asking it to merge.
 - [ ] The normal merge path is `gh pr merge --auto --squash --delete-branch`.
+- [ ] I verified `gh pr view <PR> --json autoMergeRequest,mergeStateStatus,statusCheckRollup`; `autoMergeRequest: null` means auto-merge is not armed.
 
 Stop if:
 
