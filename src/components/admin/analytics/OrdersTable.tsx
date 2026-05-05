@@ -1,11 +1,13 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import type { OrderRow } from '@/domains/analytics/types'
+import { useMemo, useState, useTransition } from 'react'
+import type { OrderRow, SerializableFilters } from '@/domains/analytics/types'
 import { formatPrice } from '@/lib/utils'
+import { exportOrdersCsv } from '@/domains/analytics/actions'
 
 interface Props {
   rows: OrderRow[]
+  filters: SerializableFilters
 }
 
 type SortKey = 'placedAt' | 'grandTotal' | 'customerName' | 'vendorName' | 'status'
@@ -24,26 +26,25 @@ const STATUS_LABELS: Record<string, string> = {
   REFUNDED: 'Reembolsado',
 }
 
-function toCsv(rows: OrderRow[]): string {
-  const header = ['Nº pedido', 'Fecha', 'Cliente', 'Productor', 'Estado', 'Total']
-  const lines = rows.map(r =>
-    [
-      r.orderNumber,
-      new Date(r.placedAt).toISOString(),
-      `"${r.customerName.replace(/"/g, '""')}"`,
-      `"${r.vendorName.replace(/"/g, '""')}"`,
-      r.status,
-      r.grandTotal.toFixed(2),
-    ].join(','),
-  )
-  return [header.join(','), ...lines].join('\n')
+function rawFiltersFromSerializable(f: SerializableFilters): Record<string, string | undefined> {
+  const out: Record<string, string | undefined> = {
+    preset: f.preset,
+    from: f.from,
+    to: f.to,
+  }
+  if (f.vendorId) out.vendorId = f.vendorId
+  if (f.categoryId) out.categoryId = f.categoryId
+  if (f.orderStatus) out.status = f.orderStatus
+  return out
 }
 
-export function OrdersTable({ rows }: Props) {
+export function OrdersTable({ rows, filters }: Props) {
   const [query, setQuery] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('placedAt')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [page, setPage] = useState(0)
+  const [isExporting, startExport] = useTransition()
+  const [exportError, setExportError] = useState<string | null>(null)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -79,16 +80,28 @@ export function OrdersTable({ rows }: Props) {
   }
 
   const exportCsv = () => {
-    const csv = toCsv(filtered)
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `pedidos-${new Date().toISOString().slice(0, 10)}.csv`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    setExportError(null)
+    startExport(async () => {
+      try {
+        const csv = await exportOrdersCsv(rawFiltersFromSerializable(filters))
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `pedidos-${new Date().toISOString().slice(0, 10)}.csv`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'export_failed'
+        if (message === 'rate_limit_exceeded') {
+          setExportError('Has superado el límite de exportaciones. Intenta de nuevo en una hora.')
+        } else {
+          setExportError('No se pudo exportar el CSV. Inténtalo de nuevo.')
+        }
+      }
+    })
   }
 
   const sortIcon = (key: SortKey) =>
@@ -113,12 +126,18 @@ export function OrdersTable({ rows }: Props) {
           <button
             type="button"
             onClick={exportCsv}
-            className="rounded-md border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+            disabled={isExporting}
+            className="rounded-md border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
           >
-            Exportar CSV
+            {isExporting ? 'Exportando…' : 'Exportar CSV'}
           </button>
         </div>
       </div>
+      {exportError && (
+        <div role="alert" className="border-b border-amber-300 bg-amber-50 px-4 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+          {exportError}
+        </div>
+      )}
 
       <div className="overflow-x-auto overscroll-x-contain touch-pan-x">
         <table className="w-full text-left text-sm">

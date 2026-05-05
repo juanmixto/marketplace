@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { parseFilters } from '@/domains/analytics/filters'
+import { parseFilters, toSerializable } from '@/domains/analytics/filters'
 import { getAnalytics } from '@/domains/analytics/service'
 import { AnalyticsFilters } from '@/components/admin/analytics/AnalyticsFilters'
 import { KpiCard } from '@/components/admin/analytics/KpiCard'
@@ -93,7 +93,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
         )}
       </section>
 
-      <OrdersTable rows={data.orders} />
+      <OrdersTable rows={data.orders} filters={toSerializable(filters)} />
     </div>
   )
 }
