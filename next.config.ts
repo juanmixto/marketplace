@@ -155,18 +155,14 @@ const nextConfig: NextConfig = {
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [360, 640, 750, 828, 1080, 1280, 1600],
     imageSizes: [16, 32, 64, 96, 128, 256],
+    // HU8 (#1249): cloudinary.com + uploadthing.com removed after the
+    // scripts/audit-img-src-usage.ts run showed 0 references on dev. Keep
+    // this list in lockstep with `img-src` in src/lib/security-headers.ts
+    // and ALLOWED_DOMAINS in src/lib/image-validation.ts.
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'images.unsplash.com',
-      },
-      {
-        protocol: 'https',
-        hostname: '**.cloudinary.com',
-      },
-      {
-        protocol: 'https',
-        hostname: '**.uploadthing.com',
       },
       {
         // Vercel Blob storage — used by the upload API when

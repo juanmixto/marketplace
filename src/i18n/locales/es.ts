@@ -1445,7 +1445,7 @@ const es = {
   'vendor.profileForm.saved': 'Cambios guardados automáticamente.',
   'vendor.profileForm.saveError': 'Error al guardar. Reintentaremos con tu próximo cambio.',
   'vendor.profileForm.autosaveHint': 'Los cambios se guardan automáticamente mientras editas.',
-  'vendor.profileForm.imageUrlError': 'URL inválida. Sube una imagen o usa cloudinary.com, uploadthing.com o unsplash.com (HTTPS)',
+  'vendor.profileForm.imageUrlError': 'URL inválida. Sube una imagen o usa una URL de unsplash.com (HTTPS)',
   'vendor.profileForm.nameMin': 'Mínimo 3 caracteres',
   'vendor.profileForm.cutoffFormat': 'Formato HH:MM',
   'vendor.profileForm.profileSaveError': 'Error al guardar el perfil',
@@ -1554,7 +1554,7 @@ const es = {
   'vendor.heroUpload.unsupported': 'Formato no soportado. Usa JPG, PNG o WebP.',
   'vendor.heroUpload.tooLarge': 'La imagen supera los 5 MB.',
   'vendor.heroUpload.uploadError': 'Error al subir la imagen',
-  'vendor.heroUpload.urlNotAllowed': 'URL no permitida. Usa cloudinary.com, uploadthing.com o unsplash.com.',
+  'vendor.heroUpload.urlNotAllowed': 'URL no permitida. Usa una URL de unsplash.com.',
 
   // Vendor – reviews manager
   'vendor.reviewsManager.yourResponse': 'Tu respuesta',

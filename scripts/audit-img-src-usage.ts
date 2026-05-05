@@ -48,20 +48,21 @@ const JSON_OUTPUT = argv.includes('--json')
 
 // CSP img-src hosts as of HEAD. Keep in lockstep with
 // `src/lib/security-headers.ts` — when removing a host, update both.
+// HU8 (#1249): cloudinary + uploadthing dropped after this script's
+// own audit reported 0 references on dev.
 const CSP_HOSTS = [
   'images.unsplash.com',
-  '*.cloudinary.com',
-  '*.uploadthing.com',
   '*.public.blob.vercel-storage.com',
-  'lh3.googleusercontent.com',
 ] as const
 
 // `next.config.ts → remotePatterns` hostnames. Same lockstep rule.
+// lh3.googleusercontent.com is in remotePatterns (Google avatar via
+// next/image) but not in img-src — `<Image>` requests proxy through
+// /_next/image which resolves under `'self'`.
 const REMOTE_PATTERNS = [
   'images.unsplash.com',
-  '**.cloudinary.com',
-  '**.uploadthing.com',
   '**.public.blob.vercel-storage.com',
+  'lh3.googleusercontent.com',
 ] as const
 
 interface Breakdown {
@@ -233,14 +234,22 @@ async function main(): Promise<void> {
   }
 
   console.log('')
-  console.log('## Hosts in DB but NOT in CSP')
+  console.log('## Hosts in DB but NOT in CSP img-src')
+  console.log('')
+  console.log('Hosts that appear in remotePatterns are served through /_next/image,')
+  console.log("which resolves under `'self'` in CSP — they do NOT need img-src entries.")
+  console.log('Anything below that is in remotePatterns is fine; anything that is NOT')
+  console.log('in either is a real orphan and will fail to render in production.')
   console.log('')
   const orphans = rows.filter((r) => r.cspMatch === null)
   if (orphans.length === 0) {
     console.log('(none)')
   } else {
     for (const r of orphans) {
-      console.log(`- \`${r.hostname}\` — ${r.total} reference(s). Either add to img-src or migrate the data.`)
+      const status = r.remotePatternsMatch
+        ? `OK — covered by remotePatterns (${r.remotePatternsMatch}) + /_next/image`
+        : 'ORPHAN — not in CSP and not in remotePatterns; data will fail to render'
+      console.log(`- \`${r.hostname}\` — ${r.total} reference(s). ${status}.`)
     }
   }
 }
