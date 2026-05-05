@@ -288,6 +288,10 @@ model Vendor {
   location        String?
   category        VendorCategory?
   status          VendorStatus    @default(APPLYING)
+  // CHECK("commissionRate" >= 0 AND "commissionRate" <= 1) lives in the
+  // 20260504180000 migration (#967). Prisma DSL has no native CHECK, so
+  // the constraint is declared in SQL and enforced by Postgres on every
+  // write — code-side validation is belt-and-braces.
   commissionRate  Decimal         @default(0.12) @db.Decimal(5, 4)
   avgRating       Decimal?        @db.Decimal(3, 2)
   totalReviews    Int             @default(0)
@@ -910,6 +914,9 @@ model CommissionRule {
   vendorId   String?
   categoryId String?
   type       CommissionType @default(PERCENTAGE)
+  // CHECK gated on type = 'PERCENTAGE': rate ∈ [0, 1]. FIXED rules use
+  // rate as an absolute EUR amount (e.g. 1.25 €) and are out of scope.
+  // Constraint lives in the 20260504180000 migration (#967).
   rate       Decimal        @db.Decimal(5, 4)
   isActive   Boolean        @default(true)
   createdAt  DateTime       @default(now())
