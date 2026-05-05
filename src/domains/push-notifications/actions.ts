@@ -5,7 +5,7 @@ import { db } from '@/lib/db'
 import { getActionSession } from '@/lib/action-session'
 import { isPushEnabled } from '@/lib/pwa/push-config'
 import { safeRevalidatePath } from '@/lib/revalidate'
-import { hashPushUserAgent } from './user-agent'
+import { categorizePushUserAgent, hashPushUserAgent } from './user-agent'
 
 const subscribeSchema = z.object({
   endpoint: z.string().url(),
@@ -30,7 +30,9 @@ export async function subscribeToPush(input: PushSubscriptionInput) {
   if (!session?.user) throw new Error('Unauthorized')
 
   const data = subscribeSchema.parse(input)
-  const userAgentHash = hashPushUserAgent(data.userAgent)
+  const userAgent = data.userAgent ?? null
+  const userAgentHash = hashPushUserAgent(userAgent)
+  const uaCategory = categorizePushUserAgent(userAgent)
 
   await db.pushSubscription.upsert({
     where: { endpoint: data.endpoint },
@@ -40,11 +42,13 @@ export async function subscribeToPush(input: PushSubscriptionInput) {
       p256dh: data.p256dh,
       auth: data.auth,
       userAgent: userAgentHash,
+      uaCategory,
     },
     update: {
       p256dh: data.p256dh,
       auth: data.auth,
       userAgent: userAgentHash,
+      uaCategory,
     },
   })
 

@@ -1212,6 +1212,7 @@ model PushSubscription {
   p256dh    String   @db.Text
   auth      String   @db.Text
   userAgent String?
+  uaCategory String  @default("other")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1425,8 +1426,9 @@ model TelegramIngestionMessage {
   tgMessageId BigInt
   tgAuthorId  BigInt?
   text        String?  @db.Text
-  // Raw Telethon payload, preserved verbatim for source-of-truth.
-  rawJson     Json
+  // Raw Telethon payload. Retained until the raw-payload sweep
+  // nulls it out in place; the message row itself stays forever.
+  rawJson     Json?
   postedAt    DateTime
   fetchedAt   DateTime @default(now())
   // Phase-1-ready hook for the right-to-erasure / tombstone flow.

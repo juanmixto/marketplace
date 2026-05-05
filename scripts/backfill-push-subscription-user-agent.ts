@@ -12,7 +12,11 @@
  */
 
 import { db } from '@/lib/db'
-import { hashPushUserAgent, isHashedPushUserAgent } from '@/domains/push-notifications/user-agent'
+import {
+  categorizePushUserAgent,
+  hashPushUserAgent,
+  isHashedPushUserAgent,
+} from '@/domains/push-notifications/user-agent'
 
 function parseDryRunFlag(): boolean {
   const raw = process.env.PUSH_USER_AGENT_BACKFILL_DRY_RUN
@@ -52,7 +56,10 @@ async function main() {
         for (const row of candidates) {
           await db.pushSubscription.update({
             where: { id: row.id },
-            data: { userAgent: hashPushUserAgent(row.userAgent) },
+            data: {
+              userAgent: hashPushUserAgent(row.userAgent),
+              uaCategory: categorizePushUserAgent(row.userAgent),
+            },
           })
         }
       }
