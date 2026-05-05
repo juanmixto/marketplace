@@ -48,7 +48,33 @@ interface Assertion {
   detail?: string
 }
 
-const DEFAULT_PATHS = ['/', '/productos', '/contacto', '/login']
+// Default route set covers: home + 2 RSC-heavy listings + 1 CF
+// honeypot (mailto:) + 1 form route + 1 querystring route + 1
+// auth-redirected route + 1 static-content baseline.
+//
+// Why these 8 specifically:
+//   /           — the most common landing
+//   /productos  — RSC heavy listing (catalog grid + filters)
+//   /productores — RSC heavy listing (different shape than productos)
+//   /contacto   — has 4 mailto: links → triggers Cloudflare Email
+//                 Obfuscation if it gets re-enabled (#1306 sentinel)
+//   /buscar     — form + querystring rendering
+//   /login      — form with submit handler + next-auth client init
+//   /carrito    — exercises auth-redirect (307 → /login?callbackUrl=)
+//                 so the smoke catches a regression in the auth gate
+//                 chain itself (middleware, getServerSession, etc.)
+//   /faq        — purely static; baseline that anything dynamic isn't
+//                 polluting the page. If /faq fails everything fails.
+const DEFAULT_PATHS = [
+  '/',
+  '/productos',
+  '/productores',
+  '/contacto',
+  '/buscar',
+  '/login',
+  '/carrito',
+  '/faq',
+]
 const TIMEOUT_MS = 20000
 
 async function probeRoute(page: Page, baseUrl: string, path: string): Promise<Assertion[]> {
