@@ -88,6 +88,13 @@ export async function getAdminOrdersPageData(filters: AdminOrderFilters) {
           },
         },
         payments: {
+          // #969: cap to 5 most-recent payments per order. Without this
+          // an order with many Stripe retries / refund chains could
+          // materialize dozens of Payment rows per row × 24 orders per
+          // page. The list view only needs the latest; deeper history
+          // is on the order-detail page (which queries one order so
+          // bounding there is unnecessary).
+          take: 5,
           orderBy: { createdAt: 'desc' },
         },
         fulfillments: {
