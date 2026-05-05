@@ -7,6 +7,7 @@ import { TrackEventOnView } from '@/components/analytics/TrackEventOnView'
 import { CatalogViewedTracker } from '@/components/analytics/CatalogViewedTracker'
 import { SortSelect } from '@/components/catalog/SortSelect'
 import { parseProductSort } from '@/domains/catalog/types'
+import { requireCatalogSearchAccess } from '@/domains/catalog/search-guard'
 import Link from 'next/link'
 import { getCatalogCopy } from '@/i18n/catalog-copy'
 import { getServerLocale } from '@/i18n/server'
@@ -43,8 +44,9 @@ export default async function BuscarPage({ searchParams }: Props) {
   const locale = await getServerLocale()
   const copy = getCatalogCopy(locale)
   const params = await searchParams
+  const query = params.q?.trim() || ''
 
-  if (!params.q || params.q.trim() === '') {
+  if (!query) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="rounded-lg bg-surface-raised p-8 text-center">
@@ -61,12 +63,34 @@ export default async function BuscarPage({ searchParams }: Props) {
     )
   }
 
+  const access = await requireCatalogSearchAccess({
+    query,
+    categorySlug: params.categoria ?? null,
+  })
+
+  if (!access.allowed) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="rounded-lg bg-surface-raised p-8 text-center">
+          <p className="text-lg font-semibold text-foreground">{copy.page.searchRateLimitedTitle}</p>
+          <p className="mt-2 text-foreground-soft">{copy.page.searchRateLimitedDescription}</p>
+          <Link
+            href="/productos"
+            className="mt-4 inline-block text-accent hover:underline"
+          >
+            {copy.page.browseAllProducts}
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   const certs = params.cert
     ? Array.isArray(params.cert) ? params.cert : [params.cert]
     : []
 
   const { products, nextCursor, hasNext, hasPrev } = await getProducts({
-    q: params.q,
+    q: query,
     categorySlug: params.categoria,
     certifications: certs,
     sort: parseProductSort(params.orden),
@@ -80,13 +104,13 @@ export default async function BuscarPage({ searchParams }: Props) {
       <TrackEventOnView
         event="search"
         payload={{
-          search_term: params.q.trim(),
+          search_term: query,
           results_count: products.length,
           has_results: products.length > 0,
         }}
       />
       <CatalogViewedTracker
-        surface={`search:${params.q.trim().toLowerCase()}`}
+        surface={`search:${query.toLowerCase()}`}
         category={params.categoria ?? null}
       />
       <div className="flex gap-8">
@@ -102,7 +126,7 @@ export default async function BuscarPage({ searchParams }: Props) {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-2xl font-bold text-[var(--foreground)]">
-                {copy.page.searchResultsFor(params.q)}
+                {copy.page.searchResultsFor(query)}
               </h1>
               <p className="text-sm text-[var(--muted)] mt-0.5">
                 {copy.page.results(products.length, hasNext)}
@@ -117,7 +141,7 @@ export default async function BuscarPage({ searchParams }: Props) {
             <div className="py-24 text-center">
               <p className="text-5xl mb-4">🔍</p>
               <p className="font-semibold text-[var(--foreground)]">
-                {copy.page.noProductsFor(params.q)}
+                {copy.page.noProductsFor(query)}
               </p>
               <p className="text-sm text-[var(--muted)] mt-1 mb-6">
                 {copy.page.searchTryAgain}

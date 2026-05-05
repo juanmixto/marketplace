@@ -42,6 +42,8 @@ type CatalogCopy = {
     searchTryAgain: string
     browseAllProducts: string
     browseByCategory: string
+    searchRateLimitedTitle: string
+    searchRateLimitedDescription: string
     productNotFoundTitle: string
     productNotFoundDescription: string
   }
@@ -182,6 +184,8 @@ const ES_CATALOG_COPY: CatalogCopy = {
     searchTryAgain: 'Prueba con otros términos de búsqueda o explora por categoría',
     browseAllProducts: 'Ver todos los productos',
     browseByCategory: 'Explorar por categoría',
+    searchRateLimitedTitle: 'Demasiadas búsquedas',
+    searchRateLimitedDescription: 'Espera un momento y vuelve a intentarlo. Mientras tanto, puedes seguir explorando el catálogo.',
     productNotFoundTitle: 'Producto no encontrado',
     productNotFoundDescription: 'No hemos podido encontrar este producto.',
   },
@@ -347,6 +351,8 @@ const EN_CATALOG_COPY: CatalogCopy = {
     searchTryAgain: 'Try other search terms or browse by category',
     browseAllProducts: 'View all products',
     browseByCategory: 'Browse by category',
+    searchRateLimitedTitle: 'Too many searches',
+    searchRateLimitedDescription: 'Please wait a moment and try again. In the meantime, you can keep browsing the catalog.',
     productNotFoundTitle: 'Product not found',
     productNotFoundDescription: 'We could not find this product.',
   },
