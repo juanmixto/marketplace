@@ -283,6 +283,22 @@ test('parseServerEnv rejects partial Telegram sidecar', () => {
   )
 })
 
+test('parseServerEnv accepts empty Sentry DSN strings (build-arg default)', () => {
+  // docker-compose passes `${NEXT_PUBLIC_SENTRY_DSN:-}` so unset DSNs reach
+  // `next build` as "" rather than undefined. zod's `.url().optional()` rejects
+  // empty strings, which crashed the build pipeline (#1322 regression).
+  assert.doesNotThrow(() =>
+    parseServerEnv({
+      DATABASE_URL: 'postgresql://user:pass@localhost:5432/marketplace',
+      NODE_ENV: 'test',
+      PAYMENT_PROVIDER: 'mock',
+      NEXT_PUBLIC_APP_URL: 'http://localhost:3000',
+      SENTRY_DSN: '',
+      NEXT_PUBLIC_SENTRY_DSN: '',
+    }),
+  )
+})
+
 test('parseServerEnv rejects partial Google OAuth pair', () => {
   assert.throws(
     () =>
