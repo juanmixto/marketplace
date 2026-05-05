@@ -67,9 +67,12 @@ test('buildContentSecurityPolicy with nonce enforces strict script-src (#537)', 
   // regression cannot silently widen the policy.
   assert.match(csp, /img-src 'self' data: blob:/)
   assert.match(csp, /img-src [^;]*https:\/\/images\.unsplash\.com/)
-  assert.match(csp, /img-src [^;]*https:\/\/\*\.cloudinary\.com/)
-  assert.match(csp, /img-src [^;]*https:\/\/\*\.uploadthing\.com/)
   assert.match(csp, /img-src [^;]*https:\/\/\*\.public\.blob\.vercel-storage\.com/)
+  // HU8 (#1249): cloudinary + uploadthing removed (audit reported 0 usage).
+  // Re-adding either host requires stored URLs that justify widening the
+  // attack surface — keep this assertion as a regression guard.
+  assert.doesNotMatch(csp, /img-src[^;]*cloudinary\.com/)
+  assert.doesNotMatch(csp, /img-src[^;]*uploadthing\.com/)
   assert.doesNotMatch(
     csp,
     /img-src[^;]* https:(?=\s|;|$)/,
