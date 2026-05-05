@@ -71,6 +71,16 @@ if (envName === 'production') {
       'NEXT_PUBLIC_SENTRY_DSN / SENTRY_DSN both missing — error reporting is dead. Without it, client-side React errors and server-side exceptions will not surface to oncall. Get the DSN from sentry.io project settings.',
     )
   }
+  if (!process.env.RESEND_API_KEY) {
+    warnings.push(
+      'RESEND_API_KEY is missing — transactional emails (signup verification, password reset, order confirmation, shipping notifications) will be skipped silently. src/lib/email.ts:38 logs `email.send.skipped` and returns. Get an API key from resend.com.',
+    )
+  }
+  if (process.env.EMAIL_FROM === 'no-reply@example.com' || !process.env.EMAIL_FROM) {
+    warnings.push(
+      'EMAIL_FROM is missing or still the placeholder "no-reply@example.com". Set it to a verified sender on your Resend domain (e.g. "no-reply@raizdirecta.es") or emails will fail to send / land in spam.',
+    )
+  }
 }
 
 if (warnings.length > 0) {
