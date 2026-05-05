@@ -208,4 +208,9 @@ echo "[agent-stop-checks] end-of-turn warnings:"
 for line in "${findings[@]}"; do
   echo "  $line"
 done
+echo
+echo "  Useful follow-ups:"
+echo "    bash scripts/audit-prs-behind.sh             # see your PRs that need a rebase"
+echo "    bash scripts/audit-prs-behind.sh --rebase    # batch rebase + push"
+echo "    bash scripts/issue-sweep.sh                  # find ghost-open issues to verify + close"
 exit 0
