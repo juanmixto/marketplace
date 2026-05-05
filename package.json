@@ -34,6 +34,7 @@
     "audit:findMany": "node ./scripts/audit-unbounded-findMany.mjs",
     "audit:form-number-coerce": "node ./scripts/audit-form-number-coerce.mjs",
     "audit:image-sizes": "node ./scripts/audit-image-sizes.mjs",
+    "audit:status-write": "node ./scripts/audit-status-write.mjs",
     "audit:prisma-update-spread": "node ./scripts/audit-prisma-update-spread.mjs",
     "audit:string-no-max": "node ./scripts/audit-string-no-max.mjs",
     "audit:webhook-cast": "node ./scripts/audit-webhook-cast.mjs",

@@ -118,6 +118,18 @@ When you add a new User-owned model:
 
 The CI guard in `audit-fk-onDelete.mjs` won't catch missing erase logic — it only catches FK declarations. Don't rely on it for the full contract.
 
+## 9. Status transitions are linted, not hand-waved
+
+Order, Payment, Settlement, and VendorFulfillment status changes are part of the state-machine contract. Direct `status:` writes outside the dedicated transition modules are a common way to bypass guards, lose audit-trail context, or apply an invalid state change from a random writer.
+
+The ratchet script [`scripts/audit-status-write.mjs`](../scripts/audit-status-write.mjs) enforces that:
+
+- `order`, `payment`, `settlement`, and `vendorFulfillment` updates that set `status:` stay behind the transition modules.
+- `src/domains/*/state-machine.ts` is the intended home for the transition wrappers.
+- `src/domains/payments/webhook.ts` is temporarily allowlisted because it already participates in the payment transition contract.
+
+Like the other audits, the script keeps a baseline of pre-existing writes and only fails on net-new violations. Shrink the baseline as state-machine adoption spreads.
+
 ## See also
 
 - [`docs/checkout-dedupe.md`](checkout-dedupe.md) — cart-shape hash + `Order.checkoutAttemptId` UNIQUE
