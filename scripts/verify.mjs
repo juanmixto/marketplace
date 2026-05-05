@@ -21,6 +21,7 @@
 //   - audit:fk
 //   - audit:findMany
 //   - audit:image-sizes
+//   - audit:status-write
 //   - typecheck:app
 //   - typecheck:test
 //   - test:parallel  (fast unit/contract tests; integration + E2E are
@@ -40,6 +41,7 @@ const CHECKS = [
   { name: 'audit:fk', cmd: 'npm', args: ['run', 'audit:fk'] },
   { name: 'audit:findMany', cmd: 'npm', args: ['run', 'audit:findMany'] },
   { name: 'audit:image-sizes', cmd: 'npm', args: ['run', 'audit:image-sizes'] },
+  { name: 'audit:status-write', cmd: 'npm', args: ['run', 'audit:status-write'] },
   { name: 'typecheck:app', cmd: 'npm', args: ['run', 'typecheck:app'] },
   { name: 'typecheck:test', cmd: 'npm', args: ['run', 'typecheck:test'] },
   { name: 'test:parallel', cmd: 'npm', args: ['run', 'test:parallel'] },
