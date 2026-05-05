@@ -129,10 +129,11 @@ export async function POST(request: NextRequest) {
   // Admins write to a generic admin/ prefix; we don't expect heavy admin
   // traffic and there's no per-admin partitioning to do.
   let prefix: string
+  let vendorIdForQuota: string | null = null
   if (isVendor(role)) {
     const vendor = await db.vendor.findUnique({
       where: { userId: session.user.id },
-      select: { id: true },
+      select: { id: true, storageBytesUsed: true, storageQuotaBytes: true },
     })
     if (!vendor) {
       return NextResponse.json(
@@ -140,6 +141,27 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       )
     }
+    // #1277: hard quota check. BigInt math because storage values can
+    // exceed 2^53 once a vendor is allowed multi-GB. The check happens
+    // BEFORE the network call to the blob provider so a cap-blown
+    // vendor pays no infrastructure cost.
+    const projectedUsage = vendor.storageBytesUsed + BigInt(validated.bytes.byteLength)
+    if (projectedUsage > vendor.storageQuotaBytes) {
+      logger.warn('upload.quota_blocked', {
+        vendorId: vendor.id,
+        used: vendor.storageBytesUsed.toString(),
+        quota: vendor.storageQuotaBytes.toString(),
+        attemptedBytes: validated.bytes.byteLength,
+      })
+      return NextResponse.json(
+        {
+          error: 'Has agotado tu cuota de almacenamiento. Contacta con el equipo para ampliarla.',
+          code: 'quota-exceeded',
+        },
+        { status: 413 }
+      )
+    }
+    vendorIdForQuota = vendor.id
     prefix = `products/${vendor.id}`
   } else {
     prefix = 'admin'
@@ -152,6 +174,25 @@ export async function POST(request: NextRequest) {
     originalName: file.name,
     prefix,
   })
+
+  // #1277: increment usage AFTER successful upload. A failure path that
+  // leaves the blob orphaned will (a) be caught by the orphan sweep and
+  // (b) NOT counted against the quota — better to under-count than to
+  // lock out a vendor whose upload failed. Best-effort: a transient DB
+  // error here is logged but doesn't fail the request.
+  if (vendorIdForQuota) {
+    await db.vendor
+      .update({
+        where: { id: vendorIdForQuota },
+        data: { storageBytesUsed: { increment: validated.bytes.byteLength } },
+      })
+      .catch((err: unknown) => {
+        logger.error('upload.quota_increment_failed', {
+          vendorId: vendorIdForQuota,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      })
+  }
 
   // #1052: prewarm /_next/image variants for the most common
   // (width, format) pairs so the first buyer to load this product

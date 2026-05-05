@@ -229,4 +229,9 @@ echo
 # ---------------------------------------------------------------------------
 dim "For deep cleanup signals (gone branches, merged worktrees, etc.) run:"
 dim "  scripts/git-hygiene.sh"
+dim ""
+dim "Backlog hygiene (when issues feel stale or PRs are stuck BEHIND):"
+dim "  scripts/audit-prs-behind.sh             # PRs needing rebase"
+dim "  scripts/audit-prs-behind.sh --rebase    # batch rebase + push"
+dim "  scripts/issue-sweep.sh --label critical # find ghost-open issues"
 echo
