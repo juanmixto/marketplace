@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { timingSafeEqual } from 'node:crypto'
 import { cleanupExpiredIdempotencyKeys } from '@/lib/idempotency'
 import { apiUnauthorized } from '@/lib/api-response'
 
@@ -17,11 +18,29 @@ import { apiUnauthorized } from '@/lib/api-response'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
+function constantTimeEqual(a: string, b: string): boolean {
+  // timingSafeEqual requires equal-length buffers; bail early on length
+  // mismatch (length itself is not secret — it leaks how many chars the
+  // request supplied, never the real secret). The point is to deny a
+  // `===` early-exit timing oracle that would let an attacker brute-force
+  // the secret one byte at a time by measuring response time.
+  const bufA = Buffer.from(a)
+  const bufB = Buffer.from(b)
+  if (bufA.length !== bufB.length) return false
+  return timingSafeEqual(bufA, bufB)
+}
+
 function isAuthorized(req: Request): boolean {
   const cronSecret = process.env.CRON_SECRET
   if (!cronSecret) return false
   const auth = req.headers.get('authorization')
-  return auth === `Bearer ${cronSecret}`
+  if (!auth || !auth.startsWith('Bearer ')) return false
+  // #1150 follow-up: constant-time compare. Plain `===` short-circuits
+  // on the first byte mismatch, a classic timing oracle that becomes
+  // measurable over enough requests on a slow link or cold cache. Same
+  // pattern used in src/app/api/telegram/webhook/route.ts and
+  // src/domains/shipping/webhooks/signature.ts.
+  return constantTimeEqual(auth.slice('Bearer '.length), cronSecret)
 }
 
 export async function GET(req: Request) {
