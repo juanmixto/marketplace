@@ -1,4 +1,4 @@
--- DB audit P2 (#967): pin commission rates into [0, 1].
+-- DB audit P2 (#967): pin commission rates into [0, 1] for percentages.
 --
 -- `Vendor.commissionRate` and `CommissionRule.rate` are `Decimal(5,4)`
 -- — the precision allows up to 9.9999, which is meaningless for a
@@ -11,9 +11,17 @@
 --
 -- CHECK constraints make the invariant declarative — Postgres rejects
 -- the write before it lands, regardless of which path inserted it.
--- Existing data already satisfies the range (default 0.12, no
--- known hand-edits in prod); a violation here at deploy time would
--- be a real bug surfacing, not a migration regression.
+--
+-- `Vendor.commissionRate` is always a percentage (no `type` column;
+-- the per-vendor base commission), so [0, 1] is unconditional.
+--
+-- `CommissionRule.rate` is dual-typed via `CommissionRule.type`:
+--   - PERCENTAGE → rate ∈ [0, 1]  (the dangerous case the audit named)
+--   - FIXED      → rate is an absolute EUR amount (e.g. 1.25 €), capped
+--                  by the column's Decimal(5, 4) precision (~9.9999).
+-- So the CHECK on rate is gated on `type = 'PERCENTAGE'`. FIXED rules
+-- are out of scope of this constraint — the seed already ships one
+-- (`rule-cat-vinos`, 1.25 €) that the unconditional version rejected.
 --
 -- These constraints are not expressible in the Prisma DSL, so they
 -- live in the migration only. The audit script
@@ -26,4 +34,7 @@ ALTER TABLE "Vendor"
 
 ALTER TABLE "CommissionRule"
   ADD CONSTRAINT "CommissionRule_rate_range"
-  CHECK ("rate" >= 0 AND "rate" <= 1);
+  CHECK (
+    "type" <> 'PERCENTAGE'
+    OR ("rate" >= 0 AND "rate" <= 1)
+  );
