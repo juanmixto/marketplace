@@ -12,6 +12,13 @@ Use one keyword per line:
   Fixes #456
   Resolves #789
 If the PR doesn't resolve any issue, write "None" or delete this section.
+
+VERIFY before claiming a Closes #N: every acceptance criterion in the
+issue body must be implemented in this PR. A doc-only PR can't close a
+sec/feature issue. If you only cover part of the issue, file a follow-up
+issue with the deferred scope and reference it here instead of "Closes".
+This is the lesson from the 2026-05-05 backlog sweep — see
+memory/feedback_issue_sweep_pattern.md.
 -->
 
 Closes #
