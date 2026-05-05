@@ -115,7 +115,15 @@ export function buildContentSecurityPolicy(
     //     bundled (npm dep), so script-src does NOT need a posthog entry.
     //     If posthog hosting moves to a non-posthog.com domain in the future,
     //     update both this entry and src/lib/posthog.ts:15 in lockstep.
-    `connect-src 'self'${isDevelopment ? ' ws: wss:' : ''} https://api.stripe.com https://js.stripe.com https://m.stripe.network https://m.stripe.com https://r.stripe.com https://*.posthog.com`,
+    //   - Sentry: error envelopes go to <project>.ingest.<region>.sentry.io
+    //     (e.g. o4511336032370688.ingest.de.sentry.io for the EU region).
+    //     The wildcard `https://*.sentry.io` covers all regional ingest
+    //     subdomains so a future region change does not need a CSP edit.
+    //     The SDK itself is bundled via instrumentation-client.ts (#1323),
+    //     so script-src does NOT need a sentry entry. The 4-route smoke
+    //     (#1319) caught this missing entry on 2026-05-05 by detecting
+    //     CSP `connect-src` violations after Sentry init started firing.
+    `connect-src 'self'${isDevelopment ? ' ws: wss:' : ''} https://api.stripe.com https://js.stripe.com https://m.stripe.network https://m.stripe.com https://r.stripe.com https://*.posthog.com https://*.sentry.io`,
     "object-src 'none'",
     "media-src 'self' blob:",
     "worker-src 'self' blob:",
