@@ -49,4 +49,37 @@ try {
   process.exit(1)
 }
 
+// Soft warnings: optional infra that degrades silently when missing.
+// We don't fail the deploy (the app still works without it) but we
+// surface it so the operator knows what they're shipping without.
+//
+// Pattern motivated by two recent incidents:
+//   - 2026-05-04 (#1265): NEXT_PUBLIC_POSTHOG_KEY missing in prod for
+//     ~1 day before anyone noticed analytics were dead.
+//   - 2026-05-05: Sentry was 95% implemented but missing DSN, so every
+//     error in prod was invisible — exactly what made the previous
+//     night's debugging take 8 hours instead of 30 minutes.
+const warnings: string[] = []
+if (envName === 'production') {
+  if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) {
+    warnings.push(
+      'NEXT_PUBLIC_POSTHOG_KEY is missing — analytics will be dead. Get the key from your PostHog project settings.',
+    )
+  }
+  if (!process.env.NEXT_PUBLIC_SENTRY_DSN && !process.env.SENTRY_DSN) {
+    warnings.push(
+      'NEXT_PUBLIC_SENTRY_DSN / SENTRY_DSN both missing — error reporting is dead. Without it, client-side React errors and server-side exceptions will not surface to oncall. Get the DSN from sentry.io project settings.',
+    )
+  }
+}
+
+if (warnings.length > 0) {
+  console.warn('')
+  console.warn(`⚠  Pre-flight WARNINGS for ${envName} (deploy will proceed):`)
+  for (const w of warnings) {
+    console.warn('  ⚠  ' + w)
+  }
+  console.warn('')
+}
+
 console.log(`✓ Pre-flight env validation passed for ${envName}.`)
