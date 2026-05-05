@@ -55,6 +55,41 @@ test('GET with x-vercel-cron AND wrong Bearer is REJECTED (#1150)', async () => 
   assert.equal(res.status, 401, 'x-vercel-cron must not bypass a wrong Bearer')
 })
 
+test('GET with shorter wrong token returns 401 (timing-safe length guard)', async () => {
+  // Constant-time compare bails on length mismatch BEFORE the byte-by-byte
+  // compare. Verifies we do not crash or leak via an exception when the
+  // supplied secret is shorter than expected.
+  process.env.CRON_SECRET = 'expected-secret-longer-than-wrong'
+  const res = await GET(
+    new Request('http://localhost/api/cron/cleanup-idempotency', {
+      headers: { authorization: 'Bearer wrong' },
+    }),
+  )
+  assert.equal(res.status, 401)
+})
+
+test('GET with longer wrong token returns 401', async () => {
+  process.env.CRON_SECRET = 'short'
+  const res = await GET(
+    new Request('http://localhost/api/cron/cleanup-idempotency', {
+      headers: {
+        authorization: 'Bearer this-is-much-longer-than-the-real-secret',
+      },
+    }),
+  )
+  assert.equal(res.status, 401)
+})
+
+test('GET with malformed authorization (no Bearer prefix) returns 401', async () => {
+  process.env.CRON_SECRET = 'expected-secret'
+  const res = await GET(
+    new Request('http://localhost/api/cron/cleanup-idempotency', {
+      headers: { authorization: 'expected-secret' },
+    }),
+  )
+  assert.equal(res.status, 401, 'auth without "Bearer " prefix must be rejected')
+})
+
 // Restore env at the end so other test files in the same runner aren't affected.
 test.after?.(() => {
   if (ORIGINAL_SECRET === undefined) delete process.env.CRON_SECRET
