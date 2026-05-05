@@ -651,10 +651,24 @@ export async function reviewProduct(
   if (validAction === 'approve') {
     const vendor = await db.vendor.findUnique({
       where: { id: product.vendorId },
-      select: { stripeOnboarded: true },
+      select: { stripeOnboarded: true, maxProductsActive: true },
     })
     if (!vendor) throw new Error('Productor no encontrado')
     assertVendorOnboarded(vendor)
+
+    // #1279: refuse to approve past the per-vendor active-products cap.
+    // Catches the corner case where a single producer floods the
+    // queue (compromised account, or a wide-scope claim). Counter is
+    // computed live — admins who bump `maxProductsActive` see the
+    // change immediately.
+    const activeCount = await db.product.count({
+      where: { vendorId: product.vendorId, status: 'ACTIVE', deletedAt: null },
+    })
+    if (activeCount >= vendor.maxProductsActive) {
+      throw new Error(
+        `Este productor ha alcanzado el límite de ${vendor.maxProductsActive} productos activos. Aumenta el cap o suspende uno antes de aprobar.`,
+      )
+    }
   }
 
   const before = getProductAuditSnapshot(product)

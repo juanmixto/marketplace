@@ -307,6 +307,19 @@ model Vendor {
   claimCode          String?   @unique
   claimCodeExpiresAt DateTime?
 
+  // #1277: per-vendor blob-storage budget. `storageBytesUsed` is
+  // incremented on each successful upload through `/api/upload`;
+  // `storageQuotaBytes` is the hard cap (default 500 MB). Admins can
+  // bump the quota for high-volume producers without code changes.
+  // Decrement is best-effort via the orphan-blob sweep — short-term
+  // drift is acceptable, the UX is "contact admin to clean up".
+  storageBytesUsed   BigInt    @default(0)
+  storageQuotaBytes  BigInt    @default(524288000)
+  // #1279: per-vendor cap on simultaneously-active products. Prevents
+  // a single compromised account from spamming the catalog. Default
+  // is generous for an artisan producer; admins can bump per-vendor.
+  maxProductsActive  Int       @default(50)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
