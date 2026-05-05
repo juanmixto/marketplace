@@ -68,7 +68,7 @@ test('requireCatalogSearchAccess blocks over-limit search traffic and records te
         },
         logger: {
           warn: (scope, payload) => {
-            warnings.push({ scope, payload })
+            warnings.push({ scope, payload: payload as Record<string, unknown> })
           },
         },
       },
