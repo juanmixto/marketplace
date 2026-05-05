@@ -274,14 +274,16 @@ stable in Phase 4, the flag is debt.
 
 ## Retention & storage
 
-Policy is conservative: **raw messages and successfully downloaded media
-are never auto-deleted** — they are the source of truth for every
-downstream phase. The sweeper only trims operational artefacts.
+Policy is conservative: message rows and successfully downloaded media
+are never auto-deleted — they are the source of truth for every
+downstream phase. A separate raw-payload sweep nulls out
+`TelegramIngestionMessage.rawJson` in place after its own TTL; the
+operational sweeper only trims the audit/history tables.
 
 | Table / row class | Retention | Swept by |
 |---|---|---|
 | `TelegramIngestionConnection`, `TelegramIngestionChat` | forever (manual disable / delete only) | — |
-| `TelegramIngestionMessage` | **forever** (source of truth) | — |
+| `TelegramIngestionMessage` | row forever; `rawJson` nulled after TTL | raw-payload sweep |
 | `TelegramIngestionMessageMedia` (status `DOWNLOADED`) | forever | — |
 | `TelegramIngestionMessageMedia` (status `FAILED`) | forever (operator diagnostics) | — |
 | `TelegramIngestionMessageMedia` (status `SOURCE_GONE` / `SKIPPED_OVERSIZE`) | `INGESTION_FAILED_MEDIA_RETENTION_DAYS` (default 90) | sweeper |
@@ -294,8 +296,14 @@ Env tunables (all clamped to 5 years max):
 - `INGESTION_SYNC_RUN_RETENTION_DAYS` — default 90.
 - `INGESTION_JOB_RETENTION_DAYS` — default 30.
 - `INGESTION_FAILED_MEDIA_RETENTION_DAYS` — default 90.
+- `INGESTION_RAWJSON_PROCESSED_RETENTION_DAYS` — default 30.
+- `INGESTION_RAWJSON_UNPROCESSED_RETENTION_DAYS` — default 90.
+- `INGESTION_RAWJSON_SWEEP_BATCH_SIZE` — default 500 (max 5 000).
+- `INGESTION_RAWJSON_SWEEP_MAX_DURATION_MS` — default 5 min (max 30 min).
 - `INGESTION_SWEEP_BATCH_SIZE` — default 500 (max 5 000).
 - `INGESTION_SWEEP_MAX_DURATION_MS` — default 5 min (max 30 min).
+- `INGESTION_TELEGRAM_RAWJSON_SWEEP_DRY_RUN` — default `true`; set to
+  `false` to actually null `rawJson` in place.
 
 ### Sweeper safety model
 
@@ -318,12 +326,24 @@ and
   the sweeper exclude `TelegramIngestionMessage`, DOWNLOADED media, and
   non-terminal `IngestionJob` rows.
 
+The raw-payload sweep mirrors the same guardrails:
+
+- **Dry-run by default.** It reports counts until the operator flips
+  `INGESTION_TELEGRAM_RAWJSON_SWEEP_DRY_RUN=false`.
+- **In-place only.** Matched rows stay alive; only `rawJson` is set to
+  `NULL`.
+- **TTL split.** Tombstoned rows purge immediately, processed rows use
+  the 30-day window, and unprocessed rows use the 90-day window.
+
 ### Running the sweeper
 
 - **Manual**: `npm run ingestion:sweep` — safe at any time; idempotent.
-- **Scheduled**: run via an external cron (systemd timer, k8s CronJob,
-  Vercel Cron) nightly. Phase 6 can wire it to pg-boss's built-in
-  `boss.schedule()` if volume grows.
+- **Manual raw payload sweep**: `npm run ingestion:rawjson-sweep` —
+  safe at any time; dry-run by default.
+- **Scheduled**: the operational sweeper still runs via an external cron
+  (systemd timer, k8s CronJob, Vercel Cron) nightly. The raw-payload
+  sweep is wired into the worker as a pg-boss cron and also remains
+  safe to trigger manually.
 - **Incident**: if a policy change demands an immediate catch-up, run the
   CLI by hand; the batch cap prevents DB stalls.
 

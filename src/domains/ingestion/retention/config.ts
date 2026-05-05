@@ -1,15 +1,19 @@
 /**
  * Retention policy for the Telegram ingestion subsystem.
  *
- * Phase 1 policy is deliberately conservative: raw messages and
+ * Phase 1 policy is deliberately conservative: message rows and
  * downloaded media are **never** auto-deleted — they are the source
  * of truth for every downstream feature. The sweeper only trims
  * operational artefacts (sync-run history, job audit, failed media
- * rows that carry no useful payload) after a grace window.
+ * rows that carry no useful payload) after a grace window, and a
+ * separate raw-payload sweep nulls out `TelegramIngestionMessage.rawJson`
+ * in place after its own retention window.
  *
  * Policy (all windows env-overridable):
  *
- *   - `TelegramIngestionMessage`       — kept forever. Never swept.
+ *   - `TelegramIngestionMessage`       — kept forever; `rawJson` may
+ *                                        be nulled out in place after
+ *                                        the raw-payload sweep TTL.
  *   - `TelegramIngestionMessageMedia`  — DOWNLOADED rows kept forever;
  *                                        SOURCE_GONE / SKIPPED_OVERSIZE
  *                                        rows swept after N days
@@ -33,6 +37,10 @@
 export const DEFAULT_SYNC_RUN_RETENTION_DAYS = 90
 export const DEFAULT_INGESTION_JOB_RETENTION_DAYS = 30
 export const DEFAULT_FAILED_MEDIA_RETENTION_DAYS = 90
+export const DEFAULT_RAWJSON_PROCESSED_RETENTION_DAYS = 30
+export const DEFAULT_RAWJSON_UNPROCESSED_RETENTION_DAYS = 90
+export const DEFAULT_RAWJSON_SWEEP_BATCH_SIZE = 500
+export const DEFAULT_RAWJSON_SWEEP_MAX_DURATION_MS = 5 * 60 * 1000 // 5 minutes
 export const DEFAULT_SWEEP_BATCH_SIZE = 500
 export const DEFAULT_SWEEP_MAX_DURATION_MS = 5 * 60 * 1000 // 5 minutes
 
@@ -40,6 +48,10 @@ export interface RetentionPolicy {
   syncRunRetentionDays: number
   ingestionJobRetentionDays: number
   failedMediaRetentionDays: number
+  rawJsonProcessedRetentionDays: number
+  rawJsonUnprocessedRetentionDays: number
+  rawJsonSweepBatchSize: number
+  rawJsonSweepMaxDurationMs: number
   sweepBatchSize: number
   sweepMaxDurationMs: number
 }
@@ -74,6 +86,26 @@ export function resolveRetentionPolicy(
       env.INGESTION_FAILED_MEDIA_RETENTION_DAYS,
       DEFAULT_FAILED_MEDIA_RETENTION_DAYS,
       365 * 5,
+    ),
+    rawJsonProcessedRetentionDays: parsePositiveInt(
+      env.INGESTION_RAWJSON_PROCESSED_RETENTION_DAYS,
+      DEFAULT_RAWJSON_PROCESSED_RETENTION_DAYS,
+      365 * 5,
+    ),
+    rawJsonUnprocessedRetentionDays: parsePositiveInt(
+      env.INGESTION_RAWJSON_UNPROCESSED_RETENTION_DAYS,
+      DEFAULT_RAWJSON_UNPROCESSED_RETENTION_DAYS,
+      365 * 5,
+    ),
+    rawJsonSweepBatchSize: parsePositiveInt(
+      env.INGESTION_RAWJSON_SWEEP_BATCH_SIZE,
+      DEFAULT_RAWJSON_SWEEP_BATCH_SIZE,
+      5_000,
+    ),
+    rawJsonSweepMaxDurationMs: parsePositiveInt(
+      env.INGESTION_RAWJSON_SWEEP_MAX_DURATION_MS,
+      DEFAULT_RAWJSON_SWEEP_MAX_DURATION_MS,
+      30 * 60 * 1000,
     ),
     sweepBatchSize: parsePositiveInt(
       env.INGESTION_SWEEP_BATCH_SIZE,

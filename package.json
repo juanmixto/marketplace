@@ -54,6 +54,8 @@
     "db:clear-demo": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/clear-demo-data.ts",
     "db:studio": "node --env-file-if-exists=.env --env-file-if-exists=.env.local ./node_modules/prisma/build/index.js studio",
     "db:reset": "node --env-file-if-exists=.env --env-file-if-exists=.env.local ./node_modules/prisma/build/index.js migrate reset --force && npm run db:seed",
+    "push:backfill-user-agent": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/backfill-push-subscription-user-agent.ts",
+    "ingestion:rawjson-sweep": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/ingestion-rawjson-sweep.ts",
     "dlq:list": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/dlq-list.ts",
     "dlq:resolve": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/dlq-mark-resolved.ts",
     "reconcile:payments": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/reconcile-payments.ts",

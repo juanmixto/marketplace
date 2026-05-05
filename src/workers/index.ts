@@ -27,6 +27,7 @@ import {
   type TelegramMediaDownloadJobData,
   type TelegramSyncJobData,
 } from '@/domains/ingestion'
+import { runIngestionRawJsonSweep } from './jobs/ingestion-rawjson-sweep'
 import { runTelegramSyncJob } from './jobs/telegram-sync'
 import { runTelegramMediaDownloadJob } from './jobs/telegram-media-download'
 import {
@@ -44,6 +45,9 @@ import {
   type PrewarmImageVariantsJobData,
 } from './jobs/prewarm-image-variants'
 import { DLQ_ALERT_CRON, DLQ_ALERT_JOB, runDlqAlertJob } from './jobs/dlq-alert'
+
+const RAWJSON_SWEEP_JOB = 'ingestion.telegram.rawjson-sweep'
+const RAWJSON_SWEEP_CRON = '0 3 * * *'
 
 async function main() {
   logger.info('worker.starting', {
@@ -121,6 +125,11 @@ async function main() {
     { batchSize: 4 },
   )
 
+  await registerHandler(RAWJSON_SWEEP_JOB, async () => {
+    await runIngestionRawJsonSweep()
+  })
+  await scheduleRecurring(RAWJSON_SWEEP_JOB, { cron: RAWJSON_SWEEP_CRON })
+
   // #1213: webhook DLQ alerting tick — every 15 minutes, no payload.
   // Handler registration must come BEFORE the schedule so the first
   // tick lands on a registered handler instead of a queue with no
@@ -139,6 +148,7 @@ async function main() {
       PROCESSING_JOB_KINDS.dedupeDrafts,
       PROCESSING_JOB_KINDS.unextractableDedupe,
       PREWARM_IMAGE_VARIANTS_JOB,
+      RAWJSON_SWEEP_JOB,
       DLQ_ALERT_JOB,
     ],
     config,
