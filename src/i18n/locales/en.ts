@@ -1445,7 +1445,7 @@ const en: Record<TranslationKeys, string> = {
   'vendor.profileForm.saved': 'Changes saved automatically.',
   'vendor.profileForm.saveError': 'Save failed. We will retry on your next edit.',
   'vendor.profileForm.autosaveHint': 'Changes save automatically as you edit.',
-  'vendor.profileForm.imageUrlError': 'Invalid URL. Upload an image or use cloudinary.com, uploadthing.com or unsplash.com (HTTPS)',
+  'vendor.profileForm.imageUrlError': 'Invalid URL. Upload an image or use a URL from unsplash.com (HTTPS)',
   'vendor.profileForm.nameMin': 'At least 3 characters',
   'vendor.profileForm.cutoffFormat': 'HH:MM format',
   'vendor.profileForm.profileSaveError': 'Failed to save profile',
@@ -1554,7 +1554,7 @@ const en: Record<TranslationKeys, string> = {
   'vendor.heroUpload.unsupported': 'Unsupported format. Use JPG, PNG or WebP.',
   'vendor.heroUpload.tooLarge': 'Image exceeds 5 MB.',
   'vendor.heroUpload.uploadError': 'Failed to upload the image',
-  'vendor.heroUpload.urlNotAllowed': 'URL not allowed. Use cloudinary.com, uploadthing.com or unsplash.com.',
+  'vendor.heroUpload.urlNotAllowed': 'URL not allowed. Use a URL from unsplash.com.',
 
   // Vendor – reviews manager
   'vendor.reviewsManager.yourResponse': 'Your response',
