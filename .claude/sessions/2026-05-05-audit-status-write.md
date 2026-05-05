@@ -23,7 +23,8 @@ Crear un ratchet de auditoría que bloquee writes directos a `status` para Order
 - 2026-05-05 — auditor implementado; baseline generada con 33 entradas.
 - 2026-05-05 — test de contrato pasa.
 - 2026-05-05 — auditor real pasa limpio con la baseline.
-- 2026-05-05 — siguiente paso: commit/push/PR.
+- 2026-05-05 — commit hecho y rama subida.
+- 2026-05-05 — PR abierta: #1363.
 
 ## Decisiones que hay que recordar
 - `src/domains/*/state-machine.ts` es el allowlist intencional para el ratchet.
