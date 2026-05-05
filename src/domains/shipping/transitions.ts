@@ -229,24 +229,54 @@ async function emitBuyerOrderStatus(input: {
   })
 }
 
-async function recomputeOrderStatus(orderId: string): Promise<void> {
+/**
+ * Re-derives Order.status from the current set of VendorFulfillments.
+ *
+ * #1336: previously, a fulfillment set of all-CANCELLED matched the
+ * `allDelivered` predicate (CANCELLED was inside the union) and the
+ * order was wrongly bumped to DELIVERED. The fix:
+ *   - Require at least one POSITIVE shipped/delivered fulfillment to
+ *     reach SHIPPED / DELIVERED / PARTIALLY_SHIPPED.
+ *   - Add an explicit all-CANCELLED → CANCELLED branch.
+ *   - Refuse to transition out of an existing terminal state.
+ */
+export async function recomputeOrderStatus(orderId: string): Promise<void> {
+  const order = await db.order.findUnique({
+    where: { id: orderId },
+    select: { status: true },
+  })
+  if (!order) return
+  // Terminal states are written by other paths (Stripe webhook, admin
+  // cancel, refund cascade); recompute must not undo them.
+  if (['CANCELLED', 'REFUNDED', 'DELIVERED'].includes(order.status)) return
+
   const fulfillments = await db.vendorFulfillment.findMany({
     where: { orderId },
     select: { status: true },
   })
   if (fulfillments.length === 0) return
 
+  const allCancelled = fulfillments.every(f => f.status === 'CANCELLED')
+  if (allCancelled) {
+    await db.order.update({ where: { id: orderId }, data: { status: 'CANCELLED' } })
+    return
+  }
+
   const anyShipped = fulfillments.some(f =>
     ['SHIPPED', 'DELIVERED'].includes(f.status),
   )
-  const allShipped = fulfillments.every(f =>
-    ['SHIPPED', 'DELIVERED', 'CANCELLED'].includes(f.status),
-  )
-  const allDelivered = fulfillments.every(f =>
-    ['DELIVERED', 'CANCELLED'].includes(f.status),
-  )
+  // For all-shipped / all-delivered we accept CANCELLED as a pass-through
+  // (a cancelled fulfillment doesn't block the rest), but we still
+  // require at least one positive — otherwise the order isn't really
+  // shipped.
+  const allShipped =
+    anyShipped &&
+    fulfillments.every(f => ['SHIPPED', 'DELIVERED', 'CANCELLED'].includes(f.status))
+  const allDelivered =
+    anyShipped &&
+    fulfillments.every(f => ['DELIVERED', 'CANCELLED'].includes(f.status))
 
-  let next: 'PROCESSING' | 'PARTIALLY_SHIPPED' | 'SHIPPED' | 'DELIVERED' | null = null
+  let next: 'PARTIALLY_SHIPPED' | 'SHIPPED' | 'DELIVERED' | null = null
   if (allDelivered) next = 'DELIVERED'
   else if (allShipped) next = 'SHIPPED'
   else if (anyShipped) next = 'PARTIALLY_SHIPPED'

@@ -21,6 +21,7 @@ import {
   fulfillmentStatusForShipment,
   appendShipmentEvent,
   applyShipmentTransition,
+  recomputeOrderStatus,
 } from '@/domains/shipping/transitions'
 import type { FulfillmentStatus } from '@/generated/prisma/enums'
 // eslint-disable-next-line no-restricted-imports -- dispatcher is intentionally server-only, excluded from notifications barrel
@@ -477,6 +478,13 @@ export async function cancelShipmentAction(fulfillmentId: string) {
     where: { id: fulfillmentId },
     data: { status: 'CANCELLED' },
   })
+
+  // #1336: recompute the parent Order.status. Without this, a
+  // multi-vendor order whose remaining vendors have shipped stays in
+  // PROCESSING forever; an order whose ALL fulfillments end up
+  // cancelled stayed in PAYMENT_CONFIRMED and used to flip to DELIVERED
+  // through the old recomputeOrderStatus bug.
+  await recomputeOrderStatus(fulfillment.orderId)
 
   safeRevalidatePath('/vendor/pedidos')
   return { ok: true as const }

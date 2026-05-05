@@ -102,6 +102,46 @@ export async function POST(req: NextRequest) {
   const providerRef = payload.parcel ? String(payload.parcel.id) : null
   const eventType = `sendcloud.${payload.action ?? 'parcel_status_changed'}`
 
+  // #1335: replicate the Stripe WebhookDelivery dedupe pattern (#308) for
+  // Sendcloud. Sendcloud doesn't send a unique event id per HTTP request,
+  // so we derive one from (providerRef, statusId, timestamp || hash). Two
+  // identical payloads collapse to the same delivery row, which is what
+  // idempotency should guarantee. The previous defence — `isValidTransition`
+  // rejecting self-loops — only protected the shipment status update; a
+  // duplicate webhook still wrote a duplicate ShipmentEvent.
+  const statusId = payload.parcel?.status?.id ?? 'unknown'
+  const timestampPart = payload.timestamp ?? payloadHash.slice(0, 12)
+  const eventId = providerRef
+    ? `sendcloud_${providerRef}_${statusId}_${timestampPart}`
+    : `sendcloud_synthetic_${payloadHash.slice(0, 32)}`
+
+  let deliveryId: string | null = null
+  try {
+    const delivery = await db.webhookDelivery.create({
+      data: {
+        provider: 'sendcloud',
+        eventId,
+        eventType,
+        payloadHash,
+      },
+    })
+    deliveryId = delivery.id
+  } catch (insertError) {
+    const isDuplicate =
+      insertError instanceof Error && /P2002|Unique constraint/i.test(insertError.message)
+    if (isDuplicate) {
+      logger.info('sendcloud.webhook.duplicate', { eventId, eventType })
+      return NextResponse.json({ ok: true, skipped: 'duplicate' })
+    }
+    // Non-duplicate DB error: log but fall through. Failing open is
+    // safer — Sendcloud will retry, and next time the insert may succeed.
+    logger.error('sendcloud.webhook.delivery_insert_failed', {
+      eventId,
+      eventType,
+      error: insertError instanceof Error ? insertError.message : String(insertError),
+    })
+  }
+
   try {
     const result = await handleSendcloudWebhook(payload)
     if (!result.handled) {
@@ -110,10 +150,26 @@ export async function POST(req: NextRequest) {
         eventType,
         payload,
       })
+      if (deliveryId) {
+        await db.webhookDelivery
+          .update({
+            where: { id: deliveryId },
+            data: { status: 'failed', errorMessage: result.reason ?? 'unhandled' },
+          })
+          .catch(() => {})
+      }
       // not-handled is NOT a Sendcloud retry signal — the shipment is
       // genuinely missing or the status unknown. Return 200 and let
       // the operator replay from the DLQ once the root cause is fixed.
       return NextResponse.json({ ok: false, reason: result.reason }, { status: 200 })
+    }
+    if (deliveryId) {
+      await db.webhookDelivery
+        .update({
+          where: { id: deliveryId },
+          data: { status: 'processed', processedAt: new Date() },
+        })
+        .catch(() => {})
     }
     return NextResponse.json({ ok: true, ...result })
   } catch (err) {
@@ -123,6 +179,17 @@ export async function POST(req: NextRequest) {
       eventType,
       payload,
     })
+    if (deliveryId) {
+      await db.webhookDelivery
+        .update({
+          where: { id: deliveryId },
+          data: {
+            status: 'failed',
+            errorMessage: err instanceof Error ? err.message : String(err),
+          },
+        })
+        .catch(() => {})
+    }
     // Non-200 so Sendcloud retries. Previous behaviour silently
     // swallowed the event — that's the exact failure mode #568 exists
     // to fix.
