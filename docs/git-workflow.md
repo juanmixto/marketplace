@@ -178,6 +178,14 @@ gh pr merge <number> --auto --squash --delete-branch
 
 GitHub queues the PR and merges it the moment all required checks pass and the head is up-to-date with `main`. You can move on to the next task immediately — no need to babysit the rebase loop. If `main` advances and your branch falls behind, GitHub posts a comment on the PR; rebase and force-push when convenient.
 
+Auto-merge is **per PR**, not a permanent repo or agent setting. Draft/ready transitions, new pushes, or manual UI changes can leave a PR ready but unarmed. Before declaring a PR queued, verify it:
+
+```bash
+gh pr view <number> --json autoMergeRequest,mergeStateStatus,statusCheckRollup
+```
+
+If `autoMergeRequest` is `null`, auto-merge is not armed. Re-run the default merge command above, or use the synchronous merge path below if the required checks are already green and the PR must land now.
+
 **Synchronous merge** (only when you need the result *right now*, e.g. unblocking a chain of stacked PRs):
 
 ```bash
