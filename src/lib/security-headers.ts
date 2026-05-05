@@ -127,6 +127,16 @@ export function buildContentSecurityPolicy(
     "object-src 'none'",
     "media-src 'self' blob:",
     "worker-src 'self' blob:",
+    // HU7 (#1248): browsers POST violation reports to /api/csp-report,
+    // which forwards each event to PostHog as `security.csp.violation`.
+    // Without this directive a future "tighten the CSP" PR is flying
+    // blind — we would only learn about regressions from user
+    // complaints. `report-uri` is the legacy directive (Chrome/Edge
+    // still honour it); `report-to` is the modern Reporting-API form
+    // and uses the `Report-To` HTTP header (see getReportToHeaderValue
+    // below). Keep both for full coverage.
+    'report-uri /api/csp-report',
+    'report-to csp-endpoint',
   ]
 
   if (shouldEnforceHttpsHeaders()) {
@@ -134,6 +144,25 @@ export function buildContentSecurityPolicy(
   }
 
   return directives.join('; ')
+}
+
+/**
+ * Reporting-API group descriptor advertised in the `Report-To` HTTP
+ * header. Browsers POST violation reports for every reported policy
+ * (CSP, COOP, COEP, NEL, etc.) to the URL listed in the matching
+ * group.
+ *
+ * #1248: paired with `report-to csp-endpoint` directive in the CSP.
+ *
+ * `max_age` is in seconds (126 days here); browsers cache the
+ * configuration for that long without re-fetching.
+ */
+export function getReportToHeaderValue(): string {
+  return JSON.stringify({
+    group: 'csp-endpoint',
+    max_age: 10_886_400,
+    endpoints: [{ url: '/api/csp-report' }],
+  })
 }
 
 // HU2 (#1243): explicit allow/deny for every Permissions-Policy directive
@@ -204,6 +233,11 @@ export function getSecurityHeaders(): SecurityHeader[] {
     // gets shared). Per-path CORP (e.g. `same-origin` on /api/*, default on
     // public images) belongs in its own HU.
     { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
+    // HU7 (#1248): Reporting-API group for CSP violation reports.
+    // Mirrors `report-to csp-endpoint` in the CSP. Without this header
+    // modern browsers ignore the `report-to` directive and only fall
+    // back to the legacy `report-uri`.
+    { key: 'Report-To', value: getReportToHeaderValue() },
   ]
 
   if (shouldEnforceHttpsHeaders()) {

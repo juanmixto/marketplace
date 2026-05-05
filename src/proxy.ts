@@ -70,6 +70,12 @@ const CSRF_EXEMPT_PREFIXES = [
   '/api/telegram/webhook',
   // Public probe — no state changes, intentionally callable from anywhere.
   '/api/healthcheck',
+  // #1248: browsers POST CSP violation reports via the user-agent's
+  // background reporting queue, which does NOT carry an Origin header.
+  // The route handler validates payload shape + rate-limits per IP, so
+  // the missing Origin check doesn't matter — every other defense is
+  // still active.
+  '/api/csp-report',
 ] as const
 
 function requiresOriginCheck(pathname: string, method: string): boolean {
