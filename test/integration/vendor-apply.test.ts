@@ -113,6 +113,12 @@ test('approveVendor: flips User.role to VENDOR for self-service applicant', asyn
       isActive: true,
     },
   })
+  // #1333: approveVendor requires Stripe Connect ready before flipping ACTIVE.
+  await db.vendor.update({
+    where: { id: vendorId },
+    data: { stripeAccountId: `acct_test_${Date.now()}`, stripeOnboarded: true },
+  })
+
   useTestSession(buildSession(admin.id, 'SUPERADMIN'))
   await approveVendor(vendorId)
 
@@ -139,6 +145,8 @@ test('approveVendor: does NOT downgrade an admin who also owns a vendor', async 
       slug: `admin-vendor-${Date.now()}`,
       displayName: 'Admin Vendor',
       status: 'APPLYING',
+      stripeAccountId: `acct_test_${Date.now()}`,
+      stripeOnboarded: true,
     },
   })
 

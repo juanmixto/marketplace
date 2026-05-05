@@ -138,6 +138,15 @@ export async function approveVendor(vendorId: string) {
   if (!['APPLYING', 'PENDING_DOCS'].includes(vendor.status)) {
     throw new Error('El productor ya está activo o suspendido')
   }
+  // #1333: A vendor cannot become ACTIVE without Stripe Connect ready —
+  // otherwise products would be visible and purchasable but no payout
+  // could ever clear. Pre-tracción flow assumes admin walks the producer
+  // through Connect onboarding before approving.
+  if (!vendor.stripeAccountId || !vendor.stripeOnboarded) {
+    throw new Error(
+      'El productor no puede activarse hasta completar la integración de pagos (Stripe Connect).',
+    )
+  }
 
   const before = getVendorAuditSnapshot(vendor)
   const ip = await getAuditRequestIp()
@@ -785,10 +794,21 @@ export async function markSettlementPaid(settlementId: string) {
   // Restrict to FINANCE_ADMIN + SUPERADMIN. (#403)
   const session = await requireFinanceAdmin()
 
-  const settlement = await db.settlement.findUnique({ where: { id: settlementId } })
+  const settlement = await db.settlement.findUnique({
+    where: { id: settlementId },
+    include: { vendor: { select: { stripeAccountId: true, stripeOnboarded: true } } },
+  })
   if (!settlement) throw new Error('Liquidación no encontrada')
   if (settlement.status !== 'APPROVED') {
     throw new Error('Solo se pueden marcar como pagadas las liquidaciones aprobadas')
+  }
+  // #1332: PAID is the financial commitment step. The vendor must have
+  // an active Stripe Connect account, otherwise the local row would
+  // diverge from reality (Stripe transfer fails, settlement says PAID).
+  if (!settlement.vendor.stripeAccountId || !settlement.vendor.stripeOnboarded) {
+    throw new Error(
+      'El productor no tiene Stripe Connect listo: no se puede marcar como pagada.',
+    )
   }
 
   const before = getSettlementAuditSnapshot(settlement)
