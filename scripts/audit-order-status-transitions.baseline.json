@@ -5,7 +5,7 @@
     "src/domains/payments/reconcile.ts:196",
     "src/domains/payments/reconcile.ts:442",
     "src/domains/shipping/transitions.ts:270",
-    "src/domains/vendors/actions.ts:779",
-    "src/domains/vendors/actions.ts:949"
+    "src/domains/vendors/actions.ts:783",
+    "src/domains/vendors/actions.ts:953"
   ]
 }
