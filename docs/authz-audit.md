@@ -36,18 +36,20 @@ Verified 2026-04-18 as part of issue #310. Route-level gating (`src/lib/auth-con
 | Vendor read actions (`getMyProduct`, etc.) | [`test/integration/buyer-vendor-reads.test.ts`](../test/integration/buyer-vendor-reads.test.ts) |
 | Admin sub-role gates | [`test/integration/admin-sub-role-gates.test.ts`](../test/integration/admin-sub-role-gates.test.ts) |
 | API route authz presence | [`test/integration/api-route-auth-audit.test.ts`](../test/integration/api-route-auth-audit.test.ts) |
-| GDPR account-erase (anonimize, never hard-delete) | [`test/integration/gdpr-compliance.test.ts`](../test/integration/gdpr-compliance.test.ts), [`test/integration/account-erase-fk-restrict.test.ts`](../test/integration/account-erase-fk-restrict.test.ts) |
+| GDPR account-erase (anonimize, never hard-delete) | [`test/integration/gdpr-compliance.test.ts`](../test/integration/gdpr-compliance.test.ts), [`test/integration/account-erase-fk-restrict.test.ts`](../test/integration/account-erase-fk-restrict.test.ts), [`test/integration/account-erase-coverage.test.ts`](../test/integration/account-erase-coverage.test.ts) |
 
-### Account erase contract (#961)
+### Account erase contract (#961, extended #1350)
 
 `/api/account/delete` (DELETE) is the GDPR Article 17 surface. Required behaviours:
 
 - The User row is **anonimized** (`email = deleted_<id>@anon.invalid`, `passwordHash = null`, `deletedAt`, placeholder `firstName/lastName`), never hard-deleted.
 - Orders, Incidents, and Reviews stay (5-year tax retention; rating signal preserved).
-- Addresses and Sessions are deleted; Reviews are anonimized in place.
+- Addresses and Sessions are deleted; Reviews are anonimized in place (`body=null`, rating retained).
+- **PII satellites are deleted in the same transaction** (#1350): `Account` (OAuth tokens), `Cart` (+ `CartItem` cascade), `PushSubscription`, `TelegramLink`. Without this, a "deleted" user keeps live OAuth credentials, push endpoints and chat-id mappings tied to its anonimized row.
+- A single `AuditLog` row with `action='USER_SELF_ERASED'`, `entityType='User'`, `entityId=userId`, `actorId=userId` is written inside the same transaction so the erasure itself is forensically trackable. Failure of any step rolls everything back together (no half-erased state).
 - Schema-level guard: `Order.customerId`, `Review.customerId`, `Incident.customerId` declare `onDelete: Restrict`. A future `prisma.user.delete()` (intentional or accidental) is rejected at the FK layer with `P2003`. This is regression-tested in `account-erase-fk-restrict.test.ts`.
 
-This list is the contract. Adding a new User-owned model that is order-tied (e.g. invoices, support tickets, downloadable assets) MUST also declare `onDelete: Restrict` on its `userId` / `customerId` FK.
+This list is the contract. Adding a new User-owned model that is order-tied (e.g. invoices, support tickets, downloadable assets) MUST also declare `onDelete: Restrict` on its `userId` / `customerId` FK; a new PII-bearing satellite (push, oauth, social link, preference cache) MUST be added to the transaction in `route.ts` and a row-count assertion appended to `account-erase-coverage.test.ts`.
 
 ## Audit results (2026-04-18)
 

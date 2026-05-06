@@ -107,14 +107,29 @@ Don't validate at write time only — old rows predate the validation, and a str
 
 ## 8. Account erase is anonimization, never hard-delete
 
-GDPR Art. 17 is implemented by [`src/app/api/account/delete/route.ts`](../src/app/api/account/delete/route.ts). The User row is anonimized in place; addresses and sessions are deleted; reviews are scrubbed (body=null, rating retained); orders / incidents / settlements stay for tax / dispute retention.
+GDPR Art. 17 is implemented by [`src/app/api/account/delete/route.ts`](../src/app/api/account/delete/route.ts). The User row is anonimized in place; everything below it is either scrubbed, deleted, or retained per the per-model rule:
+
+| Model | On erase | Reason |
+|-------|----------|--------|
+| `User` | anonimized (email/name/image cleared, `tokenVersion` bumped, `deletedAt` set) | RESTRICT FK from Order/Review/Incident; tax retention 5 y |
+| `Address` | deleted | not needed once orders are placed; orders snapshot the address in `Json` |
+| `Review.body` | scrubbed (set to `null`); `rating` retained | rating is product-attached, not user-attached |
+| `Session` | deleted | invalidates active cookies immediately |
+| `Account` | deleted (#1350) | OAuth `refresh_token`/`id_token` are live credentials of the erased user |
+| `Cart` (+ `CartItem` cascade) | deleted (#1350) | preference/scratch state |
+| `PushSubscription` | deleted (#1350) | endpoint+UA fingerprint user |
+| `TelegramLink` | deleted (#1350) | chat id maps to a real Telegram account |
+| `Order` / `Incident` / `Settlement` / `OrderEvent` | retained | RESTRICT FK; legal / financial audit |
+
+A single `AuditLog` row with `action='USER_SELF_ERASED'` and `actorId=userId` is written inside the same transaction so a successful erase always leaves a forensic trail; a failure rolls everything back together.
 
 When you add a new User-owned model:
 
 - Decide whether it survives erase (legal requirement / business audit) or follows the user out (preference / scratch / token).
 - Declare `onDelete:` accordingly — `Restrict` for survivors, `Cascade` for followers (with allowlist entry).
-- Update [`docs/authz-audit.md`](authz-audit.md) § Account erase contract if the answer changes the contract.
-- Either anonimize it in `route.ts` or document why it's exempt.
+- Update the table above + [`docs/authz-audit.md`](authz-audit.md) § Account erase contract if the answer changes the contract.
+- Either anonimize / delete it inside the same `db.$transaction(...)` in `route.ts` or document why it's exempt.
+- Add a row-count assertion to [`test/integration/account-erase-coverage.test.ts`](../test/integration/account-erase-coverage.test.ts) so future regressions trip the suite.
 
 The CI guard in `audit-fk-onDelete.mjs` won't catch missing erase logic — it only catches FK declarations. Don't rely on it for the full contract.
 

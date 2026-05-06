@@ -6,14 +6,16 @@
  */
 
 import bcrypt from 'bcryptjs'
-import { auth } from '@/lib/auth'
+import { getActionSession } from '@/lib/action-session'
+import { createAuditLog, getAuditRequestIp } from '@/lib/audit'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { NextResponse, type NextRequest } from 'next/server'
 import { checkRateLimit } from '@/lib/ratelimit'
+import type { Prisma } from '@/generated/prisma/client'
 
 export async function DELETE(request: NextRequest) {
-  const session = await auth()
+  const session = await getActionSession()
 
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
@@ -69,15 +71,18 @@ export async function DELETE(request: NextRequest) {
     )
   }
 
+  const ip = await getAuditRequestIp()
+  const actorRole = session.user.role
+
   try {
-    await db.$transaction([
+    await db.$transaction(async (tx: Prisma.TransactionClient) => {
       // Anonimize user (preserve foreign key integrity).
       // #1142: bump tokenVersion in the same statement as the
       // anonimization. The JWT callback will detect the mismatch on
       // the next refresh tick (≤60s) and strip identity claims, so
       // a session cookie that survived the deleteMany below cannot
       // continue to act as the (now anonimized) user.
-      db.user.update({
+      await tx.user.update({
         where: { id: userId },
         data: {
           email: `deleted_${userId}@anon.invalid`,
@@ -89,17 +94,37 @@ export async function DELETE(request: NextRequest) {
           image: null,
           tokenVersion: { increment: 1 },
         },
-      }),
+      })
       // Delete addresses (not needed for tax compliance)
-      db.address.deleteMany({ where: { userId } }),
+      await tx.address.deleteMany({ where: { userId } })
       // Anonimize reviews (keep rating for products, remove text & author identity)
-      db.review.updateMany({
+      await tx.review.updateMany({
         where: { customerId: userId },
         data: { body: null },
-      }),
+      })
       // Delete sessions (invalidate all active sessions)
-      db.session.deleteMany({ where: { userId } }),
-    ])
+      await tx.session.deleteMany({ where: { userId } })
+      // #1350: extended GDPR Art.17 coverage. Without these, a "deleted"
+      // user still has live OAuth tokens, push endpoints, telegram chat
+      // ids and cart history attached to its now-anonimized User row.
+      await tx.account.deleteMany({ where: { userId } })
+      await tx.cart.deleteMany({ where: { userId } })
+      await tx.pushSubscription.deleteMany({ where: { userId } })
+      await tx.telegramLink.deleteMany({ where: { userId } })
+      // Forensic trail of the self-erasure itself. Written last so any
+      // earlier mutation failure rolls it back together with the rest.
+      await createAuditLog(
+        {
+          action: 'USER_SELF_ERASED',
+          entityType: 'User',
+          entityId: userId,
+          actorId: userId,
+          actorRole,
+          ip,
+        },
+        tx,
+      )
+    })
 
     return NextResponse.json({
       success: true,
