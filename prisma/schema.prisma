@@ -211,6 +211,12 @@ model User {
   stripeCustomerId     String?   @unique
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
+  // #1359 — second source of actor traceability, independent of
+  // `AuditLog`. Stored as plain string (not FK) so sentinel values
+  // like 'system' / 'stripe-webhook' fit, and so a later GDPR
+  // anonimization of the actor doesn't cascade into this row.
+  createdById          String?
+  updatedById          String?
 
   accounts                Account[]
   sessions                Session[]
@@ -335,8 +341,11 @@ model Vendor {
   // is generous for an artisan producer; admins can bump per-vendor.
   maxProductsActive Int    @default(50)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  // #1359 — see User/Order/Product for the contract.
+  createdById String?
+  updatedById String?
 
   user              User                @relation(fields: [userId], references: [id])
   products          Product[]
@@ -425,6 +434,9 @@ model Product {
   deletedAt      DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+  // #1359 — see User/Order/Vendor for the contract.
+  createdById    String?
+  updatedById    String?
 
   // Phase 4 — ingestion provenance. Set when this Product was created
   // by publishing an approved IngestionProductDraft. The UNIQUE
@@ -559,6 +571,9 @@ model Order {
   notes                   String?
   placedAt                DateTime      @default(now())
   updatedAt               DateTime      @updatedAt
+  // #1359 — see User/Vendor/Product for the contract.
+  createdById             String?
+  updatedById             String?
 
   // GDPR (#961): Order rows must be retained 5 years for tax compliance
   // — the account-erase flow at /api/account/delete anonimizes the User
