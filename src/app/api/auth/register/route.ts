@@ -16,6 +16,7 @@ import { normalizeAuthEmail } from '@/lib/auth-email'
 
 import { isUniqueConstraintViolation } from '@/lib/prisma-errors'
 import { HONEYPOT_FIELD_NAME, isHoneypotTripped } from '@/lib/honeypot'
+import { verifyTurnstileToken } from '@/lib/turnstile'
 
 // #1283: response body shared by every non-error branch — fresh user,
 // existing-account, disposable-email — so the response itself never
@@ -52,6 +53,27 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
+
+    // #1273: Cloudflare Turnstile invisible captcha. Fail-open by env
+    // (no TURNSTILE_SECRET_KEY ⇒ verifyTurnstileToken returns ok:true)
+    // so this branch is inert until ops provisions the secret. Once
+    // configured, a missing / invalid / expired token returns 400
+    // with the same generic copy as a Zod failure — no specifics to
+    // help a script tune.
+    const turnstileResult = await verifyTurnstileToken(
+      body?.turnstileToken,
+      clientIP,
+    )
+    if (!turnstileResult.ok) {
+      logger.warn('security.turnstile.register_blocked', {
+        ip: clientIP,
+        reason: turnstileResult.reason,
+      })
+      return NextResponse.json(
+        { message: 'Verificación fallida. Recarga la página e inténtalo de nuevo.' },
+        { status: 400 },
+      )
+    }
 
     // Honeypot (#1271): silent success. A non-empty `website` is a bot.
     if (isHoneypotTripped(body?.[HONEYPOT_FIELD_NAME])) {

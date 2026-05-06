@@ -74,7 +74,14 @@ CI guard: [`scripts/audit-admin-explicit-select.mjs`](../scripts/audit-admin-exp
 - Free-text inputs are not audited (orderNumber is not personal data).
 - Emits `admin.search.pii_burst` (logger.warn) when the actor crosses 20 PII searches in 10 minutes — that's the signal PostHog/Sentry alerts watch.
 
-When you add a new admin search surface (vendors, products, incidents), call `auditAdminSearch({ scope, actorId, actorRole, query, matchedCount })` from the loader. Test contract: [`test/integration/admin-search-pii-audit.test.ts`](../test/integration/admin-search-pii-audit.test.ts).
+Live wired surfaces:
+
+| Loader | Scope | PII fields searched |
+|--------|-------|---------------------|
+| `getAdminOrdersPageData` (`src/domains/admin/orders.ts`) | `admin-orders` | customer email / firstName / lastName, address city / postalCode |
+| `AdminUsersPage` (`src/app/(admin)/admin/usuarios/page.tsx`) | `admin-users` | email / firstName / lastName |
+
+When you add a new admin search surface (vendors, products, incidents), call `auditAdminSearch({ scope, actorId, actorRole, query, matchedCount })` from the loader and add a row above. Test contract: [`test/integration/admin-search-pii-audit.test.ts`](../test/integration/admin-search-pii-audit.test.ts).
 
 ### Admin mutation rate limits (#1352)
 
