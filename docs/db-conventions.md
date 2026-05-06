@@ -157,6 +157,20 @@ The pattern (see [`src/lib/at-rest-crypto.ts`](../src/lib/at-rest-crypto.ts), [`
 
 For columns NextAuth's `PrismaAdapter` writes (`Account.refresh_token` / `id_token`), the dual-column window is unnecessary because no in-app code reads them — wrap the adapter's `linkAccount` to encrypt before write and reuse the existing columns as ciphertext storage. The override lives in [`src/lib/auth.ts`](../src/lib/auth.ts) `buildAdapter`. `Account.access_token` is intentionally written as `null` to remove an entire class of leak (we don't refresh it; JWT session strategy doesn't need it).
 
+## 8c. Actor tracking on high-value rows (#1359)
+
+Second source of truth, independent of `AuditLog`. If the audit table is purged under retention or a writer-side bug skips the audit row, the four high-value models still answer "who created this and who last touched it":
+
+- `User`, `Vendor`, `Product`, `Order` — each carries `createdById String?` + `updatedById String?`.
+- Stored as plain string (no FK to `User`) so sentinel writers (`'system'`, `'stripe-webhook'`, `'cron-X'`) fit, and a later GDPR anonimization of the actor doesn't cascade or rewrite the row.
+- Historical rows stay null — no backfill, no implied `createdById = User.id` for legacy.
+- Helpers in [`src/lib/actor-tracking.ts`](../src/lib/actor-tracking.ts):
+  - `trackCreate(actor)` → `{ createdById, updatedById }` for `db.X.create`
+  - `trackUpdate(actor)` → `{ updatedById }` for `db.X.update`
+- `actor` accepts a real id, `null`, or the `SYSTEM` sentinel (literal `'system'` for greppability).
+
+When you add an admin mutation that touches one of the four tables, spread `...trackUpdate(session.user.id)` into the `data` object. When you add a system writer (webhook handler, cron job, worker), spread `...trackUpdate(SYSTEM)` so the row is recognisably non-human.
+
 ## 9. Status transitions are linted, not hand-waved
 
 Order, Payment, Settlement, and VendorFulfillment status changes are part of the state-machine contract. Direct `status:` writes outside the dedicated transition modules are a common way to bypass guards, lose audit-trail context, or apply an invalid state change from a random writer.

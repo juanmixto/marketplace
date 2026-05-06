@@ -12,6 +12,7 @@ import {
 } from '@/lib/auth-guard'
 import { hasRole, ADMIN_ROLES as ADMIN_ROLE_LIST } from '@/lib/roles'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
+import { trackUpdate } from '@/lib/actor-tracking'
 import { enforceAdminMutationRateLimit } from './rate-limit'
 import { assertVendorOnboarded } from '@/domains/vendors'
 import { cancelOrderWithRefundPolicy } from '@/domains/orders'
@@ -155,7 +156,7 @@ export async function approveVendor(vendorId: string) {
   await mutateWithAudit(async tx => {
     const updatedVendor = await tx.vendor.update({
       where: { id: vendorId },
-      data: { status: 'ACTIVE' },
+      data: { status: 'ACTIVE', ...trackUpdate(session.user.id) },
     })
     // Self-service application flow: the User row was created as CUSTOMER.
     // At approval, grant VENDOR role so route guards + session JWT see the
@@ -164,7 +165,7 @@ export async function approveVendor(vendorId: string) {
     if (userNeedsRoleBump) {
       await tx.user.update({
         where: { id: vendor.user.id },
-        data: { role: UserRole.VENDOR },
+        data: { role: UserRole.VENDOR, ...trackUpdate(session.user.id) },
       })
     }
     return {
@@ -215,7 +216,7 @@ export async function rejectVendor(vendorId: string) {
   await mutateWithAudit(async tx => {
     const updatedVendor = await tx.vendor.update({
       where: { id: vendorId },
-      data: { status: 'REJECTED' },
+      data: { status: 'REJECTED', ...trackUpdate(session.user.id) },
     })
     return {
       result: updatedVendor,
@@ -259,7 +260,7 @@ export async function suspendVendor(vendorId: string) {
   await mutateWithAudit(async tx => {
     const updatedVendor = await tx.vendor.update({
       where: { id: vendorId },
-      data: { status: 'SUSPENDED_TEMP' },
+      data: { status: 'SUSPENDED_TEMP', ...trackUpdate(session.user.id) },
     })
     return {
       result: updatedVendor,
@@ -705,8 +706,12 @@ export async function reviewProduct(
       where: { id: productId },
       data:
         validAction === 'approve'
-          ? { status: 'ACTIVE', rejectionNote: null }
-          : { status: 'REJECTED', rejectionNote: note ?? 'No cumple los requisitos del catálogo' },
+          ? { status: 'ACTIVE', rejectionNote: null, ...trackUpdate(session.user.id) }
+          : {
+            status: 'REJECTED',
+            rejectionNote: note ?? 'No cumple los requisitos del catálogo',
+            ...trackUpdate(session.user.id),
+          },
     })
     return {
       result: updated,
@@ -750,7 +755,11 @@ export async function suspendProduct(productId: string, reason: string) {
   const updatedProduct = await mutateWithAudit(async tx => {
     const updated = await tx.product.update({
       where: { id: productId },
-      data: { status: 'SUSPENDED', rejectionNote: reason },
+      data: {
+        status: 'SUSPENDED',
+        rejectionNote: reason,
+        ...trackUpdate(session.user.id),
+      },
     })
     return {
       result: updated,
