@@ -1,0 +1,26 @@
+[Unit]
+Description=raizdirecta.es — monthly DB restore drill
+Documentation=https://github.com/juanmixto/marketplace/blob/main/docs/runbooks/host-crons.md
+Documentation=https://github.com/juanmixto/marketplace/blob/main/docs/runbooks/db-restore.md
+
+[Timer]
+# First Sunday of every month, 03:00 UTC (~ 04:00 Madrid winter, 05:00
+# summer). Restoring on a Sunday keeps the network spike off the
+# Monday morning when a real restore would actually be triggered, and
+# the time window is well outside any operator-active hours so a stuck
+# Postgres container doesn't compete with daytime SSH sessions.
+#
+# `*-*-01..07 Sun` is the systemd idiom for "the first Sunday of the
+# month": it intersects "any day 1-7" with "Sun".
+OnCalendar=Sun *-*-01..07 03:00:00 UTC
+# Whisper is single-node; if the host is down at the scheduled time
+# (Proxmox reboot, power event), run on next boot. Without this a
+# failed power flip silently means no drill that month.
+Persistent=true
+# Spread across a 10-minute window so this drill doesn't pile onto
+# whatever else might fire at 03:00 UTC.
+RandomizedDelaySec=600
+Unit=raizdirecta-restore-drill.service
+
+[Install]
+WantedBy=timers.target

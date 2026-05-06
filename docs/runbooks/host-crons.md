@@ -24,7 +24,18 @@ reemplazaron por systemd timers en el nodo `whisper`.
 
 | Slug                     | Schedule (UTC) | Endpoint                                        | Notas |
 |--------------------------|----------------|-------------------------------------------------|-------|
-| `cleanup-idempotency`    | `03:00`        | `https://raizdirecta.es/api/cron/cleanup-idempotency` | Sweep diario de `IdempotencyKey` expirados (#1307). |
+| `cleanup-idempotency`    | diario `03:00`              | `https://raizdirecta.es/api/cron/cleanup-idempotency` | Sweep diario de `IdempotencyKey` expirados (#1307). |
+| `restore-drill`          | mensual 1er domingo `03:00` | `scripts/db/restore-drill.sh` (ejecuta en el host)    | Drill de restore desde B2 a un Postgres efímero (#1311 / epic #1002). Verifica cada mes que el dump cifrado se desencripta y aplica limpio. Requiere `B2_REMOTE` / `B2_BUCKET` / `MP_DUMP_PASSPHRASE_FILE` en `host-cron.env` antes de habilitarlo. La unit se *instala* pero NO arranca sola en el primer install — el operador la ejecuta a mano la primera vez para verificar la plumbing. |
+
+### Restore drill — qué hacer cuando suena la alerta
+
+Healthchecks.io tiene dos pings: éxito (`HC_PING_RESTORE_DRILL`) y fallo (`HC_PING_FAILURE`). Si llega un fallo:
+
+1. `sudo journalctl -u raizdirecta-restore-drill.service -n 500 --no-pager` — buscar la fase que falló (download / decrypt / restore / smoke query).
+2. Si falló en *download*: comprobar credenciales B2 (`rclone lsf b2-mp:mp-dumps-eu/daily | tail`).
+3. Si falló en *decrypt*: comprobar `MP_DUMP_PASSPHRASE_FILE` (mode 600, no recién rotado).
+4. Si falló en *restore*: el WAL está roto o el dump truncado. Mira `sudo docker logs mp-restore-drill`. Reportar a `db-resilience` epic (#1002) — un dump roto en el drill predice un dump roto en una emergencia real.
+5. Si falló en *smoke query*: el dump aplicó pero faltan datos. Revisar `EXPECTED_MIN_ORDERS` vs el contador real.
 
 ## Instalar / actualizar
 
