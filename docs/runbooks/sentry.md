@@ -35,7 +35,9 @@ local dev and tests must never talk to a real Sentry project.
 | `NEXT_PUBLIC_COMMIT_SHA` | `loadSentryConfig()` | Release tag — auto-stamped by `next.config.ts` from `git rev-parse` at build/dev. Falls back to `VERCEL_GIT_COMMIT_SHA`. |
 | `SENTRY_TRACES_SAMPLE_RATE` | `buildTracesSampler()` | Base sample rate for performance traces. Default `0.1` (10 %). Checkout routes are bumped to `0.25` automatically — see [`src/lib/sentry/sampler.ts`](../../src/lib/sentry/sampler.ts). |
 | `SENTRY_REPLAYS_SESSION_SAMPLE_RATE` | client init | Browser session replays. Default `0` — costs and privacy surface make this opt-in. |
-| `SENTRY_REPLAYS_ONERROR_SAMPLE_RATE` | client init | Browser replays on crash. Default `0.5` (50 % of sessions that error). |
+| `SENTRY_REPLAYS_ONERROR_SAMPLE_RATE_MOBILE` | client init | Browser replays on crash, mobile UAs. Default `0.5` (50 %). #1222. |
+| `SENTRY_REPLAYS_ONERROR_SAMPLE_RATE_DESKTOP` | client init | Browser replays on crash, desktop UAs. Default `0.25` (25 %). #1222. |
+| `SENTRY_REPLAYS_ONERROR_SAMPLE_RATE` | client init (legacy) | Pre-#1222 single rate. Honoured as the **mobile** default when the new vars are absent; otherwise ignored. Will be removed once existing deploys have migrated. |
 
 The precedence inside `loadSentryConfig()` is:
 
@@ -184,6 +186,52 @@ more log lines. To pivot:
    etc.
 3. Cross-reference with the `domain.scope` table in
    [`payment-incidents.md`](payment-incidents.md) for what each scope means.
+
+## Session Replay (on-error) — #1222
+
+### Where to find it
+
+Every browser error captured by Sentry comes with a Replay attached when sampling kicks in. From an issue page:
+
+1. Open the issue → **Replays** tab (top of the page, next to **Events** / **Tags**).
+2. The first replay listed is the one that matches the most recent event. The DOM is paused at the moment of the error; scrub backwards in the timeline to see the user actions that led to it.
+3. If the tab is empty, the replay either wasn't sampled (rate < 1.0) or it's still uploading — wait 60 s and refresh.
+
+### Rates
+
+UA-aware (mobile is the priority surface per AGENTS.md):
+
+| UA class | Default rate | Env override |
+|----------|--------------|--------------|
+| Mobile (Android, iPhone, iPad, iPadOS desktop-mode) | **0.50** | `SENTRY_REPLAYS_ONERROR_SAMPLE_RATE_MOBILE` |
+| Desktop (everything else)                            | **0.25** | `SENTRY_REPLAYS_ONERROR_SAMPLE_RATE_DESKTOP` |
+
+The classifier lives in [`src/lib/sentry/replay-sample-rate.ts`](../../src/lib/sentry/replay-sample-rate.ts) — pure function, fully tested. Both rates clamp to `[0, 1]`, so a typo in `.env` (`50` instead of `0.5`) won't crash the SDK but does become "always sample" until corrected.
+
+### Privacy posture
+
+Replay is configured with **paranoid defaults**:
+
+- `maskAllText: true` — every text node is replaced with a placeholder rectangle in the recorded DOM. Names, addresses, emails, free-text comments — none of them survive into the replay.
+- `blockAllMedia: true` — `<img>`, `<svg>`, `<video>`, `<picture>`, `<audio>` are blocked. Product photos, vendor logos, etc. don't end up on Sentry's storage.
+- **Stripe Elements** (card number, CVV, IBAN inputs) live in a cross-origin iframe, which Sentry Replay **cannot record across origins by browser-policy**. Card data never enters the recorded DOM regardless of `maskAllText`.
+
+The PII scrubber (`beforeSend`) runs on the **error event itself** — message, breadcrumbs, exception values. Replay payloads go through Sentry's own server-side processing; the same DSN-level data-scrubbing rules apply.
+
+### Incident response — bumping the rate
+
+If you're investigating an active incident and want every error replayed, bump the env var on the running container without redeploy is impossible (`process.env` is read at SDK init), but you can set it for the next deploy:
+
+```bash
+sudo install -m 600 /dev/stdin /etc/raizdirecta/app.env <<EOF
+... existing vars ...
+SENTRY_REPLAYS_ONERROR_SAMPLE_RATE_MOBILE=1
+SENTRY_REPLAYS_ONERROR_SAMPLE_RATE_DESKTOP=1
+EOF
+sudo systemctl restart raizdirecta-app   # or `npm run deploy:prod`
+```
+
+After the incident, revert to defaults — replay storage is metered.
 
 ## PII scrubber
 
