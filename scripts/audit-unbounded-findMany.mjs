@@ -78,6 +78,11 @@ const FILE_ALLOWLIST = new Map([
   // Settlement runs over a vendor's full month. Bounded by date filter.
   ['src/domains/payments/settle.ts',                       'settlement period is bounded by date filter'],
   ['src/domains/payments/reconcile.ts',                    'reconcile walks the unprocessed webhook tail'],
+
+  // Audit log facets — distinct() over actorRole/entityType/action.
+  // Each enum is low-cardinality (≤ ~10 values) and bounded by the
+  // domain, not by user-paged data.
+  ['src/domains/admin/audit-log.ts',                       'distinct() over low-cardinality enums for filter dropdowns'],
 ])
 
 function walk(dir) {
