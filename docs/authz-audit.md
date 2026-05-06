@@ -51,6 +51,19 @@ Verified 2026-04-18 as part of issue #310. Route-level gating (`src/lib/auth-con
 
 This list is the contract. Adding a new User-owned model that is order-tied (e.g. invoices, support tickets, downloadable assets) MUST also declare `onDelete: Restrict` on its `userId` / `customerId` FK; a new PII-bearing satellite (push, oauth, social link, preference cache) MUST be added to the transaction in `route.ts` and a row-count assertion appended to `account-erase-coverage.test.ts`.
 
+### Admin queries: explicit `select` (#1351)
+
+`db.X.findMany({ include: { Y: true } })` inside `src/domains/admin/` is a PII over-exposure vector — the entire related row (every column, including phone / email / line2) leaves the server on every list render. Use `include: { Y: { select: { ... } } }` and name only the columns the UI actually renders.
+
+Live trims after #1351:
+
+| Loader | Relation | Columns kept | Reason |
+|--------|----------|--------------|--------|
+| `getAdminOrdersPageData` (`src/domains/admin/orders.ts`) | `address` | `city`, `province`, `postalCode`, `country` | Detail panel reads `shippingAddressSnapshot` (Json) for full PII |
+| `getProducersOverview` (`src/domains/admin/producers.ts`) | `user` | `id`, `email` | Email loaded server-side for the search filter (Set-by-id) but stripped from `EnrichedProducer` before crossing the wire |
+
+CI guard: [`scripts/audit-admin-explicit-select.mjs`](../scripts/audit-admin-explicit-select.mjs) fails the build on any new `address: true` / `customer: true` / `user: true` / `incidents: true` inside `src/domains/admin/`. When you add a new admin loader, declare the columns the UI renders and add a row to the table above.
+
 ### Admin search audit (#1353)
 
 `getAdminOrdersPageData` accepts a free-text `q` filter that legitimately matches `orderNumber` / vendor name / product name BUT also lets an admin enumerate the customer base by typing `@gmail.com` / `+346…` / `28010`. Without an audit trail this is a stalking vector AND a data-extraction vector with no forensic record.

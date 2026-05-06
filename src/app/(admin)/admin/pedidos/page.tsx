@@ -457,10 +457,26 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
                     <div className="text-sm text-[var(--foreground-soft)]">
                       {selectedOrderAddress ? (
                         <>
-                          <p>{selectedOrderAddress.firstName} {selectedOrderAddress.lastName}</p>
-                          <p>{selectedOrderAddress.line1}{selectedOrderAddress.line2 ? `, ${selectedOrderAddress.line2}` : ''}</p>
+                          {/* #1351 — `selectedOrderAddress` is either the
+                              full snapshot (firstName/lastName/line1/
+                              line2/phone present) or the trimmed
+                              fallback from the list query (city /
+                              province / postalCode / country only).
+                              Optional chaining + conditional render
+                              keeps both shapes valid. */}
+                          {'firstName' in selectedOrderAddress && (
+                            <p>{selectedOrderAddress.firstName} {selectedOrderAddress.lastName}</p>
+                          )}
+                          {'line1' in selectedOrderAddress && (
+                            <p>{selectedOrderAddress.line1}{selectedOrderAddress.line2 ? `, ${selectedOrderAddress.line2}` : ''}</p>
+                          )}
                           <p>{selectedOrderAddress.postalCode} {selectedOrderAddress.city}, {selectedOrderAddress.province}</p>
-                          <p>{selectedOrderCountry}{selectedOrderAddress.phone ? ` · ${selectedOrderAddress.phone}` : ''}</p>
+                          <p>
+                            {selectedOrderCountry}
+                            {'phone' in selectedOrderAddress && selectedOrderAddress.phone
+                              ? ` · ${selectedOrderAddress.phone}`
+                              : ''}
+                          </p>
                         </>
                       ) : (
                         <p className="text-[var(--muted)]">{t('admin.orders.noAddress')}</p>

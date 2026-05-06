@@ -37,7 +37,14 @@ export interface EnrichedProducer {
   id: string
   slug: string
   displayName: string
-  email: string
+  /**
+   * #1351 — list view never renders the producer email anymore (PII
+   * minimization). The detail page (admin/productores/[id]) is the
+   * only legitimate consumer; until that page lands a separate
+   * loader, `email` stays optional + always-undefined here so the
+   * list shape is preserved without leaking.
+   */
+  email?: string
   status: VendorStatus
   description: string | null
   location: string | null
