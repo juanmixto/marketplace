@@ -6,9 +6,13 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 
+// #1284 — same bound as the API-side schemas (auth/reset-password,
+// buyers/password). Caps the bcrypt input.
+const PASSWORD_MAX = 200
+
 const resetSchema = z.object({
-  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
-  confirmPassword: z.string().min(8),
+  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres').max(PASSWORD_MAX),
+  confirmPassword: z.string().min(8).max(PASSWORD_MAX),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Las contraseñas no coinciden',
   path: ['confirmPassword'],

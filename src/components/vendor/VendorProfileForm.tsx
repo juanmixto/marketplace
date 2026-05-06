@@ -39,7 +39,7 @@ const IMAGE_ALT_MAX = 200
 
 function buildProfileSchema(t: ReturnType<typeof useT>) {
   const imageFieldSchema = z
-    .union([z.string(), z.literal(''), z.undefined()])
+    .union([z.string().max(2048), z.literal(''), z.undefined()])
     .transform(v => (v ?? '').trim())
     .refine(
       v => v === '' || isAllowedImageUrl(v),

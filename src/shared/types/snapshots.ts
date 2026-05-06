@@ -17,31 +17,42 @@ import { z } from 'zod'
  * discriminant existed) parseable as v1.
  */
 
+// #1284 — bounds match the source-of-truth column constraints in
+// `prisma/schema.prisma` and the input schemas in
+// `src/shared/types/products.ts`. Adding bounds at read time means a
+// historical row that somehow grew past the original write-time
+// validator (column-level expansion, manual SQL edit) still fails
+// loudly here instead of silently rendering megabytes of unbounded
+// JSON into an admin UI.
 const orderLineSnapshotV1Schema = z.object({
   version: z.literal(1).default(1),
-  id: z.string().min(1),
-  name: z.string().min(1),
-  slug: z.string().min(1),
-  images: z.array(z.string()),
-  unit: z.string().min(1),
-  vendorName: z.string().min(1),
-  variantName: z.string().nullable().optional(),
+  id: z.string().min(1).max(64),
+  name: z.string().min(1).max(200),
+  slug: z.string().min(1).max(200),
+  images: z.array(z.string().max(2048)).max(20),
+  unit: z.string().min(1).max(32),
+  vendorName: z.string().min(1).max(200),
+  variantName: z.string().max(200).nullable().optional(),
 })
 
 export const orderLineSnapshotSchema = orderLineSnapshotV1Schema
 
 export type OrderLineSnapshot = z.infer<typeof orderLineSnapshotSchema>
 
+// #1284 — bounds match `domains/auth/buyer-address-schema.ts` (the
+// write-side validator) so a snapshot can never carry a value the
+// live form would have rejected. line1/line2/phone capped slightly
+// above the form to absorb legacy rows.
 const orderAddressSnapshotV1Schema = z.object({
   version: z.literal(1).default(1),
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
-  line1: z.string().min(1),
-  line2: z.string().nullable().optional(),
-  city: z.string().min(1),
-  province: z.string().min(1),
-  postalCode: z.string().min(1),
-  phone: z.string().nullable().optional(),
+  firstName: z.string().min(1).max(80),
+  lastName: z.string().min(1).max(80),
+  line1: z.string().min(1).max(200),
+  line2: z.string().max(200).nullable().optional(),
+  city: z.string().min(1).max(120),
+  province: z.string().min(1).max(120),
+  postalCode: z.string().min(1).max(20),
+  phone: z.string().max(40).nullable().optional(),
 })
 
 export const orderAddressSnapshotSchema = orderAddressSnapshotV1Schema

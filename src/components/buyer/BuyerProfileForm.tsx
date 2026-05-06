@@ -13,10 +13,15 @@ import { trackAnalyticsEvent } from '@/lib/analytics'
 
 const profileSchemaShape = profileBaseSchema
 
+// #1284 — passwords are bcrypt-hashed (60 chars) but the input form
+// must reject pathologically long submissions before they reach
+// hashing. 200 is generous for a passphrase + safe for memory.
+const PASSWORD_MAX = 200
+
 const passwordSchemaShape = z.object({
-  currentPassword: z.string().min(1),
-  newPassword: z.string().min(8),
-  confirmPassword: z.string(),
+  currentPassword: z.string().min(1).max(PASSWORD_MAX),
+  newPassword: z.string().min(8).max(PASSWORD_MAX),
+  confirmPassword: z.string().max(PASSWORD_MAX),
 })
 
 function buildSchemas(t: (key: TranslationKeys) => string) {
@@ -33,9 +38,9 @@ function buildSchemas(t: (key: TranslationKeys) => string) {
   })
 
   const passwordSchema = z.object({
-    currentPassword: z.string().min(1, t('account.profileCurrentPasswordRequired')),
-    newPassword: z.string().min(8, t('account.profileMin8')),
-    confirmPassword: z.string(),
+    currentPassword: z.string().min(1, t('account.profileCurrentPasswordRequired')).max(PASSWORD_MAX),
+    newPassword: z.string().min(8, t('account.profileMin8')).max(PASSWORD_MAX),
+    confirmPassword: z.string().max(PASSWORD_MAX),
   }).refine(data => data.newPassword === data.confirmPassword, {
     message: t('account.profilePasswordsDontMatch'),
     path: ['confirmPassword'],

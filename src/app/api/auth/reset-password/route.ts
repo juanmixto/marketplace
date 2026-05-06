@@ -5,9 +5,10 @@ import { completePasswordReset, validatePasswordResetToken } from '@/domains/aut
 import { logger } from '@/lib/logger'
 
 const schema = z.object({
-  token: z.string().min(1, 'Token requerido'),
+  // #1284 — token is HMAC-signed, fixed-shape; cap at 500 to be safe.
+  token: z.string().min(1, 'Token requerido').max(500),
   password: z.string().min(8, 'Mínimo 8 caracteres').max(100),
-  passwordConfirm: z.string(),
+  passwordConfirm: z.string().max(100),
 }).refine(data => data.password === data.passwordConfirm, {
   message: 'Las contraseñas no coinciden',
   path: ['passwordConfirm'],
