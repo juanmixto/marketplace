@@ -146,6 +146,17 @@ enum CommissionType {
   TIERED
 }
 
+// #966 — who absorbs a refund: the platform itself (PLATFORM, e.g.
+// goodwill / fraud charge-off) or the vendor (VENDOR, deducted from
+// their next settlement). Used by `Refund.fundedBy` (NOT NULL) and
+// `Incident.fundedBy` (nullable while the incident is OPEN, set on
+// resolve). Replaces the prior `String` columns whose values were
+// already constrained to these two literals at the Zod / route layer.
+enum FundedBy {
+  PLATFORM
+  VENDOR
+}
+
 enum PromotionKind {
   PERCENTAGE
   FIXED_AMOUNT
@@ -876,7 +887,7 @@ model Refund {
   paymentId   String
   amount      Decimal  @db.Decimal(10, 2)
   reason      String
-  fundedBy    String
+  fundedBy    FundedBy
   providerRef String?  @unique
   createdAt   DateTime @default(now())
 
@@ -896,7 +907,7 @@ model Incident {
   description  String              @db.Text
   attachments  String[]            @default([])
   resolution   IncidentResolution?
-  fundedBy     String?
+  fundedBy     FundedBy?
   refundAmount Decimal?            @db.Decimal(10, 2)
   internalNote String?             @db.Text
   slaDeadline  DateTime

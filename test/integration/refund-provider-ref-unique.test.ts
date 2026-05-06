@@ -52,7 +52,7 @@ test('Refund.providerRef rejects duplicates with P2002', async () => {
       paymentId: payment.id,
       amount: '5.00',
       reason: 'requested_by_customer',
-      fundedBy: 'platform',
+      fundedBy: 'PLATFORM',
       providerRef,
     },
   })
@@ -64,7 +64,7 @@ test('Refund.providerRef rejects duplicates with P2002', async () => {
           paymentId: payment.id,
           amount: '5.00',
           reason: 'requested_by_customer',
-          fundedBy: 'platform',
+          fundedBy: 'PLATFORM',
           providerRef,
         },
       }),
@@ -109,7 +109,7 @@ test('Refund.providerRef allows multiple NULL values (Postgres UNIQUE semantics)
       paymentId: payment.id,
       amount: '1.00',
       reason: 'manual',
-      fundedBy: 'platform',
+      fundedBy: 'PLATFORM',
       providerRef: null,
     },
   })
@@ -118,7 +118,7 @@ test('Refund.providerRef allows multiple NULL values (Postgres UNIQUE semantics)
       paymentId: payment.id,
       amount: '1.00',
       reason: 'manual',
-      fundedBy: 'platform',
+      fundedBy: 'PLATFORM',
       providerRef: null,
     },
   })
