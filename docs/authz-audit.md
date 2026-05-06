@@ -51,6 +51,18 @@ Verified 2026-04-18 as part of issue #310. Route-level gating (`src/lib/auth-con
 
 This list is the contract. Adding a new User-owned model that is order-tied (e.g. invoices, support tickets, downloadable assets) MUST also declare `onDelete: Restrict` on its `userId` / `customerId` FK; a new PII-bearing satellite (push, oauth, social link, preference cache) MUST be added to the transaction in `route.ts` and a row-count assertion appended to `account-erase-coverage.test.ts`.
 
+### Admin search audit (#1353)
+
+`getAdminOrdersPageData` accepts a free-text `q` filter that legitimately matches `orderNumber` / vendor name / product name BUT also lets an admin enumerate the customer base by typing `@gmail.com` / `+346…` / `28010`. Without an audit trail this is a stalking vector AND a data-extraction vector with no forensic record.
+
+`auditAdminSearch` ([`src/domains/admin/search-pii.ts`](../src/domains/admin/search-pii.ts)) classifies the input as `email` / `phone` / `postal` / `free-text` and:
+
+- For PII inputs, writes one `AuditLog` row with `action='DATA_SEARCH'`, `entityType='<scope>'`, `entityId=sha256(q)`, `after={qHash, kind, matchedCount}`. The literal email / phone / CP NEVER lands in the audit table — only the hash, so a forensic investigator who already suspects a value can confirm the match without the audit table itself becoming a PII surface.
+- Free-text inputs are not audited (orderNumber is not personal data).
+- Emits `admin.search.pii_burst` (logger.warn) when the actor crosses 20 PII searches in 10 minutes — that's the signal PostHog/Sentry alerts watch.
+
+When you add a new admin search surface (vendors, products, incidents), call `auditAdminSearch({ scope, actorId, actorRole, query, matchedCount })` from the loader. Test contract: [`test/integration/admin-search-pii-audit.test.ts`](../test/integration/admin-search-pii-audit.test.ts).
+
 ### Admin mutation rate limits (#1352)
 
 Authz alone does not prevent a *legitimate* admin from running away — a stolen cookie, a misconfigured CRON, or an automation gone wrong all look like real signed sessions to `requireOpsAdmin`. `enforceAdminMutationRateLimit` ([`src/domains/admin/rate-limit.ts`](../src/domains/admin/rate-limit.ts)) is the second layer.
