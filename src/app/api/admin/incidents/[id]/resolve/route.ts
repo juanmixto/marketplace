@@ -10,6 +10,10 @@ import { logger } from '@/lib/logger'
 import { AlreadyProcessedError, withIdempotency } from '@/lib/idempotency'
 import { createAuditLog, getAuditRequestIp } from '@/lib/audit'
 import { zCuid } from '@/lib/validation/primitives'
+import {
+  enforceAdminMutationRateLimit,
+  AdminMutationRateLimitError,
+} from '@/domains/admin/rate-limit'
 
 // `z.coerce.number()` happily coerces "abc" to NaN; the downstream guards
 // `refundAmount > 0` and `refundAmount > Number(payment.amount)` are then
@@ -61,6 +65,29 @@ export async function POST(request: Request, { params }: RouteParams) {
   const session = await getActionSession()
   if (!session || !isFinanceAdminRole(session.user.role)) {
     return NextResponse.json({ message: 'No autorizado' }, { status: 403 })
+  }
+
+  // #1352: refund operations are direct money movement — keep the
+  // bucket strict (5/min/admin). Catches the runaway-loop scenario
+  // a stolen admin cookie would use to drain the platform.
+  try {
+    await enforceAdminMutationRateLimit({
+      scope: 'incident-resolve',
+      actorId: session.user.id,
+      limit: 5,
+      windowSeconds: 60,
+    })
+  } catch (err) {
+    if (err instanceof AdminMutationRateLimitError) {
+      return NextResponse.json(
+        { message: err.message },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(err.retryAfterSeconds) },
+        },
+      )
+    }
+    throw err
   }
 
   const idempotencyKey = request.headers.get('idempotency-key')

@@ -51,6 +51,22 @@ Verified 2026-04-18 as part of issue #310. Route-level gating (`src/lib/auth-con
 
 This list is the contract. Adding a new User-owned model that is order-tied (e.g. invoices, support tickets, downloadable assets) MUST also declare `onDelete: Restrict` on its `userId` / `customerId` FK; a new PII-bearing satellite (push, oauth, social link, preference cache) MUST be added to the transaction in `route.ts` and a row-count assertion appended to `account-erase-coverage.test.ts`.
 
+### Admin mutation rate limits (#1352)
+
+Authz alone does not prevent a *legitimate* admin from running away — a stolen cookie, a misconfigured CRON, or an automation gone wrong all look like real signed sessions to `requireOpsAdmin`. `enforceAdminMutationRateLimit` ([`src/domains/admin/rate-limit.ts`](../src/domains/admin/rate-limit.ts)) is the second layer.
+
+Live limits per actor and scope:
+
+| Mutation | Scope key | Limit | Window |
+|----------|-----------|-------|--------|
+| `approveVendor` / `rejectVendor` / `suspendVendor` | `vendor-moderation` | 30 | 60 s |
+| `reviewProduct` (approve/reject) / `suspendProduct` | `product-moderation` | 30 | 60 s |
+| `POST /api/admin/incidents/[id]/resolve` (refunds) | `incident-resolve` | 5 | 60 s |
+
+Refunds intentionally use the strictest bucket — that surface is direct money movement. The 80%-warning event (`admin.mutation.rate_warning`) fires before the actual 429 so PostHog/Sentry alerts can catch a runaway loop one warning before it becomes user-visible. See [`test/integration/admin-mutation-rate-limit.test.ts`](../test/integration/admin-mutation-rate-limit.test.ts) for the contract.
+
+When you add a new admin mutation that mutates state visible to vendors / customers / money — do NOT skip this guard. The audit trail (`mutateWithAudit`) is forensic, not preventive; the rate limit is what stops a 1000-rps loop from completing.
+
 ## Audit results (2026-04-18)
 
 Systematic sweep of `src/domains/*/actions.ts`, `src/app/api/**/route.ts`, and dynamic-segment `page.tsx` files under protected route groups. **No gaps.** Every sensitive mutation:
