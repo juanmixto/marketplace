@@ -22,6 +22,11 @@ import { isVendor } from '@/lib/roles'
 import { isAllowedImageUrl } from '@/lib/image-validation'
 import { deleteBlobs, diffRemovedUrls } from '@/lib/blob-storage'
 import { withIdempotency } from '@/lib/idempotency'
+import {
+  encryptBankAccountName,
+  encryptIban,
+  ibanLast4,
+} from '@/domains/vendors/bank-crypto'
 import { PRODUCT_IMAGE_ALT_MAX } from '@/shared/types/products'
 import { zSafeText } from '@/lib/validation/primitives'
 // eslint-disable-next-line no-restricted-imports -- Telegram bootstrap is server-only and intentionally excluded from the notifications barrel
@@ -1420,9 +1425,40 @@ export async function updateVendorProfile(input: z.input<typeof profileSchema>) 
   const previousLogo = vendor.logo ?? null
   const previousCover = vendor.coverImage ?? null
 
+  // #1347 — at-rest encryption of IBAN + bank-account name. Translate
+  // the form payload into the encrypted columns before it touches the
+  // DB. Empty string means "clear"; undefined means "no change to
+  // these fields". The plaintext columns are deliberately written
+  // back as `null` on every IBAN-touching update — the dual-column
+  // state exists only for the duration of the backfill window.
+  const { iban, bankAccountName, ...rest } = data
+  const writeData: Prisma.VendorUpdateInput = { ...rest }
+  if (iban !== undefined) {
+    const trimmed = iban.replace(/\s+/g, '').trim()
+    if (trimmed.length === 0) {
+      writeData.iban = null
+      writeData.ibanEncrypted = null
+      writeData.ibanLast4 = null
+    } else {
+      writeData.iban = null
+      writeData.ibanEncrypted = encryptIban(trimmed)
+      writeData.ibanLast4 = ibanLast4(trimmed)
+    }
+  }
+  if (bankAccountName !== undefined) {
+    const trimmed = bankAccountName.trim()
+    if (trimmed.length === 0) {
+      writeData.bankAccountName = null
+      writeData.bankAccountNameEncrypted = null
+    } else {
+      writeData.bankAccountName = null
+      writeData.bankAccountNameEncrypted = encryptBankAccountName(trimmed)
+    }
+  }
+
   const updated = await db.vendor.update({
     where: { id: vendor.id },
-    data,
+    data: writeData,
   })
 
   // Each field is a single URL (or null), but we still funnel through

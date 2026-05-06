@@ -34,7 +34,7 @@ export default async function VendorDashboardPage() {
   const setupSteps: Array<{ key: string; labelKey: TranslationKeys; done: boolean }> = [
     { key: 'profile', labelKey: 'vendor.dashboard.stepProfile', done: !!(vendor.description && vendor.location) },
     { key: 'product', labelKey: 'vendor.dashboard.stepProduct', done: vendor.products.length > 0 },
-    { key: 'bank',    labelKey: 'vendor.dashboard.stepBank',    done: !!vendor.iban },
+    { key: 'bank',    labelKey: 'vendor.dashboard.stepBank',    done: !!(vendor.ibanEncrypted || vendor.iban) },
   ]
   const setupDone = setupSteps.filter(s => s.done).length
   const isNew = setupDone < 3

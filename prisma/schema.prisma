@@ -276,31 +276,42 @@ model VerificationToken {
 // ─── Catalog ──────────────────────────────────────────────────────────────────
 
 model Vendor {
-  id              String          @id @default(cuid())
-  userId          String          @unique
-  slug            String          @unique
-  displayName     String
-  description     String?         @db.Text
-  logo            String?
-  logoAlt         String?
-  coverImage      String?
-  coverImageAlt   String?
-  location        String?
-  category        VendorCategory?
-  status          VendorStatus    @default(APPLYING)
+  id                       String          @id @default(cuid())
+  userId                   String          @unique
+  slug                     String          @unique
+  displayName              String
+  description              String?         @db.Text
+  logo                     String?
+  logoAlt                  String?
+  coverImage               String?
+  coverImageAlt            String?
+  location                 String?
+  category                 VendorCategory?
+  status                   VendorStatus    @default(APPLYING)
   // CHECK("commissionRate" >= 0 AND "commissionRate" <= 1) lives in the
   // 20260504180000 migration (#967). Prisma DSL has no native CHECK, so
   // the constraint is declared in SQL and enforced by Postgres on every
   // write — code-side validation is belt-and-braces.
-  commissionRate  Decimal         @default(0.12) @db.Decimal(5, 4)
-  avgRating       Decimal?        @db.Decimal(3, 2)
-  totalReviews    Int             @default(0)
-  orderCutoffTime String?
-  preparationDays Int?            @default(2)
-  iban            String?
-  bankAccountName String?
-  stripeAccountId String?         @unique
-  stripeOnboarded Boolean         @default(false)
+  commissionRate           Decimal         @default(0.12) @db.Decimal(5, 4)
+  avgRating                Decimal?        @db.Decimal(3, 2)
+  totalReviews             Int             @default(0)
+  orderCutoffTime          String?
+  preparationDays          Int?            @default(2)
+  // #1347 — at-rest crypto migration (epic #1346 PII pre-launch).
+  // `iban` + `bankAccountName` stay as transient plaintext columns
+  // until the backfill in `scripts/migrate-vendor-iban-encrypt.ts`
+  // runs and a follow-up migration drops them. New writes go to the
+  // *Encrypted columns; reads prefer encrypted with fallback to plain
+  // during the transition. `ibanLast4` is intentionally unencrypted
+  // (4 digits is not regulated PII on its own) so list pages can
+  // render `**** 1234` without per-row crypto.
+  iban                     String?
+  ibanEncrypted            String?
+  ibanLast4                String?
+  bankAccountName          String?
+  bankAccountNameEncrypted String?
+  stripeAccountId          String?         @unique
+  stripeOnboarded          Boolean         @default(false)
 
   // Phase 4 PR-E — ghost-vendor claim. Populated only when this
   // Vendor was created by Telegram ingestion (owned by a ghost
@@ -317,12 +328,12 @@ model Vendor {
   // bump the quota for high-volume producers without code changes.
   // Decrement is best-effort via the orphan-blob sweep — short-term
   // drift is acceptable, the UX is "contact admin to clean up".
-  storageBytesUsed   BigInt    @default(0)
-  storageQuotaBytes  BigInt    @default(524288000)
+  storageBytesUsed  BigInt @default(0)
+  storageQuotaBytes BigInt @default(524288000)
   // #1279: per-vendor cap on simultaneously-active products. Prevents
   // a single compromised account from spamming the catalog. Default
   // is generous for an artisan producer; admins can bump per-vendor.
-  maxProductsActive  Int       @default(50)
+  maxProductsActive Int    @default(50)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -747,17 +758,17 @@ model ShipmentEvent {
 }
 
 model OrderEvent {
-  id        String   @id @default(cuid())
-  orderId   String
-  actorId   String?
-  type      String
+  id            String   @id @default(cuid())
+  orderId       String
+  actorId       String?
+  type          String
   // Payload schema version (#965). Bump in code when the shape of
   // `payload` changes for a given `type`, so historical reports can
   // parse old rows with the matching reader. See
   // src/domains/orders/order-events.ts for the typed enum + readers.
-  schemaVersion Int   @default(1)
-  payload   Json?
-  createdAt DateTime @default(now())
+  schemaVersion Int      @default(1)
+  payload       Json?
+  createdAt     DateTime @default(now())
 
   order Order @relation(fields: [orderId], references: [id])
 
@@ -817,14 +828,14 @@ model WebhookDeadLetter {
 // ─── Payments ─────────────────────────────────────────────────────────────────
 
 model Payment {
-  id          String        @id @default(cuid())
-  orderId     String
-  provider    String        @default("stripe")
-  providerRef String?       @unique
-  amount      Decimal       @db.Decimal(10, 2)
-  currency    String        @default("EUR")
-  status      PaymentStatus @default(PENDING)
-  metadata    Json?
+  id                String        @id @default(cuid())
+  orderId           String
+  provider          String        @default("stripe")
+  providerRef       String?       @unique
+  amount            Decimal       @db.Decimal(10, 2)
+  currency          String        @default("EUR")
+  status            PaymentStatus @default(PENDING)
+  metadata          Json?
   // Watermark for out-of-order webhook delivery (#959). Mirrors the
   // pattern on Subscription.lastStripeEventAt: the handler drops any
   // event whose `event.created` is older than this value, so a late
@@ -833,8 +844,8 @@ model Payment {
   // transition; concurrent handlers for the same eventId are still
   // deduped upstream by WebhookDelivery(provider, eventId).
   lastStripeEventAt DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
   order   Order    @relation(fields: [orderId], references: [id])
   refunds Refund[]
@@ -1206,15 +1217,15 @@ model UserTwoFactor {
 // ─── Push Notifications ──────────────────────────────────────────────────────
 
 model PushSubscription {
-  id        String   @id @default(cuid())
-  userId    String
-  endpoint  String   @unique
-  p256dh    String   @db.Text
-  auth      String   @db.Text
-  userAgent String?
-  uaCategory String  @default("other")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  userId     String
+  endpoint   String   @unique
+  p256dh     String   @db.Text
+  auth       String   @db.Text
+  userAgent  String?
+  uaCategory String   @default("other")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

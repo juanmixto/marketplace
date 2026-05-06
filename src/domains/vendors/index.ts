@@ -1,6 +1,7 @@
 export * from './actions'
 export * from './apply'
 export * from './apply-schema'
+export * from './bank-crypto'
 export * from './brand-claims'
 export * from './onboarding'
 export * from './stripe'
