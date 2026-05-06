@@ -1,6 +1,7 @@
 import type { Prisma } from '@/generated/prisma/client'
 import type { FulfillmentStatus, IncidentStatus, OrderStatus, PaymentStatus } from '@/generated/prisma/enums'
 import { requireAdmin } from '@/lib/auth-guard'
+import { auditAdminSearch } from './search-pii'
 
 export interface AdminOrderFilters {
   q?: string
@@ -67,7 +68,7 @@ export async function getAdminOrdersPageData(filters: AdminOrderFilters) {
   // Defense in depth: the /admin/* gate in src/proxy.ts already blocks
   // non-admins, but this loader is plain code and could be imported from
   // anywhere. Guard locally so a future caller can never bypass the gate.
-  await requireAdmin()
+  const session = await requireAdmin()
   const { db } = await import('@/lib/db')
   const where = buildOrderWhere(filters)
   const pageSize = Math.min(Math.max(filters.pageSize ?? 24, 1), 100)
@@ -149,6 +150,22 @@ export async function getAdminOrdersPageData(filters: AdminOrderFilters) {
       _avg: { grandTotal: true },
     }),
   ])
+
+  // #1353 — admins can search the orders page by email / phone /
+  // postal code. Without an audit trail, an operator (or a stolen
+  // session) can browse the customer base by typing literal PII into
+  // the same input that legitimately accepts orderNumber. Hash-only
+  // audit so the audit table itself doesn't carry plaintext PII.
+  const trimmedQuery = filters.q?.trim()
+  if (trimmedQuery) {
+    await auditAdminSearch({
+      scope: 'admin-orders',
+      actorId: session.user.id,
+      actorRole: session.user.role,
+      query: trimmedQuery,
+      matchedCount: totalOrders,
+    })
+  }
 
   const statusCounts = orders.reduce<Record<string, number>>((acc, order) => {
     acc[order.status] = (acc[order.status] ?? 0) + 1
