@@ -103,7 +103,15 @@ export async function POST(req: NextRequest) {
   const eventType = `sendcloud.${payload.action ?? 'parcel_status_changed'}`
 
   try {
-    const result = await handleSendcloudWebhook(payload)
+    // #1335: payloadHash is the deterministic eventId. Identical bodies
+    // (Sendcloud retries on transient failure, replay tools, etc.)
+    // collapse to the same WebhookDelivery row.
+    const result = await handleSendcloudWebhook(payload, { eventId: payloadHash })
+    if (result.reason === 'duplicate') {
+      // True idempotent replay: no DLQ row, no warning. We already
+      // processed this exact payload once.
+      return NextResponse.json({ ok: true, skipped: 'duplicate' })
+    }
     if (!result.handled) {
       await recordSendcloudDeadLetter(result.reason ?? 'unhandled', {
         providerRef,
