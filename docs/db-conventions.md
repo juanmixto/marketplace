@@ -137,7 +137,16 @@ The CI guard in `audit-fk-onDelete.mjs` won't catch missing erase logic — it o
 
 GDPR Art. 32 + financial-data classification require AES-256-GCM at rest for IBAN, OAuth tokens, 2FA secrets, and any equivalent live credential. Plaintext columns leak into every backup, DB-tool screenshot, and replica.
 
-The pattern (see [`src/lib/at-rest-crypto.ts`](../src/lib/at-rest-crypto.ts) and [`src/domains/vendors/bank-crypto.ts`](../src/domains/vendors/bank-crypto.ts)):
+Live key domains (one per `keyDomain` argument; bump `:v2` for rotation):
+
+| Key domain | Column(s) | Issue |
+|------------|-----------|-------|
+| `user-two-factor:v1` | `UserTwoFactor.secretEncrypted` | #551 |
+| `vendor-iban:v1` | `Vendor.ibanEncrypted` | #1347 |
+| `vendor-bank-name:v1` | `Vendor.bankAccountNameEncrypted` | #1347 |
+| `oauth-token:v1` | `Account.refresh_token`, `Account.id_token` (in-place ciphertext) | #1349 |
+
+The pattern (see [`src/lib/at-rest-crypto.ts`](../src/lib/at-rest-crypto.ts), [`src/domains/vendors/bank-crypto.ts`](../src/domains/vendors/bank-crypto.ts) and [`src/domains/auth/oauth-token-crypto.ts`](../src/domains/auth/oauth-token-crypto.ts)):
 
 - One generalised primitive `encryptForStorage(plaintext, keyDomain)` / `decryptFromStorage(wire, keyDomain)`. Wire format `iv.ct.tag` (base64 dotted), tag length pinned to 16 bytes on encrypt and decrypt.
 - Each domain derives its OWN HKDF-SHA256 key from `AUTH_SECRET` via a unique `keyDomain` string (e.g. `'vendor-iban:v1'`, `'vendor-bank-name:v1'`). Domain separation means a leaked ciphertext class cannot decrypt another, and bumping `:v2` is the rotation hook.
@@ -145,6 +154,8 @@ The pattern (see [`src/lib/at-rest-crypto.ts`](../src/lib/at-rest-crypto.ts) and
 - Migration is dual-column for one release: add `*Encrypted` alongside the legacy plaintext column; new writes only touch the encrypted column and write the plaintext back to `null`; a backfill script (`scripts/migrate-vendor-iban-encrypt.ts` is the template) encrypts existing rows; a follow-up migration drops the plaintext columns once `count(*) WHERE plaintext_col IS NOT NULL` is 0 in prod.
 - Backfill scripts MUST refuse to start when `AUTH_SECRET` is missing or has the dev-fallback shape — running with the wrong key produces unrecoverable rows.
 - Tests assert the on-disk shape (`isStorageWireFormat(...)` + plaintext substring NOT in the JSON-stringified row) — round-trip alone is not enough, because round-trip succeeds even if you accidentally also keep the plaintext.
+
+For columns NextAuth's `PrismaAdapter` writes (`Account.refresh_token` / `id_token`), the dual-column window is unnecessary because no in-app code reads them — wrap the adapter's `linkAccount` to encrypt before write and reuse the existing columns as ciphertext storage. The override lives in [`src/lib/auth.ts`](../src/lib/auth.ts) `buildAdapter`. `Account.access_token` is intentionally written as `null` to remove an entire class of leak (we don't refresh it; JWT session strategy doesn't need it).
 
 ## 9. Status transitions are linted, not hand-waved
 
