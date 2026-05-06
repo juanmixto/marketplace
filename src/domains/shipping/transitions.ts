@@ -242,18 +242,19 @@ async function recomputeOrderStatus(orderId: string): Promise<void> {
   })
   if (fulfillments.length === 0) return
 
+  const allCancelled = fulfillments.every(f => f.status === 'CANCELLED')
   const anyShipped = fulfillments.some(f =>
     ['SHIPPED', 'DELIVERED'].includes(f.status),
   )
-  const allShipped = fulfillments.every(f =>
-    ['SHIPPED', 'DELIVERED', 'CANCELLED'].includes(f.status),
-  )
-  const allDelivered = fulfillments.every(f =>
-    ['DELIVERED', 'CANCELLED'].includes(f.status),
-  )
+  const nonCancelled = fulfillments.filter(f => f.status !== 'CANCELLED')
+  const allShipped = nonCancelled.length > 0 &&
+    nonCancelled.every(f => ['SHIPPED', 'DELIVERED'].includes(f.status))
+  const allDelivered = nonCancelled.length > 0 &&
+    nonCancelled.every(f => f.status === 'DELIVERED')
 
-  let next: 'PROCESSING' | 'PARTIALLY_SHIPPED' | 'SHIPPED' | 'DELIVERED' | null = null
-  if (allDelivered) next = 'DELIVERED'
+  let next: 'PROCESSING' | 'PARTIALLY_SHIPPED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | null = null
+  if (allCancelled) next = 'CANCELLED'
+  else if (allDelivered) next = 'DELIVERED'
   else if (allShipped) next = 'SHIPPED'
   else if (anyShipped) next = 'PARTIALLY_SHIPPED'
 
@@ -270,3 +271,10 @@ async function recomputeOrderStatus(orderId: string): Promise<void> {
     await db.order.update({ where: { id: orderId }, data: { status: next } })
   }
 }
+
+/**
+ * Public re-export so vendor- and admin-side actions that flip a single
+ * VendorFulfillment to CANCELLED can recompute the parent Order in the
+ * same call site. See #1336.
+ */
+export { recomputeOrderStatus as recomputeOrderStatusFromFulfillments }
