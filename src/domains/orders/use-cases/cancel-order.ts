@@ -3,6 +3,7 @@ import { logger } from '@/lib/logger'
 import { trackServer } from '@/lib/analytics.server'
 import { refundPaymentIntent } from '@/domains/payments'
 import { assertOrderTransition, canTransitionOrder } from '../state-machine'
+import { recordOrderEvent } from '../order-events'
 
 export type CancelOrderActor =
   | { type: 'ADMIN'; id: string }
@@ -157,13 +158,12 @@ export async function cancelOrderWithRefundPolicy(
         data: { status: 'CANCELLED' },
       })
       await cascadeAndRestoreStock(tx)
-      await tx.orderEvent.create({
-        data: {
-          orderId,
-          actorId: actor.id,
-          type: 'ORDER_CANCELLED',
-          payload: { reason, actor: actor.type },
-        },
+      await recordOrderEvent({
+        client: tx,
+        orderId,
+        actorId: actor.id,
+        type: 'ORDER_CANCELLED',
+        payload: { reason, actor: actor.type },
       })
     }, TX_OPTIONS)
 
@@ -216,21 +216,20 @@ export async function cancelOrderWithRefundPolicy(
       data: { status: 'REFUNDED', paymentStatus: 'REFUNDED' },
     })
     await cascadeAndRestoreStock(tx)
-    await tx.orderEvent.create({
-      data: {
-        orderId,
-        actorId: actor.id,
-        type: 'REFUND_ISSUED',
-        payload: {
-          providerRef: succeededPayment.providerRef,
-          providerRefundRef: refundResult.id,
-          amount: refundAmount,
-          fundedBy: 'PLATFORM',
-          reason,
-          actor: actor.type,
-          isFullRefund: true,
-          recordedAt: new Date().toISOString(),
-        },
+    await recordOrderEvent({
+      client: tx,
+      orderId,
+      actorId: actor.id,
+      type: 'REFUND_ISSUED',
+      payload: {
+        providerRef: succeededPayment.providerRef,
+        providerRefundRef: refundResult.id,
+        amount: refundAmount,
+        fundedBy: 'PLATFORM',
+        reason,
+        actor: actor.type,
+        isFullRefund: true,
+        recordedAt: new Date().toISOString(),
       },
     })
   }, TX_OPTIONS)
