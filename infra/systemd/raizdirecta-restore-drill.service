@@ -1,0 +1,50 @@
+[Unit]
+Description=raizdirecta.es — monthly DB restore drill (B2 dump → ephemeral Postgres → smoke queries)
+Documentation=https://github.com/juanmixto/marketplace/blob/main/docs/runbooks/db-restore.md
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+# Surface failures to the host's failure-reporting channel — the same
+# OnFailure handler used by cleanup-idempotency. Healthchecks.io picks
+# it up via HC_PING_FAILURE, then routes to Telegram. Lives in [Unit]
+# (not [Service]) per systemd grammar — that was a quiet bug in the
+# earlier `cleanup-idempotency.service` that fixed itself when systemd
+# learned to ignore the misplaced key.
+OnFailure=raizdirecta-host-cron-failed@%n.service
+
+[Service]
+Type=oneshot
+# Most env vars (B2_REMOTE, B2_BUCKET, MP_DUMP_PASSPHRASE_FILE, optional
+# HC_PING_RESTORE_DRILL, HC_PING_FAILURE) come from the shared host-cron
+# env file. Provision it by hand on the node — see install-host-crons.sh.
+EnvironmentFile=/etc/raizdirecta/host-cron.env
+# The script lives in the repo so updates land via deploy. The repo path
+# is hard-coded here because systemd env doesn't expand variables in
+# ExecStart.
+WorkingDirectory=/home/whisper/marketplace
+ExecStart=/home/whisper/marketplace/scripts/db/restore-drill.sh
+# Healthcheck ping (success). The drill takes minutes; keep the
+# Healthchecks ping URL in the env file so it can be rotated without
+# touching the unit. Optional — only fires when HC_PING_RESTORE_DRILL is
+# set.
+ExecStartPost=/bin/sh -c '[ -n "${HC_PING_RESTORE_DRILL:-}" ] && /usr/bin/curl --silent --max-time 10 "${HC_PING_RESTORE_DRILL}" || true'
+# The drill orchestrates a Docker container; bound the runtime so a
+# Postgres that wedges on startup can't keep the unit "running" forever.
+TimeoutStartSec=20min
+# Run as the unprivileged `whisper` user (same that owns docker access
+# via group membership and the host-cron env file).
+User=whisper
+Group=whisper
+SupplementaryGroups=docker
+# Hardening — the drill needs Docker, network egress, and tmp.
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+NoNewPrivileges=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+# `whisper`'s home holds the marketplace checkout; the script also writes
+# to a mktemp dir which PrivateTmp keeps isolated.
+ReadWritePaths=/home/whisper/marketplace
+
+[Install]
+WantedBy=multi-user.target

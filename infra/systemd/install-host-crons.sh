@@ -29,6 +29,8 @@ units=(
   raizdirecta-cleanup-idempotency.service
   raizdirecta-cleanup-idempotency.timer
   raizdirecta-host-cron-failed@.service
+  raizdirecta-restore-drill.service
+  raizdirecta-restore-drill.timer
 )
 
 echo "Installing host-cron units to $dst_dir..."
@@ -49,7 +51,15 @@ if [[ ! -f "$env_file" ]]; then
   CRON_SECRET=<same value as marketplaceprod app container>
   # Optional Healthchecks.io ping URLs. Leave empty to disable pings.
   HC_PING_CLEANUP_IDEMPOTENCY=
+  HC_PING_RESTORE_DRILL=
   HC_PING_FAILURE=
+  # B2 + dump passphrase config consumed by scripts/db/restore-drill.sh
+  # Required for the monthly restore drill — leave commented if you
+  # haven't provisioned B2 yet.
+  # B2_REMOTE=b2-mp
+  # B2_BUCKET=mp-dumps-eu
+  # B2_PREFIX=daily
+  # MP_DUMP_PASSPHRASE_FILE=/etc/raizdirecta/dump-passphrase
   EOF
 
 TEMPLATE
@@ -60,8 +70,12 @@ echo "Reloading systemd..."
 systemctl daemon-reload
 
 echo ""
-echo "Enabling timer..."
+echo "Enabling timers..."
 systemctl enable --now raizdirecta-cleanup-idempotency.timer
+# The restore drill timer enables but does NOT auto-fire on install;
+# the operator runs the service once by hand the first time to verify
+# the B2 + Docker plumbing before letting the cron own it.
+systemctl enable raizdirecta-restore-drill.timer
 
 echo ""
 systemctl list-timers raizdirecta-* --all --no-pager || true
@@ -70,3 +84,8 @@ echo ""
 echo "Done. To trigger immediately for smoke test:"
 echo "  sudo systemctl start raizdirecta-cleanup-idempotency.service"
 echo "  sudo journalctl -u raizdirecta-cleanup-idempotency.service -n 20 --no-pager"
+echo ""
+echo "Restore drill (only after B2_REMOTE / B2_BUCKET / MP_DUMP_PASSPHRASE_FILE"
+echo "are set in $env_file):"
+echo "  sudo systemctl start raizdirecta-restore-drill.service"
+echo "  sudo journalctl -u raizdirecta-restore-drill.service -n 200 --no-pager"
