@@ -259,6 +259,8 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
                 passwordHash: true,
                 consentAcceptedAt: true,
                 tokenVersion: true,
+                firstName: true,
+                lastName: true,
               },
             }),
           ])
@@ -272,6 +274,17 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           next.needsOnboarding = fresh
             ? fresh.passwordHash === null && fresh.consentAcceptedAt === null
             : false
+          // Populate token.name from firstName/lastName so UI surfaces
+          // (header, /cuenta) show the real name. Our schema has no
+          // `name` column; OIDC `name` may be unset depending on the
+          // provider's profile() callback or whether the row predates it.
+          if (fresh) {
+            const composed = [fresh.firstName, fresh.lastName]
+              .filter(Boolean)
+              .join(' ')
+              .trim()
+            if (composed) next.name = composed
+          }
         }
         return next
       }
