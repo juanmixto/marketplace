@@ -79,3 +79,42 @@ export function decryptVendorBankFields(input: {
     : input.bankAccountName
   return { iban, bankAccountName }
 }
+
+/**
+ * Translates a form-payload IBAN value (`undefined` / `''` / non-empty)
+ * into the partial Prisma update — plaintext column is always nulled
+ * out, encrypted column + last4 are populated only when there's a
+ * value to store. Returning `{}` when the field is absent leaves the
+ * existing row untouched (prisma update ignores missing keys).
+ */
+export function computeIbanColumns(value: string | undefined): {
+  iban?: null
+  ibanEncrypted?: string | null
+  ibanLast4?: string | null
+} {
+  if (value === undefined) return {}
+  const trimmed = value.replace(/\s+/g, '').trim()
+  if (trimmed.length === 0) {
+    return { iban: null, ibanEncrypted: null, ibanLast4: null }
+  }
+  return {
+    iban: null,
+    ibanEncrypted: encryptIban(trimmed),
+    ibanLast4: ibanLast4(trimmed),
+  }
+}
+
+export function computeBankNameColumns(value: string | undefined): {
+  bankAccountName?: null
+  bankAccountNameEncrypted?: string | null
+} {
+  if (value === undefined) return {}
+  const trimmed = value.trim()
+  if (trimmed.length === 0) {
+    return { bankAccountName: null, bankAccountNameEncrypted: null }
+  }
+  return {
+    bankAccountName: null,
+    bankAccountNameEncrypted: encryptBankAccountName(trimmed),
+  }
+}

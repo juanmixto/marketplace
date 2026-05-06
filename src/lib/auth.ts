@@ -22,6 +22,8 @@ import { logger } from '@/lib/logger'
 import { authorizeCredentials } from '@/domains/auth/credentials'
 // eslint-disable-next-line no-restricted-imports -- two-factor.ts is Prisma-backed and stays out of the auth barrel; src/lib/auth.ts consumes it for the OAuth has2fa lookup
 import { isTwoFactorEnabled } from '@/domains/auth/two-factor'
+// eslint-disable-next-line no-restricted-imports -- oauth-token-crypto is Prisma-adjacent; src/lib/auth.ts is the only consumer (NextAuth adapter)
+import { encryptLinkAccountPayload } from '@/domains/auth/oauth-token-crypto'
 
 applyNormalizedAuthHostEnv(process.env)
 
@@ -48,6 +50,31 @@ function buildAdapter(): Adapter {
   const base = PrismaAdapter(db) as Adapter
   return {
     ...base,
+    /**
+     * #1349 — at-rest encryption of OAuth tokens (epic #1346 PII).
+     * NextAuth calls `linkAccount` on the FIRST sign-in for an OAuth
+     * provider, persisting `refresh_token` / `access_token` /
+     * `id_token` in plaintext by default. We:
+     *   - drop `access_token` entirely (we don't refresh it; the
+     *     primary leak vector goes away).
+     *   - encrypt `refresh_token` and `id_token` so a DB dump or
+     *     replica leak doesn't hand the attacker live identity proof
+     *     and offline-access credentials.
+     *
+     * NB: NextAuth never re-reads these tokens with our JWT session
+     * strategy, so we don't need a matching `getAccount` decrypt
+     * override. If a future flow does (offline Google API access,
+     * Apple's no-email re-auth), wrap that read site in
+     * `decryptOauthToken` — never expose the encrypted columns
+     * outside `src/domains/auth`.
+     */
+    linkAccount: (async data => {
+      if (!base.linkAccount) {
+        throw new Error('PrismaAdapter is missing linkAccount — adapter version mismatch?')
+      }
+      const safe = encryptLinkAccountPayload(data)
+      await base.linkAccount(safe)
+    }) as Adapter['linkAccount'],
     async createUser(data) {
       const email = (data as { email?: string | null }).email ?? ''
       const name = (data as { name?: string | null }).name
