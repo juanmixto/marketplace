@@ -40,6 +40,7 @@
     "audit:webhook-cast": "node ./scripts/audit-webhook-cast.mjs",
     "audit:no-root-env": "node ./scripts/audit-no-root-env.mjs",
     "audit:order-status-transitions": "node ./scripts/audit-order-status-transitions.mjs",
+    "audit:admin-explicit-select": "node ./scripts/audit-admin-explicit-select.mjs",
     "audit:img-src": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/audit-img-src-usage.ts",
     "audit:deps": "npm audit --omit=dev --audit-level=high",
     "prisma:generate": "prisma generate",

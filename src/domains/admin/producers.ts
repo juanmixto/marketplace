@@ -97,6 +97,11 @@ export async function getProducersOverview(
     db.vendor.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
+        // #1351 — `user.email` is loaded server-side ONLY because the
+        // search filter below matches against it (admins legitimately
+        // search a producer by email). It is then dropped from
+        // `EnrichedProducer` before the mapper hands the page payload
+        // to the client, so the email never crosses the wire.
         user: { select: { id: true, email: true } },
         _count: { select: { products: true } },
       },
@@ -201,7 +206,9 @@ export async function getProducersOverview(
       id: v.id,
       slug: v.slug,
       displayName: v.displayName,
-      email: v.user.email,
+      // #1351 — email intentionally omitted from the list shape.
+      // EnrichedProducer.email is now optional; the detail page is
+      // the place to surface it.
       status: v.status,
       description: v.description,
       location: v.location,
@@ -222,12 +229,23 @@ export async function getProducersOverview(
   // Apply filter → sort → paginate server-side so the client only ever
   // deserialises the visible page (~20 rows) instead of the whole table.
   const searchLower = params.search.toLowerCase()
+  // #1351 — email matching stays server-side: build a Set of vendor
+  // IDs whose email matches, then filter `allEnriched` by id. Email
+  // never lands on the EnrichedProducer payload that crosses the wire.
+  const emailMatchingIds = new Set<string>()
+  if (searchLower) {
+    for (const v of vendors) {
+      if (v.user.email?.toLowerCase().includes(searchLower)) {
+        emailMatchingIds.add(v.id)
+      }
+    }
+  }
   const filtered = allEnriched.filter(p => {
     if (params.status !== 'ALL' && p.status !== params.status) return false
     if (!searchLower) return true
     return (
       p.displayName.toLowerCase().includes(searchLower) ||
-      p.email.toLowerCase().includes(searchLower) ||
+      emailMatchingIds.has(p.id) ||
       (p.location?.toLowerCase().includes(searchLower) ?? false)
     )
   })

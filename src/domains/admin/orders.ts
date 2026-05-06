@@ -82,7 +82,23 @@ export async function getAdminOrdersPageData(filters: AdminOrderFilters) {
       skip: (page - 1) * pageSize,
       include: {
         customer: { select: { firstName: true, lastName: true, email: true } },
-        address: true,
+        // #1351 — pre-#1351 the admin orders list shipped the FULL
+        // Address row (line1, line2, phone) over the wire on every
+        // tab render. The detail panel reads from
+        // `shippingAddressSnapshot` (Json) for the full PII; the
+        // list view only renders city / province / postalCode /
+        // country, so don't load the rest. Legacy orders without a
+        // snapshot lose phone+line2 in the detail panel — accepted
+        // UX degradation pre-launch (every Order written post-Phase-5
+        // has the snapshot; see src/shared/types/snapshots.ts).
+        address: {
+          select: {
+            city: true,
+            province: true,
+            postalCode: true,
+            country: true,
+          },
+        },
         lines: {
           include: {
             product: { select: { name: true, slug: true, unit: true, images: true } },
