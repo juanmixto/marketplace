@@ -17,6 +17,7 @@
  */
 
 import type { Event, EventHint } from '@sentry/nextjs'
+import { scrubPayload, scrubString } from '@/lib/scrubber'
 
 // Sentry's Request type is not publicly re-exported from @sentry/nextjs.
 // Re-declare the structural shape we touch — matches the Sentry SDK's
@@ -32,56 +33,8 @@ interface SentryRequest {
   env?: Record<string, string>
 }
 
-const REDACTED = '[redacted]'
-
-// Keys we match case-insensitively against Sentry event field names.
-const REDACT_KEY_PATTERN =
-  /(password|token|cookie|authorization|session|secret|apikey|api_key|clientsecret|client_secret|cardnumber|card_number|cvv|cvc|iban|bic|swift|phone|telefono|email|correo|address|direccion|postalcode|cp)/i
-
-// Value patterns — scrub inside any string, including URLs and free text.
-const EMAIL_PATTERN = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g
-// Intl phone: 6-15 digits, optional leading +, optional separators.
-const PHONE_PATTERN = /\+?\d[\d\s\-().]{5,14}\d/g
-// Stripe-style tokens: starts with pi_/ch_/cs_/sk_/pk_/evt_/in_/sub_/cus_ then 16+ chars.
-const STRIPE_TOKEN_PATTERN = /\b(pi|ch|cs|sk|pk|evt|in|sub|cus|seti|pm)_[A-Za-z0-9_]{14,}\b/g
-// Long bearer-ish tokens (JWTs, API keys).
-const LONG_TOKEN_PATTERN = /\b[A-Za-z0-9_-]{32,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+\b/g
-
-function scrubString(value: string): string {
-  return value
-    .replace(EMAIL_PATTERN, REDACTED)
-    .replace(LONG_TOKEN_PATTERN, REDACTED)
-    .replace(STRIPE_TOKEN_PATTERN, REDACTED)
-    .replace(PHONE_PATTERN, REDACTED)
-}
-
-/**
- * Deep-walk an object, scrubbing keys and values in place. Cycles are
- * tracked via a visited set so we never stack-overflow on self-referential
- * error payloads (Prisma's structured errors can have them).
- */
-export function scrubPayload<T>(input: T, visited = new WeakSet<object>()): T {
-  if (input == null) return input
-  if (typeof input === 'string') return scrubString(input) as unknown as T
-  if (typeof input !== 'object') return input
-
-  if (visited.has(input as object)) return input
-  visited.add(input as object)
-
-  if (Array.isArray(input)) {
-    return input.map((v) => scrubPayload(v, visited)) as unknown as T
-  }
-
-  const out: Record<string, unknown> = {}
-  for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
-    if (REDACT_KEY_PATTERN.test(key)) {
-      out[key] = REDACTED
-      continue
-    }
-    out[key] = scrubPayload(value, visited)
-  }
-  return out as unknown as T
-}
+// Re-export so existing call sites (and the test suite) don't churn (#1354).
+export { scrubPayload }
 
 /**
  * Clean up Sentry's `request` payload: drop cookies, strip PII from
