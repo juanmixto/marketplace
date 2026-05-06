@@ -133,6 +133,19 @@ When you add a new User-owned model:
 
 The CI guard in `audit-fk-onDelete.mjs` won't catch missing erase logic — it only catches FK declarations. Don't rely on it for the full contract.
 
+## 8b. At-rest encryption for column-scoped PII
+
+GDPR Art. 32 + financial-data classification require AES-256-GCM at rest for IBAN, OAuth tokens, 2FA secrets, and any equivalent live credential. Plaintext columns leak into every backup, DB-tool screenshot, and replica.
+
+The pattern (see [`src/lib/at-rest-crypto.ts`](../src/lib/at-rest-crypto.ts) and [`src/domains/vendors/bank-crypto.ts`](../src/domains/vendors/bank-crypto.ts)):
+
+- One generalised primitive `encryptForStorage(plaintext, keyDomain)` / `decryptFromStorage(wire, keyDomain)`. Wire format `iv.ct.tag` (base64 dotted), tag length pinned to 16 bytes on encrypt and decrypt.
+- Each domain derives its OWN HKDF-SHA256 key from `AUTH_SECRET` via a unique `keyDomain` string (e.g. `'vendor-iban:v1'`, `'vendor-bank-name:v1'`). Domain separation means a leaked ciphertext class cannot decrypt another, and bumping `:v2` is the rotation hook.
+- Sibling unencrypted column for "last-N" UI hints (`Vendor.ibanLast4`) so list pages render `**** 1234` without per-row crypto.
+- Migration is dual-column for one release: add `*Encrypted` alongside the legacy plaintext column; new writes only touch the encrypted column and write the plaintext back to `null`; a backfill script (`scripts/migrate-vendor-iban-encrypt.ts` is the template) encrypts existing rows; a follow-up migration drops the plaintext columns once `count(*) WHERE plaintext_col IS NOT NULL` is 0 in prod.
+- Backfill scripts MUST refuse to start when `AUTH_SECRET` is missing or has the dev-fallback shape — running with the wrong key produces unrecoverable rows.
+- Tests assert the on-disk shape (`isStorageWireFormat(...)` + plaintext substring NOT in the JSON-stringified row) — round-trip alone is not enough, because round-trip succeeds even if you accidentally also keep the plaintext.
+
 ## 9. Status transitions are linted, not hand-waved
 
 Order, Payment, Settlement, and VendorFulfillment status changes are part of the state-machine contract. Direct `status:` writes outside the dedicated transition modules are a common way to bypass guards, lose audit-trail context, or apply an invalid state change from a random writer.

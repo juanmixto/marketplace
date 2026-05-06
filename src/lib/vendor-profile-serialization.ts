@@ -1,4 +1,5 @@
 import type { Vendor } from '@/generated/prisma/client'
+import { decryptVendorBankFields } from '@/domains/vendors'
 
 export type VendorProfileItem = {
   id: string
@@ -31,14 +32,23 @@ type VendorProfileSource = Pick<
   | 'orderCutoffTime'
   | 'preparationDays'
   | 'iban'
+  | 'ibanEncrypted'
   | 'bankAccountName'
+  | 'bankAccountNameEncrypted'
   | 'stripeOnboarded'
   | 'commissionRate'
   | 'avgRating'
   | 'totalReviews'
 >
 
+/**
+ * Used by the vendor's OWN profile surface — decrypts the bank fields
+ * back to plaintext so the existing form prefill works unchanged.
+ * Admin code paths must NOT consume this (admin sees `ibanLast4`,
+ * never plaintext). #1347.
+ */
 export function serializeVendorProfile(vendor: VendorProfileSource): VendorProfileItem {
+  const { iban, bankAccountName } = decryptVendorBankFields(vendor)
   return {
     id: vendor.id,
     displayName: vendor.displayName,
@@ -51,8 +61,8 @@ export function serializeVendorProfile(vendor: VendorProfileSource): VendorProfi
     coverImageAlt: vendor.coverImageAlt,
     orderCutoffTime: vendor.orderCutoffTime,
     preparationDays: vendor.preparationDays,
-    iban: vendor.iban,
-    bankAccountName: vendor.bankAccountName,
+    iban,
+    bankAccountName,
     stripeOnboarded: vendor.stripeOnboarded,
   }
 }
