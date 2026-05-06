@@ -12,6 +12,7 @@ import {
 } from '@/lib/auth-guard'
 import { hasRole, ADMIN_ROLES as ADMIN_ROLE_LIST } from '@/lib/roles'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
+import { enforceAdminMutationRateLimit } from './rate-limit'
 import { assertVendorOnboarded } from '@/domains/vendors'
 import { cancelOrderWithRefundPolicy } from '@/domains/orders'
 import {
@@ -130,6 +131,12 @@ export async function approveVendor(vendorId: string) {
   // a CUSTOMER to VENDOR (this action does that — see
   // userNeedsRoleBump below). Doc: docs/authz-audit.md.
   const session = await requireOpsAdmin()
+  await enforceAdminMutationRateLimit({
+    scope: 'vendor-moderation',
+    actorId: session.user.id,
+    limit: 30,
+    windowSeconds: 60,
+  })
 
   const vendor = await db.vendor.findUnique({
     where: { id: vendorId },
@@ -190,6 +197,12 @@ export async function approveVendor(vendorId: string) {
 export async function rejectVendor(vendorId: string) {
   // #1145: ops-only — see approveVendor.
   const session = await requireOpsAdmin()
+  await enforceAdminMutationRateLimit({
+    scope: 'vendor-moderation',
+    actorId: session.user.id,
+    limit: 30,
+    windowSeconds: 60,
+  })
 
   const vendor = await db.vendor.findUnique({
     where: { id: vendorId },
@@ -231,6 +244,12 @@ export async function rejectVendor(vendorId: string) {
 export async function suspendVendor(vendorId: string) {
   // #1145: ops-only — see approveVendor.
   const session = await requireOpsAdmin()
+  await enforceAdminMutationRateLimit({
+    scope: 'vendor-moderation',
+    actorId: session.user.id,
+    limit: 30,
+    windowSeconds: 60,
+  })
 
   const vendor = await db.vendor.findUnique({ where: { id: vendorId } })
   if (!vendor) throw new Error('Productor no encontrado')
@@ -637,6 +656,12 @@ export async function reviewProduct(
   // support, and ops should NOT approve/reject products (separation
   // of duties). Doc: docs/authz-audit.md.
   const session = await requireCatalogAdmin()
+  await enforceAdminMutationRateLimit({
+    scope: 'product-moderation',
+    actorId: session.user.id,
+    limit: 30,
+    windowSeconds: 60,
+  })
 
   const { action: validAction, rejectionNote: note } = reviewSchema.parse({ action, rejectionNote })
 
@@ -710,6 +735,12 @@ export async function reviewProduct(
 export async function suspendProduct(productId: string, reason: string) {
   // #1145: catalog admin only — see reviewProduct.
   const session = await requireCatalogAdmin()
+  await enforceAdminMutationRateLimit({
+    scope: 'product-moderation',
+    actorId: session.user.id,
+    limit: 30,
+    windowSeconds: 60,
+  })
 
   const product = await db.product.findUnique({ where: { id: productId } })
   if (!product) throw new Error('Producto no encontrado')
