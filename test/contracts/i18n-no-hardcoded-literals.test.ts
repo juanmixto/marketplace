@@ -61,6 +61,7 @@ const ALLOWLIST_FILES: ReadonlySet<string> = new Set([
   'src/components/admin/ingestion/ReviewItemActions.tsx', // Phase 3 ingestion review actions — feat-ingestion-admin gated, not localized yet.
   'src/app/(buyer)/cuenta/reclamar-productor/page.tsx', // Phase 4 PR-E ghost-vendor claim — operator-facing via out-of-band code, not localized yet.
   'src/app/(buyer)/cuenta/reclamar-productor/ClaimVendorForm.tsx', // Phase 4 PR-E claim form — operator-facing, not localized yet.
+  'src/app/(admin)/admin/audit/page.tsx', // Audit-log viewer (#1357 / #1380) — SUPERADMIN-only forensic surface, not localized yet.
   'src/app/(admin)/admin/ingestion/telegram/page.tsx', // Phase 1 PR-C Telegram onboarding admin — feat-ingestion-admin gated, not localized yet.
   'src/components/admin/ingestion/TelegramAuthForm.tsx', // Phase 1 PR-C onboarding form — admin-only, not localized yet.
   'src/components/admin/ingestion/TelegramChatPicker.tsx', // Phase 1 PR-C chat picker — admin-only, not localized yet.
