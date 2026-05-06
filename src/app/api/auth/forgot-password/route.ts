@@ -4,9 +4,14 @@ import { createPasswordResetToken } from '@/domains/auth/email-verification'
 import { checkRateLimit, getClientIP } from '@/lib/ratelimit'
 import { logger } from '@/lib/logger'
 import { normalizeAuthEmail } from '@/lib/auth-email'
+import { verifyTurnstileToken } from '@/lib/turnstile'
 
 const schema = z.object({
   email: z.string().email('Email inválido'),
+  // #1273: Turnstile token from the invisible widget. Optional in the
+  // schema so the route still parses when Turnstile is not configured
+  // (fail-open by env in `verifyTurnstileToken`).
+  turnstileToken: z.string().max(2048).optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -31,6 +36,28 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json()
     const data = schema.parse(body)
+
+    // #1273: Cloudflare Turnstile. Fail-open by env so this is inert
+    // until ops provisions TURNSTILE_SECRET_KEY. When configured, a
+    // missing/invalid token responds with the SAME success-shape body
+    // the legitimate path returns — we don't want to enumerate which
+    // requests passed Turnstile and which didn't.
+    const turnstileResult = await verifyTurnstileToken(
+      data.turnstileToken,
+      clientIP,
+    )
+    if (!turnstileResult.ok) {
+      logger.warn('security.turnstile.forgot_password_blocked', {
+        ip: clientIP,
+        reason: turnstileResult.reason,
+      })
+      // Generic success-shape — same as the no-such-user path below.
+      return NextResponse.json(
+        { message: 'Si el email existe en nuestra base de datos, recibirás un enlace para recuperar tu contraseña.' },
+        { status: 200 },
+      )
+    }
+
     const normalizedEmail = normalizeAuthEmail(data.email)
 
     // Per-identity throttle (#173): a single attacker rotating IPs can blow
