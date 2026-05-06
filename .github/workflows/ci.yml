@@ -75,6 +75,7 @@ jobs:
           npm run audit:form-number-coerce > .ci-logs/audit-form-number-coerce.log 2>&1 & PID_AUDIT_FORM_NUM=$!
           npm run audit:no-root-env > .ci-logs/audit-no-root-env.log 2>&1 & PID_AUDIT_NO_ROOT_ENV=$!
           npm run audit:order-status-transitions > .ci-logs/audit-order-status-transitions.log 2>&1 & PID_AUDIT_ORDER_STATUS=$!
+          npm run audit:admin-explicit-select > .ci-logs/audit-admin-explicit-select.log 2>&1 & PID_AUDIT_ADMIN_SELECT=$!
           npm run typecheck:app    > .ci-logs/typecheck-app.log    2>&1 & PID_TC_APP=$!
           npm run typecheck:test   > .ci-logs/typecheck-test.log   2>&1 & PID_TC_TEST=$!
           if [ "$GH_EVENT_NAME" = "push" ] && [ "$GH_REF" = "refs/heads/main" ]; then
@@ -99,6 +100,7 @@ jobs:
           wait $PID_AUDIT_FORM_NUM || { echo "::group::audit:form-number-coerce FAILED"; cat .ci-logs/audit-form-number-coerce.log; echo "::endgroup::"; STATUS=1; }
           wait $PID_AUDIT_NO_ROOT_ENV || { echo "::group::audit:no-root-env FAILED"; cat .ci-logs/audit-no-root-env.log; echo "::endgroup::"; STATUS=1; }
           wait $PID_AUDIT_ORDER_STATUS || { echo "::group::audit:order-status-transitions FAILED"; cat .ci-logs/audit-order-status-transitions.log; echo "::endgroup::"; STATUS=1; }
+          wait $PID_AUDIT_ADMIN_SELECT || { echo "::group::audit:admin-explicit-select FAILED"; cat .ci-logs/audit-admin-explicit-select.log; echo "::endgroup::"; STATUS=1; }
           wait $PID_TC_APP  || { echo "::group::typecheck:app FAILED";    cat .ci-logs/typecheck-app.log;    echo "::endgroup::"; STATUS=1; }
           wait $PID_TC_TEST || { echo "::group::typecheck:test FAILED";   cat .ci-logs/typecheck-test.log;   echo "::endgroup::"; STATUS=1; }
           wait $PID_TESTS   || { echo "::group::tests FAILED";            cat .ci-logs/tests.log;            echo "::endgroup::"; STATUS=1; }
@@ -119,6 +121,7 @@ jobs:
             echo "::group::audit:form-number-coerce"; cat .ci-logs/audit-form-number-coerce.log; echo "::endgroup::"
             echo "::group::audit:no-root-env"; cat .ci-logs/audit-no-root-env.log; echo "::endgroup::"
             echo "::group::audit:order-status-transitions"; cat .ci-logs/audit-order-status-transitions.log; echo "::endgroup::"
+            echo "::group::audit:admin-explicit-select"; cat .ci-logs/audit-admin-explicit-select.log; echo "::endgroup::"
             echo "::group::typecheck:app";   cat .ci-logs/typecheck-app.log;    echo "::endgroup::"
             echo "::group::typecheck:test";  cat .ci-logs/typecheck-test.log;   echo "::endgroup::"
             echo "::group::tests";           cat .ci-logs/tests.log;            echo "::endgroup::"

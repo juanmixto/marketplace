@@ -409,7 +409,8 @@ function ProducerRow({
             >
               {p.displayName}
             </Link>
-            <p className="truncate text-xs text-[var(--muted)]">{p.email}</p>
+            {/* #1351 — email moved to the detail page; the row
+                shows location as the secondary identifier. */}
             {p.location && (
               <p className="truncate text-xs text-[var(--muted-light)]">{p.location}</p>
             )}
