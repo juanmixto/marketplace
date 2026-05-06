@@ -175,28 +175,17 @@ export interface Logger {
 }
 
 // ─── PII redaction ───────────────────────────────────────────────────────────
+//
+// #1354: shared patterns + scrubString live in `@/lib/scrubber` so the
+// logger and Sentry can never drift again. The deep-walk below stays
+// here because logger has slightly different semantics (Error
+// instances pass through unchanged, `extraKeys` is supported).
 
-const REDACTED = '[REDACTED]'
-
-// Keys we redact by default. Match case-insensitively as a substring so
-// both `password` and `userPassword` collapse to the same rule.
-const DEFAULT_REDACT_KEY_PATTERN =
-  /(password|token|cookie|authorization|secret|apikey|api_key|client_secret|clientsecret|stripe_secret|stripesecretkey|webhook_secret|cardnumber|card_number|cvv|cvc|iban|bic|swift|session)/i
-
-// Patterns inside string VALUES — catches a user email pasted into an
-// otherwise-safe key (e.g. logger.info('boom', { error: 'failed for a@b.com' })).
-const EMAIL_PATTERN = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g
-// Stripe-style tokens. Live and test prefixes only (sk_/pk_/whsec_/pi_/cs_/...).
-const STRIPE_TOKEN_PATTERN = /\b(pi|ch|cs|sk|pk|evt|in|sub|cus|seti|pm|whsec)_[A-Za-z0-9_]{14,}\b/g
-// Long bearer-ish tokens (JWTs).
-const LONG_BEARER_PATTERN = /\b[A-Za-z0-9_-]{32,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+\b/g
-
-function scrubString(value: string): string {
-  return value
-    .replace(EMAIL_PATTERN, REDACTED)
-    .replace(LONG_BEARER_PATTERN, REDACTED)
-    .replace(STRIPE_TOKEN_PATTERN, REDACTED)
-}
+import {
+  REDACT_KEY_PATTERN as DEFAULT_REDACT_KEY_PATTERN,
+  REDACTED_LOGGER as REDACTED,
+  scrubStringLogger as scrubString,
+} from '@/lib/scrubber'
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   if (v === null || typeof v !== 'object') return false
