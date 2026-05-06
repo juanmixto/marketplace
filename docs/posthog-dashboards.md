@@ -221,6 +221,49 @@ The events were added in PR #1129 (Gap 1B of the post-2026-05-03 audit) precisel
 - [ ] Toggle the kill switch `kill-notifications-telegram` (if/when it exists) and confirm the volume-sanity line drops to zero on the telegram surface — that is the "did we accidentally kill it" rehearsal.
 - [ ] Send the alert test from PostHog "Send test alert" button on both alerts; confirm the message lands in the same Telegram channel as payment incidents.
 
+## Dashboard 8 — Launch Night (single pane of glass, #1219)
+
+The first 72 hours after a public launch a human operator should be able to look at **one URL** and see whether things are OK. The five existing dashboards each cover a slice; this one is the single pane of glass for the launch.
+
+Pin this dashboard URL in `docs/state-of-the-world.md`. Open it on the on-call's phone. Configure auto-refresh = 60 s.
+
+### Tiles (in this exact order)
+
+1. **5xx rate (last 6 h, line)** — server-side error rate over time.
+   - Source: server log scope `http.request` with `status >= 500` (added by the proxy/middleware contract; until that lands, derive from Sentry `events()` count grouped by 5-min bucket and `level:error`).
+   - Alert mirror: paging rule "5xx > 1 % over 5 min" (epic #1212).
+2. **Top 10 routes by req/min (last hour, table)** — surfaces a single endpoint melting down.
+   - Source: Sentry transactions filtered by `transaction.op:http.server`, group by `transaction`, sort by count, limit 10.
+3. **Checkout funnel (last 24 h, funnel)** — `checkout.started → checkout.step_completed (address) → checkout.step_completed (payment) → order.placed`.
+   - Source: PostHog (events already emitted; see Event reference above).
+   - Alert mirror: "funnel collapse > 50 % below 14d baseline / 30 min" (epic #1212).
+4. **Webhooks Stripe — received / processed / failed / DLQ depth (last 24 h, multi-line)** — combined view so a webhook backlog or rejection spike is obvious without tab-flipping.
+   - Source: server log scopes `stripe.webhook.received`, `stripe.webhook.processed` (success path; emit a synthetic count from absence of `processing_failed`), `stripe.webhook.processing_failed`. DLQ depth = `WebhookDeadLetter` count where `resolvedAt IS NULL` (poll via a small PostHog action).
+   - Alert mirror: `dlq.alert.fired` recurring tick (#1213); `payment_mismatch` SECURITY (#1212).
+5. **Auth health — sign-in success rate, OAuth provider breakdown, signup rate (last 24 h, mixed)** — the most-likely-to-break flow on launch.
+   - Source: PostHog `sign_up`; server log scopes `auth.social.success / .deny / .error / .no_email`, `auth.callback.rejected`, `auth.register.failed`, `auth.login_precheck.failed`, `auth.onboarding.completed / .update_failed`. Pinned by `test/features/structured-log-events.test.ts` (#1218).
+   - Alert mirror: "auth.signin.failed > 30 / min" + "OAuth callback error rate > 10 % / 5 min" (epic #1212).
+6. **DB — slow-query count + connection errors (last hour, line)** — early warning before users notice latency.
+   - Source: server log scopes `db.query.slow` (#1216) and `db.connection.error` (TBD; `queue.pgboss_error` is a proxy until the dedicated scope lands).
+   - Threshold: any > 5 connection errors / min should already have paged via the `5xx > 1%` rule, but this tile lets the operator see the cause without leaving the page.
+7. **Web Vitals p75 mobile — LCP + INP (last 24 h, line)** — the mobile-priority repo (see AGENTS.md) means LCP/INP regressions are buyer-facing latency.
+   - Source: PostHog `$web_vitals` (already wired via `WebVitalsReporter`).
+   - Targets: LCP p75 ≤ 2.5 s, INP p75 ≤ 200 ms. Tile colour goes amber on miss.
+8. **Healthcheck status — DB / Stripe / Upstash / pg-boss (current, semaphore tile)** — the operator's "is everything green right now" glance.
+   - Source: `/api/ready` (#1211). Tile pulls JSON, renders one row per dependency. `latencyMs` and `error` (if any) shown inline.
+
+### Setup
+
+Programmatic via the PostHog REST API (see "Programmatic creation" section above). The 8 tiles can be authored as PostHog Insights, then attached to the dashboard. Auto-refresh 60 s; share read-only URL with the on-call rotation.
+
+### Verification (before launch)
+
+- [ ] Open the dashboard on a phone, every tile is legible portrait + landscape.
+- [ ] Provoke a synthetic 5xx and confirm tile #1 reflects it within ≤ 2 min.
+- [ ] Provoke a `dlq.alert.fired` (insert 10 dummy `WebhookDeadLetter` rows) and confirm tile #4 reflects it.
+- [ ] Sabotage the `STRIPE_SECRET_KEY` on staging and confirm tile #8 flips Stripe red within ≤ 30 s.
+- [ ] Take a screenshot of the green state and pin it in [`docs/state-of-the-world.md`](state-of-the-world.md). That's the "this is what OK looks like" reference image — without it the operator can't tell drift from incident.
+
 ## Global filters (apply per dashboard)
 
 - `person.properties.role` (CUSTOMER, VENDOR, ADMIN_*)
