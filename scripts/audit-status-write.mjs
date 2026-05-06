@@ -38,6 +38,13 @@ const UPDATE_BASELINE = process.argv.includes('--update-baseline')
 const MODEL_RE = /\.(order|payment|settlement|vendorFulfillment)\.(update|updateMany|upsert)\s*\(/g
 const ALLOWED_EXACT = new Set([
   'src/domains/payments/webhook.ts',
+  // cancelOrderWithRefundPolicy is the FSM wrapper for cancel/refund
+  // edges; it sits at use-cases/ rather than state-machine.ts because
+  // moving the cancellation logic into state-machine.ts would mix the
+  // declarative transition table with imperative side-effects (Stripe,
+  // stock restore, OrderEvent). The use case calls assertOrderTransition
+  // before each status write — same contract, different file.
+  'src/domains/orders/use-cases/cancel-order.ts',
 ])
 
 function walk(dir) {

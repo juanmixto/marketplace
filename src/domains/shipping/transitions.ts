@@ -13,7 +13,6 @@ import { db } from '@/lib/db'
 import { safeRevalidatePath } from '@/lib/revalidate'
 import type { ShipmentStatusInternal } from '@/domains/shipping/domain/types'
 import { isValidTransition } from '@/domains/shipping/domain/state-machine'
-import { assertOrderTransition, canTransitionOrder } from '@/domains/orders'
 // eslint-disable-next-line no-restricted-imports -- dispatcher is intentionally server-only, excluded from notifications barrel
 import { emit as emitNotification } from '@/domains/notifications/dispatcher'
 import type {
@@ -258,8 +257,16 @@ async function recomputeOrderStatus(orderId: string): Promise<void> {
   else if (allShipped) next = 'SHIPPED'
   else if (anyShipped) next = 'PARTIALLY_SHIPPED'
 
-  if (next && canTransitionOrder(order.status, next) && next !== order.status) {
-    assertOrderTransition(order.status, next)
+  // FSM (src/domains/orders/state-machine.ts): only post-PLACED, non-terminal
+  // states can be re-stamped from fulfillment recompute. Importing the
+  // orders FSM from shipping would create an orders ↔ shipping cycle
+  // (orders/checkout.ts already imports shipping), so the legal edge is
+  // enforced inline.
+  const isLegalParent =
+    order.status !== 'PLACED' &&
+    order.status !== 'CANCELLED' &&
+    order.status !== 'REFUNDED'
+  if (next && isLegalParent && next !== order.status) {
     await db.order.update({ where: { id: orderId }, data: { status: next } })
   }
 }

@@ -19,7 +19,6 @@
 import type { PrismaClient } from '@/generated/prisma/client'
 import { getServerEnv } from '@/lib/env'
 import { logger } from '@/lib/logger'
-import { assertOrderTransition } from '@/domains/orders'
 
 export type StripePaymentIntentStatus =
   | 'requires_payment_method'
@@ -188,9 +187,12 @@ export async function reconcilePendingPayments({
             data: { status: 'SUCCEEDED' },
           })
           // Forward-only: PLACED → PAYMENT_CONFIRMED is the only legal
-          // status edge here. Drifted paymentStatus on later states is
-          // healed without touching `status`.
-          assertOrderTransition('PLACED', 'PAYMENT_CONFIRMED')
+          // status edge here (FSM: src/domains/orders/state-machine.ts).
+          // Drifted paymentStatus on later states is healed without
+          // touching `status`. Importing the FSM from payments would
+          // create a cycle (payments → orders → payments via cancel),
+          // so the legal edge is enforced statically by the where clause
+          // (`status: 'PLACED'`).
           const ord = await tx.order.updateMany({
             where: { id: candidate.orderId, status: 'PLACED' },
             data: { status: 'PAYMENT_CONFIRMED', paymentStatus: 'SUCCEEDED' },
@@ -435,8 +437,8 @@ export async function reconcileAbandonedOrders({
         }
 
         // Orphan PIs are PLACED orders that never received a Stripe PI;
-        // PLACED → CANCELLED is the legal abandon edge.
-        assertOrderTransition('PLACED', 'CANCELLED')
+        // PLACED → CANCELLED is the legal abandon edge per the FSM in
+        // src/domains/orders/state-machine.ts.
         await tx.order.update({
           where: { id: orphan.orderId },
           data: {

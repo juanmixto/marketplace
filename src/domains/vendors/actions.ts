@@ -18,7 +18,6 @@ import {
 import { parseExpirationDateInput } from '@/domains/catalog'
 import { getActionSession } from '@/lib/action-session'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
-import { assertOrderTransition, canTransitionOrder } from '@/domains/orders'
 import { isVendor } from '@/lib/roles'
 import { isAllowedImageUrl } from '@/lib/image-validation'
 import { deleteBlobs, diffRemovedUrls } from '@/lib/blob-storage'
@@ -763,12 +762,20 @@ export async function advanceFulfillment(
       const allShipped = allFulfillments.every(f => f.status === 'SHIPPED')
       const newOrderStatus = allShipped ? 'SHIPPED' : 'PARTIALLY_SHIPPED'
 
+      // FSM (src/domains/orders/state-machine.ts): SHIPPED / PARTIALLY_SHIPPED
+      // are only legal from post-PLACED, non-terminal parents. Inline check
+      // because importing the orders FSM from vendors would create a cycle.
       const parent = await tx.order.findUnique({
         where: { id: fulfillment.orderId },
         select: { status: true },
       })
-      if (parent && canTransitionOrder(parent.status, newOrderStatus) && parent.status !== newOrderStatus) {
-        assertOrderTransition(parent.status, newOrderStatus)
+      const isLegalParent =
+        parent &&
+        parent.status !== 'PLACED' &&
+        parent.status !== 'CANCELLED' &&
+        parent.status !== 'REFUNDED' &&
+        parent.status !== newOrderStatus
+      if (isLegalParent) {
         await tx.order.update({
           where: { id: fulfillment.orderId },
           data: { status: newOrderStatus },
@@ -930,8 +937,15 @@ export async function markShippedByUserId(
       where: { id: fulfillment.orderId },
       select: { status: true },
     })
-    if (parent && canTransitionOrder(parent.status, newOrderStatus) && parent.status !== newOrderStatus) {
-      assertOrderTransition(parent.status, newOrderStatus)
+    // FSM (src/domains/orders/state-machine.ts): inline edge check; see
+    // sibling guard in advanceFulfillment for the cycle rationale.
+    const isLegalParent =
+      parent &&
+      parent.status !== 'PLACED' &&
+      parent.status !== 'CANCELLED' &&
+      parent.status !== 'REFUNDED' &&
+      parent.status !== newOrderStatus
+    if (isLegalParent) {
       await tx.order.update({
         where: { id: fulfillment.orderId },
         data: { status: newOrderStatus },
