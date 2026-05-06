@@ -90,17 +90,33 @@ export function Footer() {
           </p>
           <div className="-mx-2 flex flex-wrap gap-x-2 gap-y-1">
             {[
-              { labelKey: 'shippingPolicy' as TranslationKeys, href: '/envios' },
-              { labelKey: 'returnsPolicy'  as TranslationKeys, href: '/devoluciones' },
-              { labelKey: 'legal'   as TranslationKeys,  href: '/aviso-legal' },
-              { labelKey: 'privacy' as TranslationKeys, href: '/privacidad' },
-              { labelKey: 'cookies' as TranslationKeys, href: '/cookies' },
-              { labelKey: 'terms'   as TranslationKeys, href: '/terminos' },
-            ].map(link => (
-              <Link key={link.href} href={link.href} className="inline-flex min-h-11 items-center rounded-md px-2 py-2 text-xs text-[var(--muted)] transition-colors hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
-                {t(link.labelKey)}
-              </Link>
-            ))}
+              { labelKey: 'shippingPolicy' as TranslationKeys, href: '/envios', external: false },
+              { labelKey: 'returnsPolicy'  as TranslationKeys, href: '/devoluciones', external: false },
+              { labelKey: 'legal'   as TranslationKeys,  href: '/aviso-legal', external: false },
+              { labelKey: 'privacy' as TranslationKeys, href: '/privacidad', external: false },
+              { labelKey: 'cookies' as TranslationKeys, href: '/cookies', external: false },
+              { labelKey: 'terms'   as TranslationKeys, href: '/terminos', external: false },
+              // #1224 — casero status page is the static `/status.html`
+              // file. Plain <a> (not <Link>) so navigation does a full
+              // page load and bypasses Next.js entirely — intentional:
+              // the status page must keep working when the app's React
+              // tree is broken.
+              { labelKey: 'status' as TranslationKeys, href: '/status.html', external: true },
+            ].map(link =>
+              link.external ? (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  className="inline-flex min-h-11 items-center rounded-md px-2 py-2 text-xs text-[var(--muted)] transition-colors hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
+                >
+                  {t(link.labelKey)}
+                </a>
+              ) : (
+                <Link key={link.href} href={link.href} className="inline-flex min-h-11 items-center rounded-md px-2 py-2 text-xs text-[var(--muted)] transition-colors hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
+                  {t(link.labelKey)}
+                </Link>
+              )
+            )}
           </div>
         </div>
       </div>

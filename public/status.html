@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Estado · raizdirecta.es</title>
+<meta name="description" content="Estado en tiempo real de raizdirecta.es y sus dependencias (BD, Stripe, cola, caché).">
+<meta name="robots" content="noindex">
+<!--
+  obs/status-page (#1224, epic #1225 — observability pre-launch).
+
+  Static HTML so a deploy pipeline failure / app outage doesn't take
+  the status page down with it. Polls /api/ready every 30s; if the
+  app itself is unreachable, the page shows "Sin respuesta" instead
+  of false-green.
+
+  Stays minimal on purpose: no React, no JS bundle, no analytics.
+  The status page must work when nothing else does.
+-->
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #fafaf7;
+    --fg: #111;
+    --muted: #555;
+    --card: #fff;
+    --border: #e5e5e5;
+    --ok: #16a34a;
+    --warn: #d97706;
+    --err: #dc2626;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f0f0e; --fg: #f5f5f4; --muted: #a3a3a3; --card: #1a1a18; --border: #2a2a28; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    font: 16px/1.5 system-ui, -apple-system, sans-serif;
+    background: var(--bg); color: var(--fg);
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 2.5rem 1.25rem; }
+  h1 { margin: 0 0 0.25rem; font-size: 1.75rem; }
+  .lede { margin: 0 0 1.5rem; color: var(--muted); }
+  .verdict {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 1rem 1.25rem; border-radius: 0.75rem;
+    background: var(--card); border: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+  }
+  .verdict h2 { margin: 0; font-size: 1.125rem; }
+  .verdict .desc { font-size: 0.875rem; color: var(--muted); }
+  .dot {
+    width: 0.875rem; height: 0.875rem; border-radius: 50%;
+    flex: 0 0 0.875rem;
+    background: var(--muted);
+    box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 18%, transparent);
+  }
+  .dot.ok { background: var(--ok); color: var(--ok); }
+  .dot.err { background: var(--err); color: var(--err); }
+  .dot.unknown { background: var(--warn); color: var(--warn); }
+  .checks { display: grid; gap: 0.5rem; }
+  .check {
+    display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.75rem;
+    padding: 0.75rem 1rem; border-radius: 0.5rem;
+    background: var(--card); border: 1px solid var(--border);
+  }
+  .check .name { font-weight: 600; font-size: 0.95rem; }
+  .check .latency { font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .check .err-msg { grid-column: 2 / -1; font-size: 0.75rem; color: var(--err); }
+  footer.meta {
+    margin-top: 2rem; font-size: 0.75rem; color: var(--muted);
+    text-align: center;
+  }
+  footer.meta a { color: inherit; }
+  .updated { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>Estado de raizdirecta.es</h1>
+  <p class="lede">Probes en tiempo real de la app y sus dependencias críticas.</p>
+
+  <section class="verdict" id="verdict">
+    <span class="dot unknown" aria-hidden="true"></span>
+    <div>
+      <h2 id="verdict-title">Cargando…</h2>
+      <p class="desc" id="verdict-desc">Consultando <code>/api/ready</code></p>
+    </div>
+  </section>
+
+  <section class="checks" id="checks">
+    <div class="check"><span class="dot unknown"></span><span class="name">database</span><span class="latency">—</span></div>
+    <div class="check"><span class="dot unknown"></span><span class="name">stripe</span><span class="latency">—</span></div>
+    <div class="check"><span class="dot unknown"></span><span class="name">upstash</span><span class="latency">—</span></div>
+    <div class="check"><span class="dot unknown"></span><span class="name">queue</span><span class="latency">—</span></div>
+  </section>
+
+  <footer class="meta">
+    Actualizado <span class="updated" id="updated">—</span> · refresco automático cada 30 s.<br>
+    Si esta página no responde, el problema es probablemente de DNS o CDN, no de la app.
+  </footer>
+</main>
+
+<script>
+(function () {
+  'use strict'
+  var KNOWN_CHECKS = ['database', 'stripe', 'upstash', 'queue']
+  var verdictDot = document.querySelector('#verdict .dot')
+  var verdictTitle = document.getElementById('verdict-title')
+  var verdictDesc = document.getElementById('verdict-desc')
+  var updatedEl = document.getElementById('updated')
+  var checksEl = document.getElementById('checks')
+
+  function fmtLatency(ms) {
+    if (typeof ms !== 'number') return '—'
+    return ms.toString() + ' ms'
+  }
+
+  function renderCheck(name, check) {
+    var div = document.createElement('div')
+    div.className = 'check'
+    var dotClass = check && check.ok ? 'ok' : (check ? 'err' : 'unknown')
+    var dot = document.createElement('span')
+    dot.className = 'dot ' + dotClass
+    var n = document.createElement('span')
+    n.className = 'name'
+    n.textContent = name
+    var lat = document.createElement('span')
+    lat.className = 'latency'
+    lat.textContent = check ? fmtLatency(check.latencyMs) : '—'
+    div.append(dot, n, lat)
+    if (check && !check.ok && check.error) {
+      var err = document.createElement('span')
+      err.className = 'err-msg'
+      err.textContent = check.error
+      div.append(err)
+    }
+    return div
+  }
+
+  function setVerdict(state, title, desc) {
+    verdictDot.classList.remove('ok', 'err', 'unknown')
+    verdictDot.classList.add(state)
+    verdictTitle.textContent = title
+    verdictDesc.textContent = desc
+  }
+
+  function refresh() {
+    fetch('/api/ready', { cache: 'no-store', credentials: 'omit' })
+      .then(function (res) {
+        return res.json().then(function (body) { return { status: res.status, body: body } })
+      })
+      .then(function (r) {
+        var checks = r.body && r.body.checks ? r.body.checks : {}
+        checksEl.innerHTML = ''
+        KNOWN_CHECKS.forEach(function (n) {
+          checksEl.appendChild(renderCheck(n, checks[n]))
+        })
+        if (r.body && r.body.ok === true) {
+          setVerdict('ok', 'Operativo', 'Todas las dependencias responden correctamente.')
+        } else {
+          setVerdict('err', 'Degradado', 'Una o más dependencias están fallando.')
+        }
+      })
+      .catch(function () {
+        setVerdict('err', 'Sin respuesta', 'No se pudo contactar con /api/ready.')
+        checksEl.innerHTML = ''
+        KNOWN_CHECKS.forEach(function (n) { checksEl.appendChild(renderCheck(n, null)) })
+      })
+      .finally(function () {
+        updatedEl.textContent = new Date().toLocaleTimeString('es-ES')
+      })
+  }
+
+  refresh()
+  setInterval(refresh, 30 * 1000)
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) refresh()
+  })
+})()
+</script>
+</body>
+</html>
