@@ -100,6 +100,28 @@ Append to `docs/runbooks/under-attack.md#incidents` (below) with:
 
 Remove the "Under Attack" mode once traffic is baseline for 1h. Rate-limit rules from step 2 stay on permanently.
 
+## Status page (#1224)
+
+A casero status page lives at `/status.html` — a static HTML file (no React, no JS bundle, no analytics) that polls `/api/ready` every 30 seconds and renders four traffic-light dots (`database`, `stripe`, `upstash`, `queue`) plus an overall verdict. The footer of every public page links to it.
+
+The page MUST keep working when nothing else does, which is why:
+
+- It's a static `public/status.html`, not a Next.js route. A broken React tree, a bad deploy, or a hung server component does not take it down.
+- The footer uses a plain `<a>` (full-page navigation), not Next's `<Link>`, so client-side routing failures don't trap the user.
+- If `/api/ready` itself is unreachable, the page renders "Sin respuesta" and stays useful — the operator sees the right shape immediately.
+
+### Plan B — managed status page (Hetrix)
+
+If the casero variant grows beyond what one HTML file should carry (incident history, multi-region, subscription notifications, paid SLA badges), the migration target is **Hetrix Tools** (free tier covers 50 monitors). Steps:
+
+1. Sign up, create a monitor for `https://raizdirecta.es/api/ready` with HTTP keyword check on `"ok":true`.
+2. Create monitors for `dev.raizdirecta.es/api/ready` and any other env added later.
+3. Public status page on `status.raizdirecta.es` (CNAME from Cloudflare to the Hetrix-provided domain).
+4. Update the footer link to point to the Hetrix-hosted page.
+5. Keep `/status.html` as a fallback (1-line `meta refresh` to the Hetrix URL) so a CDN failure on Hetrix doesn't kill our visibility.
+
+The casero page stays as the floor; Hetrix is additive when the requirements grow.
+
 ## Permanent hardening (pre-incident)
 
 - [x] `cf-connecting-ip` preferred over `x-forwarded-for` in `src/lib/ratelimit.ts` and `src/lib/audit.ts` (#540).

@@ -79,6 +79,7 @@ const en: Record<TranslationKeys, string> = {
   terms: 'Terms',
   shippingPolicy: 'Shipping',
   returnsPolicy: 'Returns',
+  status: 'Status',
 
   /* Language switcher */
   language: 'Language',

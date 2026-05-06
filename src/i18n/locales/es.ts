@@ -77,6 +77,7 @@ const es = {
   terms: 'Términos',
   shippingPolicy: 'Envíos',
   returnsPolicy: 'Devoluciones',
+  status: 'Estado',
 
   /* Language switcher */
   language: 'Idioma',
