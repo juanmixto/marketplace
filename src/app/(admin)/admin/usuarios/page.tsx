@@ -8,6 +8,7 @@ import { formatDate } from '@/lib/utils'
 import { Prisma } from '@/generated/prisma/client'
 import { getServerLocale } from '@/i18n/server'
 import { getAdminUsersCopy } from '@/i18n/admin-users-copy'
+import { auditAdminSearch } from '@/domains/admin/search-pii'
 
 export const dynamic = 'force-dynamic'
 
@@ -66,7 +67,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function AdminUsersPage({ searchParams }: PageProps) {
-  await requireAdmin()
+  const session = await requireAdmin()
   const locale = await getServerLocale()
   const copy = getAdminUsersCopy(locale).list
 
@@ -109,6 +110,21 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
     db.user.count({ where: { isActive: true } }),
     db.user.count({ where: { role: { in: ['ADMIN_SUPPORT', 'ADMIN_CATALOG', 'ADMIN_FINANCE', 'ADMIN_OPS', 'SUPERADMIN'] } } }),
   ])
+
+  // #1353 — admins can search Users by email / firstName / lastName.
+  // The `q` field is THE most enumeration-sensitive surface in the
+  // whole admin panel: a curious operator typing `@gmail.com` or a
+  // partial first name can browse the customer base. Hash-only audit
+  // (the literal email never enters AuditLog — only its sha256).
+  if (q) {
+    await auditAdminSearch({
+      scope: 'admin-users',
+      actorId: session.user.id,
+      actorRole: session.user.role,
+      query: q,
+      matchedCount: total,
+    })
+  }
 
   return (
     <div className="space-y-6">
