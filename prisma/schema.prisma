@@ -346,6 +346,9 @@ model Vendor {
   // #1359 — see User/Order/Product for the contract.
   createdById String?
   updatedById String?
+  // #1223 — true on the dedicated synthetic-monitor vendor row.
+  // Public producers directory filters this out at the loader level.
+  synthetic   Boolean  @default(false)
 
   user              User                @relation(fields: [userId], references: [id])
   products          Product[]
@@ -437,6 +440,9 @@ model Product {
   // #1359 — see User/Order/Vendor for the contract.
   createdById    String?
   updatedById    String?
+  // #1223 — true on the dedicated synthetic-monitor product. Filtered
+  // out of the public catalog by `getAvailableProductWhere`.
+  synthetic      Boolean       @default(false)
 
   // Phase 4 — ingestion provenance. Set when this Product was created
   // by publishing an approved IngestionProductDraft. The UNIQUE
@@ -467,6 +473,9 @@ model Product {
   @@index([vendorId, status])
   @@index([expiresAt])
   @@index([slug])
+  // #1223 — public catalog filters `synthetic=false`; index speeds
+  // the rare positive query (cleanup, ops dashboards).
+  @@index([synthetic])
   // Cursor pagination on /productos orders by [createdAt desc, id desc]
   // filtered by status. Composite index keeps page N constant-time
   // regardless of N. See #89.
@@ -574,6 +583,10 @@ model Order {
   // #1359 — see User/Vendor/Product for the contract.
   createdById             String?
   updatedById             String?
+  // #1223 — synthetic-monitor flag. Real customer orders stay false
+  // forever (DB default). The cleanup-abandoned worker may purge a
+  // synthetic order > 24h old; real orders are NEVER touched.
+  synthetic               Boolean       @default(false)
 
   // GDPR (#961): Order rows must be retained 5 years for tax compliance
   // — the account-erase flow at /api/account/delete anonimizes the User
@@ -593,6 +606,10 @@ model Order {
   @@index([customerId, placedAt(sort: Desc)])
   @@index([status, placedAt(sort: Desc)])
   @@index([orderNumber])
+  // #1223 — drives the cleanup-abandoned sweep ("delete synthetic
+  // orders older than 24h"). Real orders never match the prefix
+  // `synthetic=true`, so this index is essentially synthetic-only.
+  @@index([synthetic, placedAt])
 }
 
 model OrderLine {

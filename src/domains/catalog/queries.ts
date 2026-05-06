@@ -377,7 +377,10 @@ export async function getVisibleCategorySlugs(): Promise<string[]> {
 
 async function getVendorsUncached(limit = 12) {
   return db.vendor.findMany({
-    where: { status: 'ACTIVE' },
+    // #1223 — exclude the synthetic-monitor vendor from the public
+    // producer directory. The flag also keeps it out of any future
+    // ranking / recommendation surfaces.
+    where: { status: 'ACTIVE', synthetic: false },
     orderBy: { avgRating: 'desc' },
     take: limit,
     select: {
