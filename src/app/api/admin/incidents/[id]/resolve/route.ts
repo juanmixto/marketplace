@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { IncidentResolution } from '@/generated/prisma/enums'
 import { refundPaymentIntent } from '@/domains/payments/provider'
 import { assertOrderTransition, canTransitionOrder } from '@/domains/orders/state-machine'
+import { recordOrderEvent } from '@/domains/orders'
 import { logger } from '@/lib/logger'
 import { AlreadyProcessedError, withIdempotency } from '@/lib/idempotency'
 import { createAuditLog, getAuditRequestIp } from '@/lib/audit'
@@ -363,19 +364,22 @@ async function doResolve({
           ...(promoteToRefunded ? { status: 'REFUNDED' as const } : {}),
         },
       })
-      await tx.orderEvent.create({
-        data: {
-          orderId: incident.order.id,
-          type: 'REFUND_ISSUED',
-          payload: {
-            providerRef: payment.providerRef,
-            providerRefundRef,
-            amount: refundAmount,
-            fundedBy,
-            incidentId: id,
-            isFullRefund: isFullyRefunded,
-            recordedAt: new Date().toISOString(),
-          },
+      // #1356 — admin-mutating event MUST carry an actor; previously
+      // refunds issued from the incident-resolve flow had `actorId =
+      // null`, leaving "who refunded €X?" unanswerable in audit.
+      await recordOrderEvent({
+        client: tx,
+        orderId: incident.order.id,
+        type: 'REFUND_ISSUED',
+        actorId: session.user.id,
+        payload: {
+          providerRef: payment.providerRef,
+          providerRefundRef,
+          amount: refundAmount,
+          fundedBy,
+          incidentId: id,
+          isFullRefund: isFullyRefunded,
+          recordedAt: new Date().toISOString(),
         },
       })
     }

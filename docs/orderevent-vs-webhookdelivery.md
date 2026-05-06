@@ -57,6 +57,22 @@ model OrderEvent {
 - The order timeline UI (vendor order detail, admin order view) groups these by `createdAt`.
 - The analytics pipeline reads `type` to count transitions.
 
+### Actor-required types (#1356)
+
+`actorId` stays nullable at the DB layer because system events legitimately have no actor (Stripe webhooks, automatic transitions). But **admin-mutating** events MUST carry an actor or a forensic "who issued this refund?" has no answer.
+
+Use [`recordOrderEvent`](../src/domains/orders/order-events.ts) (re-exported from `@/domains/orders`) for any path that emits a mutating event. It enforces the contract by throwing `OrderEventActorRequiredError` when:
+
+```ts
+ACTOR_REQUIRED_ORDER_EVENT_TYPES.has(type) && !actorId
+```
+
+Current set:
+- `ORDER_CANCELLED` — admin or buyer cancellation
+- `REFUND_ISSUED` — incident-resolve refund or full-cancel refund
+
+When you introduce a new admin-mutating event (`STATUS_FORCED`, `MANUAL_REFUND`, `BLOCKED_FOR_FRAUD`, …), add it to `ACTOR_REQUIRED_ORDER_EVENT_TYPES` AND switch the call site from `tx.orderEvent.create(...)` to `recordOrderEvent(...)`. The integration test [`order-event-actor-required.test.ts`](../test/integration/order-event-actor-required.test.ts) is the contract.
+
 ### What it is NOT
 
 - Not a dedupe substrate. Never look up `payload->>'eventId'` here to decide whether to apply a transition.
