@@ -21,6 +21,7 @@ import {
   fulfillmentStatusForShipment,
   appendShipmentEvent,
   applyShipmentTransition,
+  recomputeOrderStatusFromFulfillments,
 } from '@/domains/shipping/transitions'
 import type { FulfillmentStatus } from '@/generated/prisma/enums'
 // eslint-disable-next-line no-restricted-imports -- dispatcher is intentionally server-only, excluded from notifications barrel
@@ -477,6 +478,12 @@ export async function cancelShipmentAction(fulfillmentId: string) {
     where: { id: fulfillmentId },
     data: { status: 'CANCELLED' },
   })
+
+  // #1336: a vendor cancel can leave the order with all-cancelled
+  // fulfillments (single-vendor order) or a mix that no longer matches
+  // the parent status. Re-derive Order.status from the fulfillment set
+  // so the FSM stays consistent without needing the admin to babysit.
+  await recomputeOrderStatusFromFulfillments(fulfillment.orderId)
 
   safeRevalidatePath('/vendor/pedidos')
   return { ok: true as const }
