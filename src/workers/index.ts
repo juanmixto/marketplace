@@ -45,6 +45,11 @@ import {
   type PrewarmImageVariantsJobData,
 } from './jobs/prewarm-image-variants'
 import { DLQ_ALERT_CRON, DLQ_ALERT_JOB, runDlqAlertJob } from './jobs/dlq-alert'
+import {
+  CLEANUP_ABANDONED_CRON,
+  CLEANUP_ABANDONED_JOB,
+  runCleanupAbandonedJob,
+} from './jobs/cleanup-abandoned'
 
 const RAWJSON_SWEEP_JOB = 'ingestion.telegram.rawjson-sweep'
 const RAWJSON_SWEEP_CRON = '0 3 * * *'
@@ -140,6 +145,15 @@ async function main() {
   })
   await scheduleRecurring(DLQ_ALERT_JOB, { cron: DLQ_ALERT_CRON })
 
+  // #1285: nightly cleanup of expired ephemeral state (auth tokens
+  // past expiresAt). Same registration ordering as DLQ — handler
+  // first, schedule second, so the first tick lands on a registered
+  // worker.
+  await registerHandler(CLEANUP_ABANDONED_JOB, async () => {
+    await runCleanupAbandonedJob()
+  })
+  await scheduleRecurring(CLEANUP_ABANDONED_JOB, { cron: CLEANUP_ABANDONED_CRON })
+
   logger.info('worker.ready', {
     handlers: [
       INGESTION_JOB_KINDS.telegramSync,
@@ -150,6 +164,7 @@ async function main() {
       PREWARM_IMAGE_VARIANTS_JOB,
       RAWJSON_SWEEP_JOB,
       DLQ_ALERT_JOB,
+      CLEANUP_ABANDONED_JOB,
     ],
     config,
   })
