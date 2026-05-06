@@ -19,7 +19,7 @@
 import type { PrismaClient } from '@/generated/prisma/client'
 import { getServerEnv } from '@/lib/env'
 import { logger } from '@/lib/logger'
-import { assertOrderTransition } from '@/domains/orders/state-machine'
+import { assertOrderTransition } from '@/domains/orders'
 
 export type StripePaymentIntentStatus =
   | 'requires_payment_method'

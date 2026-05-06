@@ -13,7 +13,7 @@ import {
 import { hasRole, ADMIN_ROLES as ADMIN_ROLE_LIST } from '@/lib/roles'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { assertVendorOnboarded } from '@/domains/vendors'
-import { cancelOrderWithRefundPolicy } from '@/domains/orders/use-cases/cancel-order'
+import { cancelOrderWithRefundPolicy } from '@/domains/orders'
 import {
   AlreadyProcessedError,
   withIdempotency,

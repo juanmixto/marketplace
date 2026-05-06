@@ -18,7 +18,7 @@ import {
 import { parseExpirationDateInput } from '@/domains/catalog'
 import { getActionSession } from '@/lib/action-session'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
-import { assertOrderTransition, canTransitionOrder } from '@/domains/orders/state-machine'
+import { assertOrderTransition, canTransitionOrder } from '@/domains/orders'
 import { isVendor } from '@/lib/roles'
 import { isAllowedImageUrl } from '@/lib/image-validation'
 import { deleteBlobs, diffRemovedUrls } from '@/lib/blob-storage'

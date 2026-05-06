@@ -1,8 +1,8 @@
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { trackServer } from '@/lib/analytics.server'
-import { refundPaymentIntent } from '@/domains/payments/provider'
-import { assertOrderTransition, canTransitionOrder } from '@/domains/orders/state-machine'
+import { refundPaymentIntent } from '@/domains/payments'
+import { assertOrderTransition, canTransitionOrder } from '../state-machine'
 
 export type CancelOrderActor =
   | { type: 'ADMIN'; id: string }
@@ -104,8 +104,12 @@ export async function cancelOrderWithRefundPolicy(
   }
 
   const payment = order.payments[0]
-  const paymentSucceeded = payment?.status === 'SUCCEEDED' && !!payment.providerRef
-  const refundAmount = paymentSucceeded ? Number(payment!.amount) : 0
+  type SucceededPayment = NonNullable<typeof payment> & { providerRef: string }
+  const succeededPayment: SucceededPayment | null =
+    payment && payment.status === 'SUCCEEDED' && payment.providerRef
+      ? (payment as SucceededPayment)
+      : null
+  const refundAmount = succeededPayment ? Number(succeededPayment.amount) : 0
 
   // Stock from already-shipped fulfillments was physically dispatched —
   // do not restore it. (PARTIALLY_SHIPPED is filtered above; this set
@@ -145,7 +149,7 @@ export async function cancelOrderWithRefundPolicy(
   }
 
   // Pre-payment cancel: no Stripe call, no Refund row.
-  if (!paymentSucceeded) {
+  if (!succeededPayment) {
     assertOrderTransition(order.status, 'CANCELLED')
     await db.$transaction(async tx => {
       await tx.order.update({
@@ -179,7 +183,7 @@ export async function cancelOrderWithRefundPolicy(
   }
 
   const refundResult = await refundPaymentIntent(
-    payment!.providerRef!,
+    succeededPayment.providerRef,
     Math.round(refundAmount * 100),
     {
       fundedBy: 'PLATFORM',
@@ -196,7 +200,7 @@ export async function cancelOrderWithRefundPolicy(
   await db.$transaction(async tx => {
     await tx.refund.create({
       data: {
-        paymentId: payment!.id,
+        paymentId: succeededPayment.id,
         amount: refundAmount,
         reason: `cancel · ${reason}`,
         fundedBy: 'PLATFORM',
@@ -204,7 +208,7 @@ export async function cancelOrderWithRefundPolicy(
       },
     })
     await tx.payment.update({
-      where: { id: payment!.id },
+      where: { id: succeededPayment.id },
       data: { status: 'REFUNDED' },
     })
     await tx.order.update({
@@ -218,7 +222,7 @@ export async function cancelOrderWithRefundPolicy(
         actorId: actor.id,
         type: 'REFUND_ISSUED',
         payload: {
-          providerRef: payment!.providerRef,
+          providerRef: succeededPayment.providerRef,
           providerRefundRef: refundResult.id,
           amount: refundAmount,
           fundedBy: 'PLATFORM',

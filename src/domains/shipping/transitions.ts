@@ -13,7 +13,7 @@ import { db } from '@/lib/db'
 import { safeRevalidatePath } from '@/lib/revalidate'
 import type { ShipmentStatusInternal } from '@/domains/shipping/domain/types'
 import { isValidTransition } from '@/domains/shipping/domain/state-machine'
-import { assertOrderTransition, canTransitionOrder } from '@/domains/orders/state-machine'
+import { assertOrderTransition, canTransitionOrder } from '@/domains/orders'
 // eslint-disable-next-line no-restricted-imports -- dispatcher is intentionally server-only, excluded from notifications barrel
 import { emit as emitNotification } from '@/domains/notifications/dispatcher'
 import type {
