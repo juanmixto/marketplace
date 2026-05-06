@@ -186,16 +186,27 @@ export async function reconcilePendingPayments({
             where: { id: candidate.id, status: { not: 'SUCCEEDED' } },
             data: { status: 'SUCCEEDED' },
           })
+          // Forward-only: PLACED → PAYMENT_CONFIRMED is the only legal
+          // status edge here (FSM: src/domains/orders/state-machine.ts).
+          // Drifted paymentStatus on later states is healed without
+          // touching `status`. Importing the FSM from payments would
+          // create a cycle (payments → orders → payments via cancel),
+          // so the legal edge is enforced statically by the where clause
+          // (`status: 'PLACED'`).
           const ord = await tx.order.updateMany({
-            where: {
-              id: candidate.orderId,
-              OR: [
-                { paymentStatus: { not: 'SUCCEEDED' } },
-                { status: { not: 'PAYMENT_CONFIRMED' } },
-              ],
-            },
+            where: { id: candidate.orderId, status: 'PLACED' },
             data: { status: 'PAYMENT_CONFIRMED', paymentStatus: 'SUCCEEDED' },
           })
+          if (ord.count === 0) {
+            await tx.order.updateMany({
+              where: {
+                id: candidate.orderId,
+                status: { not: 'PLACED' },
+                paymentStatus: { not: 'SUCCEEDED' },
+              },
+              data: { paymentStatus: 'SUCCEEDED' },
+            })
+          }
           if (pay.count > 0 || ord.count > 0) {
             await tx.orderEvent.create({
               data: {
@@ -425,6 +436,9 @@ export async function reconcileAbandonedOrders({
           })
         }
 
+        // Orphan PIs are PLACED orders that never received a Stripe PI;
+        // PLACED → CANCELLED is the legal abandon edge per the FSM in
+        // src/domains/orders/state-machine.ts.
         await tx.order.update({
           where: { id: orphan.orderId },
           data: {

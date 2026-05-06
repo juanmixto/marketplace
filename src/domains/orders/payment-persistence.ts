@@ -1,6 +1,7 @@
 import type { Prisma } from '@/generated/prisma/client'
 import { db } from '@/lib/db'
 import { createPaymentConfirmedEventPayload } from '@/domains/orders/order-event-payload'
+import { assertOrderTransition } from '@/domains/orders/state-machine'
 
 /**
  * Centralizes the payment persistence writes that need to stay in sync with
@@ -99,6 +100,7 @@ export async function recordManualPaymentConfirmation(
     where: { orderId, providerRef, status: 'PENDING' },
     data: { status: 'SUCCEEDED' },
   })
+  assertOrderTransition('PLACED', 'PAYMENT_CONFIRMED')
   const orderUpdate = await tx.order.updateMany({
     where: { id: orderId, status: 'PLACED' },
     data: { status: 'PAYMENT_CONFIRMED', paymentStatus: 'SUCCEEDED' },

@@ -230,6 +230,12 @@ async function emitBuyerOrderStatus(input: {
 }
 
 async function recomputeOrderStatus(orderId: string): Promise<void> {
+  const order = await db.order.findUnique({
+    where: { id: orderId },
+    select: { status: true },
+  })
+  if (!order) return
+
   const fulfillments = await db.vendorFulfillment.findMany({
     where: { orderId },
     select: { status: true },
@@ -251,7 +257,16 @@ async function recomputeOrderStatus(orderId: string): Promise<void> {
   else if (allShipped) next = 'SHIPPED'
   else if (anyShipped) next = 'PARTIALLY_SHIPPED'
 
-  if (next) {
+  // FSM (src/domains/orders/state-machine.ts): only post-PLACED, non-terminal
+  // states can be re-stamped from fulfillment recompute. Importing the
+  // orders FSM from shipping would create an orders ↔ shipping cycle
+  // (orders/checkout.ts already imports shipping), so the legal edge is
+  // enforced inline.
+  const isLegalParent =
+    order.status !== 'PLACED' &&
+    order.status !== 'CANCELLED' &&
+    order.status !== 'REFUNDED'
+  if (next && isLegalParent && next !== order.status) {
     await db.order.update({ where: { id: orderId }, data: { status: next } })
   }
 }

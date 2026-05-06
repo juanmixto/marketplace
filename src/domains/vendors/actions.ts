@@ -762,10 +762,25 @@ export async function advanceFulfillment(
       const allShipped = allFulfillments.every(f => f.status === 'SHIPPED')
       const newOrderStatus = allShipped ? 'SHIPPED' : 'PARTIALLY_SHIPPED'
 
-      await tx.order.update({
+      // FSM (src/domains/orders/state-machine.ts): SHIPPED / PARTIALLY_SHIPPED
+      // are only legal from post-PLACED, non-terminal parents. Inline check
+      // because importing the orders FSM from vendors would create a cycle.
+      const parent = await tx.order.findUnique({
         where: { id: fulfillment.orderId },
-        data: { status: newOrderStatus },
+        select: { status: true },
       })
+      const isLegalParent =
+        parent &&
+        parent.status !== 'PLACED' &&
+        parent.status !== 'CANCELLED' &&
+        parent.status !== 'REFUNDED' &&
+        parent.status !== newOrderStatus
+      if (isLegalParent) {
+        await tx.order.update({
+          where: { id: fulfillment.orderId },
+          data: { status: newOrderStatus },
+        })
+      }
     }
   })
 
@@ -917,10 +932,25 @@ export async function markShippedByUserId(
       select: { status: true },
     })
     const allShipped = siblings.every(f => f.status === 'SHIPPED')
-    await tx.order.update({
+    const newOrderStatus = allShipped ? 'SHIPPED' : 'PARTIALLY_SHIPPED'
+    const parent = await tx.order.findUnique({
       where: { id: fulfillment.orderId },
-      data: { status: allShipped ? 'SHIPPED' : 'PARTIALLY_SHIPPED' },
+      select: { status: true },
     })
+    // FSM (src/domains/orders/state-machine.ts): inline edge check; see
+    // sibling guard in advanceFulfillment for the cycle rationale.
+    const isLegalParent =
+      parent &&
+      parent.status !== 'PLACED' &&
+      parent.status !== 'CANCELLED' &&
+      parent.status !== 'REFUNDED' &&
+      parent.status !== newOrderStatus
+    if (isLegalParent) {
+      await tx.order.update({
+        where: { id: fulfillment.orderId },
+        data: { status: newOrderStatus },
+      })
+    }
   })
 
   // Notify the buyer that their order is on its way. The alternative
