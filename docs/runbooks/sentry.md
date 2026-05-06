@@ -191,32 +191,32 @@ more log lines. To pivot:
 
 `scrubSentryEvent()` runs as the `beforeSend` (and
 `beforeSendTransaction`) hook on every Sentry init. It deep-walks the
-event payload and:
+event payload and uses the **shared scrubber** ([`src/lib/scrubber.ts`](../../src/lib/scrubber.ts)) so logger and Sentry can never drift apart again (#1354).
 
-- Redacts values for any **key** matching `password|token|cookie|authorization|session|secret|apikey|client_secret|cardnumber|cvv|cvc|iban|bic|swift|phone|telefono|email|correo|address|direccion|postalcode|cp` (case-insensitive).
-- Redacts **values** matching the email / phone / Stripe-token / long
-  bearer-token regexes anywhere they appear — including inside URLs,
-  free-text exception messages, and breadcrumb data.
+| Class | Keys (case-insensitive substring) | Values (anywhere in any string) |
+|-------|-----------------------------------|---------------------------------|
+| Auth / sessions | `password`, `token`, `cookie`, `authorization`, `session`, `secret`, `apikey`, `client_secret`, `webhook_secret` | JWT-shaped `a.b.c` triplets, Stripe-style `sk_/pk_/pi_/cs_/whsec_/...` tokens |
+| Payments | `cardnumber`, `cvv`, `cvc`, `iban`, `bic`, `swift` | `\b[A-Z]{2}\d{2}[A-Z0-9]{8,30}\b` (IBAN value) |
+| Identity | `email`, `correo`, `phone`, `telefono`, `dni`, `nie` | E-mail regex; ES DNI/NIE `\b[XYZ]?\d{7,8}[A-Z]\b`; ES phone `\b(?:\+34\s?)?[6-9]\d{8}\b`; permissive separator-rich phone |
+| Geo | `address`, `direccion`, `postalcode`, `cp` | (none — values handled at key level) |
+
+The Sentry layer additionally:
+
 - Strips `user` to `{ id }` only — drops email, username, ip_address.
-- Drops `cookies` entirely (even non-session ones — they can still
-  identify a buyer).
-- Allow-lists request headers: keeps `user-agent`, `accept`,
-  `accept-language`, `x-forwarded-proto`, `x-vercel-id`, `x-correlation-id`.
-  Everything else (including `authorization`, `cookie`, custom
-  `x-*-secret`) is dropped.
-- Returns `null` (drops the event) if the scrubber itself crashes —
-  a missing event is a better failure mode than a leaked one.
-- Logs to **stderr** (not via `logger`, to avoid re-entrant Sentry
-  capture) when scrubbing crashes, so operators see the dead-zone.
+- Drops `cookies` entirely (even non-session ones — they can still identify a buyer).
+- Allow-lists request headers: keeps `user-agent`, `accept`, `accept-language`, `x-forwarded-proto`, `x-vercel-id`, `x-correlation-id`. Everything else (including `authorization`, `cookie`, custom `x-*-secret`) is dropped.
+- Returns `null` (drops the event) if the scrubber itself crashes — a missing event is a better failure mode than a leaked one.
+- Logs to **stderr** (not via `logger`, to avoid re-entrant Sentry capture) when scrubbing crashes, so operators see the dead-zone.
 
-Source: [`src/lib/sentry/scrubber.ts`](../../src/lib/sentry/scrubber.ts).
-The header comment in that file is the authoritative spec.
+Source: [`src/lib/sentry/scrubber.ts`](../../src/lib/sentry/scrubber.ts) (event-shape walker) + [`src/lib/scrubber.ts`](../../src/lib/scrubber.ts) (shared patterns + `scrubString` / `scrubPayload`). The header comment in both files is the authoritative spec.
 
 ### The contract: every pattern needs a test
 
-> Every new pattern added to `src/lib/sentry/scrubber.ts` MUST come with
-> a test in `test/features/sentry-scrubber.test.ts` proving the PII
-> class is caught. PII leak via Sentry is a GDPR exposure.
+> Every new pattern added to `src/lib/scrubber.ts` MUST come with a test
+> in `test/features/scrubber.test.ts` proving the PII class is caught.
+> The same suite enforces logger ≡ Sentry parity, so adding a regex to
+> one and forgetting the other trips a test. PII leak via either sink
+> is a GDPR exposure.
 
 This is enforced socially in [`AGENTS.md`](../../AGENTS.md) §
 Conventions → "Sentry error tracking". There is no audit script for it
