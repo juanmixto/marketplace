@@ -24,6 +24,8 @@ import { authorizeCredentials } from '@/domains/auth/credentials'
 import { isTwoFactorEnabled } from '@/domains/auth/two-factor'
 // eslint-disable-next-line no-restricted-imports -- oauth-token-crypto is Prisma-adjacent; src/lib/auth.ts is the only consumer (NextAuth adapter)
 import { encryptLinkAccountPayload } from '@/domains/auth/oauth-token-crypto'
+import { checkRateLimit } from '@/lib/ratelimit'
+import { getAuditRequestIp } from '@/lib/audit'
 
 applyNormalizedAuthHostEnv(process.env)
 
@@ -138,6 +140,37 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
      */
     async signIn({ user, account, profile }) {
       if (!account || account.type !== 'oauth') return true
+
+      // #1288 — per-IP bucket on the OAuth callback. Without this an
+      // attacker who already has a valid OAuth code (or a compromised
+      // browser session) can hammer the callback to enumerate which
+      // emails resolve to existing accounts (matrix branches differ
+      // between "email known" vs "unknown"). Fail-open: a transient
+      // Upstash blip must NOT lock everyone out of social login —
+      // `checkRateLimit` defaults to success:true on backend failure.
+      const callbackIp = await getAuditRequestIp()
+      if (callbackIp) {
+        const limit = await checkRateLimit(
+          'oauth-callback',
+          `${account.provider}:${callbackIp}`,
+          20,
+          10 * 60,
+        )
+        if (!limit.success) {
+          logger.warn('auth.oauth.callback_rate_limited', {
+            provider: account.provider,
+            // Don't log the literal IP — the structured logger scrubber
+            // (#1354) would redact it as PII anyway. The hashed bucket
+            // key `oauth-callback:google:cf-…` is enough for forensic
+            // correlation against the AuditLog without storing the IP.
+            retryAfterSeconds: Math.max(
+              1,
+              Math.ceil((limit.resetAt - Date.now()) / 1000),
+            ),
+          })
+          return false
+        }
+      }
 
       const rawEmail = (profile?.email as string | undefined) ?? user?.email
       if (!rawEmail) {
