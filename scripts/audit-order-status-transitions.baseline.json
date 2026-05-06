@@ -1,0 +1,11 @@
+{
+  "note": "Pre-existing order.update*({ data: { status: ... }}) calls without a preceding assertOrderTransition. CI tolerates these; new ones fail. Shrink this file as call sites adopt the guard — never grow it.",
+  "generatedAt": "2026-05-06T07:07:53.570Z",
+  "violations": [
+    "src/domains/payments/reconcile.ts:196",
+    "src/domains/payments/reconcile.ts:442",
+    "src/domains/shipping/transitions.ts:270",
+    "src/domains/vendors/actions.ts:779",
+    "src/domains/vendors/actions.ts:949"
+  ]
+}

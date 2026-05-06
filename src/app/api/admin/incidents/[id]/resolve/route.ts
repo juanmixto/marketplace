@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { IncidentResolution } from '@/generated/prisma/enums'
 import { refundPaymentIntent } from '@/domains/payments/provider'
+import { assertOrderTransition, canTransitionOrder } from '@/domains/orders/state-machine'
 import { logger } from '@/lib/logger'
 import { AlreadyProcessedError, withIdempotency } from '@/lib/idempotency'
 import { createAuditLog, getAuditRequestIp } from '@/lib/audit'
@@ -153,6 +154,7 @@ async function doResolve({
         select: {
           id: true,
           orderNumber: true,
+          status: true,
           payments: {
             where: { status: 'SUCCEEDED' },
             orderBy: { createdAt: 'desc' },
@@ -322,11 +324,16 @@ async function doResolve({
         where: { id: payment.id },
         data: { status: isFullyRefunded ? 'REFUNDED' : 'PARTIALLY_REFUNDED' },
       })
+      const promoteToRefunded =
+        isFullyRefunded && canTransitionOrder(incident.order.status, 'REFUNDED')
+      if (promoteToRefunded) {
+        assertOrderTransition(incident.order.status, 'REFUNDED')
+      }
       await tx.order.update({
         where: { id: incident.order.id },
         data: {
           paymentStatus: isFullyRefunded ? 'REFUNDED' : 'PARTIALLY_REFUNDED',
-          ...(isFullyRefunded ? { status: 'REFUNDED' } : {}),
+          ...(promoteToRefunded ? { status: 'REFUNDED' as const } : {}),
         },
       })
       await tx.orderEvent.create({
