@@ -13,6 +13,7 @@ import { db } from '@/lib/db'
 import { safeRevalidatePath } from '@/lib/revalidate'
 import type { ShipmentStatusInternal } from '@/domains/shipping/domain/types'
 import { isValidTransition } from '@/domains/shipping/domain/state-machine'
+import { assertOrderTransition, canTransitionOrder } from '@/domains/orders/state-machine'
 // eslint-disable-next-line no-restricted-imports -- dispatcher is intentionally server-only, excluded from notifications barrel
 import { emit as emitNotification } from '@/domains/notifications/dispatcher'
 import type {
@@ -230,6 +231,12 @@ async function emitBuyerOrderStatus(input: {
 }
 
 async function recomputeOrderStatus(orderId: string): Promise<void> {
+  const order = await db.order.findUnique({
+    where: { id: orderId },
+    select: { status: true },
+  })
+  if (!order) return
+
   const fulfillments = await db.vendorFulfillment.findMany({
     where: { orderId },
     select: { status: true },
@@ -251,7 +258,8 @@ async function recomputeOrderStatus(orderId: string): Promise<void> {
   else if (allShipped) next = 'SHIPPED'
   else if (anyShipped) next = 'PARTIALLY_SHIPPED'
 
-  if (next) {
+  if (next && canTransitionOrder(order.status, next) && next !== order.status) {
+    assertOrderTransition(order.status, next)
     await db.order.update({ where: { id: orderId }, data: { status: next } })
   }
 }

@@ -18,6 +18,7 @@ import {
 import { parseExpirationDateInput } from '@/domains/catalog'
 import { getActionSession } from '@/lib/action-session'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
+import { assertOrderTransition, canTransitionOrder } from '@/domains/orders/state-machine'
 import { isVendor } from '@/lib/roles'
 import { isAllowedImageUrl } from '@/lib/image-validation'
 import { deleteBlobs, diffRemovedUrls } from '@/lib/blob-storage'
@@ -762,10 +763,17 @@ export async function advanceFulfillment(
       const allShipped = allFulfillments.every(f => f.status === 'SHIPPED')
       const newOrderStatus = allShipped ? 'SHIPPED' : 'PARTIALLY_SHIPPED'
 
-      await tx.order.update({
+      const parent = await tx.order.findUnique({
         where: { id: fulfillment.orderId },
-        data: { status: newOrderStatus },
+        select: { status: true },
       })
+      if (parent && canTransitionOrder(parent.status, newOrderStatus) && parent.status !== newOrderStatus) {
+        assertOrderTransition(parent.status, newOrderStatus)
+        await tx.order.update({
+          where: { id: fulfillment.orderId },
+          data: { status: newOrderStatus },
+        })
+      }
     }
   })
 
@@ -917,10 +925,18 @@ export async function markShippedByUserId(
       select: { status: true },
     })
     const allShipped = siblings.every(f => f.status === 'SHIPPED')
-    await tx.order.update({
+    const newOrderStatus = allShipped ? 'SHIPPED' : 'PARTIALLY_SHIPPED'
+    const parent = await tx.order.findUnique({
       where: { id: fulfillment.orderId },
-      data: { status: allShipped ? 'SHIPPED' : 'PARTIALLY_SHIPPED' },
+      select: { status: true },
     })
+    if (parent && canTransitionOrder(parent.status, newOrderStatus) && parent.status !== newOrderStatus) {
+      assertOrderTransition(parent.status, newOrderStatus)
+      await tx.order.update({
+        where: { id: fulfillment.orderId },
+        data: { status: newOrderStatus },
+      })
+    }
   })
 
   // Notify the buyer that their order is on its way. The alternative

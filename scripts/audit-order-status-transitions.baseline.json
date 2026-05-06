@@ -1,0 +1,5 @@
+{
+  "note": "Pre-existing order.update*({ data: { status: ... }}) calls without a preceding assertOrderTransition. CI tolerates these; new ones fail. Shrink this file as call sites adopt the guard — never grow it.",
+  "generatedAt": "2026-05-05T00:00:00.000Z",
+  "violations": []
+}

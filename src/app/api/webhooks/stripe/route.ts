@@ -15,6 +15,7 @@ import {
   createPaymentFailedEventPayload,
   createPaymentMismatchEventPayload,
 } from '@/domains/orders/order-event-payload'
+import { assertOrderTransition } from '@/domains/orders/state-machine'
 import { recordWebhookDeadLetter } from '@/domains/payments/webhook-dlq'
 import { getServerEnv } from '@/lib/env'
 import {
@@ -423,6 +424,7 @@ async function handlePaymentSucceeded(
         // CANCELLED or REFUNDED order when a late/retried webhook arrived,
         // leaving the buyer charged with no fulfillment intent. Being
         // explicit makes the transition a single allowed edge.
+        assertOrderTransition('PLACED', 'PAYMENT_CONFIRMED')
         const orderUpdate = await tx.order.updateMany({
           where: { id: payment.orderId, status: 'PLACED' },
           data: { status: 'PAYMENT_CONFIRMED', paymentStatus: 'SUCCEEDED' },

@@ -13,6 +13,7 @@ import {
 import { hasRole, ADMIN_ROLES as ADMIN_ROLE_LIST } from '@/lib/roles'
 import { revalidateCatalogExperience, safeRevalidatePath } from '@/lib/revalidate'
 import { assertVendorOnboarded } from '@/domains/vendors'
+import { cancelOrderWithRefundPolicy } from '@/domains/orders/use-cases/cancel-order'
 import {
   AlreadyProcessedError,
   withIdempotency,
@@ -820,29 +821,19 @@ export async function markSettlementPaid(settlementId: string) {
 
 // ─── Order management ─────────────────────────────────────────────────────────
 
-const CANCELLABLE_ORDER_STATUSES = ['PLACED', 'PAYMENT_CONFIRMED', 'PROCESSING', 'PARTIALLY_SHIPPED'] as const
-type CancellableOrderStatus = (typeof CANCELLABLE_ORDER_STATUSES)[number]
-function isCancellableOrderStatus(status: string): status is CancellableOrderStatus {
-  return (CANCELLABLE_ORDER_STATUSES as readonly string[]).includes(status)
-}
-
 /**
  * Cancels an order. Only admin-ops/superadmin can cancel.
  *
- * - Cascades cancellation to all non-terminal VendorFulfillments
- * - Restores stock for all tracked products in the order
- * - Orders with SHIPPED or DELIVERED fulfillments cannot be cancelled (those
- *   lines require manual intervention / refund flow).
- *
- * NOTE (#1158): cancelling an order does NOT issue a Stripe refund —
- * the buyer must be reimbursed manually via the incident resolution
- * flow. The previous JSDoc claim that this "may trigger refunds" was
- * misleading. See `docs/runbooks/payment-incidents.md` for the manual
- * step.
+ * Delegates to `cancelOrderWithRefundPolicy` (#1343), which:
+ *   - Cascades cancellation to all non-terminal VendorFulfillments.
+ *   - Restores stock for all tracked products on the order.
+ *   - Issues a full Stripe refund + transitions Order to REFUNDED when
+ *     the payment is already SUCCEEDED.
+ *   - Throws `cancellation_requires_incident` for SHIPPED / DELIVERED /
+ *     PARTIALLY_SHIPPED orders (admin must triage via the incident flow).
  *
  * `idempotencyToken` (#1152) prevents a double-tap on flaky network
- * from running the stock-restore transaction twice. Optional for
- * legacy callers; the admin UI now passes one.
+ * from running the cancellation twice.
  */
 export async function cancelOrder(
   orderId: string,
@@ -852,74 +843,13 @@ export async function cancelOrder(
   const session = await requireOpsAdmin()
 
   const doCancel = async () => {
-  const order = await db.order.findUnique({
-    where: { id: orderId },
-    include: {
-      lines: {
-        include: { product: { select: { trackStock: true } } },
-      },
-      fulfillments: { select: { vendorId: true, status: true } },
-    },
-  })
-
-  if (!order) throw new Error('Pedido no encontrado')
-  if (!isCancellableOrderStatus(order.status)) {
-    throw new Error(`No se puede cancelar un pedido en estado ${order.status}`)
-  }
-
-  // Stock from already-shipped fulfillments was physically dispatched — do not restore it
-  const shippedVendorIds = new Set(
-    order.fulfillments
-      .filter(f => f.status === 'SHIPPED' || f.status === 'DELIVERED')
-      .map(f => f.vendorId)
-  )
-
-  await db.$transaction(async tx => {
-    await tx.order.update({
-      where: { id: orderId },
-      data: { status: 'CANCELLED' },
+    await cancelOrderWithRefundPolicy({
+      orderId,
+      reason,
+      actor: { type: 'ADMIN', id: session.user.id },
     })
-
-    // Cascade cancellation to all non-terminal fulfillments
-    await tx.vendorFulfillment.updateMany({
-      where: {
-        orderId,
-        status: { notIn: ['SHIPPED', 'DELIVERED', 'CANCELLED'] },
-      },
-      data: { status: 'CANCELLED' },
-    })
-
-    // Restore stock only for lines whose vendor has not yet shipped
-    for (const line of order.lines) {
-      if (!line.product.trackStock) continue
-      if (shippedVendorIds.has(line.vendorId)) continue
-
-      if (line.variantId) {
-        await tx.productVariant.update({
-          where: { id: line.variantId },
-          data: { stock: { increment: line.quantity } },
-        })
-        continue
-      }
-
-      await tx.product.update({
-        where: { id: line.productId },
-        data: { stock: { increment: line.quantity } },
-      })
-    }
-
-    await tx.orderEvent.create({
-      data: {
-        orderId,
-        actorId: session.user.id,
-        type: 'ORDER_CANCELLED',
-        payload: { reason, cancelledBy: session.user.id },
-      },
-    })
-  })
-
-  safeRevalidatePath('/admin/pedidos')
-  safeRevalidatePath(`/admin/pedidos/${orderId}`)
+    safeRevalidatePath('/admin/pedidos')
+    safeRevalidatePath(`/admin/pedidos/${orderId}`)
   }
 
   if (idempotencyToken) {
