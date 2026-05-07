@@ -1,0 +1,20 @@
+[Unit]
+Description=raizdirecta.es — monthly git-hygiene report (read-only)
+Documentation=https://github.com/juanmixto/marketplace/blob/main/docs/runbooks/host-crons.md
+
+[Timer]
+# First Monday of every month, 09:00 UTC. Daytime so the operator
+# actually sees the journal entry in the same morning's review window.
+# Different day-of-week from the restore-drill (Sun) so the two never
+# fight for journal attention or for git's index lock.
+OnCalendar=Mon *-*-01..07 09:00:00 UTC
+# Run on next boot if the host was down at the scheduled time. Without
+# this, a power flip on the first Monday silently means no report.
+Persistent=true
+# Spread across a 5-minute window so a busy 09:00 UTC slot doesn't have
+# every monthly job firing simultaneously.
+RandomizedDelaySec=300
+Unit=raizdirecta-git-hygiene.service
+
+[Install]
+WantedBy=timers.target

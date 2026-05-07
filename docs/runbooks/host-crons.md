@@ -26,6 +26,7 @@ reemplazaron por systemd timers en el nodo `whisper`.
 |--------------------------|----------------|-------------------------------------------------|-------|
 | `cleanup-idempotency`    | diario `03:00`              | `https://raizdirecta.es/api/cron/cleanup-idempotency` | Sweep diario de `IdempotencyKey` expirados (#1307). |
 | `restore-drill`          | mensual 1er domingo `03:00` | `scripts/db/restore-drill.sh` (ejecuta en el host)    | Drill de restore desde B2 a un Postgres efímero (#1311 / epic #1002). Verifica cada mes que el dump cifrado se desencripta y aplica limpio. Requiere `B2_REMOTE` / `B2_BUCKET` / `MP_DUMP_PASSPHRASE_FILE` en `host-cron.env` antes de habilitarlo. La unit se *instala* pero NO arranca sola en el primer install — el operador la ejecuta a mano la primera vez para verificar la plumbing. |
+| `git-hygiene`            | mensual 1er lunes `09:00`   | `scripts/host-cron/git-hygiene-report.sh` (ejecuta en el host) | Read-only. Reporta worktrees acumulados, ramas `[gone]`, stashes >24h, y `rescue/*` listas para borrar. Diseñado tras el barrido manual del 2026-05-07 (176 worktrees / 60 GB). Output en el journal: `journalctl -u raizdirecta-git-hygiene -n 200 --no-pager`. La acción correctiva sigue siendo manual (`scripts/git-hygiene.sh --clean` y `scripts/rescue-sweep.sh --delete`). HC ping de éxito opcional vía `HC_PING_GIT_HYGIENE`. |
 
 ### Restore drill — qué hacer cuando suena la alerta
 
