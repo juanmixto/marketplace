@@ -26,6 +26,10 @@ import {
 import type { FulfillmentStatus } from '@/generated/prisma/enums'
 // eslint-disable-next-line no-restricted-imports -- dispatcher is intentionally server-only, excluded from notifications barrel
 import { emit as emitNotification } from '@/domains/notifications/dispatcher'
+import {
+  canVendorOperateFulfillments,
+  VENDOR_SUSPENDED_MESSAGE,
+} from '@/domains/vendors/lifecycle-guard'
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 
@@ -34,6 +38,12 @@ async function requireVendorSession() {
   if (!session || !isVendor(session.user.role)) redirect('/login')
   const vendor = await db.vendor.findUnique({ where: { userId: session.user.id } })
   if (!vendor) redirect('/login')
+  // #1334: a suspended vendor cannot mutate shipping/fulfillment state.
+  // Catalog visibility is gated separately. We throw here (instead of
+  // redirecting) so the caller surfaces a structured error to the UI.
+  if (!canVendorOperateFulfillments(vendor.status)) {
+    throw new Error(VENDOR_SUSPENDED_MESSAGE)
+  }
   return { session, vendor }
 }
 
@@ -172,11 +182,21 @@ async function prepareFulfillmentForVendorId(
           },
         },
       },
+      vendor: { select: { status: true } },
     },
   })
 
   if (!fulfillment) {
     return { ok: false, code: 'NOT_FOUND', message: 'Fulfillment no encontrado', retryable: false }
+  }
+  // #1334: a suspended vendor must not progress fulfillments.
+  if (!canVendorOperateFulfillments(fulfillment.vendor.status)) {
+    return {
+      ok: false,
+      code: 'VENDOR_SUSPENDED',
+      message: VENDOR_SUSPENDED_MESSAGE,
+      retryable: false,
+    }
   }
 
   if (!['PENDING', 'CONFIRMED', 'PREPARING', 'LABEL_FAILED'].includes(fulfillment.status)) {

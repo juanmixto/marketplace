@@ -257,19 +257,55 @@ export async function suspendVendor(vendorId: string) {
   const before = getVendorAuditSnapshot(vendor)
   const ip = await getAuditRequestIp()
 
-  await mutateWithAudit(async tx => {
+  const cascadeResult = await mutateWithAudit(async tx => {
     const updatedVendor = await tx.vendor.update({
       where: { id: vendorId },
       data: { status: 'SUSPENDED_TEMP', ...trackUpdate(session.user.id) },
     })
+
+    // #1334: cascade non-progressed fulfillments to CANCELLED. Only
+    // states where the vendor has not committed physical work get
+    // touched (PENDING / CONFIRMED / LABEL_FAILED). PREPARING / READY /
+    // SHIPPED+ require admin discretion (refund + buyer comms) and are
+    // intentionally left alone here — admin handles them out-of-band.
+    // The catalog gate (`getAvailableProductWhere`) already prevents
+    // new purchases against suspended vendors.
+    const cancellable = await tx.vendorFulfillment.findMany({
+      where: {
+        vendorId,
+        status: { in: ['PENDING', 'CONFIRMED', 'LABEL_FAILED'] },
+      },
+      select: { id: true, orderId: true },
+    })
+    if (cancellable.length > 0) {
+      await tx.vendorFulfillment.updateMany({
+        where: { id: { in: cancellable.map(f => f.id) } },
+        data: { status: 'CANCELLED' },
+      })
+      await tx.orderEvent.createMany({
+        data: cancellable.map(f => ({
+          orderId: f.orderId,
+          type: 'VENDOR_SUSPENDED_FULFILLMENT_CANCELLED',
+          payload: {
+            vendorId,
+            fulfillmentId: f.id,
+            suspendedAt: new Date().toISOString(),
+          },
+        })),
+      })
+    }
+
     return {
-      result: updatedVendor,
+      result: { vendor: updatedVendor, cancelledFulfillmentIds: cancellable.map(f => f.id) },
       audit: {
         action: 'VENDOR_SUSPENDED',
         entityType: 'Vendor',
         entityId: vendorId,
         before,
-        after: getVendorAuditSnapshot(updatedVendor),
+        after: {
+          ...getVendorAuditSnapshot(updatedVendor),
+          cancelledFulfillmentIds: cancellable.map(f => f.id),
+        },
         actorId: session.user.id,
         actorRole: session.user.role,
         ip,
@@ -279,6 +315,9 @@ export async function suspendVendor(vendorId: string) {
 
   safeRevalidatePath('/admin/productores')
   safeRevalidatePath('/admin/auditoria')
+  if (cascadeResult.cancelledFulfillmentIds.length > 0) {
+    safeRevalidatePath('/vendor/pedidos')
+  }
 }
 
 // ─── Product moderation ───────────────────────────────────────────────────────
