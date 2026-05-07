@@ -110,6 +110,22 @@ Wrapper source: `~/.local/bin/git`. The wrapper is part of the laptop setup, not
 
 For the full policy and rationale see [`docs/git-workflow.md`](docs/git-workflow.md). For branch naming see the same doc § "Allowed branch prefixes". For deeper hygiene signals (gone branches, stale worktrees) run `scripts/git-hygiene.sh`.
 
+### When you're done with a worktree (close the loop)
+
+`gh pr merge --auto --squash --delete-branch` removes the *remote* branch but leaves the local worktree + branch behind. Without an active sweep these accumulate to hundreds (the 2026-05-07 cleanup found 176 worktrees / 60 GB across ~2 weeks of agent activity).
+
+Two pieces of automation make this self-healing:
+
+- **End-of-turn nudge** — section 5 of `scripts/agent-stop-checks.sh` lights up when your current worktree's branch has a MERGED PR, with the exact `git worktree remove` command. Surfaces only at session end so it doesn't interrupt active work.
+- **Self-cleanup helper** — chain `bash scripts/worktree-self-cleanup.sh` after a successful auto-merge to remove the worktree on-the-spot:
+  ```bash
+  gh pr merge --auto --squash --delete-branch && \
+    bash scripts/worktree-self-cleanup.sh
+  ```
+  Refuses to act on protected worktrees (`main-preview`, `release-current`), dirty trees, or branches with no MERGED PR.
+
+For periodic bulk cleanup of accumulated history, run `scripts/git-hygiene.sh --clean` — interactive, classifies by PR state via `gh pr list --limit 2000` (the cap matters: this repo has >700 historic PRs), and renames any branch with unique commits to `rescue/<name>` before removal so nothing is lost.
+
 ## Conventions
 
 - **State of the world (live operational snapshot)** — see [`docs/state-of-the-world.md`](docs/state-of-the-world.md). Read on every session start; update in the same PR that changes operational reality (cutover, first deploy of a service, manually-flipped kill switch). Designed to stay short (≤ 100 lines); when an entry is older than 30 days move it to its runbook or delete it.
