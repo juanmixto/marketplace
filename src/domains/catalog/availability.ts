@@ -15,7 +15,11 @@ export function getAvailableProductWhere(now = new Date()): Prisma.ProductWhereI
     // products whose Vendor is a ghost row keyed to a Telegram
     // author, but it also plugs a latent gap for any suspended
     // vendor whose products weren't individually taken down.
-    vendor: { status: 'ACTIVE' },
+    vendor: { status: 'ACTIVE', synthetic: false },
+    // #1223 — synthetic-monitor product is never visible publicly.
+    // The flag also protects against an operator mistakenly flipping
+    // it to status=ACTIVE outside the dedicated seed.
+    synthetic: false,
     OR: [
       { expiresAt: null },
       { expiresAt: { gt: now } },
