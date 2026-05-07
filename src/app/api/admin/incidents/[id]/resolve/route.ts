@@ -3,7 +3,7 @@ import { isFinanceAdminRole } from '@/lib/roles'
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { IncidentResolution } from '@/generated/prisma/enums'
+import { IncidentResolution, FundedBy } from '@/generated/prisma/enums'
 import { refundPaymentIntent } from '@/domains/payments/provider'
 import { assertOrderTransition, canTransitionOrder } from '@/domains/orders/state-machine'
 import { recordOrderEvent } from '@/domains/orders'
@@ -28,7 +28,10 @@ const schema = z.object({
     v => (typeof v === 'string' && v.trim() !== '' ? Number.parseFloat(v) : v),
     z.number().finite().min(0).max(1_000_000),
   ).optional(),
-  fundedBy: z.enum(['PLATFORM', 'VENDOR']).optional(),
+  // #966: ties the wire-side schema to the FundedBy enum in
+  // prisma/schema.prisma, so an enum value added in DB must also
+  // pass the Zod parser before it can be written.
+  fundedBy: z.nativeEnum(FundedBy).optional(),
 })
 
 interface RouteParams {
