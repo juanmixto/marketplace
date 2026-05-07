@@ -1,0 +1,32 @@
+[Unit]
+Description=raizdirecta.es — monthly git-hygiene report (worktrees / [gone] branches / rescue/* / stashes)
+Documentation=https://github.com/juanmixto/marketplace/blob/main/docs/runbooks/host-crons.md
+After=network-online.target
+Wants=network-online.target
+# Surface unit-level failures via the shared OnFailure handler. The
+# report itself is read-only — a non-zero exit means the script broke,
+# not that there's something to clean up.
+OnFailure=raizdirecta-host-cron-failed@%n.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/raizdirecta/host-cron.env
+WorkingDirectory=/home/whisper/marketplace
+# Wrapper batches git-hygiene.sh + rescue-sweep.sh and prints a summary.
+# Output goes to the systemd journal — `journalctl -u raizdirecta-git-hygiene`.
+ExecStart=/home/whisper/marketplace/scripts/host-cron/git-hygiene-report.sh
+TimeoutStartSec=5min
+User=whisper
+Group=whisper
+# Hardening — read-only access to the repo is enough for the report.
+# We DO need to write the .git/FETCH_HEAD via `git fetch --prune`, so
+# repo path is RW.
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+NoNewPrivileges=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+ReadWritePaths=/home/whisper/marketplace
+
+[Install]
+WantedBy=multi-user.target

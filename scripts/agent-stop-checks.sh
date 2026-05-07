@@ -236,6 +236,35 @@ if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
 fi
 
 # ---------------------------------------------------------------------------
+# 6. Uncommitted changes in the SHARED main repo
+#
+# Sibling to §1 (unpushed commits): edits in /home/whisper/marketplace
+# that nobody committed. The git wrapper blocks state-mutating subcommands
+# but NOT plain Edit/Write, so a session that strayed into the shared repo
+# can leave .env.local / config files modified. The 2026-05-04
+# main-preview incident: stale edits there aborted the post-merge
+# `git checkout origin/main` and the dev tunnel quietly served old HEAD
+# until somebody noticed (memory: feedback_main_preview_clean_before_monitor).
+# ---------------------------------------------------------------------------
+if [[ -d "$SHARED_REPO/.git" || -f "$SHARED_REPO/.git" ]]; then
+  shared_dirty="$(git -C "$SHARED_REPO" status --porcelain 2>/dev/null || true)"
+  if [[ -n "$shared_dirty" ]]; then
+    shared_count="$(echo "$shared_dirty" | wc -l | tr -d ' ')"
+    findings+=(
+      "⚠ ${shared_count} uncommitted change(s) in /home/whisper/marketplace (shared repo):"
+    )
+    while IFS= read -r line; do
+      findings+=("    $line")
+    done <<< "$shared_dirty"
+    findings+=(
+      "  → Per AGENTS.md, agents must not edit the shared repo directly."
+      "    Move the changes into a worktree, OR if a human made them, commit/discard there."
+      "    Stale edits here can quietly break main-preview's auto-checkout."
+    )
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 # Output
 # ---------------------------------------------------------------------------
 if [[ "${#findings[@]}" -eq 0 ]]; then

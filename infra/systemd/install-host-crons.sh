@@ -31,6 +31,8 @@ units=(
   raizdirecta-host-cron-failed@.service
   raizdirecta-restore-drill.service
   raizdirecta-restore-drill.timer
+  raizdirecta-git-hygiene.service
+  raizdirecta-git-hygiene.timer
 )
 
 echo "Installing host-cron units to $dst_dir..."
@@ -76,6 +78,9 @@ systemctl enable --now raizdirecta-cleanup-idempotency.timer
 # the operator runs the service once by hand the first time to verify
 # the B2 + Docker plumbing before letting the cron own it.
 systemctl enable raizdirecta-restore-drill.timer
+# The git-hygiene timer is read-only and safe to fire on schedule from
+# day one. Starting it now means the next first-Monday slot will tick.
+systemctl enable --now raizdirecta-git-hygiene.timer
 
 echo ""
 systemctl list-timers raizdirecta-* --all --no-pager || true
