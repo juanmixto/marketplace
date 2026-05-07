@@ -6,9 +6,12 @@ import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 import { apiError, apiInternalError, apiNotFound, apiUnauthorized, apiValidationFromZod } from '@/lib/api-response'
 
+// #1284 — bound mirrors auth/reset-password so the bcrypt code path
+// can never be hit with a megabyte payload.
+const PASSWORD_MAX = 200
 const passwordSchema = z.object({
-  currentPassword: z.string().min(1, 'Introduce tu contraseña actual'),
-  newPassword: z.string().min(8, 'La nueva contraseña debe tener al menos 8 caracteres'),
+  currentPassword: z.string().min(1, 'Introduce tu contraseña actual').max(PASSWORD_MAX),
+  newPassword: z.string().min(8, 'La nueva contraseña debe tener al menos 8 caracteres').max(PASSWORD_MAX),
 })
 
 export async function PUT(request: Request) {

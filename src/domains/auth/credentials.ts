@@ -17,9 +17,10 @@ import {
 } from '@/domains/auth/lockout'
 import { logger } from '@/lib/logger'
 
+// #1284 — bound input strings before bcrypt / DB lookups.
 const credentialsSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
+  email: z.string().email().max(254),
+  password: z.string().min(8).max(200),
   // Optional TOTP code. Admins with 2FA enrolled must include it
   // (unless a valid trusted-device cookie is present for this user);
   // accounts without 2FA leave it blank. 6–8 digits covers both the

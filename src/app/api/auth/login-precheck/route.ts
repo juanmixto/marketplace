@@ -29,9 +29,10 @@ import { isTwoFactorEnabled } from '@/domains/auth/two-factor'
 import { verifyTrustedDeviceCookie } from '@/domains/auth/trusted-device'
 import { normalizeAuthEmail } from '@/lib/auth-email'
 
+// #1284 — bound the password before it ever reaches bcrypt.
 const schema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
+  email: z.string().email().max(254),
+  password: z.string().min(8).max(200),
 })
 
 const PER_IP_LIMIT = 20
