@@ -118,7 +118,14 @@ function writeEntry(entry: LogEntry) {
     typeof process !== 'undefined' &&
     typeof process.stdout?.write === 'function'
   ) {
-    process.stdout.write(JSON.stringify(safeEntry) + '\n')
+    const serialized = JSON.stringify(safeEntry)
+    process.stdout.write(serialized + '\n')
+    // #1220 — ship to external HTTP NDJSON sink (Axiom / Better Stack
+    // / Loki push) when LOGGER_SINK_URL is set. Inert otherwise.
+    // `enqueueForSink` is fire-and-forget — never blocks the request
+    // path, never throws. A sink outage degrades observability, not
+    // user requests.
+    enqueueForSink(serialized)
     return
   }
   if (isProduction()) {
@@ -181,6 +188,7 @@ export interface Logger {
 // here because logger has slightly different semantics (Error
 // instances pass through unchanged, `extraKeys` is supported).
 
+import { enqueueForSink } from '@/lib/logger-sink'
 import {
   REDACT_KEY_PATTERN as DEFAULT_REDACT_KEY_PATTERN,
   REDACTED_LOGGER as REDACTED,
