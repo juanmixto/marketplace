@@ -130,7 +130,7 @@ Priority: **isolation > convenience.** An extra worktree is cheap; corrupted wor
 
 Run `scripts/git-hygiene.sh` periodically (or before starting a new task in a stale environment). It surfaces:
 
-- Branches with `[gone]` upstreams.
+- Branches with `[gone]` upstreams (excluding `rescue/*`, which are intentional local-only backups).
 - Worktrees whose branches were deleted.
 - Stashes older than 24 hours.
 - Local branches that have diverged from `origin` in a non-fast-forward way.
@@ -138,8 +138,11 @@ Run `scripts/git-hygiene.sh` periodically (or before starting a new task in a st
 The script only **reports** by default — it never deletes anything without explicit confirmation. Use it as a checklist, not an autopilot.
 
 ```bash
-./scripts/git-hygiene.sh
+./scripts/git-hygiene.sh           # read-only report
+./scripts/git-hygiene.sh --clean   # interactive bulk cleanup (see below)
 ```
+
+`--clean` classifies every worktree by PR state, renames branches with unique commits to `rescue/<name>` before removal, and stops to confirm before any destructive action. It calls `gh pr list --state all --limit 2000` because the default limit silently truncates — this repo has >700 historic PRs, so anything below 2000 will mislabel old MERGED PRs as "no PR found" and falsely classify their worktrees as in-flight. **The `--limit` cap is a foot-gun for any script that classifies branches via `gh pr list`; always size it to the repo's history.**
 
 For the merge side of the workflow, keep [`docs/runbooks/pr-landing-checklist.md`](runbooks/pr-landing-checklist.md) open while you land PRs. It is the short version of the same guardrails: right worktree, exact contract check, one sync before merge, no protection bypass for convenience.
 
