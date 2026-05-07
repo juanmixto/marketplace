@@ -190,18 +190,23 @@ test('cancelOrder: ADMIN_OPS can cancel', async () => {
 
 // ─── approveVendor: OPS-only (#1145) ────────────────────────────────────────
 
+async function createApplyingVendor(opts: { stripeReady: boolean }) {
+  const vendorUser = await createUser('VENDOR')
+  return db.vendor.create({
+    data: {
+      userId: vendorUser.id,
+      slug: `applying-${randomUUID().slice(0, 8)}`,
+      displayName: 'Applying',
+      status: 'APPLYING',
+      stripeAccountId: opts.stripeReady ? `acct_test_${randomUUID().replace(/-/g, '')}` : null,
+      stripeOnboarded: opts.stripeReady,
+    },
+  })
+}
+
 for (const role of OPS_DENIED) {
   test(`approveVendor: ${role} is REJECTED`, async () => {
-    const vendorUser = await createUser('VENDOR')
-    const vendor = await db.vendor.create({
-      data: {
-        userId: vendorUser.id,
-        slug: `applying-${randomUUID().slice(0, 8)}`,
-        displayName: 'Applying',
-        status: 'APPLYING',
-        stripeOnboarded: false,
-      },
-    })
+    const vendor = await createApplyingVendor({ stripeReady: true })
     await asAdminRole(role)
     await assert.rejects(() => approveVendor(vendor.id), /NEXT_REDIRECT|redirect/i)
     const stillApplying = await db.vendor.findUniqueOrThrow({ where: { id: vendor.id } })
@@ -211,22 +216,78 @@ for (const role of OPS_DENIED) {
 
 for (const role of OPS_ALLOWED) {
   test(`approveVendor: ${role} can approve`, async () => {
-    const vendorUser = await createUser('VENDOR')
-    const vendor = await db.vendor.create({
-      data: {
-        userId: vendorUser.id,
-        slug: `applying-${randomUUID().slice(0, 8)}`,
-        displayName: 'Applying',
-        status: 'APPLYING',
-        stripeOnboarded: false,
-      },
-    })
+    const vendor = await createApplyingVendor({ stripeReady: true })
     await asAdminRole(role)
     await approveVendor(vendor.id)
     const active = await db.vendor.findUniqueOrThrow({ where: { id: vendor.id } })
     assert.equal(active.status, 'ACTIVE')
   })
 }
+
+// #1333: vendor cannot become ACTIVE without Stripe Connect ready.
+test('approveVendor: rejects when stripeAccountId is null', async () => {
+  const vendorUser = await createUser('VENDOR')
+  const vendor = await db.vendor.create({
+    data: {
+      userId: vendorUser.id,
+      slug: `applying-${randomUUID().slice(0, 8)}`,
+      displayName: 'No Stripe Account',
+      status: 'APPLYING',
+      stripeAccountId: null,
+      stripeOnboarded: true, // even if flag set, no acct id is invalid
+    },
+  })
+  await asAdminRole('SUPERADMIN')
+  await assert.rejects(() => approveVendor(vendor.id), /Stripe Connect/i)
+  const stillApplying = await db.vendor.findUniqueOrThrow({ where: { id: vendor.id } })
+  assert.equal(stillApplying.status, 'APPLYING')
+})
+
+test('approveVendor: rejects when stripeOnboarded is false', async () => {
+  const vendor = await createApplyingVendor({ stripeReady: false })
+  // Force an account id but keep onboarded=false (simulates account
+  // created but onboarding incomplete).
+  await db.vendor.update({
+    where: { id: vendor.id },
+    data: { stripeAccountId: `acct_test_${randomUUID().replace(/-/g, '')}` },
+  })
+  await asAdminRole('SUPERADMIN')
+  await assert.rejects(() => approveVendor(vendor.id), /Stripe Connect/i)
+  const stillApplying = await db.vendor.findUniqueOrThrow({ where: { id: vendor.id } })
+  assert.equal(stillApplying.status, 'APPLYING')
+})
+
+// #1332: settlement cannot be marked PAID without Stripe Connect ready.
+test('markSettlementPaid: rejects when vendor has no stripeAccountId', async () => {
+  const vendorUser = await createUser('VENDOR')
+  const vendor = await db.vendor.create({
+    data: {
+      userId: vendorUser.id,
+      slug: `vendor-${randomUUID().slice(0, 8)}`,
+      displayName: 'No Stripe',
+      status: 'ACTIVE',
+      stripeAccountId: null,
+      stripeOnboarded: false,
+    },
+  })
+  const settlement = await db.settlement.create({
+    data: {
+      vendorId: vendor.id,
+      periodFrom: new Date('2026-04-01'),
+      periodTo: new Date('2026-04-30'),
+      grossSales: 500,
+      commissions: 50,
+      refunds: 0,
+      adjustments: 0,
+      netPayable: 450,
+      status: 'APPROVED',
+    },
+  })
+  await asAdminRole('ADMIN_FINANCE')
+  await assert.rejects(() => markSettlementPaid(settlement.id), /Stripe Connect/i)
+  const stillApproved = await db.settlement.findUniqueOrThrow({ where: { id: settlement.id } })
+  assert.equal(stillApproved.status, 'APPROVED')
+})
 
 // ─── reviewProduct: CATALOG-only (#1145) ───────────────────────────────────
 
