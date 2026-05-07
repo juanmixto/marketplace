@@ -198,6 +198,44 @@ if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
 fi
 
 # ---------------------------------------------------------------------------
+# 5. Current worktree's branch has a MERGED PR — worktree is obsolete
+#
+# `gh pr merge --auto --squash --delete-branch` removes the *remote*
+# branch but leaves the local worktree + branch behind. Without an
+# active sweep these accumulate to hundreds (2026-05-07: found 141
+# worktrees on already-merged PRs across ~2 weeks of activity).
+#
+# Surface only when the current cwd is a worktree (NOT the shared
+# main repo, NOT a detached HEAD that may be load-bearing like
+# release-current/main-preview) AND its PR is MERGED.
+#
+# Skipped if `gh` is not authenticated.
+# ---------------------------------------------------------------------------
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  cwd_top="$(git rev-parse --show-toplevel 2>/dev/null || echo '')"
+  cwd_branch="$(git branch --show-current 2>/dev/null || echo '')"
+  if [[ -n "$cwd_top" && -n "$cwd_branch" \
+        && "$cwd_top" != "$SHARED_REPO" \
+        && "$cwd_top" == /home/whisper/worktrees/* ]]; then
+    merged_pr="$(gh pr list \
+      --state merged --limit 5 \
+      --search "head:$cwd_branch" \
+      --json number,mergedAt \
+      --jq '.[0] // empty' 2>/dev/null || echo '')"
+    if [[ -n "$merged_pr" ]]; then
+      pr_num="$(echo "$merged_pr" | jq -r '.number')"
+      merged_at="$(echo "$merged_pr" | jq -r '.mergedAt')"
+      findings+=(
+        "ℹ Your worktree's branch '${cwd_branch}' was merged in PR #${pr_num} (${merged_at})."
+        "  → This worktree is obsolete. Remove it from the shared repo:"
+        "    git -C ${SHARED_REPO} worktree remove --force ${cwd_top}"
+        "    git -C ${SHARED_REPO} branch -D ${cwd_branch}   # optional, drops local ref"
+      )
+    fi
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 # Output
 # ---------------------------------------------------------------------------
 if [[ "${#findings[@]}" -eq 0 ]]; then

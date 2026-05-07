@@ -225,10 +225,50 @@ fi
 echo
 
 # ---------------------------------------------------------------------------
-# 7. Hint
+# 7. Orphan marketplace clones (siblings of shared repo, NOT worktrees)
+#
+# Found 2026-05-07: a /home/whisper/marketplace-posthog/ directory
+# (4.7 GB, separate clone of the same origin) had been forgotten for
+# 3 weeks. These are full clones — own .git, own node_modules, own
+# .next — that drift away from the shared repo and confuse cleanups.
+#
+# Detect siblings of the shared repo whose origin URL matches but
+# which are NOT worktrees of it.
+# ---------------------------------------------------------------------------
+bold "7. Orphan marketplace clones (siblings of shared repo, NOT worktrees)"
+SHARED_ORIGIN="$(git -C "$SHARED_REPO" remote get-url origin 2>/dev/null || echo '')"
+ORPHAN_FOUND=0
+if [ -n "$SHARED_ORIGIN" ]; then
+  # Sibling dirs of the shared repo, named marketplace*. Excludes the
+  # shared repo itself; worktrees live under /home/whisper/worktrees/
+  # so they won't appear here.
+  for cand in /home/whisper/marketplace-*/; do
+    cand="${cand%/}"
+    [ -d "$cand" ] || continue
+    [ "$cand" = "$SHARED_REPO" ] && continue
+    cand_origin="$(git -C "$cand" remote get-url origin 2>/dev/null || echo '')"
+    [ -z "$cand_origin" ] && continue
+    if [ "$cand_origin" = "$SHARED_ORIGIN" ]; then
+      ORPHAN_FOUND=1
+      cand_branch="$(git -C "$cand" branch --show-current 2>/dev/null || echo 'detached')"
+      cand_mtime=$(stat -c %Y "$cand/.git" 2>/dev/null || echo 0)
+      cand_age_days=$(( ($(date +%s) - cand_mtime) / 86400 ))
+      cand_size="$(du -sh "$cand" 2>/dev/null | awk '{print $1}')"
+      warn "   ⚠ $cand  ($cand_size, branch $cand_branch, ~${cand_age_days}d old)"
+      warn "      → full clone of origin, NOT a worktree. Likely abandoned."
+      warn "      → If unused: rm -rf $cand (back up unique commits to a rescue/* ref first)."
+    fi
+  done
+fi
+[ "$ORPHAN_FOUND" -eq 0 ] && ok "   none."
+echo
+
+# ---------------------------------------------------------------------------
+# 8. Hint
 # ---------------------------------------------------------------------------
 dim "For deep cleanup signals (gone branches, merged worktrees, etc.) run:"
 dim "  scripts/git-hygiene.sh"
+dim "  scripts/git-hygiene.sh --clean   # interactive bulk-remove of merged worktrees"
 dim ""
 dim "Backlog hygiene (when issues feel stale or PRs are stuck BEHIND):"
 dim "  scripts/audit-prs-behind.sh             # PRs needing rebase"
